@@ -49,7 +49,7 @@ static void node_msg_test_on_debug(const char *file_path, size_t line, const atb
 }
 
 static int node_msg_test_on_error(const atbus::node &n, const atbus::endpoint *ep, const atbus::connection *conn, int status, int errcode) {
-    if (0 == errcode || UV_EOF == errcode) {
+    if (0 == errcode || UV_EOF == errcode || UV_ECONNRESET == errcode) {
         return 0;
     }
 

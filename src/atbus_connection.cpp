@@ -820,6 +820,10 @@ namespace atbus {
             return false;
         }
 
+        if (NULL != conn.binding_ && 0 != conn.binding_->get_id()) {
+            m->mutable_head()->set_src_bus_id(conn.binding_->get_id());
+        }
+
         return true;
     }
 } // namespace atbus

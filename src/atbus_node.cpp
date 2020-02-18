@@ -1803,8 +1803,8 @@ namespace atbus {
             }
 
             // self command msg
-            if (::atbus::protocol::msg::kDataTransformReq == mb.msg_body_case() ||
-                ::atbus::protocol::msg::kDataTransformRsp == mb.msg_body_case()) {
+            if (::atbus::protocol::msg::kCustomCommandReq == mb.msg_body_case() ||
+                ::atbus::protocol::msg::kCustomCommandRsp == mb.msg_body_case()) {
                 self_cmd_msgs_.push_back(bin_data_block_t());
                 bin_data_block_t &bin_data = self_cmd_msgs_.back();
 

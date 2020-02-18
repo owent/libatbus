@@ -82,7 +82,7 @@ struct node_reg_test_recv_msg_record_t {
 static node_reg_test_recv_msg_record_t recv_msg_history;
 
 static int node_reg_test_on_error(const atbus::node &n, const atbus::endpoint *ep, const atbus::connection *conn, int status, int errcode) {
-    if ((0 == status && 0 == errcode) || UV_EOF == errcode) {
+    if ((0 == status && 0 == errcode) || UV_EOF == errcode || UV_ECONNRESET == errcode) {
         return 0;
     }
 

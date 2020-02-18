@@ -170,17 +170,22 @@ namespace atbus {
         }
         assert(fwd_data);
 
-        // all transfer message must be send by a verified connect, there is no need to check access token again
-        m.mutable_head()->set_ret(ret_code);
-
         uint64_t self_id = n.get_id();
         uint64_t origin_from = fwd_data->from();
         uint64_t origin_to = fwd_data->to();
+
+        // all transfer message must be send by a verified connect, there is no need to check access token again
+        m.mutable_head()->set_ret(ret_code);
+        m.mutable_head()->set_src_bus_id(self_id);
+
         fwd_data->set_from(origin_to);
         fwd_data->set_to(origin_from);
-        fwd_data->add_router(self_id);
 
-        int ret = n.send_ctrl_msg(fwd_data->from(), m);
+        if (0 == fwd_data->router_size() || *fwd_data->router().rbegin() != self_id) {
+            fwd_data->add_router(self_id);
+        }
+
+        int ret = n.send_ctrl_msg(origin_from, m);
         if (ret < 0) {
             ATBUS_FUNC_NODE_ERROR(n, NULL, NULL, ret, 0);
         }
@@ -387,6 +392,8 @@ namespace atbus {
         // 转发数据
         node::bus_id_t direct_from_bus_id = m.head().src_bus_id();
 
+        // reset src_bus_id
+        m.mutable_head()->set_src_bus_id(n.get_id());
         // add router id
         fwd_data->add_router(n.get_id());
         res = n.send_data_msg(fwd_data->to(), m, &to_ep, NULL);
@@ -450,7 +457,7 @@ namespace atbus {
             return EN_ATBUS_ERR_BAD_DATA;
         }
 
-        if (NULL == conn && ::atbus::connection::state_t::CONNECTED != conn->get_status()) {
+        if (NULL != conn && ::atbus::connection::state_t::CONNECTED != conn->get_status()) {
             ATBUS_FUNC_NODE_ERROR(n, NULL == conn ? NULL : conn->get_binding(), conn, EN_ATBUS_ERR_NOT_READY, 0);
             return EN_ATBUS_ERR_NOT_READY;
         }
