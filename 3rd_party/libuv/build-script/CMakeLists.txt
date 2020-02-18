@@ -63,7 +63,7 @@ else() # Assume some Linux variant
 endif()
 
 target_link_libraries(libuv PRIVATE Threads::Threads)
-target_include_directories(libuv PUBLIC $<INSTALL_INTERFACE:include> $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
+target_include_directories(libuv PUBLIC $<INSTALL_INTERFACE:include> $<BUILD_INTERFACE:${3RD_PARTY_LIBUV_REPO_DIR}/include> $<BUILD_INTERFACE:${3RD_PARTY_LIBUV_REPO_DIR}/src>)
 set_target_properties(libuv PROPERTIES DEFINE_SYMBOL BUILDING_UV_SHARED)
 
 if(NOT UV_SKIP_HEADERS)

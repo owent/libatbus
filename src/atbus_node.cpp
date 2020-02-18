@@ -83,8 +83,8 @@ namespace atbus {
         conf->children_mask = 0;
         conf->loop_times    = 128;
         conf->ttl           = 16; // 默认最长8次跳转
-        conf->protocol_version = atbus::protocol::ATBUS_PROTOCOL_CONST_ATBUS_PROTOCOL_VERSION;
-        conf->protocol_minimal_version = atbus::protocol::ATBUS_PROTOCOL_COMPACT_ATBUS_PROTOCOL_MINIMAL_VERSION;
+        conf->protocol_version = atbus::protocol::ATBUS_PROTOCOL_VERSION;
+        conf->protocol_minimal_version = atbus::protocol::ATBUS_PROTOCOL_MINIMAL_VERSION;
 
         conf->first_idle_timeout = ATBUS_MACRO_CONNECTION_CONFIRM_TIMEOUT;
         conf->ping_interval      = 8; // 默认ping包间隔为8s
@@ -133,8 +133,8 @@ namespace atbus {
             conf_.access_tokens.resize(conf_.access_token_max_number);
         }
         // follow protocol, not input configure
-        conf_.protocol_version = atbus::protocol::ATBUS_PROTOCOL_CONST_ATBUS_PROTOCOL_VERSION;
-        conf_.protocol_minimal_version = atbus::protocol::ATBUS_PROTOCOL_COMPACT_ATBUS_PROTOCOL_MINIMAL_VERSION;
+        conf_.protocol_version = atbus::protocol::ATBUS_PROTOCOL_VERSION;
+        conf_.protocol_minimal_version = atbus::protocol::ATBUS_PROTOCOL_MINIMAL_VERSION;
 
         ev_loop_ = conf_.ev_loop;
         self_    = endpoint::create(this, id, conf_.children_mask, get_pid(), get_hostname());
@@ -230,7 +230,7 @@ namespace atbus {
         // 因为正在进行的连接会增加connection的引用计数
         for (evt_timer_t::timer_desc_ls<connection::ptr_t>::type::iterator iter = event_timer_.connecting_list.begin();
              iter != event_timer_.connecting_list.end(); ++iter) {
-            iter->second->disconnect();
+            iter->second->reset();
         }
 
         event_timer_.connecting_list.clear();
@@ -589,36 +589,42 @@ namespace atbus {
             return EN_ATBUS_ERR_BUFF_LIMIT;
         }
 
-        ::flatbuffers::FlatBufferBuilder fbb(s + ATBUS_MACRO_RESERVED_SIZE);
+        ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
+        arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
+        ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena arena(arena_options);
+        ::atbus::msg_t * m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
+        if (NULL == m) {
+            ATBUS_FUNC_NODE_ERROR(*this, NULL, NULL, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC);
+            return EN_ATBUS_ERR_MALLOC;
+        }
+
+        atbus::protocol::msg_head* head = m->mutable_head();
+        atbus::protocol::forward_data* body = m->mutable_data_transform_req();
+        if (NULL == head || NULL == body) {
+            ATBUS_FUNC_NODE_ERROR(*this, NULL, NULL, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC);
+            return EN_ATBUS_ERR_MALLOC;
+        }
 
         uint64_t self_id = get_id();
         uint32_t flags   = 0;
         if (require_rsp) {
-            flags |= atbus::protocol::ATBUS_FORWARD_DATA_FLAG_TYPE_REQUIRE_RSP;
+            flags |= atbus::protocol::FORWARD_DATA_FLAG_REQUIRE_RSP;
         }
 
         // all transfer message must be send by a verified connect, there is no need to check access token again
-        // std::vector<flatbuffers::Offset< ::atbus::protocol::access_data> > access_keys;
-        // access_keys.reserve(get_conf().access_tokens.size());
-        // for (size_t idx = 0; idx < get_conf().access_tokens.size(); ++idx) {
-        //     uint32_t salt     = 0;
-        //     uint64_t hashval1 = 0;
-        //     uint64_t hashval2 = 0;
-        //     if (generate_access_hash(idx, salt, hashval1, hashval2)) {
-        //         access_keys.push_back(::atbus::protocol::Createaccess_data(fbb, salt, hashval1, hashval2));
-        //     }
-        // }
 
-        fbb.Finish(::atbus::protocol::Createmsg(fbb,
-                                     ::atbus::protocol::Createmsg_head(fbb, get_protocol_version(),
-                                                                       type, 0, alloc_msg_seq(), self_id),
-                                     ::atbus::protocol::msg_body_data_transform_req,
-                                     ::atbus::protocol::Createforward_data(fbb, self_id, tid, fbb.CreateVector(&self_id, 1),
-                                                                           fbb.CreateVector(reinterpret_cast<const uint8_t *>(buffer), s),
-                                                                           flags)
-                                         .Union()));
+        head->set_version(get_protocol_version());
+        head->set_type(type);
+        head->set_src_bus_id(self_id);
+        head->set_sequence(alloc_msg_seq());
 
-        return send_data_msg(tid, fbb);
+        body->set_from(self_id);
+        body->set_to(tid);
+        body->add_router(self_id);
+        body->mutable_content()->assign(reinterpret_cast<const char*>(buffer), s);
+        body->set_flags(flags);
+
+        return send_data_msg(tid, *m);
     }
 
     int node::send_custom_cmd(bus_id_t tid, const void *arr_buf[], size_t arr_size[], size_t arr_count, uint64_t *seq) {
@@ -628,37 +634,68 @@ namespace atbus {
 
         size_t sum_len = sizeof(atbus::protocol::custom_command_data);
         for (size_t i = 0; i < arr_count; ++i) {
-            sum_len += arr_size[i];
+            sum_len += arr_size[i] + 2; // tag + length for 2 bytes minamal
         }
 
         if (sum_len >= conf_.msg_size) {
             return EN_ATBUS_ERR_BUFF_LIMIT;
         }
 
-        ::flatbuffers::FlatBufferBuilder fbb(sum_len + ATBUS_MACRO_RESERVED_SIZE + arr_count * 16);
+        ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
+        arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
+        ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena arena(arena_options);
+        ::atbus::msg_t * m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
+        if (NULL == m) {
+            ATBUS_FUNC_NODE_ERROR(*this, NULL, NULL, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC);
+            return EN_ATBUS_ERR_MALLOC;
+        }
+
+        atbus::protocol::msg_head* head = m->mutable_head();
+        atbus::protocol::custom_command_data* body = m->mutable_custom_command_req();
+        if (NULL == head || NULL == body) {
+            ATBUS_FUNC_NODE_ERROR(*this, NULL, NULL, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC);
+            return EN_ATBUS_ERR_MALLOC;
+        }
 
         uint64_t self_id = get_id();
         uint64_t msg_seq = alloc_msg_seq();
 
-        std::vector<flatbuffers::Offset< ::atbus::protocol::custom_command_argv> > argv;
-        argv.reserve(arr_count);
-        for (size_t i = 0; i < arr_count; ++i) {
-            argv.push_back(::atbus::protocol::Createcustom_command_argv(
-                fbb, fbb.CreateVector(reinterpret_cast<const uint8_t *>(arr_buf[i]), arr_size[i])));
+        head->set_version(get_protocol_version());
+        head->set_src_bus_id(self_id);
+        head->set_sequence(msg_seq);
+
+        body->set_from(self_id);
+        body->mutable_access_keys()->Reserve(static_cast<int>(get_conf().access_tokens.size()));
+        for (size_t idx = 0; idx < get_conf().access_tokens.size(); ++idx) {
+            uint32_t salt     = 0;
+            uint64_t hashval1 = 0;
+            uint64_t hashval2 = 0;
+            if (generate_access_hash(idx, salt, hashval1, hashval2)) {
+                ::atbus::protocol::access_data* access = body->add_access_keys();
+                if (access == NULL) {
+                    continue;
+                }
+                access->set_token_salt(salt);
+                access->set_token_hash1(hashval1);
+                access->set_token_hash2(hashval2);
+            }
         }
 
-        fbb.Finish(::atbus::protocol::Createmsg(
-            fbb,
-            ::atbus::protocol::Createmsg_head(fbb, get_protocol_version(), 0, 0, msg_seq, self_id),
-            ::atbus::protocol::msg_body_custom_command_req,
-            ::atbus::protocol::Createcustom_command_data(fbb, self_id, fbb.CreateVector(&argv[0], argv.size())).Union()));
+        body->mutable_commands()->Reserve(arr_count);
+        for (size_t i = 0; i < arr_count; ++i) {
+            ::atbus::protocol::custom_command_argv*  arg = body->add_commands();
+            if (NULL == arg) {
+                continue;
+            }
+
+            arg->mutable_arg()->assign(reinterpret_cast<const char*>(arr_buf[i]), arr_size[i]);
+        }
 
         if (NULL != seq) {
             *seq = msg_seq;
         }
 
-        int ret = send_data_msg(tid, fbb);
-        return ret;
+        return send_data_msg(tid, *m);
     }
 
     int node::get_remote_channel(bus_id_t tid, endpoint::get_connection_fn_t fn, endpoint **ep_out, connection **conn_out) {
@@ -1251,7 +1288,7 @@ namespace atbus {
         // 如果ID有效，且是IO流连接，则发送注册协议
         // ID为0则是临时节点，不需要注册
         if (get_id() && conn->check_flag(connection::flag_t::REG_FD) && false == conn->check_flag(connection::flag_t::LISTEN_FD)) {
-            int ret = msg_handler::send_reg(::atbus::protocol::msg_body_node_register_req, *this, *conn, 0, alloc_msg_seq());
+            int ret = msg_handler::send_reg(::atbus::protocol::msg::kNodeRegisterReq, *this, *conn, 0, alloc_msg_seq());
             if (ret < 0) {
                 ATBUS_FUNC_NODE_ERROR(*this, NULL, conn, ret, 0);
                 conn->reset();
@@ -1362,31 +1399,39 @@ namespace atbus {
             bin_data_block_t &bin_data = self_data_msgs_.front();
 
             do {
-                ::flatbuffers::Verifier msg_verify(reinterpret_cast<const uint8_t *>(&bin_data[0]), bin_data.size());
-                // verify
-                if (false == ::atbus::protocol::VerifymsgBuffer(msg_verify)) {
-                    ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), NULL, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_UNPACK);
+                ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
+                arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
+                ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena arena(arena_options);
+                ::atbus::msg_t * m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
+                if (NULL == m) {
+                    ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), NULL, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC);
                     break;
                 }
 
                 // unpack
-                ::atbus::protocol::msg *m = ::atbus::protocol::GetMutablemsg(&bin_data[0]);
-                if (NULL == m || NULL == m->head()) {
+                if (false == m->ParseFromArray(reinterpret_cast<const void*>(&bin_data[0]), static_cast<int>(bin_data.size()))) {
+                    ATBUS_FUNC_NODE_DEBUG(*this, get_self_endpoint(), NULL, m, "%s", m->InitializationErrorString().c_str());
+                    ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), NULL, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_UNPACK);
+                    return false;
+                }
+
+                // unpack
+                if (false == m->has_head() || ::atbus::protocol::msg::MSG_BODY_NOT_SET == m->msg_body_case()) {
                     ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), NULL, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_UNPACK);
                     break;
                 }
 
-                if (::atbus::protocol::msg_body_data_transform_req == m->body_type()) {
-                    const ::atbus::protocol::forward_data *fwd_data = m->body_as_data_transform_req();
-                    on_recv_data(get_self_endpoint(), NULL, *m, reinterpret_cast<const void *>(fwd_data->content()->data()),
-                                 static_cast<size_t>(fwd_data->content()->size()));
+                if (::atbus::protocol::msg::kDataTransformReq == m->msg_body_case()) {
+                    const ::atbus::protocol::forward_data& fwd_data = m->data_transform_req();
+                    on_recv_data(get_self_endpoint(), NULL, *m, reinterpret_cast<const void *>(fwd_data.content().data()),
+                                 fwd_data.content().size());
                     ++ret;
 
                     // fake response
-                    if (m->body_as_data_transform_req()->flags() & atbus::protocol::ATBUS_FORWARD_DATA_FLAG_TYPE_REQUIRE_RSP) {
+                    if (m->data_transform_req().flags() & atbus::protocol::FORWARD_DATA_FLAG_REQUIRE_RSP) {
                         // be careful, all mutable action here can not set any new element.
-                        m->mutable_head()->mutate_ret(0);
-                        m->mutate_body_type(::atbus::protocol::msg_body_data_transform_rsp);
+                        m->mutable_head()->set_ret(0);
+                        m->set_allocated_data_transform_rsp(const_cast<::atbus::protocol::msg *>(m)->release_data_transform_req());
                         on_recv_forward_response(get_self_endpoint(), NULL, m);
                     }
                 }
@@ -1399,21 +1444,29 @@ namespace atbus {
         while (loop_left-- > 0 && !self_cmd_msgs_.empty()) {
             bin_data_block_t &bin_datas = self_cmd_msgs_.front();
             do {
-                ::flatbuffers::Verifier msg_verify(reinterpret_cast<const uint8_t *>(&bin_datas[0]), bin_datas.size());
-                // verify
-                if (false == ::atbus::protocol::VerifymsgBuffer(msg_verify)) {
-                    ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), NULL, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_UNPACK);
+                ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
+                arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
+                ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena arena(arena_options);
+                ::atbus::msg_t * m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
+                if (NULL == m) {
+                    ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), NULL, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC);
                     break;
                 }
 
                 // unpack
-                const ::atbus::protocol::msg *m = ::atbus::protocol::Getmsg(&bin_datas[0]);
-                if (NULL == m || NULL == m->head()) {
+                if (false == m->ParseFromArray(reinterpret_cast<const void*>(&bin_datas[0]), static_cast<int>(bin_datas.size()))) {
+                    ATBUS_FUNC_NODE_DEBUG(*this, get_self_endpoint(), NULL, m, "%s", m->InitializationErrorString().c_str());
+                    ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), NULL, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_UNPACK);
+                    return false;
+                }
+
+                // unpack
+                if (false == m->has_head() || ::atbus::protocol::msg::MSG_BODY_NOT_SET == m->msg_body_case()) {
                     ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), NULL, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_UNPACK);
                     break;
                 }
 
-                on_recv(NULL, m, 0, 0);
+                on_recv(NULL, ATBUS_MACRO_MOVE(*m), 0, 0);
                 ++ret;
 
             } while (false);
@@ -1718,54 +1771,47 @@ namespace atbus {
         }
 
         if (tid == get_id()) {
-            ::flatbuffers::Verifier msg_verify(mb.GetBufferPointer(), mb.GetSize());
             // verify
-            if (false == ::atbus::protocol::VerifymsgBuffer(msg_verify)) {
+            if (false == mb.has_head() || ::atbus::protocol::msg::MSG_BODY_NOT_SET == mb.msg_body_case()) {
                 ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), NULL, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_UNPACK);
                 return EN_ATBUS_ERR_UNPACK;
             }
-
-            // unpack
-            const ::atbus::protocol::msg *m = ::atbus::protocol::Getmsg(reinterpret_cast<const void *>(mb.GetBufferPointer()));
-            if (NULL == m || NULL == m->head()) {
-                ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), NULL, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_UNPACK);
-                return EN_ATBUS_ERR_UNPACK;
-            }
-
-            if (!(::atbus::protocol::msg_body_data_transform_req == m->body_type() ||
-                  ::atbus::protocol::msg_body_data_transform_rsp == m->body_type() ||
-                  ::atbus::protocol::msg_body_custom_command_req == m->body_type() ||
-                  ::atbus::protocol::msg_body_custom_command_rsp == m->body_type())) {
+            if (!(::atbus::protocol::msg::kDataTransformReq == mb.msg_body_case() ||
+                  ::atbus::protocol::msg::kDataTransformRsp == mb.msg_body_case() ||
+                  ::atbus::protocol::msg::kCustomCommandReq == mb.msg_body_case() ||
+                  ::atbus::protocol::msg::kCustomCommandRsp == mb.msg_body_case())) {
                 ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), NULL, EN_ATBUS_ERR_ATNODE_INVALID_MSG, 0);
                 return EN_ATBUS_ERR_ATNODE_INVALID_MSG;
             }
 
-            assert(::atbus::protocol::msg_body_data_transform_req == m->body_type() ||
-                   ::atbus::protocol::msg_body_data_transform_rsp == m->body_type() ||
-                   ::atbus::protocol::msg_body_custom_command_req == m->body_type() ||
-                   ::atbus::protocol::msg_body_custom_command_rsp == m->body_type());
+            assert(::atbus::protocol::msg::kDataTransformReq == mb.msg_body_case() ||
+                   ::atbus::protocol::msg::kDataTransformRsp == mb.msg_body_case() ||
+                   ::atbus::protocol::msg::kCustomCommandReq == mb.msg_body_case() ||
+                   ::atbus::protocol::msg::kCustomCommandRsp == mb.msg_body_case());
 
             typedef std::vector<unsigned char> bin_data_block_t;
             // self data msg
-            if (::atbus::protocol::msg_body_data_transform_req == m->body_type() ||
-                ::atbus::protocol::msg_body_data_transform_rsp == m->body_type()) {
+            if (::atbus::protocol::msg::kDataTransformReq == mb.msg_body_case() ||
+                ::atbus::protocol::msg::kDataTransformRsp == mb.msg_body_case()) {
                 self_data_msgs_.push_back(bin_data_block_t());
                 bin_data_block_t &bin_data = self_data_msgs_.back();
 
-                // just copy message
-                bin_data.resize(static_cast<size_t>(mb.GetSize()));
-                memcpy(&bin_data[0], mb.GetBufferPointer(), mb.GetSize());
+                // serialize message
+                size_t msg_size = mb.ByteSizeLong();
+                bin_data.resize(msg_size);
+                mb.SerializeToArray(reinterpret_cast<void*>(&bin_data[0]), msg_size);
             }
 
             // self command msg
-            if (::atbus::protocol::msg_body_custom_command_req == m->body_type() ||
-                ::atbus::protocol::msg_body_custom_command_rsp == m->body_type()) {
+            if (::atbus::protocol::msg::kDataTransformReq == mb.msg_body_case() ||
+                ::atbus::protocol::msg::kDataTransformRsp == mb.msg_body_case()) {
                 self_cmd_msgs_.push_back(bin_data_block_t());
                 bin_data_block_t &bin_data = self_cmd_msgs_.back();
 
-                // just copy message
-                bin_data.resize(static_cast<size_t>(mb.GetSize()));
-                memcpy(&bin_data[0], mb.GetBufferPointer(), mb.GetSize());
+                // serialize message
+                size_t msg_size = mb.ByteSizeLong();
+                bin_data.resize(msg_size);
+                mb.SerializeToArray(reinterpret_cast<void*>(&bin_data[0]), msg_size);
             }
 
             dispatch_all_self_msgs();
@@ -1786,16 +1832,7 @@ namespace atbus {
             return EN_ATBUS_ERR_ATNODE_NO_CONNECTION;
         }
 
-        ::flatbuffers::Verifier msg_verify(mb.GetBufferPointer(), mb.GetSize());
-        // verify
-        if (false == ::atbus::protocol::VerifymsgBuffer(msg_verify)) {
-            ATBUS_FUNC_NODE_ERROR(*this, ep_out ? (*ep_out) : conn->get_binding(), conn, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_UNPACK);
-            return EN_ATBUS_ERR_UNPACK;
-        }
-
-        // unpack
-        ::atbus::protocol::msg *m = ::atbus::protocol::GetMutablemsg(reinterpret_cast<void *>(mb.GetBufferPointer()));
-        if (NULL == m || NULL == m->head()) {
+        if (false == mb.has_head() || ::atbus::protocol::msg::MSG_BODY_NOT_SET == mb.msg_body_case()) {
             ATBUS_FUNC_NODE_ERROR(*this, ep_out ? (*ep_out) : conn->get_binding(), conn, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_UNPACK);
             return EN_ATBUS_ERR_UNPACK;
         }

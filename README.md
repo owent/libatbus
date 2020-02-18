@@ -21,7 +21,7 @@ libatbus
 > + VC: 10 及以上 （建议VC 12及以上）
 
 + [cmake](https://cmake.org/download/) 3.7.0 以上
-+ [flatbuffers](https://github.com/google/flatbuffers)
++ [protobuf](https://github.com/protocolbuffers/protobuf)
 + [libuv](http://libuv.org/)（用于网络通道）
 + [atframe_utils](https://github.com/atframework/atframe_utils)（基础公共代码）
 

@@ -30,6 +30,8 @@
 #include "detail/libatbus_config.h"
 #include "detail/libatbus_error.h"
 
+#include "libatbus_protocol.h"
+
 namespace atbus {
     namespace protocol {
         class msg;
@@ -115,7 +117,7 @@ namespace atbus {
 
         /**
          * @brief 断开连接
-         * @param id 目标ID
+         * @note 此接口不会主动把自己从endpoint或者node中移除。如果要断开连接且移除connection，请使用 reset() 接口
          * @return 0或错误码
          */
         int disconnect();
@@ -206,7 +208,7 @@ namespace atbus {
 
         static int ios_push_fn(connection &conn, const void *buffer, size_t s);
 
-        static bool unpack(connection &conn, const ::atbus::protocol::msg *&m, std::vector<unsigned char> &in);
+        static bool unpack(connection &conn, ::atbus::protocol::msg *&m, ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena& arena, std::vector<unsigned char> &in);
 
     private:
         state_t::type state_;

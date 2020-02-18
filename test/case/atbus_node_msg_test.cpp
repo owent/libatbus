@@ -86,18 +86,18 @@ static int node_msg_test_recv_msg_test_record_fn(const atbus::node &n, const atb
     recv_msg_history.n      = &n;
     recv_msg_history.ep     = ep;
     recv_msg_history.conn   = conn;
-    recv_msg_history.status = m.head()->ret();
+    recv_msg_history.status = m.head().ret();
     ++recv_msg_history.count;
 
     const ::atbus::protocol::forward_data *fwd_data = NULL;
-    if (m.body_type() == ::atbus::protocol::msg_body_data_transform_req) {
-        fwd_data = m.body_as_data_transform_req();
-    } else if (m.body_type() == ::atbus::protocol::msg_body_data_transform_rsp) {
-        fwd_data = m.body_as_data_transform_rsp();
+    if (m.msg_body_case() == ::atbus::protocol::msg::kDataTransformReq) {
+        fwd_data = &m.data_transform_req();
+    } else if (m.msg_body_case() == ::atbus::protocol::msg::kDataTransformRsp) {
+        fwd_data = &m.data_transform_rsp();
     }
 
     if (NULL != fwd_data) {
-        recv_msg_history.last_msg_router.assign(fwd_data->router()->begin(), fwd_data->router()->end());
+        recv_msg_history.last_msg_router.assign(fwd_data->router().begin(), fwd_data->router().end());
     } else {
         recv_msg_history.last_msg_router.clear();
     }
@@ -120,31 +120,31 @@ static int node_msg_test_recv_msg_test_record_fn(const atbus::node &n, const atb
     return 0;
 }
 
-static int node_msg_test_send_data_failed_fn(const atbus::node &n, const atbus::endpoint *ep, const atbus::connection *conn,
+static int node_msg_test_send_data_forward_response_fn(const atbus::node &n, const atbus::endpoint *ep, const atbus::connection *conn,
                                              const atbus::protocol::msg *m) {
     recv_msg_history.n      = &n;
     recv_msg_history.ep     = ep;
     recv_msg_history.conn   = conn;
-    recv_msg_history.status = NULL == m ? 0 : m->head()->ret();
+    recv_msg_history.status = NULL == m ? 0 : m->head().ret();
     ++recv_msg_history.failed_count;
 
     const ::atbus::protocol::forward_data *fwd_data = NULL;
     if (NULL != m) {
-        if (m->body_type() == ::atbus::protocol::msg_body_data_transform_req) {
-            fwd_data = m->body_as_data_transform_req();
-        } else if (m->body_type() == ::atbus::protocol::msg_body_data_transform_rsp) {
-            fwd_data = m->body_as_data_transform_rsp();
+        if (m->msg_body_case() == ::atbus::protocol::msg::kDataTransformReq) {
+            fwd_data = &m->data_transform_req();
+        } else if (m->msg_body_case() == ::atbus::protocol::msg::kDataTransformRsp) {
+            fwd_data = &m->data_transform_rsp();
         }
     }
 
     if (NULL != fwd_data) {
-        recv_msg_history.last_msg_router.assign(fwd_data->router()->begin(), fwd_data->router()->end());
+        recv_msg_history.last_msg_router.assign(fwd_data->router().begin(), fwd_data->router().end());
     } else {
         recv_msg_history.last_msg_router.clear();
     }
 
-    if (NULL != m && NULL != fwd_data && NULL != fwd_data->content() && fwd_data->content()->size() > 0) {
-        recv_msg_history.data.assign(reinterpret_cast<const char *>(fwd_data->content()->data()), fwd_data->content()->size());
+    if (NULL != m && NULL != fwd_data && fwd_data->content().size() > 0) {
+        recv_msg_history.data.assign(fwd_data->content().data(), fwd_data->content().size());
     } else {
         recv_msg_history.data.clear();
     }
@@ -415,7 +415,7 @@ CASE_TEST(atbus_node_msg, reset_and_send) {
     unit_test_setup_exit(&ev_loop);
 }
 
-static int node_msg_test_recv_and_send_msg_on_failed_fn(const atbus::node &, const atbus::endpoint *, const atbus::connection *,
+static int node_msg_test_recv_and_send_msg_on_forward_response_fn(const atbus::node &, const atbus::endpoint *, const atbus::connection *,
                                                         const atbus::protocol::msg *) {
     ++recv_msg_history.count;
     return 0;
@@ -426,7 +426,7 @@ static int node_msg_test_recv_and_send_msg_fn(const atbus::node &n, const atbus:
     recv_msg_history.n      = &n;
     recv_msg_history.ep     = ep;
     recv_msg_history.conn   = conn;
-    recv_msg_history.status = m.head()->ret();
+    recv_msg_history.status = m.head().ret();
     ++recv_msg_history.count;
 
     std::streamsize w = std::cout.width();
@@ -450,7 +450,7 @@ static int node_msg_test_recv_and_send_msg_fn(const atbus::node &n, const atbus:
 
     atbus::node *np = const_cast<atbus::node *>(&n);
     np->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
-    np->set_on_send_data_failed_handle(node_msg_test_recv_and_send_msg_on_failed_fn);
+    np->set_on_forward_response_handle(node_msg_test_recv_and_send_msg_on_forward_response_fn);
 
     np->send_data(n.get_id(), 0, sended_data.c_str(), sended_data.size(), true);
     return 0;
@@ -808,8 +808,8 @@ CASE_TEST(atbus_node_msg, transfer_failed) {
 
         time_t proc_t = time(NULL) + 1;
         node_child_1->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
-        node_child_1->set_on_send_data_failed_handle(node_msg_test_send_data_failed_fn);
-        CASE_EXPECT_TRUE(!!node_child_1->get_on_send_data_failed_handle());
+        node_child_1->set_on_forward_response_handle(node_msg_test_send_data_forward_response_fn);
+        CASE_EXPECT_TRUE(!!node_child_1->get_on_forward_response_handle());
 
         // wait for register finished
         UNITTEST_WAIT_UNTIL(conf.ev_loop,
@@ -887,7 +887,7 @@ CASE_TEST(atbus_node_msg, transfer_failed_cross_parents) {
 
         time_t proc_t = time(NULL) + 1;
         node_child_1->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
-        node_child_1->set_on_send_data_failed_handle(node_msg_test_send_data_failed_fn);
+        node_child_1->set_on_forward_response_handle(node_msg_test_send_data_forward_response_fn);
         node_child_1->set_on_remove_endpoint_handle(node_msg_test_remove_endpoint_fn);
 
         node_parent_1->connect("ipv4://127.0.0.1:16388");

@@ -19,6 +19,7 @@
 
 #include "frame/test_macros.h"
 
+#if 0 // Unit Test for flatbuffers implements
 CASE_TEST(atbus_node_rela, basic_test) {
     std::vector<unsigned char> packed_buffer;
     char test_buffer[] = "hello world!";
@@ -65,6 +66,7 @@ CASE_TEST(atbus_node_rela, basic_test) {
             0, UTIL_STRFUNC_STRNCMP(test_buffer, reinterpret_cast<const char *>(m->body_as_data_transform_req()->content()->data()), sizeof(test_buffer)));
     }
 }
+#endif
 
 CASE_TEST(atbus_node_rela, child_endpoint_opr) {
     atbus::node::conf_t conf;

@@ -11,7 +11,7 @@
 > + VC: 10 及以上 （建议VC 12及以上）
 
 + [cmake](https://cmake.org/download/) 3.13.0 以上
-+ [flatbuffers](https://github.com/google/flatbuffers)
++ [protobuf](https://github.com/protocolbuffers/protobuf)
 
 > 用于协议打解包,仅使用头文件
 

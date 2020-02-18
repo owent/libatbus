@@ -36,10 +36,6 @@
 
 #include "atbus_endpoint.h"
 
-namespace flatbuffers {
-    class FlatBufferBuilder;
-}
-
 namespace atbus {
 
     class node UTIL_CONFIG_FINAL : public util::design_pattern::noncopyable {
@@ -474,6 +470,9 @@ namespace atbus {
 
         void set_on_recv_handle(evt_msg_t::on_recv_msg_fn_t fn);
         const evt_msg_t::on_recv_msg_fn_t &get_on_recv_handle() const;
+
+        inline void set_on_receive_handle(evt_msg_t::on_recv_msg_fn_t fn) { set_on_recv_handle(fn); }
+        inline const evt_msg_t::on_recv_msg_fn_t &get_on_receive_handle() const { return get_on_recv_handle(); }
 
         void set_on_forward_response_handle(evt_msg_t::on_forward_response_fn_t fn);
         const evt_msg_t::on_forward_response_fn_t &get_on_forward_response_handle() const;

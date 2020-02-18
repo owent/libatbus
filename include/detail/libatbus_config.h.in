@@ -72,5 +72,4 @@
 #define ATBUS_MACRO_MOVE(x) (x)
 #endif
 
-
 #endif

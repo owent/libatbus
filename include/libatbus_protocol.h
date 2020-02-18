@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include <google/protobuf/arena.h>
 #include "detail/libatbus_protocol.pb.h"
 
 namespace atbus {
@@ -19,5 +20,11 @@ namespace atbus {
 } // namespace atbus
 
 #define ATBUS_MACRO_RESERVED_SIZE 1024
+
+
+#ifndef ATBUS_MACRO_PROTOBUF_NAMESPACE_ID
+#define ATBUS_MACRO_PROTOBUF_NAMESPACE_ID google::protobuf
+#endif
+
 
 #endif /* LIBATBUS_PROTOCOL_H */

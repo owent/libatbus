@@ -104,7 +104,7 @@ static int node_reg_test_recv_msg_test_record_fn(const atbus::node &n, const atb
     recv_msg_history.n      = &n;
     recv_msg_history.ep     = ep;
     recv_msg_history.conn   = conn;
-    recv_msg_history.status = m.head()->ret();
+    recv_msg_history.status = m.head().ret();
     ++recv_msg_history.count;
 
     if (NULL != buffer && len > 0) {
@@ -422,11 +422,11 @@ CASE_TEST(atbus_node_reg, reg_failed_with_unsupported) {
         node1->init(0x12345678, &conf1);
         node2->init(0x12356789, &conf2);
 
-        CASE_EXPECT_EQ(atbus::protocol::ATBUS_PROTOCOL_COMPACT_ATBUS_PROTOCOL_MINIMAL_VERSION, node1->get_protocol_minimal_version());
-        CASE_EXPECT_EQ(atbus::protocol::ATBUS_PROTOCOL_CONST_ATBUS_PROTOCOL_VERSION, node1->get_protocol_version());
+        CASE_EXPECT_EQ(atbus::protocol::ATBUS_PROTOCOL_MINIMAL_VERSION, node1->get_protocol_minimal_version());
+        CASE_EXPECT_EQ(atbus::protocol::ATBUS_PROTOCOL_VERSION, node1->get_protocol_version());
 
         // reset protocol version to unsupported
-        const_cast<atbus::node::conf_t&>(node1->get_conf()).protocol_version = atbus::protocol::ATBUS_PROTOCOL_COMPACT_ATBUS_PROTOCOL_MINIMAL_VERSION - 1;
+        const_cast<atbus::node::conf_t&>(node1->get_conf()).protocol_version = atbus::protocol::ATBUS_PROTOCOL_MINIMAL_VERSION - 1;
 
         CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->listen("ipv4://127.0.0.1:10387"));
         CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->listen("ipv4://127.0.0.1:10388"));

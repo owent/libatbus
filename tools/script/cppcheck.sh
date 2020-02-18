@@ -9,7 +9,7 @@ WORK_DIR="$PWD";
 
 cd "$PROJECT_DIR";
 
-cppcheck . --enable=all --xml --xml-version=2 --inconclusive --std=c11 --std=c++11 --std=posix -I "$PROJECT_DIR/3rd_party/atframe_utils/repo/include" -I "$PROJECT_DIR/3rd_party/flatbuffers/prebuilt/"*"/include" $@ 2>"$WORK_DIR/cppcheck.xml";
+cppcheck . --enable=all --xml --xml-version=2 --inconclusive --std=c11 --std=c++11 --std=posix -I "$PROJECT_DIR/3rd_party/atframe_utils/repo/include" -I "$PROJECT_DIR/3rd_party/protobuf/prebuilt/"*"/include" $@ 2>"$WORK_DIR/cppcheck.xml";
 
 which cppcheck-htmlreport;
 if [ 0 -eq $? ]; then

@@ -542,7 +542,8 @@ namespace atbus {
         connection *conn = reinterpret_cast<connection *>(conn_ios->data);
 
         if (status < 0 || NULL == buffer || s <= 0) {
-            _this->on_recv(conn, NULL, status, channel->error_code);
+            ::atbus::protocol::msg m;
+            _this->on_recv(conn, ATBUS_MACRO_MOVE(m), status, channel->error_code);
             return;
         }
 
@@ -559,13 +560,19 @@ namespace atbus {
         // unpack
         std::vector<unsigned char> msg_buffer;
         msg_buffer.assign(static_cast<const unsigned char *>(buffer), static_cast<const unsigned char *>(buffer) + s);
-        const protocol::msg *m;
-        if (false == unpack(*conn, m, msg_buffer)) {
+        protocol::msg *m;
+        ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
+        arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
+        ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena arena(arena_options);
+
+        if (false == unpack(*conn, m, arena, msg_buffer)) {
             return;
         }
 
+        assert(m);
+
         if (NULL != _this) {
-            _this->on_recv(conn, m, status, channel->error_code);
+            _this->on_recv(conn, ATBUS_MACRO_MOVE(*m), status, channel->error_code);
         }
     }
 
@@ -669,7 +676,8 @@ namespace atbus {
             // 回调收到数据事件
             if (res < 0) {
                 ret = res;
-                n.on_recv(&conn, NULL, res, res);
+                ::atbus::protocol::msg m;
+                n.on_recv(&conn, ATBUS_MACRO_MOVE(m), res, res);
                 break;
             } else {
                 // statistic
@@ -680,12 +688,17 @@ namespace atbus {
                 std::vector<unsigned char> msg_buffer;
                 msg_buffer.assign(static_cast<const unsigned char *>(static_buffer->data()),
                                   static_cast<const unsigned char *>(static_buffer->data()) + recv_len);
-                const protocol::msg *m;
-                if (false == unpack(conn, m, msg_buffer)) {
+                protocol::msg *m;
+                ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
+                arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
+                ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena arena(arena_options);
+                if (false == unpack(conn, m, arena, msg_buffer)) {
                     continue;
                 }
 
-                n.on_recv(&conn, m, res, res);
+                assert(m);
+
+                n.on_recv(&conn, ATBUS_MACRO_MOVE(*m), res, res);
                 ++ret;
             }
         }
@@ -728,7 +741,8 @@ namespace atbus {
             // 回调收到数据事件
             if (res < 0) {
                 ret = res;
-                n.on_recv(&conn, NULL, res, res);
+                ::atbus::protocol::msg m;
+                n.on_recv(&conn, ATBUS_MACRO_MOVE(m), res, res);
                 break;
             } else {
                 // statistic
@@ -739,12 +753,16 @@ namespace atbus {
                 std::vector<unsigned char> msg_buffer;
                 msg_buffer.assign(static_cast<const unsigned char *>(static_buffer->data()),
                                   static_cast<const unsigned char *>(static_buffer->data()) + recv_len);
-                const protocol::msg *m;
-                if (false == unpack(conn, m, msg_buffer)) {
+                protocol::msg *m;
+                ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
+                arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
+                ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena arena(arena_options);
+                if (false == unpack(conn, m, arena, msg_buffer)) {
                     continue;
                 }
 
-                n.on_recv(&conn, m, res, res);
+                assert(m);
+                n.on_recv(&conn, ATBUS_MACRO_MOVE(*m), res, res);
                 ++ret;
             }
         }
@@ -783,23 +801,22 @@ namespace atbus {
         return ret;
     }
 
-    bool connection::unpack(connection &conn, const ::atbus::msg_t *&m, std::vector<unsigned char> &in) {
-        try {
-            ::flatbuffers::Verifier msg_verify(reinterpret_cast<const uint8_t *>(&in[0]), in.size());
-            // verify
-            if (false == ::atbus::protocol::VerifymsgBuffer(msg_verify)) {
-                ATBUS_FUNC_NODE_ERROR(*conn.owner_, conn.binding_, &conn, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_UNPACK);
-                return false;
-            }
+    bool connection::unpack(connection &conn, ::atbus::msg_t *&m, ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena& arena, std::vector<unsigned char> &in) {
+        m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
+        if (NULL == m) {
+            ATBUS_FUNC_NODE_ERROR(*conn.owner_, conn.binding_, &conn, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC);
+            return false;
+        }
 
-            // unpack
-            m = ::atbus::protocol::Getmsg(&in[0]);
-            if (NULL == m) {
-                ATBUS_FUNC_NODE_ERROR(*conn.owner_, conn.binding_, &conn, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_UNPACK);
-                return false;
-            }
-        } catch (...) {
+        // unpack
+        if (false == m->ParseFromArray(reinterpret_cast<const void*>(&in[0]), static_cast<int>(in.size()))) {
+            ATBUS_FUNC_NODE_DEBUG(*conn.owner_, conn.binding_, &conn, m, "%s", m->InitializationErrorString().c_str());
             ATBUS_FUNC_NODE_ERROR(*conn.owner_, conn.binding_, &conn, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_UNPACK);
+            return false;
+        }
+
+        if (false == m->has_head() || atbus::protocol::msg::MSG_BODY_NOT_SET == m->msg_body_case()) {
+            ATBUS_FUNC_NODE_ERROR(*conn.owner_, conn.binding_, &conn, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_BAD_DATA);
             return false;
         }
 
