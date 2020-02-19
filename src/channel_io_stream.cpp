@@ -181,13 +181,13 @@ namespace atbus {
             conf->keepalive          = 60;
             conf->is_noblock         = true;
             conf->is_nodelay         = true;
-            conf->send_buffer_static = 0;
-            conf->recv_buffer_static = 2; // 接收一般就一个正在处理的包，所以预留2个index足够了
+            conf->send_buffer_static = 0; // 默认动态缓冲区
+            conf->recv_buffer_static = 0; // 默认动态缓冲区
 
             conf->send_buffer_max_size   = 0;
             conf->send_buffer_limit_size = ATBUS_MACRO_MSG_LIMIT;
 
-            conf->recv_buffer_max_size   = ATBUS_MACRO_MSG_LIMIT * conf->recv_buffer_static;
+            conf->recv_buffer_max_size   = ATBUS_MACRO_MSG_LIMIT * 2; // 最大接收缓冲区2个最大包体够了，一般一个正在处理的和一个正在接收的
             conf->recv_buffer_limit_size = ATBUS_MACRO_MSG_LIMIT;
 
             conf->backlog = ATBUS_MACRO_CONNECTION_BACKLOG;

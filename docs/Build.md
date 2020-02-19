@@ -116,9 +116,11 @@ bash cmake-Linux-x86_64.sh --skip-license --prefix=/usr ;
 + ATBUS_MACRO_DATA_ALIGN_SIZE (默认: 16): atbus的内存内存块对齐大小，大多数某些架构要求对齐到16
 + ATBUS_MACRO_DATA_SMALL_SIZE (默认: 3072): 流通道小数据块大小（用于优化减少内存拷贝）
 + ATBUS_MACRO_HUGETLB_SIZE (默认: 4194304): 大页表分页大小（用于优化共享内存分页,此功能暂时关闭，所以并不生效）
-+ ATBUS_MACRO_MSG_LIMIT (默认: 65536): 默认消息体大小限制
++ ATBUS_MACRO_MSG_LIMIT (默认: 262144): 默认消息体大小限制
 + ATBUS_MACRO_CONNECTION_CONFIRM_TIMEOUT (默认: 30): 默认连接确认时限
 + ATBUS_MACRO_CONNECTION_BACKLOG (默认: 128): 默认握手队列的最大连接数
++ ATBUS_MACRO_SHM_MEM_CHANNEL_LENGTH (默认: 8388608): 共享内存和内存通道的默认大小
++ ATBUS_MACRO_IOS_SEND_BUFFER_LENGTH (默认: 2097152): IO流（tcp/unix sock）发送通道的默认大小
 + GTEST_ROOT: 使用GTest单元测试框架
 + BOOST_ROOT: 设置Boost库根目录
 + PROJECT_TEST_ENABLE_BOOST_UNIT_TEST: 使用Boost.Test单元测试框架(如果GTEST_ROOT和此项都不设置，则使用内置单元测试框架)

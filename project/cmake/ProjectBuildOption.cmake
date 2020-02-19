@@ -14,9 +14,11 @@ set(ATBUS_MACRO_DATA_MAX_PROTECT_SIZE 16384 CACHE STRING "max protected node siz
 set(ATBUS_MACRO_DATA_SMALL_SIZE 3072 CACHE STRING "small message buffer for io_stream channel(used to reduce memory copy when there are many small messages)")
 
 set(ATBUS_MACRO_HUGETLB_SIZE 4194304 CACHE STRING "huge page size in shared memory channel(unused now)")
-set(ATBUS_MACRO_MSG_LIMIT 65536 CACHE STRING "message size limit")
+set(ATBUS_MACRO_MSG_LIMIT 262144 CACHE STRING "message size limit")
 set(ATBUS_MACRO_CONNECTION_CONFIRM_TIMEOUT 30 CACHE STRING "connection confirm timeout")
 set(ATBUS_MACRO_CONNECTION_BACKLOG 128 CACHE STRING "tcp backlog")
+set(ATBUS_MACRO_SHM_MEM_CHANNEL_LENGTH 8388608 CACHE STRING "channel size for shm/mem channel")
+set(ATBUS_MACRO_IOS_SEND_BUFFER_LENGTH 2097152 CACHE STRING "send buffer size for iostream channel")
 
 # libuv选项
 set(LIBUV_ROOT "" CACHE STRING "libuv root directory")

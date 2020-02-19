@@ -35,6 +35,9 @@
 
 #cmakedefine ATBUS_MACRO_HUGETLB_SIZE @ATBUS_MACRO_HUGETLB_SIZE@
 
+#cmakedefine ATBUS_MACRO_SHM_MEM_CHANNEL_LENGTH @ATBUS_MACRO_SHM_MEM_CHANNEL_LENGTH@
+#cmakedefine ATBUS_MACRO_IOS_SEND_BUFFER_LENGTH @ATBUS_MACRO_IOS_SEND_BUFFER_LENGTH@
+
 #if defined(__cplusplus) &&                                                                                         \
     (__cplusplus >= 201103L || (defined(_MSC_VER) && (_MSC_VER == 1500 && defined(_HAS_TR1)) || _MSC_VER > 1500) || \
      (defined(__GNUC__) && defined(__GXX_EXPERIMENTAL_CXX0X__)))

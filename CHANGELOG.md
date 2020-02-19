@@ -24,7 +24,7 @@ CHANGELOG
 - [x] 字符串路径共享内存测试
 - [ ] 握手connection的backlog支持，定时器优化
 - [ ] unit test -- no router : EN_ATBUS_ERR_ATNODE_TTL
-- [ ] msg size -> configure: 256KB
+- [x] msg size -> configure: 256KB
 
 1.1.0
 ------------

@@ -97,12 +97,10 @@ namespace atbus {
         conf->msg_size = ATBUS_MACRO_MSG_LIMIT;
 
         // recv_buffer_size 用于内存/共享内存通道的缓冲区长度，因为本机节点一般数量少所以默认设的大一点
-        // default for 128 times of ATBUS_MACRO_MSG_LIMIT = 8MB
-        conf->recv_buffer_size = ATBUS_MACRO_MSG_LIMIT * 128;
+        conf->recv_buffer_size = ATBUS_MACRO_SHM_MEM_CHANNEL_LENGTH;
 
         // send_buffer_size 用于IO流通道的发送缓冲区长度，远程节点可能数量很多所以设的小一点
-        // default for 32 times of ATBUS_MACRO_MSG_LIMIT = 2MB
-        conf->send_buffer_size   = ATBUS_MACRO_MSG_LIMIT * 32;
+        conf->send_buffer_size   = ATBUS_MACRO_IOS_SEND_BUFFER_LENGTH;
         conf->send_buffer_number = 0; // 默认不使用静态缓冲区，所以设为0
 
         conf->flags.reset();
