@@ -40,6 +40,12 @@ namespace atbus {
     class node;
     class endpoint;
 
+    template <typename TObj>
+    struct timer_desc_ls {
+        typedef std::pair<time_t, TObj> pair_type;
+        typedef std::list<pair_type> type;
+    };
+
     class connection UTIL_CONFIG_FINAL : public util::design_pattern::noncopyable {
     public:
         typedef std::shared_ptr<connection> ptr_t;
@@ -173,6 +179,10 @@ namespace atbus {
 
         inline const stat_t &get_statistic() const { return stat_; }
 
+        void remove_owner_checker(const timer_desc_ls<ptr_t>::type::iterator& v);
+    private:
+        void set_status(state_t::type v);
+
     public:
         static void iostream_on_listen_cb(channel::io_stream_channel *channel, channel::io_stream_connection *connection, int status,
                                           void *buffer, size_t s);
@@ -217,6 +227,7 @@ namespace atbus {
 
         // 这里不用智能指针是为了该值在上层对象（node或者endpoint）析构时仍然可用
         node *owner_;
+        timer_desc_ls<ptr_t>::type::iterator owner_checker_;
         endpoint *binding_;
         std::weak_ptr<connection> watcher_;
 

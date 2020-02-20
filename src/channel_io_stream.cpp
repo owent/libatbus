@@ -185,7 +185,8 @@ namespace atbus {
             conf->recv_buffer_static = 0; // 默认动态缓冲区
 
             conf->send_buffer_max_size   = 0;
-            conf->send_buffer_limit_size = ATBUS_MACRO_MSG_LIMIT;
+            conf->send_buffer_limit_size = ATBUS_MACRO_MSG_LIMIT + 
+                ::atbus::detail::buffer_block::padding_size(sizeof(uv_write_t) + sizeof(uint32_t) + 16); // 预留header长度
 
             conf->recv_buffer_max_size   = ATBUS_MACRO_MSG_LIMIT * 2; // 最大接收缓冲区2个最大包体够了，一般一个正在处理的和一个正在接收的
             conf->recv_buffer_limit_size = ATBUS_MACRO_MSG_LIMIT;

@@ -115,6 +115,7 @@ namespace atbus {
             typedef std::function<int(const node &, int)> on_node_up_fn_t;
             // 失效连接事件回调 => 参数列表: 发起节点，来源连接，错误码，通常是 EN_ATBUS_ERR_NODE_TIMEOUT
             typedef std::function<int(const node &, const connection *, int)> on_invalid_connection_fn_t;
+            typedef std::function<int(const node &, const connection *)> on_new_connection_fn_t;
             // 接收到命令消息事件回调 => 参数列表:
             //      发起节点，来源对端，来源连接，来源节点ID，命令参数列表，返回信息列表（跨节点的共享内存和内存通道的返回消息将被忽略）
             typedef std::function<int(const node &, const endpoint *, const connection *, bus_id_t,
@@ -137,6 +138,7 @@ namespace atbus {
             on_node_down_fn_t on_node_down;
             on_node_up_fn_t on_node_up;
             on_invalid_connection_fn_t on_invalid_connection;
+            on_new_connection_fn_t on_new_connection;
             on_custom_cmd_fn_t on_custom_cmd;
             on_custom_rsp_fn_t on_custom_rsp;
             on_add_endpoint_fn_t on_endpoint_added;
@@ -414,7 +416,11 @@ namespace atbus {
         bool add_proc_connection(connection::ptr_t conn);
         bool remove_proc_connection(const std::string &conn_key);
 
-        bool add_connection_timer(connection::ptr_t conn);
+        bool add_connection_timer(connection::ptr_t conn, timer_desc_ls<connection::ptr_t>::type::iterator& out);
+
+        bool remove_connection_timer(timer_desc_ls<connection::ptr_t>::type::iterator& out);
+
+        size_t get_connection_timer_size() const;
 
         time_t get_timer_sec() const;
 
@@ -492,6 +498,9 @@ namespace atbus {
         void set_on_invalid_connection_handle(evt_msg_t::on_invalid_connection_fn_t fn);
         const evt_msg_t::on_invalid_connection_fn_t &get_on_invalid_connection_handle() const;
 
+        void set_on_new_connection_handle(evt_msg_t::on_new_connection_fn_t fn);
+        const evt_msg_t::on_new_connection_fn_t &get_on_new_connection_handle() const;
+
         void set_on_custom_cmd_handle(evt_msg_t::on_custom_cmd_fn_t fn);
         const evt_msg_t::on_custom_cmd_fn_t &get_on_custom_cmd_handle() const;
 
@@ -566,12 +575,6 @@ namespace atbus {
 
         // ============ 定时器 ============
         typedef struct {
-            template <typename TObj>
-            struct timer_desc_ls {
-                typedef std::pair<time_t, TObj> pair_type;
-                typedef std::list<pair_type> type;
-            };
-
             time_t sec;
             time_t usec;
 

@@ -15,6 +15,7 @@ set(ATBUS_MACRO_DATA_SMALL_SIZE 3072 CACHE STRING "small message buffer for io_s
 
 set(ATBUS_MACRO_HUGETLB_SIZE 4194304 CACHE STRING "huge page size in shared memory channel(unused now)")
 set(ATBUS_MACRO_MSG_LIMIT 262144 CACHE STRING "message size limit")
+set(ATBUS_MACRO_MAX_FRAME_HEADER 1024 CACHE STRING "message header size limit")
 set(ATBUS_MACRO_CONNECTION_CONFIRM_TIMEOUT 30 CACHE STRING "connection confirm timeout")
 set(ATBUS_MACRO_CONNECTION_BACKLOG 128 CACHE STRING "tcp backlog")
 set(ATBUS_MACRO_SHM_MEM_CHANNEL_LENGTH 8388608 CACHE STRING "channel size for shm/mem channel")

@@ -226,12 +226,15 @@ namespace atbus {
         // 清空正在连接或握手的列表
         // 必须显式指定断开，以保证会主动断开正在进行的连接
         // 因为正在进行的连接会增加connection的引用计数
-        for (evt_timer_t::timer_desc_ls<connection::ptr_t>::type::iterator iter = event_timer_.connecting_list.begin();
-             iter != event_timer_.connecting_list.end(); ++iter) {
+        while (!event_timer_.connecting_list.empty()) {
+            timer_desc_ls<connection::ptr_t>::type::iterator iter = event_timer_.connecting_list.begin();
             iter->second->reset();
-        }
 
-        event_timer_.connecting_list.clear();
+            // 保护性清理操作
+            if (!event_timer_.connecting_list.empty() && event_timer_.connecting_list.begin() == iter) {
+                event_timer_.connecting_list.erase(iter);
+            }
+        }
 
         // 重置自身的endpoint
         if (self_) {
@@ -299,24 +302,36 @@ namespace atbus {
 
         // connection超时下线
         while (!event_timer_.connecting_list.empty()) {
-            evt_timer_t::timer_desc_ls<connection::ptr_t>::pair_type &top = event_timer_.connecting_list.front();
-            if (top.first < sec || (top.second && top.second->is_connected())) {
-                // 已无效对象则忽略
-                if (top.second && false == top.second->is_connected()) {
-                    if (event_msg_.on_invalid_connection) {
-                        flag_guard_t fgd(this, flag_t::EN_FT_IN_CALLBACK);
-                        event_msg_.on_invalid_connection(std::cref(*this), top.second.get(), EN_ATBUS_ERR_NODE_TIMEOUT);
-                    }
+            timer_desc_ls<connection::ptr_t>::type::iterator iter = event_timer_.connecting_list.begin();
+            
+            if (!iter->second) {
+                event_timer_.connecting_list.erase(iter);
+                continue;
+            }
 
-                    if (atbus::connection::state_t::DISCONNECTED != top.second->get_status()) {
-                        top.second->reset();
-                        ATBUS_FUNC_NODE_ERROR(*this, NULL, top.second.get(), EN_ATBUS_ERR_NODE_TIMEOUT, 0);
-                    }
+            if (iter->second->is_connected()) {
+                iter->second->remove_owner_checker(iter);
+                // 保护性清理操作
+                if (!event_timer_.connecting_list.empty() && event_timer_.connecting_list.begin() == iter) {
+                    event_timer_.connecting_list.erase(iter);
                 }
+                continue;
+            }
 
-                event_timer_.connecting_list.pop_front();
-            } else {
+            if (iter->first >= sec) {
                 break;
+            }
+
+            ATBUS_FUNC_NODE_ERROR(*this, NULL, iter->second.get(), EN_ATBUS_ERR_NODE_TIMEOUT, 0);
+            iter->second->reset();
+
+            // 保护性清理操作
+            if (!event_timer_.connecting_list.empty() && event_timer_.connecting_list.begin() == iter) {
+                if (event_msg_.on_invalid_connection) {
+                    flag_guard_t fgd(this, flag_t::EN_FT_IN_CALLBACK);
+                    event_msg_.on_invalid_connection(std::cref(*this), iter->second.get(), EN_ATBUS_ERR_NODE_TIMEOUT);
+                }
+                event_timer_.connecting_list.erase(iter);
             }
         }
 
@@ -453,7 +468,7 @@ namespace atbus {
         }
 
         // if there is already connection of this addr not completed, just return success
-        for (evt_timer_t::timer_desc_ls<connection::ptr_t>::type::iterator iter = event_timer_.connecting_list.begin();
+        for (timer_desc_ls<connection::ptr_t>::type::iterator iter = event_timer_.connecting_list.begin();
              iter != event_timer_.connecting_list.end(); ++iter) {
             if (!iter->second || iter->second->is_connected()) {
                 continue;
@@ -497,7 +512,7 @@ namespace atbus {
         }
 
         // if there is already connection of this addr not completed, just return success
-        for (evt_timer_t::timer_desc_ls<connection::ptr_t>::type::iterator iter = event_timer_.connecting_list.begin();
+        for (timer_desc_ls<connection::ptr_t>::type::iterator iter = event_timer_.connecting_list.begin();
              iter != event_timer_.connecting_list.end(); ++iter) {
             if (!iter->second || iter->second->is_connected()) {
                 continue;
@@ -583,8 +598,8 @@ namespace atbus {
             return EN_ATBUS_ERR_NOT_INITED;
         }
 
-        if (s >= conf_.msg_size) {
-            return EN_ATBUS_ERR_BUFF_LIMIT;
+        if (s > conf_.msg_size) {
+            return EN_ATBUS_ERR_INVALID_SIZE;
         }
 
         ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
@@ -635,8 +650,8 @@ namespace atbus {
             sum_len += arr_size[i] + 2; // tag + length for 2 bytes minamal
         }
 
-        if (sum_len >= conf_.msg_size) {
-            return EN_ATBUS_ERR_BUFF_LIMIT;
+        if (sum_len > conf_.msg_size) {
+            return EN_ATBUS_ERR_INVALID_SIZE;
         }
 
         ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
@@ -1161,7 +1176,8 @@ namespace atbus {
         return true;
     }
 
-    bool node::add_connection_timer(connection::ptr_t conn) {
+    bool node::add_connection_timer(connection::ptr_t conn, timer_desc_ls<connection::ptr_t>::type::iterator& out) {
+        out = event_timer_.connecting_list.end();
         if (state_t::CREATED == state_) {
             return false;
         }
@@ -1172,9 +1188,29 @@ namespace atbus {
 
         // 如果处于握手阶段，发送节点关系逻辑并加入握手连接池并加入超时判定池
         if (false == conn->is_connected()) {
-            event_timer_.connecting_list.push_back(std::make_pair(event_timer_.sec + conf_.first_idle_timeout, conn));
+            out = event_timer_.connecting_list.insert(event_timer_.connecting_list.end(), std::make_pair(event_timer_.sec + conf_.first_idle_timeout, conn));
         }
+
         return true;
+    }
+
+    bool node::remove_connection_timer(timer_desc_ls<connection::ptr_t>::type::iterator& out) {
+        if (out == event_timer_.connecting_list.end()) {
+            return false;
+        }
+
+        if (event_msg_.on_invalid_connection && out->second && !out->second->is_connected()) {
+            flag_guard_t fgd(this, flag_t::EN_FT_IN_CALLBACK);
+            event_msg_.on_invalid_connection(std::cref(*this), out->second.get(), EN_ATBUS_ERR_NODE_TIMEOUT);
+        }
+
+        event_timer_.connecting_list.erase(out);
+        out = event_timer_.connecting_list.end();
+        return true;
+    }
+
+    size_t node::get_connection_timer_size() const {
+        return event_timer_.connecting_list.size();
     }
 
     time_t node::get_timer_sec() const { return event_timer_.sec; }
@@ -1199,12 +1235,15 @@ namespace atbus {
             return;
         }
 
+        connection::ptr_t conn_sptr;
+        if (NULL != conn) {
+            conn_sptr = conn->watch();
+        }
         // 内部协议处理
         int res = msg_handler::dispatch_msg(*this, conn, ATBUS_MACRO_MOVE(m), status, errcode);
         if (res < 0) {
             if (NULL != conn) {
                 // maybe removed all reference of this connection after call add_endpoint_fault()
-                connection::ptr_t conn_sptr = conn->watch();
                 endpoint *ep = conn->get_binding();
                 if (NULL != ep) {
                     add_endpoint_fault(*ep);
@@ -1281,6 +1320,11 @@ namespace atbus {
     int node::on_new_connection(connection *conn) {
         if (NULL == conn) {
             return EN_ATBUS_ERR_PARAMS;
+        }
+
+        if (event_msg_.on_new_connection) {
+            flag_guard_t fgd(this, flag_t::EN_FT_IN_CALLBACK);
+            event_msg_.on_new_connection(std::cref(*this), conn);
         }
 
         // 如果ID有效，且是IO流连接，则发送注册协议
@@ -1563,6 +1607,9 @@ namespace atbus {
         return event_msg_.on_invalid_connection;
     }
 
+    void node::set_on_new_connection_handle(evt_msg_t::on_new_connection_fn_t fn) { event_msg_.on_new_connection = fn; }
+    const node::evt_msg_t::on_new_connection_fn_t &node::get_on_new_connection_handle() const { return event_msg_.on_new_connection; }
+
     void node::set_on_custom_cmd_handle(evt_msg_t::on_custom_cmd_fn_t fn) { event_msg_.on_custom_cmd = fn; }
     const node::evt_msg_t::on_custom_cmd_fn_t &node::get_on_custom_cmd_handle() const { return event_msg_.on_custom_cmd; }
 
@@ -1707,7 +1754,7 @@ namespace atbus {
     bool node::add_connection_fault(connection &conn) {
         size_t fault_count = conn.add_stat_fault();
         if (fault_count > conf_.fault_tolerant) {
-            conn.disconnect();
+            conn.reset();
             return true;
         }
 
@@ -1847,12 +1894,12 @@ namespace atbus {
         channel::io_stream_init_configure(iostream_conf_.get());
 
         // 接收大小和msg size一致即可，可以只使用一块静态buffer
-        iostream_conf_->recv_buffer_limit_size = conf_.msg_size;
-        iostream_conf_->recv_buffer_max_size   = conf_.msg_size + conf_.msg_size + 4096; // 预留header和正在处理的buffer块
+        iostream_conf_->recv_buffer_limit_size = conf_.msg_size + ATBUS_MACRO_MAX_FRAME_HEADER;
+        iostream_conf_->recv_buffer_max_size   = conf_.msg_size + conf_.msg_size + ATBUS_MACRO_MAX_FRAME_HEADER + 1024; // 预留header和正在处理的buffer块
 
         iostream_conf_->send_buffer_static     = conf_.send_buffer_number;
         iostream_conf_->send_buffer_max_size   = conf_.send_buffer_size;
-        iostream_conf_->send_buffer_limit_size = conf_.msg_size;
+        iostream_conf_->send_buffer_limit_size = conf_.msg_size + ATBUS_MACRO_MAX_FRAME_HEADER + ::atbus::detail::buffer_block::padding_size(sizeof(uv_write_t) + sizeof(uint32_t) + 16);
         iostream_conf_->confirm_timeout        = conf_.first_idle_timeout;
         iostream_conf_->backlog                = conf_.backlog;
 

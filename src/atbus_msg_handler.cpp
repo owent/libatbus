@@ -311,9 +311,9 @@ namespace atbus {
             return EN_ATBUS_ERR_PACK;
         }
 
-        if (msg_buffer.size() >= n.get_conf().msg_size) {
-            ATBUS_FUNC_NODE_ERROR(n, conn.get_binding(), &conn, EN_ATBUS_ERR_BUFF_LIMIT, 0);
-            return EN_ATBUS_ERR_BUFF_LIMIT;
+        if (msg_buffer.size() > n.get_conf().msg_size + ATBUS_MACRO_MAX_FRAME_HEADER) {
+            ATBUS_FUNC_NODE_ERROR(n, conn.get_binding(), &conn, EN_ATBUS_ERR_INVALID_SIZE, 0);
+            return EN_ATBUS_ERR_INVALID_SIZE;
         }
 
         ATBUS_FUNC_NODE_DEBUG(

@@ -57,14 +57,19 @@ namespace atbus {
         // 释放连接
         if (ctrl_conn_) {
             ctrl_conn_->binding_ = NULL;
+            ctrl_conn_->reset();
             ctrl_conn_.reset();
         }
 
         // 这时候connection可能在其他地方被引用，不会触发reset函数，所以还是要reset一下
-        for (std::list<connection::ptr_t>::iterator iter = data_conn_.begin(); iter != data_conn_.end(); ++iter) {
+        while (!data_conn_.empty()) {
+            std::list<connection::ptr_t>::iterator iter = data_conn_.begin();
             (*iter)->reset();
+
+            if (!data_conn_.empty() && data_conn_.begin() == iter) {
+                data_conn_.erase(iter);
+            }
         }
-        data_conn_.clear();
 
         listen_address_.clear();
 
@@ -159,7 +164,7 @@ namespace atbus {
         // 已经成功连接可以不需要握手
         conn->binding_ = this;
         if (connection::state_t::HANDSHAKING == conn->get_status()) {
-            conn->state_ = connection::state_t::CONNECTED;
+            conn->set_status(connection::state_t::CONNECTED);
         }
         return true;
     }

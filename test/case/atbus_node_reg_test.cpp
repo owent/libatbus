@@ -73,10 +73,12 @@ struct node_reg_test_recv_msg_record_t {
     int register_count;
     int register_failed_count;
     int availavle_count;
+    int new_connection_count;
+    int invalid_connection_count;
 
     node_reg_test_recv_msg_record_t()
         : n(NULL), ep(NULL), conn(NULL), status(0), count(0), add_endpoint_count(0), remove_endpoint_count(0), register_count(0),
-          register_failed_count(0), availavle_count(0) {}
+          register_failed_count(0), availavle_count(0), new_connection_count(0), invalid_connection_count(0) {}
 };
 
 static node_reg_test_recv_msg_record_t recv_msg_history;
@@ -141,6 +143,18 @@ static int node_reg_test_on_available_fn(const atbus::node &, int status) {
     ++recv_msg_history.availavle_count;
 
     CASE_EXPECT_EQ(0, status);
+    return 0;
+}
+
+static int node_reg_test_new_connection_fn(const atbus::node &, const atbus::connection *) {
+    ++recv_msg_history.new_connection_count;
+    return 0;
+}
+
+static int node_reg_test_invalid_fn(const atbus::node &, const atbus::connection *, int status) {
+    ++recv_msg_history.invalid_connection_count;
+
+    recv_msg_history.status = status;
     return 0;
 }
 
@@ -248,6 +262,196 @@ CASE_TEST(atbus_node_reg, reset_and_send_tcp) {
     }
 
     unit_test_setup_exit(&ev_loop);
+}
+
+CASE_TEST(atbus_node_reg, timeout) {
+    atbus::node::conf_t conf;
+    atbus::node::default_conf(&conf);
+    conf.children_mask = 16;
+    conf.access_tokens.push_back(std::vector<unsigned char>());
+    unsigned char access_token[] = "test access token";
+    conf.access_tokens.back().assign(access_token, access_token + sizeof(access_token) - 1);
+    uv_loop_t ev_loop;
+    uv_loop_init(&ev_loop);
+
+    conf.ev_loop = &ev_loop;
+
+    {
+        atbus::node::ptr_t node1 = atbus::node::create();
+        atbus::node::ptr_t node2 = atbus::node::create();
+        node1->on_debug          = node_reg_test_on_debug;
+        node2->on_debug          = node_reg_test_on_debug;
+        node1->set_on_error_handle(node_reg_test_on_error);
+        node2->set_on_error_handle(node_reg_test_on_error);
+
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_NOT_INITED, node1->start());
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_NOT_INITED, node2->start());
+
+        node1->init(0x12345678, &conf);
+        node2->init(0x12356789, &conf);
+
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->listen("ipv4://127.0.0.1:16387"));
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->listen("ipv4://127.0.0.1:16388"));
+
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
+
+        time_t proc_t = time(NULL);
+        node1->poll();
+        node2->poll();
+        node1->proc(proc_t + 1, 0);
+        node1->proc(proc_t + 1, 1);
+        node2->proc(proc_t + 1, 0);
+        node2->proc(proc_t + 1, 1);
+
+
+        // 连接兄弟节点回调测试
+        int check_new_connection_count = recv_msg_history.new_connection_count;
+        int check_invalid_connection_count = recv_msg_history.invalid_connection_count;
+        node1->set_on_new_connection_handle(node_reg_test_new_connection_fn);
+        node1->set_on_invalid_connection_handle(node_reg_test_invalid_fn);
+        node2->set_on_new_connection_handle(node_reg_test_new_connection_fn);
+        node2->set_on_invalid_connection_handle(node_reg_test_invalid_fn);
+
+        node1->connect("ipv4://127.0.0.1:16388");
+
+        UNITTEST_WAIT_UNTIL(conf.ev_loop, recv_msg_history.new_connection_count >= check_new_connection_count + 1, 8000, 0) {}
+        
+        CASE_EXPECT_LE(check_new_connection_count + 1, recv_msg_history.new_connection_count);
+        if (check_new_connection_count + 1 > recv_msg_history.new_connection_count) {
+            return;
+        }
+
+        // 正常情况下第一条连接会成功，第二条连接会被超时关闭。如果IO事件导致后续链接流程被处理了则跳过这个单元测试吧
+        if (node1->is_endpoint_available(node2->get_id()) && node2->is_endpoint_available(node1->get_id())) {
+            CASE_MSG_INFO()<< "more events than expected, skip this unit test."<< std::endl;
+            return;
+        }
+
+        proc_t = time(NULL) + 2;
+        node1->proc(proc_t + conf.first_idle_timeout + 2, 0);
+        node2->proc(proc_t + conf.first_idle_timeout + 2, 0);
+
+        UNITTEST_WAIT_UNTIL(conf.ev_loop, recv_msg_history.invalid_connection_count >= check_invalid_connection_count + 1, 8000, 0) {}
+        CASE_EXPECT_LE(check_invalid_connection_count + 1, recv_msg_history.invalid_connection_count);
+
+        node1->poll();
+        node2->poll();
+
+        CASE_MSG_INFO()<< "new connection: "<< (recv_msg_history.new_connection_count - check_new_connection_count)<< std::endl;
+        CASE_MSG_INFO()<< "invalid connection: "<< (recv_msg_history.invalid_connection_count - check_invalid_connection_count)<< std::endl;
+
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_NODE_TIMEOUT, recv_msg_history.status);
+        CASE_EXPECT_EQ(0, node1->get_connection_timer_size());
+        CASE_EXPECT_EQ(0, node2->get_connection_timer_size());
+    }
+
+    unit_test_setup_exit(&ev_loop);
+}
+
+CASE_TEST(atbus_node_reg, message_size_limit) {
+    atbus::node::conf_t conf;
+    atbus::node::default_conf(&conf);
+    conf.children_mask = 16;
+    conf.access_tokens.push_back(std::vector<unsigned char>());
+    unsigned char access_token[] = "test access token";
+    conf.access_tokens.back().assign(access_token, access_token + sizeof(access_token) - 1);
+    uv_loop_t ev_loop;
+    uv_loop_init(&ev_loop);
+
+    conf.ev_loop = &ev_loop;
+
+    {
+        atbus::node::ptr_t node1 = atbus::node::create();
+        atbus::node::ptr_t node2 = atbus::node::create();
+        node1->on_debug          = node_reg_test_on_debug;
+        node2->on_debug          = node_reg_test_on_debug;
+        node1->set_on_error_handle(node_reg_test_on_error);
+        node2->set_on_error_handle(node_reg_test_on_error);
+
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_NOT_INITED, node1->start());
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_NOT_INITED, node2->start());
+
+        node1->init(0x12345678, &conf);
+        node2->init(0x12356789, &conf);
+
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->listen("ipv4://127.0.0.1:16387"));
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->listen("ipv4://127.0.0.1:16388"));
+
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
+
+        time_t proc_t = time(NULL);
+        node1->poll();
+        node2->poll();
+        node1->proc(proc_t + 1, 0);
+        node1->proc(proc_t + 1, 1);
+        node2->proc(proc_t + 1, 0);
+        node2->proc(proc_t + 1, 1);
+
+
+        // 连接兄弟节点回调测试
+        int check_ep_count = recv_msg_history.add_endpoint_count;
+        node1->set_on_add_endpoint_handle(node_reg_test_add_endpoint_fn);
+        node1->set_on_remove_endpoint_handle(node_reg_test_remove_endpoint_fn);
+        node2->set_on_add_endpoint_handle(node_reg_test_add_endpoint_fn);
+        node2->set_on_remove_endpoint_handle(node_reg_test_remove_endpoint_fn);
+
+        node1->connect("ipv4://127.0.0.1:16388");
+
+        UNITTEST_WAIT_UNTIL(conf.ev_loop, node1->is_endpoint_available(node2->get_id()) && node2->is_endpoint_available(node1->get_id()),
+                            8000, 0) {}
+        // in windows CI, connection will be closed sometimes, it will lead to add one endpoint more than one times
+        CASE_EXPECT_LE(check_ep_count + 2, recv_msg_history.add_endpoint_count);
+
+        // 兄弟节点消息转发测试
+        std::string send_data;
+        send_data.reserve(conf.msg_size + 8);
+        send_data.resize(conf.msg_size, 'a');
+
+        node1->poll();
+        node2->poll();
+        proc_t += 1000;
+        node1->proc(proc_t, 0);
+        node2->proc(proc_t, 0);
+
+
+        int count = recv_msg_history.count;
+        node2->set_on_recv_handle(node_reg_test_recv_msg_test_record_fn);
+        CASE_EXPECT_TRUE(!!node2->get_on_recv_handle());
+        CASE_EXPECT_EQ(0, node1->send_data(node2->get_id(), 0, send_data.data(), send_data.size()));
+
+        UNITTEST_WAIT_UNTIL(conf.ev_loop, count != recv_msg_history.count, 8000, 0) {}
+
+        // check add endpoint callback
+        CASE_EXPECT_EQ(send_data, recv_msg_history.data);
+
+        send_data += 'b';
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_INVALID_SIZE, node1->send_data(node2->get_id(), 0, send_data.data(), send_data.size()));
+
+        check_ep_count = recv_msg_history.remove_endpoint_count;
+
+        // reset
+        CASE_EXPECT_EQ(0, node1->shutdown(0)); // shutdown - test, next proc() will call reset()
+        CASE_EXPECT_EQ(0, node1->shutdown(0)); // shutdown - again
+
+        UNITTEST_WAIT_UNTIL(conf.ev_loop, NULL == node1->get_endpoint(node2->get_id()) && NULL == node2->get_endpoint(node1->get_id()),
+                            8000, 64) {
+            ++proc_t;
+
+            node1->proc(proc_t, 0);
+            node2->proc(proc_t, 0);
+        }
+
+        node2->reset();
+
+        CASE_EXPECT_EQ(NULL, node2->get_endpoint(node1->get_id()));
+        CASE_EXPECT_EQ(NULL, node1->get_endpoint(node2->get_id()));
+    }
+
+    unit_test_setup_exit(&ev_loop);
+
+    CASE_MSG_INFO()<< "default message max size: "<< conf.msg_size<< std::endl;
 }
 
 CASE_TEST(atbus_node_reg, reg_failed_with_mismatch_access_token) {
@@ -508,7 +712,7 @@ CASE_TEST(atbus_node_reg, destruct) {
         UNITTEST_WAIT_UNTIL(conf.ev_loop, node1->is_endpoint_available(node2->get_id()) && node2->is_endpoint_available(node1->get_id()),
                             8000, 0) {}
 
-        CASE_EXPECT_EQ(EN_ATBUS_ERR_BUFF_LIMIT, node1->send_data(0x12345678, 213, &conf, conf.msg_size + 1, true));
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_INVALID_SIZE, node1->send_data(0x12345678, 213, &conf, conf.msg_size + 1, true));
 
         for (int i = 0; i < 16; ++i) {
             uv_run(conf.ev_loop, UV_RUN_NOWAIT);
