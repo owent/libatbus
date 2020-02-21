@@ -83,7 +83,7 @@ typedef struct {
     uint64_t conf_send_timeout_ms;	/** 发送超时阀值：用于降低冲突概率 **/
 
     // TODO 接收端校验号(用于保证只有一个接收者)
-    volatile std::atomic<size_t> atomic_recver_identify;
+    volatile std::atomic<size_t> atomic_receiver_identify;
 } mem_conf;
 ```
 

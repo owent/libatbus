@@ -45,14 +45,12 @@ set(Libatbus_SOURCE_DIR "@PROJECT_SOURCE_DIR@")
 set_and_check(Libatbus_INCLUDE_DIRS "@PACKAGE_INCLUDE_INSTALL_DIR@")
 set_and_check(Libatbus_LIBRARY_DIRS "@PACKAGE_CMAKE_INSTALL_LIBDIR@")
 
-
+include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_LIBATBUS_EXPORT_NAME@.cmake")
+if (EXISTS "${CMAKE_CURRENT_LIST_DIR}/@PROJECT_LIBATBUS_EXPORT_NAME@.cmake")
+    include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_LIBATBUS_EXPORT_NAME@.cmake")
+endif ()
 # Normal search.
-set(Libatbus_NAMES atbus libatbus)
-
-# Try each search configuration.
-find_library(Libatbus_LIBRARIES    NAMES ${Libatbus_NAMES}    PATHS ${Libatbus_LIBRARY_DIRS} NO_DEFAULT_PATH)
-
-mark_as_advanced(Libatbus_INCLUDE_DIRS Libatbus_LIBRARY_DIRS Libatbus_LIBRARIES Libcotask_LIBRARIES)
+set(Libatbus_LIBRARIES atframework::atbus)
 
 # handle the QUIETLY and REQUIRED arguments and set LIBATBUS_FOUND to TRUE if
 # all listed variables are TRUE

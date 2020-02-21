@@ -74,18 +74,19 @@ namespace atbus {
         __pragma(pack(push, 1))
 #define ATBUS_MACRO_PACK_ATTR
 #else
-#define ATBUS_MACRO_PACK_ATTR __attribute__((packed))
+#define ATBUS_MACRO_PACK_ATTR
+// #define ATBUS_MACRO_PACK_ATTR __attribute__((packed))
 #endif
 
-            // 配置数据结构
-            struct mem_conf {
+        // 配置数据结构
+        struct mem_conf {
             size_t protect_node_count;
             size_t protect_memory_size;
             uint64_t conf_send_timeout_ms;
 
             size_t write_retry_times;
             // TODO 接收端校验号(用于保证只有一个接收者)
-            volatile util::lock::atomic_int_type<size_t> atomic_recver_identify;
+            volatile util::lock::atomic_int_type<size_t> atomic_receiver_identify;
         } ATBUS_MACRO_PACK_ATTR;
 
         // 通道头
@@ -209,11 +210,11 @@ namespace atbus {
         };
 
         static void mem_copy_conf(mem_conf &dst, const mem_conf &src) {
-            dst.protect_node_count     = src.protect_node_count;
-            dst.protect_memory_size    = src.protect_memory_size;
-            dst.conf_send_timeout_ms   = src.conf_send_timeout_ms;
-            dst.write_retry_times      = src.write_retry_times;
-            dst.atomic_recver_identify = src.atomic_recver_identify;
+            dst.protect_node_count       = src.protect_node_count;
+            dst.protect_memory_size      = src.protect_memory_size;
+            dst.conf_send_timeout_ms     = src.conf_send_timeout_ms;
+            dst.write_retry_times        = src.write_retry_times;
+            dst.atomic_receiver_identify = src.atomic_receiver_identify;
         }
 
         /**

@@ -212,16 +212,17 @@ if (NOT 3RD_PARTY_PROTOBUF_BIN_PROTOC OR NOT 3RD_PARTY_PROTOBUF_BASE_DIR OR NOT 
     endif()
 
     set (3RD_PARTY_PROTOBUF_INC_DIR ${PROTOBUF_INCLUDE_DIRS})
-    if (${CMAKE_BUILD_TYPE} STREQUAL "Debug" AND Protobuf_LIBRARY_DEBUG)
-        get_filename_component(3RD_PARTY_PROTOBUF_LIB_DIR ${Protobuf_LIBRARY_DEBUG} DIRECTORY)
-        get_filename_component(3RD_PARTY_PROTOBUF_BIN_DIR ${PROTOBUF_PROTOC_EXECUTABLE} DIRECTORY)
+    if (TARGET protobuf::libprotobuf AND TARGET protobuf::libprotobuf-lite)
+        set (3RD_PARTY_PROTOBUF_LINK_NAME protobuf::libprotobuf)
+        set (3RD_PARTY_PROTOBUF_LITE_LINK_NAME protobuf::libprotobuf-lite)
+        EchoWithColor(COLOR GREEN "-- Dependency: Protobuf libraries.(${Protobuf_LIBRARY_DEBUG})")
+        EchoWithColor(COLOR GREEN "-- Dependency: Protobuf lite libraries.(${Protobuf_LITE_LIBRARY_DEBUG})")
+    elseif (${CMAKE_BUILD_TYPE} STREQUAL "Debug" AND Protobuf_LIBRARY_DEBUG)
         set (3RD_PARTY_PROTOBUF_LINK_NAME ${Protobuf_LIBRARY_DEBUG})
         set (3RD_PARTY_PROTOBUF_LITE_LINK_NAME ${Protobuf_LITE_LIBRARY_DEBUG})
         EchoWithColor(COLOR GREEN "-- Dependency: Protobuf libraries.(${Protobuf_LIBRARY_DEBUG})")
         EchoWithColor(COLOR GREEN "-- Dependency: Protobuf lite libraries.(${Protobuf_LITE_LIBRARY_DEBUG})")
     else()
-        get_filename_component(3RD_PARTY_PROTOBUF_LIB_DIR ${Protobuf_LIBRARY} DIRECTORY)
-        get_filename_component(3RD_PARTY_PROTOBUF_BIN_DIR ${PROTOBUF_PROTOC_EXECUTABLE} DIRECTORY)
         if (Protobuf_LIBRARY_RELEASE)
             set (3RD_PARTY_PROTOBUF_LINK_NAME ${Protobuf_LIBRARY_RELEASE})
         else ()
@@ -236,17 +237,11 @@ if (NOT 3RD_PARTY_PROTOBUF_BIN_PROTOC OR NOT 3RD_PARTY_PROTOBUF_BASE_DIR OR NOT 
         EchoWithColor(COLOR GREEN "-- Dependency: Protobuf lite libraries.(${Protobuf_LITE_LIBRARY})")
     endif()
 
-    set (3RD_PARTY_PROTOBUF_BIN_PROTOC ${PROTOBUF_PROTOC_EXECUTABLE})
+    if (TARGET protobuf::protoc)
+        set (3RD_PARTY_PROTOBUF_BIN_PROTOC protobuf::protoc)
+    else ()
+        set (3RD_PARTY_PROTOBUF_BIN_PROTOC ${PROTOBUF_PROTOC_EXECUTABLE})
+    endif ()
 
     include_directories(${3RD_PARTY_PROTOBUF_INC_DIR})
-
-    # file(GLOB 3RD_PARTY_PROTOBUF_ALL_LIB_FILES 
-    #     "${3RD_PARTY_PROTOBUF_LIB_DIR}/libprotobuf*.so"
-    #     "${3RD_PARTY_PROTOBUF_LIB_DIR}/libprotobuf*.so.*"
-    #     "${3RD_PARTY_PROTOBUF_LIB_DIR}/libprotobuf*.dll"
-    #     "${3RD_PARTY_PROTOBUF_BIN_DIR}/libprotobuf*.so"
-    #     "${3RD_PARTY_PROTOBUF_BIN_DIR}/libprotobuf*.so.*"
-    #     "${3RD_PARTY_PROTOBUF_BIN_DIR}/libprotobuf*.dll"
-    # )
-    # project_copy_shared_lib(${3RD_PARTY_PROTOBUF_ALL_LIB_FILES} ${PROJECT_INSTALL_SHARED_DIR})
 endif()

@@ -617,7 +617,7 @@ namespace atbus {
         }
 
         // 超过最大排队数
-        if (n->get_conf().backlog <= n->get_connection_timer_size()) {
+        if (n->get_conf().backlog > 0 && static_cast<size_t>(n->get_conf().backlog) <= n->get_connection_timer_size()) {
             channel::io_stream_disconnect(channel, conn_ios, NULL);
             return;
         }

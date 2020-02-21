@@ -1027,7 +1027,7 @@ namespace atbus {
         salt            = static_cast<uint32_t>(random_engine_.random());
         uint64_t out[2] = {0};
         ::util::hash::murmur_hash3_x64_128(reinterpret_cast<const void *>(&conf_.access_tokens[idx][0]),
-                                           static_cast<const int>(conf_.access_tokens[idx].size()), salt, out);
+                                           static_cast<int>(conf_.access_tokens[idx].size()), salt, out);
         hashval1 = out[0];
         hashval2 = out[1];
         return true;
@@ -1041,7 +1041,7 @@ namespace atbus {
         for (size_t i = 0; i < conf_.access_tokens.size(); ++i) {
             uint64_t out[2] = {0};
             ::util::hash::murmur_hash3_x64_128(reinterpret_cast<const void *>(&conf_.access_tokens[i][0]),
-                                               static_cast<const int>(conf_.access_tokens[i].size()), salt, out);
+                                               static_cast<int>(conf_.access_tokens[i].size()), salt, out);
             if (hashval1 == out[0] && hashval2 == out[1]) {
                 return true;
             }

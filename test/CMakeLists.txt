@@ -25,7 +25,7 @@ add_compiler_define(_CRT_SECURE_NO_WARNINGS=1)
 
 add_executable(atbus_unit_test ${PROJECT_TEST_SRC_LIST})
 target_link_libraries(atbus_unit_test
-    ${PROJECT_LIB_LINK}
+    ${PROJECT_LIBATBUS_LIB_LINK}
     ${PROJECT_TEST_LIB_LINK}
     ${3RD_PARTY_LIBUV_LINK_NAME}
     ${3RD_PARTY_ATFRAME_UTILS_LINK_NAME}
