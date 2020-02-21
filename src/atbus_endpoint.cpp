@@ -79,7 +79,7 @@ namespace atbus {
 
         // 所有的endpoint的reset行为都要加入到检测和释放列表
         if (NULL != owner_) {
-            owner_->add_check_list(tmp_holder);
+            owner_->add_endpoint_gc_list(tmp_holder);
         }
     }
 

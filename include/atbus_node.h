@@ -58,13 +58,16 @@ namespace atbus {
 
         struct flag_t {
             enum type {
-                EN_FT_RESETTING,       /** 正在重置 **/
-                EN_FT_ACTIVED,         /** 已激活 **/
-                EN_FT_PARENT_REG_DONE, /** 已通过父节点注册 **/
-                EN_FT_SHUTDOWN,        /** 已完成关闭前的资源回收 **/
-                EN_FT_RECV_SELF_MSG,   /** 正在接收发给自己的信息 **/
-                EN_FT_IN_CALLBACK,     /** 在回调函数中 **/
-                EN_FT_MAX,             /** flag max **/
+                EN_FT_RESETTING,          /** 正在重置 **/
+                EN_FT_RESETTING_GC,       /** 正在重置且正准备GC或GC流程已完成 **/
+                EN_FT_ACTIVED,            /** 已激活 **/
+                EN_FT_PARENT_REG_DONE,    /** 已通过父节点注册 **/
+                EN_FT_SHUTDOWN,           /** 已完成关闭前的资源回收 **/
+                EN_FT_RECV_SELF_MSG,      /** 正在接收发给自己的信息 **/
+                EN_FT_IN_CALLBACK,        /** 在回调函数中 **/
+                EN_FT_IN_PROC,            /** 在Proc函数中 **/
+                EN_FT_IN_POLL,            /** 在Poll函数中 **/
+                EN_FT_MAX,                /** flag max **/
             };
         };
 
@@ -472,7 +475,9 @@ namespace atbus {
 
         uint64_t alloc_msg_seq();
 
-        void add_check_list(const endpoint::ptr_t &ep);
+        void add_endpoint_gc_list(const endpoint::ptr_t &ep);
+
+        void add_connection_gc_list(const connection::ptr_t &conn);
 
         void set_on_recv_handle(evt_msg_t::on_recv_msg_fn_t fn);
         const evt_msg_t::on_recv_msg_fn_t &get_on_recv_handle() const;
@@ -582,7 +587,8 @@ namespace atbus {
             time_t parent_opr_time_point;                            // 父节点操作时间（断线重连或Ping）
             timer_desc_ls<std::weak_ptr<endpoint> >::type ping_list; // 定时ping
             timer_desc_ls<connection::ptr_t>::type connecting_list;  // 未完成连接（正在网络连接或握手）
-            std::list<endpoint::ptr_t> pending_check_list_;          // 待检测列表
+            std::list<endpoint::ptr_t> pending_endpoint_gc_list;     // 待检测GC的endpoint列表
+            std::list<connection::ptr_t> pending_connection_gc_list; // 待检测GC的connection列表
         } evt_timer_t;
         evt_timer_t event_timer_;
 

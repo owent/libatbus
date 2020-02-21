@@ -846,7 +846,7 @@ namespace atbus {
 
             // 如果没有成功进行的数据连接，加入检测列表，下一帧释放
             if (!has_data_conn) {
-                n.add_check_list(new_ep);
+                n.add_endpoint_gc_list(new_ep);
             }
         } while (false);
 
@@ -906,7 +906,7 @@ namespace atbus {
 
         if (!check_access_token || m.head().ret() < 0) {
             if (NULL != ep) {
-                n.add_check_list(ep->watch());
+                n.add_endpoint_gc_list(ep->watch());
             }
             int ret_code = m.head().ret();
             if (!check_access_token && ret_code >= 0) {

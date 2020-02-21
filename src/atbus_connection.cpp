@@ -120,12 +120,16 @@ namespace atbus {
         }
 
         flags_.reset();
-        // 只要connection存在，则它一定存在于owner_的某个位置。
-        // 并且这个值只能在创建时指定，所以不能重置这个值
-        // owner_ = NULL;
 
         // reset statistics
         memset(&stat_, 0, sizeof(stat_));
+
+        // 只要connection存在，则它一定存在于owner_的某个位置。
+        // 并且这个值只能在创建时指定，所以不能重置这个值
+        if (tmp_holder) {
+            owner_->add_connection_gc_list(tmp_holder);
+        }
+        // owner_ = NULL;
     }
 
     int connection::proc(node &n, time_t sec, time_t usec) {

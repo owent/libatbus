@@ -219,10 +219,6 @@ namespace atbus {
         remove_collection(node_brother_);
         remove_collection(node_children_);
 
-        // 清空检测列表和ping列表
-        event_timer_.pending_check_list_.clear();
-        event_timer_.ping_list.clear();
-
         // 清空正在连接或握手的列表
         // 必须显式指定断开，以保证会主动断开正在进行的连接
         // 因为正在进行的连接会增加connection的引用计数
@@ -241,6 +237,12 @@ namespace atbus {
             // 不销毁，下一次替换，保证某些接口可用
             self_->reset();
         }
+
+        // 清空检测列表和ping列表
+        flags_.set(flag_t::EN_FT_RESETTING_GC, true);
+        event_timer_.pending_endpoint_gc_list.clear();
+        event_timer_.pending_connection_gc_list.clear();
+        event_timer_.ping_list.clear();
 
         // 引用的数据(正在进行的连接)也必须全部释放完成
         // 保证延迟释放的连接也释放完成
@@ -274,6 +276,11 @@ namespace atbus {
     }
 
     int node::proc(time_t sec, time_t usec) {
+        flag_guard_t fgd_proc(this, flag_t::EN_FT_IN_PROC);
+        if (!fgd_proc) {
+            return 0;
+        }
+
         if (sec > event_timer_.sec) {
             event_timer_.sec  = sec;
             event_timer_.usec = usec;
@@ -391,10 +398,13 @@ namespace atbus {
         }
 
 
-        // 检测队列
-        if (!event_timer_.pending_check_list_.empty()) {
+        // dispatcher all self msgs
+        ret += dispatch_all_self_msgs();
+
+        // GC - endpoint
+        if (!event_timer_.pending_endpoint_gc_list.empty()) {
             std::list<endpoint::ptr_t> checked;
-            checked.swap(event_timer_.pending_check_list_);
+            checked.swap(event_timer_.pending_endpoint_gc_list);
 
             for (std::list<endpoint::ptr_t>::iterator iter = checked.begin(); iter != checked.end(); ++iter) {
                 if (*iter) {
@@ -407,11 +417,13 @@ namespace atbus {
             }
 
             // 再清理一次，因为endpoint::reset可能触发进入pending_check_list_
-            event_timer_.pending_check_list_.clear();
+            event_timer_.pending_endpoint_gc_list.clear();
         }
 
-        // dispatcher all self msgs
-        ret += dispatch_all_self_msgs();
+        // GC - connection
+        if (!event_timer_.pending_connection_gc_list.empty()) {
+            event_timer_.pending_connection_gc_list.clear();
+        }
 
         // stop action happened in any callback
         if (flags_.test(flag_t::EN_FT_SHUTDOWN)) {
@@ -423,6 +435,18 @@ namespace atbus {
     }
 
     int node::poll() {
+        flag_guard_t fgd_poll(this, flag_t::EN_FT_IN_POLL);
+        if (!fgd_poll) {
+            return 0;
+        }
+
+        // stop action happened between previous proc and this one
+        if (flags_.test(flag_t::EN_FT_SHUTDOWN)) {
+            int ret = 1 + dispatch_all_self_msgs();
+            reset();
+            return ret;
+        }
+
         // point to point IO stream channels
         int loop_left        = conf_.loop_times;
         size_t stat_dispatch = stat_.dispatch_times;
@@ -431,7 +455,42 @@ namespace atbus {
             --loop_left;
         }
 
-        return static_cast<int>(stat_.dispatch_times - stat_dispatch);
+        int ret = static_cast<int>(stat_.dispatch_times - stat_dispatch);
+
+        // dispatcher all self msgs
+        ret += dispatch_all_self_msgs();
+
+        // GC - endpoint
+        if (!event_timer_.pending_endpoint_gc_list.empty()) {
+            std::list<endpoint::ptr_t> checked;
+            checked.swap(event_timer_.pending_endpoint_gc_list);
+
+            for (std::list<endpoint::ptr_t>::iterator iter = checked.begin(); iter != checked.end(); ++iter) {
+                if (*iter) {
+                    if (false == (*iter)->is_available()) {
+                        (*iter)->reset();
+                        ATBUS_FUNC_NODE_DEBUG(*this, (*iter).get(), NULL, NULL, "endpoint handshake timeout and reset");
+                        remove_endpoint((*iter)->get_id());
+                    }
+                }
+            }
+
+            // 再清理一次，因为endpoint::reset可能触发进入pending_check_list_
+            event_timer_.pending_endpoint_gc_list.clear();
+        }
+
+        // GC - connection
+        if (!event_timer_.pending_connection_gc_list.empty()) {
+            event_timer_.pending_connection_gc_list.clear();
+        }
+
+        // stop action happened in any callback
+        if (flags_.test(flag_t::EN_FT_SHUTDOWN)) {
+            reset();
+            return ret + 1;
+        }
+
+        return ret;
     }
 
     int node::listen(const char *addr_str) {
@@ -1572,15 +1631,25 @@ namespace atbus {
         return ret;
     }
 
-    void node::add_check_list(const endpoint::ptr_t &ep) {
+    void node::add_endpoint_gc_list(const endpoint::ptr_t &ep) {
         // 重置过程中不需要再加进来了，反正等会也会移除
         // 这个代码加不加一样，只不过会少一些废操作
-        if (flags_.test(flag_t::EN_FT_RESETTING)) {
+        if (flags_.test(flag_t::EN_FT_RESETTING_GC)) {
             return;
         }
 
         if (ep) {
-            event_timer_.pending_check_list_.push_back(ep);
+            event_timer_.pending_endpoint_gc_list.push_back(ep);
+        }
+    }
+
+    void node::add_connection_gc_list(const connection::ptr_t &conn) {
+        if (flags_.test(flag_t::EN_FT_RESETTING_GC)) {
+            return;
+        }
+
+        if (conn) {
+            event_timer_.pending_connection_gc_list.push_back(conn);
         }
     }
 
