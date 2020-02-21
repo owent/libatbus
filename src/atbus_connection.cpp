@@ -90,7 +90,7 @@ namespace atbus {
         flags_.set(flag_t::DESTRUCTING, true);
 
         if (NULL != owner_) {
-            ATBUS_FUNC_NODE_DEBUG(*owner_, get_binding(), this, NULL, "connection delocated");
+            ATBUS_FUNC_NODE_DEBUG(*owner_, get_binding(), this, NULL, "connection deallocated");
         }
 
         reset();

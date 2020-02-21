@@ -39,6 +39,10 @@ namespace atbus {
     endpoint::endpoint() : id_(0), children_mask_(0), pid_(0), owner_(NULL) { flags_.reset(); }
 
     endpoint::~endpoint() {
+        if (NULL != owner_) {
+            ATBUS_FUNC_NODE_DEBUG(*owner_, this, NULL, NULL, "endpoint deallocated");
+        }
+
         flags_.set(flag_t::DESTRUCTING, true);
 
         reset();

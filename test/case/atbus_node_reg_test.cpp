@@ -12,6 +12,8 @@
 #undef min
 #endif
 
+#include <google/protobuf/stubs/common.h>
+
 #include <atbus_node.h>
 #include <libatbus_protocol.h>
 
@@ -23,6 +25,18 @@
 #include "frame/test_macros.h"
 
 #include <stdarg.h>
+
+
+struct node_reg_test_destory_protobuf_meta {
+    ~node_reg_test_destory_protobuf_meta() {
+        ::google::protobuf::ShutdownProtobufLibrary();
+    }
+
+    operator bool() const {
+        return true;
+    }
+};
+node_reg_test_destory_protobuf_meta g_protobuf_shutdown_helper;
 
 static void node_reg_test_on_debug(const char *file_path, size_t line, const atbus::node &n, const atbus::endpoint *ep,
                                    const atbus::connection *conn, EXPLICIT_UNUSED_ATTR const atbus::protocol::msg *m, const char *fmt,
@@ -161,6 +175,8 @@ static int node_reg_test_invalid_fn(const atbus::node &, const atbus::connection
 // 主动reset流程测试
 // 正常首发数据测试
 CASE_TEST(atbus_node_reg, reset_and_send_tcp) {
+    CASE_EXPECT_TRUE(g_protobuf_shutdown_helper);
+
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
     conf.children_mask = 16;
