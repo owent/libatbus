@@ -267,6 +267,15 @@ CASE_TEST(atbus_node_reg, reset_and_send_tcp) {
             node2->proc(proc_t, 0);
         }
 
+        UNITTEST_WAIT_UNTIL(conf.ev_loop, true, 1024, 64) {
+            ++proc_t;
+
+            node1->proc(proc_t, 0);
+            node2->proc(proc_t, 0);
+        }
+
+        CASE_MSG_INFO()<< "Ready to exit"<< std::endl;
+
         node2->reset();
 
         // check remove endpoint callback
