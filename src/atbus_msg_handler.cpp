@@ -739,14 +739,6 @@ namespace atbus {
             std::bitset<endpoint::flag_t::MAX> reg_flags(reg_data->flags());
 
             if (n.is_child_node(reg_data->bus_id())) {
-                if (reg_flags.test(endpoint::flag_t::GLOBAL_ROUTER) &&
-                    false == n.get_self_endpoint()->get_flag(endpoint::flag_t::GLOBAL_ROUTER)) {
-                    rsp_code = EN_ATBUS_ERR_ACCESS_DENY;
-
-                    ATBUS_FUNC_NODE_DEBUG(n, ep, conn, &m, "self has no global tree, children reg access deny");
-                    break;
-                }
-
                 // TODO children prefix 必须小于自身
 
                 // 子节点域范围必须小于自身
@@ -773,7 +765,6 @@ namespace atbus {
                 rsp_code = res;
                 break;
             }
-            ep->set_flag(endpoint::flag_t::GLOBAL_ROUTER, reg_flags.test(endpoint::flag_t::GLOBAL_ROUTER));
 
             ATBUS_FUNC_NODE_DEBUG(n, ep, conn, &m, "node add a new endpoint, res: %d", res);
             // 新的endpoint要建立所有连接

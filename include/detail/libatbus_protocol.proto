@@ -58,15 +58,19 @@ message node_tree { repeated node_data nodes = 1; }
 
 message ping_data { int64 time_point = 1; }
 
+message subnet_range {
+    uint64 id_prefix = 1;
+    uint32 mask_bits = 2; // suffix
+}
+
 message register_data {
     uint64   bus_id                          = 1;
     int32    pid                             = 2;
     string   hostname                        = 3;
     repeated channel_data channels           = 4;
-    uint32                children_id_mask   = 5;
-    uint64                children_id_prefix = 6;
     uint32                flags              = 7;
     repeated access_data access_keys         = 8;
+    repeated subnet_range subnets            = 9;
 }
 
 message connection_data { channel_data address = 1; }

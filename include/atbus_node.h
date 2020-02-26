@@ -46,8 +46,7 @@ namespace atbus {
         typedef ATBUS_MACRO_BUSID_TYPE bus_id_t;
         struct conf_flag_t {
             enum type {
-                EN_CONF_GLOBAL_ROUTER, /** 全局路由表 **/
-                EN_CONF_MAX
+                EN_CONF_MAX = 0,
             };
         };
 

@@ -57,7 +57,6 @@ namespace atbus {
                 HAS_LISTEN_FD,   /** 是否有fd类的listen地址 **/
 
                 MUTABLE_FLAGS,
-                GLOBAL_ROUTER = MUTABLE_FLAGS, /** 全局路由表 **/
                 MAX
             };
         } flag_t;

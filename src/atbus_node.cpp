@@ -140,7 +140,6 @@ namespace atbus {
             return EN_ATBUS_ERR_MALLOC;
         }
         // 复制配置
-        self_->set_flag(endpoint::flag_t::GLOBAL_ROUTER, conf_.flags.test(conf_flag_t::EN_CONF_GLOBAL_ROUTER));
 
         static_buffer_ = detail::buffer_block::malloc(conf_.msg_size + detail::buffer_block::head_size(conf_.msg_size) +
                                                       64); // 预留hash码64位长度和vint长度);
@@ -806,8 +805,8 @@ namespace atbus {
 
                     ASSIGN_EPCONN();
                     break;
-                } else if (false == get_self_endpoint()->get_flag(endpoint::flag_t::GLOBAL_ROUTER) && node_parent_.node_) {
-                    // 如果没有全量表则发给父节点
+                } else if (node_parent_.node_) {
+                    // 发给父节点
                     /*
                     //       F1
                     //      /  \
@@ -836,14 +835,14 @@ namespace atbus {
                 return EN_ATBUS_ERR_ATNODE_INVALID_ID;
             }
 
-            // 其他情况,如果没有全量表则发给父节点
+            // 其他情况,如果发给父节点
             /*
             //       F1 ------------ F2
             //      /  \            /  \
             //    C11  C12        C21  C22
             // 当C11发往C21或C22时触发这种情况
             */
-            if (node_parent_.node_ && false == get_self_endpoint()->get_flag(endpoint::flag_t::GLOBAL_ROUTER)) {
+            if (node_parent_.node_) {
                 target = node_parent_.node_.get();
                 conn   = (self_.get()->*fn)(target);
 
