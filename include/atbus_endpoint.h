@@ -13,6 +13,7 @@
 #pragma once
 
 #include <list>
+#include <vector>
 
 #ifdef _MSC_VER
 #include <WinSock2.h>
@@ -43,6 +44,44 @@ namespace atbus {
 
     class node;
 
+    struct endpoint_subnet_conf {
+        ATBUS_MACRO_BUSID_TYPE id_prefix; // subnet prefix
+        uint32_t               mask_bits; // suffix bits
+
+        endpoint_subnet_conf();
+        endpoint_subnet_conf(ATBUS_MACRO_BUSID_TYPE prefix, uint32_t mask);
+    };
+
+    class endpoint_subnet_range {
+    public:
+        endpoint_subnet_range(ATBUS_MACRO_BUSID_TYPE a, uint32_t b);
+
+        bool operator<(const endpoint_subnet_range& other) const;
+        bool operator<=(const endpoint_subnet_range& other) const;
+        bool operator>(const endpoint_subnet_range& other) const;
+        bool operator>=(const endpoint_subnet_range& other) const;
+        bool operator==(const endpoint_subnet_range& other) const;
+        bool operator!=(const endpoint_subnet_range& other) const;
+
+        inline ATBUS_MACRO_BUSID_TYPE get_id_prefix() const { return id_prefix_; }
+        inline uint32_t get_mask_bits() const { return mask_bits_; }
+        inline ATBUS_MACRO_BUSID_TYPE get_id_min() const { return min_id_; }
+        inline ATBUS_MACRO_BUSID_TYPE get_id_max() const { return max_id_; }
+
+        bool contain(const endpoint_subnet_range& other) const;
+
+        bool contain(ATBUS_MACRO_BUSID_TYPE id) const;
+        static bool contain(ATBUS_MACRO_BUSID_TYPE id_prefix, uint32_t mask_bits, ATBUS_MACRO_BUSID_TYPE id);
+        static bool contain(const endpoint_subnet_conf& conf, ATBUS_MACRO_BUSID_TYPE id);
+
+        static bool lower_bound_by_max_id(const endpoint_subnet_range& l, ATBUS_MACRO_BUSID_TYPE r);
+    private:
+        ATBUS_MACRO_BUSID_TYPE id_prefix_; // subnet prefix
+        uint32_t               mask_bits_; // suffix bits
+        ATBUS_MACRO_BUSID_TYPE min_id_;
+        ATBUS_MACRO_BUSID_TYPE max_id_;
+    };
+
     class endpoint UTIL_CONFIG_FINAL : public util::design_pattern::noncopyable {
     public:
         typedef ATBUS_MACRO_BUSID_TYPE bus_id_t;
@@ -70,14 +109,13 @@ namespace atbus {
         /**
          * @brief 创建端点
          */
-        static ptr_t create(node *owner, bus_id_t id, uint32_t children_mask, int32_t pid, const std::string &hn);
+        static ptr_t create(node *owner, bus_id_t id, const std::vector<endpoint_subnet_conf>& subnets, int32_t pid, const std::string &hn);
         ~endpoint();
 
         void reset();
 
         inline bus_id_t get_id() const { return id_; }
-        inline bus_id_t get_children_prefix() const { return get_id(); }
-        inline uint32_t get_children_mask() const { return children_mask_; }
+        inline const std::vector<endpoint_subnet_range>& get_subnets() const { return subnets_; }
 
         inline int32_t get_pid() const { return pid_; };
         inline const std::string &get_hostname() const { return hostname_; };
@@ -85,7 +123,7 @@ namespace atbus {
 
         bool is_child_node(bus_id_t id) const;
         bool is_brother_node(bus_id_t id, uint32_t parent_mask) const;
-        static bool is_parent_node(bus_id_t id, bus_id_t parent_id, uint32_t parent_mask);
+
         static bus_id_t get_children_min_id(bus_id_t children_prefix, uint32_t mask);
         static bus_id_t get_children_max_id(bus_id_t children_prefix, uint32_t mask);
         static bool is_child_node(bus_id_t parent_id, bus_id_t parent_children_prefix, uint32_t parent_mask, bus_id_t checked_id);
@@ -167,9 +205,15 @@ namespace atbus {
 
         inline const node *get_owner() const { return owner_; }
 
+        static void merge_subnets(std::vector<endpoint_subnet_range>& subnets);
+
+        static std::vector<endpoint_subnet_range>::const_iterator search_subnet_for_id(const std::vector<endpoint_subnet_range>& subnets, bus_id_t id);
+        static bool contain(const std::vector<endpoint_subnet_range>& parent_subnets, const std::vector<endpoint_subnet_range>& child_subnets);
+        static bool contain(const std::vector<endpoint_subnet_range>& parent_subnets, const std::vector<endpoint_subnet_conf>& child_subnets);
+        static bool contain(const std::vector<endpoint_subnet_conf>& parent_subnets, bus_id_t id);
     private:
         bus_id_t id_;
-        uint32_t children_mask_;
+        std::vector<endpoint_subnet_range> subnets_;
         std::bitset<flag_t::MAX> flags_;
         std::string hostname_;
         int32_t pid_;

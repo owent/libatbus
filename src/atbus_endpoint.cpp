@@ -16,7 +16,84 @@
 #include "libatbus_protocol.h"
 
 namespace atbus {
-    endpoint::ptr_t endpoint::create(node *owner, bus_id_t id, uint32_t children_mask, int32_t pid, const std::string &hn) {
+    endpoint_subnet_conf::endpoint_subnet_conf(): id_prefix(0), mask_bits(0) {}
+    endpoint_subnet_conf::endpoint_subnet_conf(ATBUS_MACRO_BUSID_TYPE a, uint32_t b): id_prefix(a), mask_bits(b) {}
+
+    endpoint_subnet_range::endpoint_subnet_range(ATBUS_MACRO_BUSID_TYPE a, uint32_t b): id_prefix_(a), mask_bits_(b) {
+        max_id_ = id_prefix_ | ((1<< mask_bits_) - 1);
+        min_id_ = max_id_ - ((1<< mask_bits_) - 1);
+    }
+
+    bool endpoint_subnet_range::operator<(const endpoint_subnet_range& other) const {
+        if (max_id_ != other.max_id_) {
+            return max_id_ < other.max_id_;
+        }
+
+        return min_id_ > other.min_id_;
+    }
+
+    bool endpoint_subnet_range::operator<=(const endpoint_subnet_range& other) const {
+        if (max_id_ != other.max_id_) {
+            return max_id_ < other.max_id_;
+        }
+
+        return min_id_ >= other.min_id_;
+    }
+
+    bool endpoint_subnet_range::operator>(const endpoint_subnet_range& other) const {
+        if (max_id_ != other.max_id_) {
+            return max_id_ > other.max_id_;
+        }
+
+        return min_id_ < other.min_id_;
+    }
+
+    bool endpoint_subnet_range::operator>=(const endpoint_subnet_range& other) const {
+        if (max_id_ != other.max_id_) {
+            return max_id_ > other.max_id_;
+        }
+
+        return min_id_ <= other.min_id_;
+    }
+
+    bool endpoint_subnet_range::operator==(const endpoint_subnet_range& other) const {
+        return max_id_ == other.max_id_ && min_id_ == other.min_id_;
+    }
+
+    bool endpoint_subnet_range::operator!=(const endpoint_subnet_range& other) const {
+        return max_id_ != other.max_id_ || min_id_ != other.min_id_;
+    }
+
+    bool endpoint_subnet_range::contain(const endpoint_subnet_range& other) const {
+        return max_id_ >= other.max_id_ && min_id_ <= other.min_id_;
+    }
+
+    bool endpoint_subnet_range::contain(ATBUS_MACRO_BUSID_TYPE id) const {
+        return max_id_ >= id && min_id_ <= id;
+    }
+
+    bool endpoint_subnet_range::contain(ATBUS_MACRO_BUSID_TYPE id_prefix, uint32_t mask_bits, ATBUS_MACRO_BUSID_TYPE id) {
+        return (id_prefix | ((1<< mask_bits) - 1)) == (id | ((1<< mask_bits) - 1));
+    }
+
+    bool endpoint_subnet_range::contain(const endpoint_subnet_conf& conf, ATBUS_MACRO_BUSID_TYPE id) {
+        return contain(conf.id_prefix, conf.mask_bits, id);
+    }
+
+    bool endpoint_subnet_range::lower_bound_by_max_id(const endpoint_subnet_range& l, ATBUS_MACRO_BUSID_TYPE r) {
+        /**
+         * max_id_相同时，范围大的>范围小的
+         * 注意下面这种情况
+         * ============****========
+         * ========********========
+         *    ^      ^   ^   ^
+         *    1      3   2   4
+         */
+
+        return l.get_id_max() < r;
+    }
+
+    endpoint::ptr_t endpoint::create(node *owner, bus_id_t id, const std::vector<endpoint_subnet_conf>& subnets, int32_t pid, const std::string &hn) {
         if (NULL == owner) {
             return endpoint::ptr_t();
         }
@@ -27,16 +104,35 @@ namespace atbus {
         }
 
         ret->id_            = id;
-        ret->children_mask_ = children_mask;
         ret->pid_           = pid;
         ret->hostname_      = hn;
 
         ret->owner_   = owner;
         ret->watcher_ = ret;
+
+        ret->subnets_.reserve(subnets.size() + 1);
+        bool auto_add_self_subnet = true;
+        for (size_t i = 0; i < subnets.size(); ++ i) {
+            if (subnets[i].id_prefix == 0) {
+                ret->subnets_.push_back(endpoint_subnet_range(id, subnets[i].mask_bits));
+                auto_add_self_subnet = false;
+            } else {
+                ret->subnets_.push_back(endpoint_subnet_range(subnets[i].id_prefix, subnets[i].mask_bits));
+                if (endpoint_subnet_range::contain(subnets[i].id_prefix, subnets[i].mask_bits, id)) {
+                    auto_add_self_subnet = false;
+                }
+            }
+        }
+        if (auto_add_self_subnet) {
+            ret->subnets_.push_back(endpoint_subnet_range(id, 0));
+        }
+
+        merge_subnets(ret->subnets_);
+
         return ret;
     }
 
-    endpoint::endpoint() : id_(0), children_mask_(0), pid_(0), owner_(NULL) { flags_.reset(); }
+    endpoint::endpoint() : id_(0), pid_(0), owner_(NULL) { flags_.reset(); }
 
     endpoint::~endpoint() {
         if (NULL != owner_) {
@@ -93,28 +189,13 @@ namespace atbus {
             return false;
         }
 
-        // 目前id是整数，直接位运算即可
-        bus_id_t mask = ~((1 << children_mask_) - 1);
-        return (id & mask) == (id_ & mask);
-    }
-
-    bool endpoint::is_brother_node(bus_id_t id, uint32_t parent_mask) const {
-        // id_ == 0 means a temporary node, and all other node is a brother
-        if (0 == id_) {
-            return true;
+        for (size_t i = 0; i < subnets_.size(); ++ i) {
+            if (subnets_[i].contain(id)) {
+                return true;
+            }
         }
 
-        // 兄弟节点的子节点也视为兄弟节点
-        // 目前id是整数，直接位运算即可
-        bus_id_t c_mask = ~((1 << children_mask_) - 1);
-        bus_id_t f_mask = ~((1 << parent_mask) - 1);
-        // 同一父节点下，且子节点域不同
-        return (id & c_mask) != (id_ & c_mask) && (0 == parent_mask || (id & f_mask) == (id_ & f_mask));
-    }
-
-    bool endpoint::is_parent_node(bus_id_t id, bus_id_t parent_id, uint32_t /*parent_mask*/) {
-        // bus_id_t mask = ~((1 << parent_mask) - 1);
-        return id == parent_id;
+        return false;
     }
 
     endpoint::bus_id_t endpoint::get_children_min_id(bus_id_t children_prefix, uint32_t mask) {
@@ -493,5 +574,139 @@ namespace atbus {
         }
 
         return ret;
+    }
+
+    void endpoint::merge_subnets(std::vector<endpoint_subnet_range>& subnets) {
+        if (subnets.size() <= 1) {
+            return;
+        }
+
+        std::sort(subnets.begin(), subnets.end());
+
+        size_t new_size = 1;
+        size_t old_index = 1;
+
+        for (;old_index < subnets.size(); ++ old_index) {
+            assert(new_size >= 1);
+            assert(old_index >= new_size);
+
+            /**
+             * PREV: ========****============
+             * NEXT: ========********========
+             * Just replace previous
+             */
+            if (subnets[old_index].get_id_min() <= subnets[new_size - 1].get_id_min()) {
+                subnets[new_size - 1] = subnets[old_index];
+            } else {
+                /**
+                 * PREV: ====****================
+                 * NEXT: ============****========
+                 * OR
+                 * PREV: ======****==============
+                 * NEXT: ==========****==========
+                 */
+                if (new_size != old_index) {
+                    subnets[new_size] = subnets[old_index];
+                }
+                ++ new_size;
+            }
+
+            /**
+             * PREV: ======****==============
+             * NEXT: ==========****==========
+             * TO
+             * PREV: ======********==========
+             */
+            bool check_merge = true;
+            while (check_merge && new_size > 1) {
+                check_merge = false;
+                if (subnets[new_size - 1].get_mask_bits() == subnets[new_size - 2].get_mask_bits() && 
+                    subnets[new_size - 1].get_id_min() == subnets[new_size - 2].get_id_max() + 1) {
+                    endpoint_subnet_range up(subnets[new_size - 2].get_id_min(), subnets[new_size - 2].get_mask_bits() + 1);
+                    if (up.get_id_max() == subnets[new_size - 1].get_id_max() &&
+                        up.get_id_min() == subnets[new_size - 2].get_id_min()
+                        ) {
+                        subnets[new_size - 2] = up;
+                        -- new_size;
+                        check_merge = true;
+                    }
+                }
+            }
+        }
+
+
+        if (new_size != subnets.size()) {
+            subnets.resize(new_size);
+        }
+    }
+
+    std::vector<endpoint_subnet_range>::const_iterator endpoint::search_subnet_for_id(const std::vector<endpoint_subnet_range>& subnets, bus_id_t id) {
+        std::vector<endpoint_subnet_range>::const_iterator iter = subnets.begin();
+
+        while (iter != subnets.end()) {
+            if ((*iter).contain(id)) {
+                break;
+            }
+
+            ++iter;
+        }
+
+        return iter;
+    }
+
+    bool endpoint::contain(const std::vector<endpoint_subnet_range>& parent_subnets, const std::vector<endpoint_subnet_range>& child_subnets) {
+        if (parent_subnets.empty()) {
+            return false;
+        }
+
+        for (size_t i = 0; i < child_subnets.size(); ++ i) {
+            bool check_passed = false;
+            for (size_t j = 0; !check_passed && j < parent_subnets.size(); ++ j) {
+                if (parent_subnets[j].contain(child_subnets[i].get_id_min()) && parent_subnets[j].contain(child_subnets[i].get_id_max())) {
+                    check_passed = true;
+                }
+            }
+
+            if (!check_passed) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    bool endpoint::contain(const std::vector<endpoint_subnet_range>& parent_subnets, const std::vector<endpoint_subnet_conf>& child_subnets) {
+        if (parent_subnets.empty()) {
+            return false;
+        }
+
+        for (size_t i = 0; i < child_subnets.size(); ++ i) {
+            bool check_passed = false;
+            for (size_t j = 0; !check_passed && j < parent_subnets.size(); ++ j) {
+                if (parent_subnets[j].contain(child_subnets[i].id_prefix) && parent_subnets[j].get_mask_bits() >= child_subnets[i].mask_bits) {
+                    check_passed = true;
+                }
+            }
+
+            if (!check_passed) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    bool endpoint::contain(const std::vector<endpoint_subnet_conf>& parent_subnets, bus_id_t id) {
+        if (parent_subnets.empty()) {
+            return false;
+        }
+
+        for (size_t i = 0; i < parent_subnets.size(); ++ i) {
+            if (endpoint_subnet_range::contain(parent_subnets[i], id)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 } // namespace atbus

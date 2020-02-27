@@ -80,7 +80,7 @@ namespace atbus {
         }
 
         conf->ev_loop       = NULL;
-        conf->children_mask = 0;
+        conf->subnets.clear();
         conf->loop_times    = 128;
         conf->ttl           = 16; // 默认最长8次跳转
         conf->protocol_version = atbus::protocol::ATBUS_PROTOCOL_VERSION;
@@ -135,7 +135,7 @@ namespace atbus {
         conf_.protocol_minimal_version = atbus::protocol::ATBUS_PROTOCOL_MINIMAL_VERSION;
 
         ev_loop_ = conf_.ev_loop;
-        self_    = endpoint::create(this, id, conf_.children_mask, get_pid(), get_hostname());
+        self_    = endpoint::create(this, id, conf_.subnets, get_pid(), get_hostname());
         if (!self_) {
             return EN_ATBUS_ERR_MALLOC;
         }
@@ -215,8 +215,7 @@ namespace atbus {
             remove_endpoint(node_parent_.node_->get_id());
         }
         // endpoint 不应该游离在node以外，所以这里就应该要触发endpoint::reset
-        remove_collection(node_brother_);
-        remove_collection(node_children_);
+        remove_collection(node_routes_);
 
         // 清空正在连接或握手的列表
         // 必须显式指定断开，以保证会主动断开正在进行的连接
@@ -624,25 +623,12 @@ namespace atbus {
             return EN_ATBUS_ERR_SUCCESS;
         }
 
-        endpoint *ep = find_child(node_brother_, id);
+        endpoint *ep = find_route(node_routes_, id);
         if (NULL != ep && ep->get_id() == id) {
             endpoint::ptr_t ep_ptr = ep->watch();
 
             // 移除连接关系
-            remove_child(node_brother_, id);
-            // TODO 移除全局表
-
-            ep_ptr->reset();
-            return EN_ATBUS_ERR_SUCCESS;
-        }
-
-        ep = find_child(node_children_, id);
-        if (NULL != ep && ep->get_id() == id) {
-            endpoint::ptr_t ep_ptr = ep->watch();
-
-            // 移除连接关系
-            remove_child(node_children_, id);
-            // TODO 移除全局表
+            remove_child(node_routes_, id);
 
             ep_ptr->reset();
             return EN_ATBUS_ERR_SUCCESS;
@@ -797,50 +783,25 @@ namespace atbus {
                 break;
             }
 
-            // 兄弟节点(父节点会被判为可能是兄弟节点)
-            if (is_brother_node(tid)) {
-                target = find_child(node_brother_, tid);
-                if (NULL != target && target->is_child_node(tid)) {
-                    conn = (self_.get()->*fn)(target);
+            target = find_route(node_routes_, tid);
+            if (NULL != target && target->is_child_node(tid)) {
+                conn = (self_.get()->*fn)(target);
 
-                    ASSIGN_EPCONN();
-                    break;
-                } else if (node_parent_.node_) {
-                    // 发给父节点
-                    /*
-                    //       F1
-                    //      /  \
-                    //    C11  C12
-                    // 当C11发往C12时触发这种情况
-                    */
-                    target = node_parent_.node_.get();
-                    conn   = (self_.get()->*fn)(target);
-
-                    ASSIGN_EPCONN();
-                    break;
-                }
-
-                return EN_ATBUS_ERR_ATNODE_INVALID_ID;
+                ASSIGN_EPCONN();
+                break;
             }
 
-            // 子节点
+            // 子网节点不走默认路由
             if (is_child_node(tid)) {
-                target = find_child(node_children_, tid);
-                if (NULL != target && target->is_child_node(tid)) {
-                    conn = (self_.get()->*fn)(target);
-
-                    ASSIGN_EPCONN();
-                    break;
-                }
                 return EN_ATBUS_ERR_ATNODE_INVALID_ID;
             }
 
             // 其他情况,如果发给父节点
             /*
-            //       F1 ------------ F2
-            //      /  \            /  \
-            //    C11  C12        C21  C22
-            // 当C11发往C21或C22时触发这种情况
+            //       F1 ------------ F2     |       F1
+            //      /  \            /  \    |      /  \
+            //    C11  C12        C21  C22  |    C11  C12
+            // 当C11发往C21或C22时触发这种情况  | 当C11发往C12时触发这种情况
             */
             if (node_parent_.node_) {
                 target = node_parent_.node_.get();
@@ -865,22 +826,9 @@ namespace atbus {
             return node_parent_.node_.get();
         }
 
-        // 直连兄弟节点
-        if (0 == get_id() || is_brother_node(tid)) {
-            endpoint *res = find_child(node_brother_, tid);
-            if (NULL != res && res->get_id() == tid) {
-                return res;
-            }
-            return NULL;
-        }
-
-        // 直连子节点
-        if (is_child_node(tid)) {
-            endpoint *res = find_child(node_children_, tid);
-            if (NULL != res && res->get_id() == tid) {
-                return res;
-            }
-            return NULL;
+        endpoint *res = find_route(node_routes_, tid);
+        if (NULL != res && res->get_id() == tid) {
+            return res;
         }
 
         return NULL;
@@ -922,29 +870,12 @@ namespace atbus {
             }
         }
 
-        // 兄弟节点(父节点会被判为可能是兄弟节点)
-        if (0 == get_id() || is_brother_node(ep->get_id())) {
-            // event will be triggered in insert_child()
-            if (insert_child(node_brother_, ep)) {
-                add_ping_timer(ep);
+        if (insert_child(node_routes_, ep)) {
+            add_ping_timer(ep);
 
-                return EN_ATBUS_ERR_SUCCESS;
-            } else {
-                return EN_ATBUS_ERR_ATNODE_MASK_CONFLICT;
-            }
-        }
-
-        // 子节点
-        if (is_child_node(ep->get_id())) {
-            // event will be triggered in insert_child()
-            if (insert_child(node_children_, ep)) {
-                add_ping_timer(ep);
-
-                // TODO 子节点上线上报
-                return EN_ATBUS_ERR_SUCCESS;
-            } else {
-                return EN_ATBUS_ERR_ATNODE_MASK_CONFLICT;
-            }
+            return EN_ATBUS_ERR_SUCCESS;
+        } else {
+            return EN_ATBUS_ERR_ATNODE_MASK_CONFLICT;
         }
 
         return EN_ATBUS_ERR_ATNODE_INVALID_ID;
@@ -974,28 +905,15 @@ namespace atbus {
             return EN_ATBUS_ERR_SUCCESS;
         }
 
-        // 兄弟节点(父节点会被判为可能是兄弟节点)
-        if (0 == get_id() || is_brother_node(tid)) {
-            // event will be triggered in remove_child()
-            if (remove_child(node_brother_, tid)) {
-                return EN_ATBUS_ERR_SUCCESS;
-            } else {
-                return EN_ATBUS_ERR_ATNODE_NOT_FOUND;
-            }
+        if (get_id() == tid) {
+            return EN_ATBUS_ERR_ATNODE_INVALID_ID;
         }
 
-        // 子节点
-        if (is_child_node(tid)) {
-            // event will be triggered in remove_child()
-            if (remove_child(node_children_, tid)) {
-                // TODO 子节点下线上报
-                return EN_ATBUS_ERR_SUCCESS;
-            } else {
-                return EN_ATBUS_ERR_ATNODE_NOT_FOUND;
-            }
+        if (remove_child(node_routes_, tid)) {
+            return EN_ATBUS_ERR_SUCCESS;
+        } else {
+            return EN_ATBUS_ERR_ATNODE_NOT_FOUND;
         }
-
-        return EN_ATBUS_ERR_ATNODE_INVALID_ID;
     }
 
     bool node::is_endpoint_available(bus_id_t tid) const {
@@ -1071,19 +989,8 @@ namespace atbus {
         if (0 == get_id()) {
             return false;
         }
+        
         return self_->is_child_node(id);
-    }
-
-    bool node::is_brother_node(bus_id_t id) const {
-        if (0 == get_id()) {
-            return true;
-        }
-
-        if (node_parent_.node_) {
-            return self_->is_brother_node(id, node_parent_.node_->get_children_mask());
-        } else {
-            return self_->is_brother_node(id, 0);
-        }
     }
 
     bool node::is_parent_node(bus_id_t id) const {
@@ -1091,8 +998,8 @@ namespace atbus {
             return false;
         }
 
-        if (node_parent_.node_) {
-            return self_->is_parent_node(id, node_parent_.node_->get_id(), node_parent_.node_->get_children_mask());
+        if (node_parent_.node_ && id == node_parent_.node_->get_id()) {
+            return true;
         }
 
         return false;
@@ -1700,9 +1607,36 @@ namespace atbus {
 
     void node::unref_object(void *obj) { ref_objs_.erase(obj); }
 
-    endpoint *node::find_child(endpoint_collection_t &coll, bus_id_t id) {
-        // key 保存为子域上界，所以第一个查找的节点要么直接是value，要么是value的子节点
-        endpoint_collection_t::iterator iter = coll.lower_bound(id);
+    bool node::check_conflict(endpoint_collection_t &coll, const endpoint_subnet_conf& conf) {
+        endpoint_subnet_range range(conf.id_prefix, conf.mask_bits);
+        endpoint_collection_t::iterator iter = coll.lower_bound(endpoint_subnet_range(range.get_id_min(), 0));
+        if (iter == coll.end()) {
+            return false;
+        }
+
+        if (iter->first.contain(range.get_id_min())) {
+            return true;
+        }
+
+        if (range.contain(iter->first.get_id_min())) {
+            return true;
+        }
+
+        return false;
+    }
+
+    bool node::check_conflict(endpoint_collection_t &coll, const std::vector<endpoint_subnet_conf>& confs) {
+        for (size_t i = 0; i < confs.size(); ++ i) {
+            if (check_conflict(coll, confs[i])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    endpoint *node::find_route(endpoint_collection_t &coll, bus_id_t id) {
+        endpoint_collection_t::iterator iter = coll.lower_bound(endpoint_subnet_range(id, 0));
         if (iter == coll.end()) {
             return NULL;
         }
@@ -1711,8 +1645,7 @@ namespace atbus {
             return iter->second.get();
         }
 
-        // 不能直接发送到间接子节点，所以直接发给直接子节点由其转发即可
-        if (iter->second->is_child_node(id)) {
+        if (iter->first.contain(id)) {
             return iter->second.get();
         }
 
@@ -1764,7 +1697,11 @@ namespace atbus {
             }
         }
 
-        coll[maskv] = ep;
+        // insert all routes
+        const std::vector<endpoint_subnet_range>& routes = ep->get_subnets();
+        for (size_t i = 0; i < routes.size(); ++ i) {
+            coll[routes[i]] = ep;
+        }
 
         // event
         if (event_msg_.on_endpoint_added) {
@@ -1775,7 +1712,7 @@ namespace atbus {
     }
 
     bool node::remove_child(endpoint_collection_t &coll, bus_id_t id) {
-        endpoint_collection_t::iterator iter = coll.lower_bound(id);
+        endpoint_collection_t::iterator iter = coll.lower_bound(endpoint_subnet_range(id, 0));
         if (iter == coll.end()) {
             return false;
         }
@@ -1785,7 +1722,11 @@ namespace atbus {
         }
 
         endpoint::ptr_t ep = iter->second;
-        coll.erase(iter);
+        // remove all routes
+        const std::vector<endpoint_subnet_range>& routes = iter->second->get_subnets();
+        for (size_t i = 0; i < routes.size(); ++ i) {
+            coll.erase(routes[i]);
+        }
 
         // event
         if (event_msg_.on_endpoint_removed) {

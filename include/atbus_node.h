@@ -72,7 +72,7 @@ namespace atbus {
 
         struct conf_t {
             adapter::loop_t *ev_loop;
-            uint32_t children_mask;                      /** 子节点掩码 **/
+            std::vector<endpoint_subnet_conf> subnets;   /** 子网范围 **/
             std::bitset<conf_flag_t::EN_CONF_MAX> flags; /** 开关配置 **/
             std::string parent_address;                  /** 父节点地址 **/
             int loop_times;                              /** 消息循环次数限制，防止某些通道繁忙把其他通道堵死 **/
@@ -96,7 +96,7 @@ namespace atbus {
             size_t send_buffer_number; /** 发送缓冲区静态Buffer数量限制，0则为动态缓冲区 **/
         };
 
-        typedef std::map<bus_id_t, endpoint::ptr_t> endpoint_collection_t;
+        typedef std::map<endpoint_subnet_range, endpoint::ptr_t> endpoint_collection_t;
 
         struct evt_msg_t {
             // 接收消息事件回调 => 参数列表: 发起节点，来源对端，来源连接，消息体，数据地址，数据长度
@@ -325,9 +325,7 @@ namespace atbus {
 
         inline const endpoint *get_parent_endpoint() const { return node_parent_.node_.get(); }
 
-        inline const endpoint_collection_t &get_children() const { return node_children_; };
-
-        inline const endpoint_collection_t &get_brother() const { return node_brother_; };
+        inline const endpoint_collection_t &get_routes() const { return node_routes_; };
 
         /**
          * @brief 获取关联的事件管理器,如果未设置则会初始化为默认时间管理器
@@ -396,7 +394,6 @@ namespace atbus {
         ptr_t get_watcher();
 
         bool is_child_node(bus_id_t id) const;
-        bool is_brother_node(bus_id_t id) const;
         bool is_parent_node(bus_id_t id) const;
 
         static int get_pid();
@@ -522,8 +519,10 @@ namespace atbus {
         // inner API, please don't use it if you don't known what will happen
         void unref_object(void *);
 
+        static bool check_conflict(endpoint_collection_t &coll, const endpoint_subnet_conf& conf);
+        static bool check_conflict(endpoint_collection_t &coll, const std::vector<endpoint_subnet_conf>& confs);
     private:
-        static endpoint *find_child(endpoint_collection_t &coll, bus_id_t id);
+        static endpoint *find_route(endpoint_collection_t &coll, bus_id_t id);
 
         bool insert_child(endpoint_collection_t &coll, endpoint::ptr_t ep);
 
@@ -603,15 +602,10 @@ namespace atbus {
         struct parent_info_t {
             endpoint::ptr_t node_;
         };
-        parent_info_t node_parent_;
+        parent_info_t node_parent_; // 父节点（默认路由，自动重连）
 
-        // 兄弟节点
-        endpoint_collection_t node_brother_;
-
-        // 子节点
-        endpoint_collection_t node_children_;
-
-        // 全局路由表
+        // 路由节点
+        endpoint_collection_t node_routes_;
 
         // 统计信息
         struct stat_info_t {
