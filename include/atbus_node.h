@@ -519,8 +519,8 @@ namespace atbus {
         // inner API, please don't use it if you don't known what will happen
         void unref_object(void *);
 
-        static bool check_conflict(endpoint_collection_t &coll, const endpoint_subnet_conf& conf);
-        static bool check_conflict(endpoint_collection_t &coll, const std::vector<endpoint_subnet_conf>& confs);
+        static bool check_conflict(endpoint_collection_t &coll, const endpoint_subnet_range& conf);
+        static bool check_conflict(endpoint_collection_t &coll, const std::vector<endpoint_subnet_range>& confs);
     private:
         static endpoint *find_route(endpoint_collection_t &coll, bus_id_t id);
 

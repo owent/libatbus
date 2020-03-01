@@ -1607,8 +1607,7 @@ namespace atbus {
 
     void node::unref_object(void *obj) { ref_objs_.erase(obj); }
 
-    bool node::check_conflict(endpoint_collection_t &coll, const endpoint_subnet_conf& conf) {
-        endpoint_subnet_range range(conf.id_prefix, conf.mask_bits);
+    bool node::check_conflict(endpoint_collection_t &coll, const endpoint_subnet_range& range) {
         endpoint_collection_t::iterator iter = coll.lower_bound(endpoint_subnet_range(range.get_id_min(), 0));
         if (iter == coll.end()) {
             return false;
@@ -1625,7 +1624,7 @@ namespace atbus {
         return false;
     }
 
-    bool node::check_conflict(endpoint_collection_t &coll, const std::vector<endpoint_subnet_conf>& confs) {
+    bool node::check_conflict(endpoint_collection_t &coll, const std::vector<endpoint_subnet_range>& confs) {
         for (size_t i = 0; i < confs.size(); ++ i) {
             if (check_conflict(coll, confs[i])) {
                 return true;
