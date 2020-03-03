@@ -841,12 +841,25 @@ namespace atbus {
             return EN_ATBUS_ERR_PARAMS;
         }
 
+        if (flags_.test(flag_t::EN_FT_RESETTING)) {
+            return EN_ATBUS_ERR_CLOSING;
+        }
+
+        if (!self_) {
+            return EN_ATBUS_ERR_NOT_INITED;
+        }
+
         if (this != ep->get_owner()) {
             return EN_ATBUS_ERR_PARAMS;
         }
 
-        // 父节点单独判定，由于防止测试兄弟节点
-        if (0 != get_id() && ep->get_children_mask() > self_->get_children_mask() && ep->is_child_node(get_id())) {
+        // 父节点单独判定
+        if (0 != get_id() && endpoint::contain(ep->get_subnets(), get_id())) {
+            if (!endpoint::contain(ep->get_subnets(), self_->get_subnets())) {
+                ATBUS_FUNC_NODE_ERROR(*this, ep.get(), NULL, EN_ATBUS_ERR_ATNODE_MASK_CONFLICT, EN_ATBUS_ERR_ATNODE_MASK_CONFLICT);
+                return EN_ATBUS_ERR_ATNODE_MASK_CONFLICT;
+            }
+            
             if (!node_parent_.node_) {
                 node_parent_.node_ = ep;
                 add_ping_timer(ep);
@@ -1656,44 +1669,9 @@ namespace atbus {
             return false;
         }
 
-        bus_id_t maskv = endpoint::get_children_max_id(ep->get_id(), ep->get_children_mask());
-
-        // key 保存为子域上界，所以第一个查找的节点要么目标节点的父节点，要么子节点域交叉
-        endpoint_collection_t::iterator iter = coll.lower_bound(ep->get_id());
-
-        // 如果在所有子节点域外则直接添加
-        if (iter == coll.end()) {
-            // 有可能这个节点覆盖最后一个
-            if (!coll.empty() && ep->is_child_node(coll.rbegin()->second->get_id())) {
-                return false;
-            }
-
-            coll[maskv] = ep;
-
-            // event
-            if (event_msg_.on_endpoint_added) {
-                flag_guard_t fgd(this, flag_t::EN_FT_IN_CALLBACK);
-                event_msg_.on_endpoint_added(std::cref(*this), ep.get(), EN_ATBUS_ERR_SUCCESS);
-            }
-            return true;
-        }
-
-        // 如果是数据merge则出错退出
-        if (iter->second->get_id() == ep->get_id()) {
+        if (check_conflict(coll, ep->get_subnets())) {
+            ATBUS_FUNC_NODE_ERROR(*this, ep.get(), NULL, EN_ATBUS_ERR_ATNODE_MASK_CONFLICT, EN_ATBUS_ERR_ATNODE_MASK_CONFLICT);
             return false;
-        }
-
-        // 如果新节点是老节点的子节点，则失败退出
-        if (iter->second->is_child_node(ep->get_id()) || ep->is_child_node(iter->second->get_id())) {
-            return false;
-        }
-
-        // 如果有老节点是新节点的子节点，则失败退出
-        if (iter != coll.begin()) {
-            --iter;
-            if (iter != coll.end() && ep->is_child_node(iter->second->get_id())) {
-                return false;
-            }
         }
 
         // insert all routes

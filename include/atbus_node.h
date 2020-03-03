@@ -23,7 +23,9 @@
 #include <WinSock2.h>
 #endif
 
-#include "design_pattern/noncopyable.h"
+#include <design_pattern/noncopyable.h>
+#include <design_pattern/nomovable.h>
+
 #include "lock/seq_alloc.h"
 #include "random/random_generator.h"
 #include "std/functional.h"
@@ -160,9 +162,12 @@ namespace atbus {
     public:
         static void default_conf(conf_t *conf);
 
+        UTIL_DESIGN_PATTERN_NOCOPYABLE(node)
+        UTIL_DESIGN_PATTERN_NOMOVABLE(node)
+
     private:
         node();
-
+        
         struct io_stream_channel_del {
             void operator()(channel::io_stream_channel *p) const;
         };

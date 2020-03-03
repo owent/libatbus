@@ -21,7 +21,8 @@
 
 #include "std/smart_ptr.h"
 
-#include "design_pattern/noncopyable.h"
+#include <design_pattern/noncopyable.h>
+#include <design_pattern/nomovable.h>
 
 #include "detail/libatbus_channel_export.h"
 #include "detail/libatbus_config.h"
@@ -101,6 +102,9 @@ namespace atbus {
         } flag_t;
 
         typedef connection *(endpoint::*get_connection_fn_t)(endpoint *ep) const;
+
+    UTIL_DESIGN_PATTERN_NOCOPYABLE(endpoint)
+    UTIL_DESIGN_PATTERN_NOMOVABLE(endpoint)
 
     private:
         endpoint();
@@ -210,6 +214,7 @@ namespace atbus {
         static std::vector<endpoint_subnet_range>::const_iterator search_subnet_for_id(const std::vector<endpoint_subnet_range>& subnets, bus_id_t id);
         static bool contain(const std::vector<endpoint_subnet_range>& parent_subnets, const std::vector<endpoint_subnet_range>& child_subnets);
         static bool contain(const std::vector<endpoint_subnet_range>& parent_subnets, const std::vector<endpoint_subnet_conf>& child_subnets);
+        static bool contain(const std::vector<endpoint_subnet_range>& parent_subnets, bus_id_t id);
         static bool contain(const std::vector<endpoint_subnet_conf>& parent_subnets, bus_id_t id);
     private:
         bus_id_t id_;

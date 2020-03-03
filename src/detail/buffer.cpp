@@ -19,21 +19,21 @@ namespace atbus {
     namespace detail {
 
         namespace fn {
-            void *buffer_next(void *pointer, size_t step) { return reinterpret_cast<char *>(pointer) + step; }
+            ATBUS_MACRO_API void *buffer_next(void *pointer, size_t step) { return reinterpret_cast<char *>(pointer) + step; }
 
-            const void *buffer_next(const void *pointer, size_t step) { return reinterpret_cast<const char *>(pointer) + step; }
+            ATBUS_MACRO_API const void *buffer_next(const void *pointer, size_t step) { return reinterpret_cast<const char *>(pointer) + step; }
 
-            void *buffer_prev(void *pointer, size_t step) { return reinterpret_cast<char *>(pointer) - step; }
+            ATBUS_MACRO_API void *buffer_prev(void *pointer, size_t step) { return reinterpret_cast<char *>(pointer) - step; }
 
-            const void *buffer_prev(const void *pointer, size_t step) { return reinterpret_cast<const char *>(pointer) - step; }
+            ATBUS_MACRO_API const void *buffer_prev(const void *pointer, size_t step) { return reinterpret_cast<const char *>(pointer) - step; }
 
-            size_t buffer_offset(const void *l, const void *r) {
+            ATBUS_MACRO_API size_t buffer_offset(const void *l, const void *r) {
                 const char *lc = reinterpret_cast<const char *>(l);
                 const char *rc = reinterpret_cast<const char *>(r);
                 return lc < rc ? (rc - lc) : (lc - rc);
             }
 
-            size_t read_vint(uint64_t &out, const void *pointer, size_t s) {
+            ATBUS_MACRO_API size_t read_vint(uint64_t &out, const void *pointer, size_t s) {
                 out = 0;
 
                 if (s == 0 || NULL == pointer) {
@@ -57,7 +57,7 @@ namespace atbus {
                 return s - left;
             }
 
-            size_t write_vint(uint64_t in, void *pointer, size_t s) {
+            ATBUS_MACRO_API size_t write_vint(uint64_t in, void *pointer, size_t s) {
                 if (s == 0 || NULL == pointer) {
                     return 0;
                 }
@@ -88,19 +88,19 @@ namespace atbus {
             }
         } // namespace fn
 
-        void *buffer_block::data() { return fn::buffer_next(pointer_, used_); }
+        ATBUS_MACRO_API void *buffer_block::data() { return fn::buffer_next(pointer_, used_); }
 
-        const void *buffer_block::data() const { return fn::buffer_next(pointer_, used_); }
+        ATBUS_MACRO_API const void *buffer_block::data() const { return fn::buffer_next(pointer_, used_); }
 
-        void *buffer_block::raw_data() { return pointer_; }
+        ATBUS_MACRO_API void *buffer_block::raw_data() { return pointer_; }
 
-        const void *buffer_block::raw_data() const { return pointer_; }
+        ATBUS_MACRO_API const void *buffer_block::raw_data() const { return pointer_; }
 
-        size_t buffer_block::size() const { return size_ - used_; }
+        ATBUS_MACRO_API size_t buffer_block::size() const { return size_ - used_; }
 
-        size_t buffer_block::raw_size() const { return size_; }
+        ATBUS_MACRO_API size_t buffer_block::raw_size() const { return size_; }
 
-        void *buffer_block::pop(size_t s) {
+        ATBUS_MACRO_API void *buffer_block::pop(size_t s) {
             if (used_ + s > size_) {
                 used_ = size_;
             } else {
@@ -110,10 +110,10 @@ namespace atbus {
             return data();
         }
 
-        size_t buffer_block::instance_size() const { return head_size(size_); }
+        ATBUS_MACRO_API size_t buffer_block::instance_size() const { return head_size(size_); }
 
         /** alloc and init buffer_block **/
-        buffer_block *buffer_block::malloc(size_t s) {
+        ATBUS_MACRO_API buffer_block *buffer_block::malloc(size_t s) {
             size_t ms = full_size(s);
 
             void *ret = ::malloc(ms);
@@ -128,7 +128,7 @@ namespace atbus {
         }
 
         /** destroy and free buffer_block **/
-        void buffer_block::free(buffer_block *p) {
+        ATBUS_MACRO_API void buffer_block::free(buffer_block *p) {
             if (NULL != p) {
                 destroy(p);
                 ::free(p);
@@ -136,7 +136,7 @@ namespace atbus {
         }
 
         /** init buffer_block as specify address **/
-        void *buffer_block::create(void *pointer, size_t s, size_t bs) {
+        ATBUS_MACRO_API void *buffer_block::create(void *pointer, size_t s, size_t bs) {
             if (NULL == pointer) {
                 return NULL;
             }
@@ -157,7 +157,7 @@ namespace atbus {
         }
 
         /** init buffer_block as specify address **/
-        void *buffer_block::destroy(buffer_block *p) {
+        ATBUS_MACRO_API void *buffer_block::destroy(buffer_block *p) {
             if (NULL == p) {
                 return NULL;
             }
@@ -170,7 +170,7 @@ namespace atbus {
             return fn::buffer_next(p->pointer_, p->size_);
         }
 
-        size_t buffer_block::padding_size(size_t s) {
+        ATBUS_MACRO_API size_t buffer_block::padding_size(size_t s) {
             size_t pl = s % ATBUS_MACRO_DATA_ALIGN_SIZE;
             if (0 == pl) {
                 return s;
@@ -179,22 +179,22 @@ namespace atbus {
             return s + ATBUS_MACRO_DATA_ALIGN_SIZE - pl;
         }
 
-        size_t buffer_block::head_size(size_t) { return padding_size(sizeof(buffer_block)); }
+        ATBUS_MACRO_API size_t buffer_block::head_size(size_t) { return padding_size(sizeof(buffer_block)); }
 
-        size_t buffer_block::full_size(size_t s) { return head_size(s) + padding_size(s); }
+        ATBUS_MACRO_API size_t buffer_block::full_size(size_t s) { return head_size(s) + padding_size(s); }
 
         // ================= buffer manager =================
-        buffer_manager::buffer_manager() {
+        ATBUS_MACRO_API buffer_manager::buffer_manager() {
             static_buffer_.buffer_ = NULL;
 
             reset();
         }
 
-        buffer_manager::~buffer_manager() { reset(); }
+        ATBUS_MACRO_API buffer_manager::~buffer_manager() { reset(); }
 
-        const buffer_manager::limit_t &buffer_manager::limit() const { return limit_; }
+        ATBUS_MACRO_API const buffer_manager::limit_t &buffer_manager::limit() const { return limit_; }
 
-        bool buffer_manager::set_limit(size_t max_size, size_t max_number) {
+        ATBUS_MACRO_API bool buffer_manager::set_limit(size_t max_size, size_t max_number) {
             if (NULL == static_buffer_.buffer_) {
                 limit_.limit_number_ = max_number;
                 limit_.limit_size_   = max_size;
@@ -204,9 +204,9 @@ namespace atbus {
             return false;
         }
 
-        buffer_block *buffer_manager::front() { return is_dynamic_mode() ? dynamic_front() : static_front(); }
+        ATBUS_MACRO_API buffer_block *buffer_manager::front() { return is_dynamic_mode() ? dynamic_front() : static_front(); }
 
-        int buffer_manager::front(void *&pointer, size_t &nread, size_t &nwrite) {
+        ATBUS_MACRO_API int buffer_manager::front(void *&pointer, size_t &nread, size_t &nwrite) {
             buffer_block *res = front();
             if (NULL == res) {
                 pointer = NULL;
@@ -221,9 +221,9 @@ namespace atbus {
             return EN_ATBUS_ERR_SUCCESS;
         }
 
-        buffer_block *buffer_manager::back() { return is_dynamic_mode() ? dynamic_back() : static_back(); }
+        ATBUS_MACRO_API buffer_block *buffer_manager::back() { return is_dynamic_mode() ? dynamic_back() : static_back(); }
 
-        int buffer_manager::back(void *&pointer, size_t &nread, size_t &nwrite) {
+        ATBUS_MACRO_API int buffer_manager::back(void *&pointer, size_t &nread, size_t &nwrite) {
             buffer_block *res = back();
             if (NULL == res) {
                 pointer = NULL;
@@ -238,7 +238,7 @@ namespace atbus {
             return EN_ATBUS_ERR_SUCCESS;
         }
 
-        int buffer_manager::push_back(void *&pointer, size_t s) {
+        ATBUS_MACRO_API int buffer_manager::push_back(void *&pointer, size_t s) {
             pointer = NULL;
             if (limit_.limit_number_ > 0 && limit_.cost_number_ >= limit_.limit_number_) {
                 return EN_ATBUS_ERR_BUFF_LIMIT;
@@ -257,7 +257,7 @@ namespace atbus {
             return res;
         }
 
-        int buffer_manager::push_front(void *&pointer, size_t s) {
+        ATBUS_MACRO_API int buffer_manager::push_front(void *&pointer, size_t s) {
             pointer = NULL;
             if (limit_.limit_number_ > 0 && limit_.cost_number_ >= limit_.limit_number_) {
                 return EN_ATBUS_ERR_BUFF_LIMIT;
@@ -276,15 +276,15 @@ namespace atbus {
             return res;
         }
 
-        int buffer_manager::pop_back(size_t s, bool free_unwritable) {
+        ATBUS_MACRO_API int buffer_manager::pop_back(size_t s, bool free_unwritable) {
             return is_dynamic_mode() ? dynamic_pop_back(s, free_unwritable) : static_pop_back(s, free_unwritable);
         }
 
-        int buffer_manager::pop_front(size_t s, bool free_unwritable) {
+        ATBUS_MACRO_API int buffer_manager::pop_front(size_t s, bool free_unwritable) {
             return is_dynamic_mode() ? dynamic_pop_front(s, free_unwritable) : static_pop_front(s, free_unwritable);
         }
 
-        int buffer_manager::merge_back(void *&pointer, size_t s) {
+        ATBUS_MACRO_API int buffer_manager::merge_back(void *&pointer, size_t s) {
             if (empty()) {
                 return push_back(pointer, s);
             }
@@ -302,7 +302,7 @@ namespace atbus {
             return res;
         }
 
-        int buffer_manager::merge_front(void *&pointer, size_t s) {
+        ATBUS_MACRO_API int buffer_manager::merge_front(void *&pointer, size_t s) {
             if (empty()) {
                 return push_front(pointer, s);
             }
@@ -320,7 +320,7 @@ namespace atbus {
             return res;
         }
 
-        bool buffer_manager::empty() const { return is_dynamic_mode() ? dynamic_empty() : static_empty(); }
+        ATBUS_MACRO_API bool buffer_manager::empty() const { return is_dynamic_mode() ? dynamic_empty() : static_empty(); }
 
         buffer_block *buffer_manager::static_front() {
             if (static_empty()) {
@@ -922,7 +922,7 @@ namespace atbus {
 
         bool buffer_manager::dynamic_empty() const { return dynamic_buffer_.empty(); }
 
-        void buffer_manager::reset() {
+        ATBUS_MACRO_API void buffer_manager::reset() {
             static_buffer_.head_ = 0;
             static_buffer_.tail_ = 0;
             static_buffer_.size_ = 0;
@@ -944,7 +944,7 @@ namespace atbus {
             limit_.limit_size_   = 0;
         }
 
-        void buffer_manager::set_mode(size_t max_size, size_t max_number) {
+        ATBUS_MACRO_API void buffer_manager::set_mode(size_t max_size, size_t max_number) {
             reset();
 
             if (0 != max_size && max_number > 0) {
@@ -961,5 +961,8 @@ namespace atbus {
                 }
             }
         }
+
+        ATBUS_MACRO_API bool buffer_manager::is_static_mode() const { return NULL != static_buffer_.buffer_; }
+        ATBUS_MACRO_API bool buffer_manager::is_dynamic_mode() const { return NULL == static_buffer_.buffer_; }
     } // namespace detail
 } // namespace atbus

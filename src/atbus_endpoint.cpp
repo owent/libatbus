@@ -696,6 +696,20 @@ namespace atbus {
         return true;
     }
 
+    bool endpoint::contain(const std::vector<endpoint_subnet_range>& parent_subnets, bus_id_t id) {
+        if (parent_subnets.empty()) {
+            return false;
+        }
+
+        for (size_t i = 0; i < parent_subnets.size(); ++ i) {
+            if (parent_subnets[i].contain(id)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     bool endpoint::contain(const std::vector<endpoint_subnet_conf>& parent_subnets, bus_id_t id) {
         if (parent_subnets.empty()) {
             return false;

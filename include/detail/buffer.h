@@ -12,16 +12,21 @@
 #include <stdint.h>
 #include <vector>
 
+#include "libatbus_config.h"
+
+#include <design_pattern/noncopyable.h>
+#include <design_pattern/nomovable.h>
+
 namespace atbus {
     namespace detail {
         namespace fn {
-            void *buffer_next(void *pointer, size_t step);
-            const void *buffer_next(const void *pointer, size_t step);
+            ATBUS_MACRO_API void *buffer_next(void *pointer, size_t step);
+            ATBUS_MACRO_API const void *buffer_next(const void *pointer, size_t step);
 
-            void *buffer_prev(void *pointer, size_t step);
-            const void *buffer_prev(const void *pointer, size_t step);
+            ATBUS_MACRO_API void *buffer_prev(void *pointer, size_t step);
+            ATBUS_MACRO_API const void *buffer_prev(const void *pointer, size_t step);
 
-            size_t buffer_offset(const void *l, const void *r);
+            ATBUS_MACRO_API size_t buffer_offset(const void *l, const void *r);
 
             /**
              * @brief try to read a dynamic int from buffer
@@ -32,7 +37,7 @@ namespace atbus {
              * @note can not used with signed integer
              * @return how much bytes the integer cost, 0 if failed
              **/
-            size_t read_vint(uint64_t &out, const void *pointer, size_t s);
+            ATBUS_MACRO_API size_t read_vint(uint64_t &out, const void *pointer, size_t s);
 
             /**
              * @brief try to write a dynamic int to buffer
@@ -43,7 +48,7 @@ namespace atbus {
              * @note can not used with signed integer
              * @return how much bytes the integer cost, 0 if failed
              **/
-            size_t write_vint(uint64_t in, void *pointer, size_t s);
+            ATBUS_MACRO_API size_t write_vint(uint64_t in, void *pointer, size_t s);
         }
 
         class buffer_manager;
@@ -51,7 +56,7 @@ namespace atbus {
         /**
          * @brief buffer block, not thread safe
          */
-        class buffer_block {
+        ATBUS_MACRO_API class buffer_block {
         public:
             void *data();
             const void *data() const;
@@ -109,15 +114,15 @@ namespace atbus {
                 size_t limit_size_;
             };
 
-        private:
-            buffer_manager(const buffer_manager &);
-            buffer_manager &operator=(const buffer_manager &);
+
+        UTIL_DESIGN_PATTERN_NOCOPYABLE(buffer_manager)
+        UTIL_DESIGN_PATTERN_NOMOVABLE(buffer_manager)
 
         public:
-            buffer_manager();
-            ~buffer_manager();
+            ATBUS_MACRO_API buffer_manager();
+            ATBUS_MACRO_API ~buffer_manager();
 
-            const limit_t &limit() const;
+            ATBUS_MACRO_API const limit_t &limit() const;
 
             /**
              * @brief set limit when in dynamic mode
@@ -125,23 +130,23 @@ namespace atbus {
              * @param max_number number limit of dynamic, set 0 if unlimited
              * @return true on success
              */
-            bool set_limit(size_t max_size, size_t max_number);
+            ATBUS_MACRO_API bool set_limit(size_t max_size, size_t max_number);
 
-            buffer_block *front();
+            ATBUS_MACRO_API buffer_block *front();
 
-            int front(void *&pointer, size_t &nread, size_t &nwrite);
+            ATBUS_MACRO_API int front(void *&pointer, size_t &nread, size_t &nwrite);
 
-            buffer_block *back();
+            ATBUS_MACRO_API buffer_block *back();
 
-            int back(void *&pointer, size_t &nread, size_t &nwrite);
+            ATBUS_MACRO_API int back(void *&pointer, size_t &nread, size_t &nwrite);
 
-            int push_back(void *&pointer, size_t s);
+            ATBUS_MACRO_API int push_back(void *&pointer, size_t s);
 
-            int push_front(void *&pointer, size_t s);
+            ATBUS_MACRO_API int push_front(void *&pointer, size_t s);
 
-            int pop_back(size_t s, bool free_unwritable = true);
+            ATBUS_MACRO_API int pop_back(size_t s, bool free_unwritable = true);
 
-            int pop_front(size_t s, bool free_unwritable = true);
+            ATBUS_MACRO_API int pop_front(size_t s, bool free_unwritable = true);
 
             /**
              * @brief append buffer and merge to the tail of the last buffer block
@@ -150,7 +155,7 @@ namespace atbus {
              * @param s buffer size
              * @return 0 or error code
              */
-            int merge_back(void *&pointer, size_t s);
+            ATBUS_MACRO_API int merge_back(void *&pointer, size_t s);
 
             /**
              * @brief append buffer and merge to the tail of the first buffer block
@@ -159,11 +164,11 @@ namespace atbus {
              * @param s buffer size
              * @return 0 or error code
              */
-            int merge_front(void *&pointer, size_t s);
+            ATBUS_MACRO_API int merge_front(void *&pointer, size_t s);
 
-            bool empty() const;
+            ATBUS_MACRO_API bool empty() const;
 
-            void reset();
+            ATBUS_MACRO_API void reset();
 
             /**
              * @brief set dynamic mode(use malloc when push buffer) or static mode(malloc a huge buffer at once)
@@ -171,10 +176,10 @@ namespace atbus {
              * @param max_number buffer number when static mode
              * @note this api will clear buffer data already exists
              */
-            void set_mode(size_t max_size, size_t max_number);
+            ATBUS_MACRO_API void set_mode(size_t max_size, size_t max_number);
 
-            inline bool is_static_mode() const { return NULL != static_buffer_.buffer_; }
-            inline bool is_dynamic_mode() const { return NULL == static_buffer_.buffer_; }
+            ATBUS_MACRO_API bool is_static_mode() const;
+            ATBUS_MACRO_API bool is_dynamic_mode() const;
 
         private:
             buffer_block *static_front();

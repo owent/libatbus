@@ -24,11 +24,12 @@
 #include "std/explicit_declare.h"
 #include "std/smart_ptr.h"
 
-#include "design_pattern/noncopyable.h"
-
 #include "detail/libatbus_channel_export.h"
 #include "detail/libatbus_config.h"
 #include "detail/libatbus_error.h"
+
+#include <design_pattern/noncopyable.h>
+#include <design_pattern/nomovable.h>
 
 #include "libatbus_protocol.h"
 
@@ -88,9 +89,12 @@ namespace atbus {
             size_t fault_count;
         };
 
+    UTIL_DESIGN_PATTERN_NOCOPYABLE(connection)
+    UTIL_DESIGN_PATTERN_NOMOVABLE(connection)
+
     private:
         connection();
-
+        
     public:
         static ptr_t create(node *owner);
 

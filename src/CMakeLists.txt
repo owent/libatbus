@@ -45,7 +45,26 @@ if (UNIX)
 endif ()
 
 # ============ libatbus - src ============
-add_library(${PROJECT_LIBATBUS_LIB_LINK} STATIC ${PROJECT_LIB_SRC_LIST})
+if(BUILD_SHARED_LIBS)
+    add_library(${PROJECT_LIBATBUS_LIB_LINK} SHARED ${PROJECT_LIB_SRC_LIST})
+    set_target_properties(${PROJECT_LIBATBUS_LIB_LINK} PROPERTIES 
+        C_VISIBILITY_PRESET "hidden"
+        CXX_VISIBILITY_PRESET "hidden"
+    )
+    target_compile_definitions(${PROJECT_LIBATBUS_LIB_LINK}
+        PRIVATE ATBUS_MACRO_API_NATIVE=1 ATBUS_MACRO_API_DLL=1
+    )
+    set_target_properties(${PROJECT_LIBATBUS_LIB_LINK} PROPERTIES INTERFACE_COMPILE_DEFINITIONS ATBUS_MACRO_API_DLL=1)
+else ()
+    add_library(${PROJECT_LIBATBUS_LIB_LINK} STATIC ${PROJECT_LIB_SRC_LIST})
+    set_target_properties(${PROJECT_LIBATBUS_LIB_LINK} PROPERTIES 
+        C_VISIBILITY_PRESET "hidden"
+        CXX_VISIBILITY_PRESET "hidden"
+    )
+    target_compile_definitions(${PROJECT_LIBATBUS_LIB_LINK}
+        PRIVATE ATBUS_MACRO_API_NATIVE=1
+    )
+endif()
 
 add_dependencies(${PROJECT_LIBATBUS_LIB_LINK} atbus_generate_protocol)
 
