@@ -45,7 +45,7 @@ namespace atbus {
 
     class node;
 
-    struct endpoint_subnet_conf {
+    struct ATBUS_MACRO_API endpoint_subnet_conf {
         ATBUS_MACRO_BUSID_TYPE id_prefix; // subnet prefix
         uint32_t               mask_bits; // suffix bits
 
@@ -53,7 +53,7 @@ namespace atbus {
         endpoint_subnet_conf(ATBUS_MACRO_BUSID_TYPE prefix, uint32_t mask);
     };
 
-    class endpoint_subnet_range {
+    class ATBUS_MACRO_API endpoint_subnet_range {
     public:
         endpoint_subnet_range(ATBUS_MACRO_BUSID_TYPE a, uint32_t b);
 
@@ -113,41 +113,40 @@ namespace atbus {
         /**
          * @brief 创建端点
          */
-        static ptr_t create(node *owner, bus_id_t id, const std::vector<endpoint_subnet_conf>& subnets, int32_t pid, const std::string &hn);
-        ~endpoint();
+        static ATBUS_MACRO_API ptr_t create(node *owner, bus_id_t id, const std::vector<endpoint_subnet_conf>& subnets, int32_t pid, const std::string &hn);
+        ATBUS_MACRO_API ~endpoint();
 
-        void reset();
+        ATBUS_MACRO_API void reset();
 
-        inline bus_id_t get_id() const { return id_; }
-        inline const std::vector<endpoint_subnet_range>& get_subnets() const { return subnets_; }
+        ATBUS_MACRO_API bus_id_t get_id() const;
+        ATBUS_MACRO_API const std::vector<endpoint_subnet_range>& get_subnets() const;
 
-        inline int32_t get_pid() const { return pid_; };
-        inline const std::string &get_hostname() const { return hostname_; };
+        ATBUS_MACRO_API int32_t get_pid() const;
+        ATBUS_MACRO_API const std::string &get_hostname() const;
 
 
-        bool is_child_node(bus_id_t id) const;
-        bool is_brother_node(bus_id_t id, uint32_t parent_mask) const;
+        ATBUS_MACRO_API bool is_child_node(bus_id_t id) const;
 
-        static bus_id_t get_children_min_id(bus_id_t children_prefix, uint32_t mask);
-        static bus_id_t get_children_max_id(bus_id_t children_prefix, uint32_t mask);
-        static bool is_child_node(bus_id_t parent_id, bus_id_t parent_children_prefix, uint32_t parent_mask, bus_id_t checked_id);
+        static ATBUS_MACRO_API bus_id_t get_children_min_id(bus_id_t children_prefix, uint32_t mask);
+        static ATBUS_MACRO_API bus_id_t get_children_max_id(bus_id_t children_prefix, uint32_t mask);
+        static ATBUS_MACRO_API bool is_child_node(bus_id_t parent_id, bus_id_t parent_children_prefix, uint32_t parent_mask, bus_id_t checked_id);
 
-        bool add_connection(connection *conn, bool force_data);
+        ATBUS_MACRO_API bool add_connection(connection *conn, bool force_data);
 
-        bool remove_connection(connection *conn);
+        ATBUS_MACRO_API bool remove_connection(connection *conn);
 
         /**
          * @brief 是否处于可用状态
          * @note 可用状态是指同时存在正在运行的命令通道和数据通道
          */
-        bool is_available() const;
+        ATBUS_MACRO_API bool is_available() const;
 
         /**
          * @brief 获取flag
          * @param f flag的key
          * @return 返回f的值，如果f无效，返回false
          */
-        bool get_flag(flag_t::type f) const;
+        ATBUS_MACRO_API bool get_flag(flag_t::type f) const;
 
         /**
          * @brief 设置可变flag的值
@@ -156,66 +155,66 @@ namespace atbus {
          * @return 0或错误码
          * @see flat_t
          */
-        int set_flag(flag_t::type f, bool v);
+        ATBUS_MACRO_API int set_flag(flag_t::type f, bool v);
 
         /**
          * @brief 获取所有flag
          * @return 整数表示的flags
          * @see flat_t
          */
-        uint32_t get_flags() const;
+        ATBUS_MACRO_API uint32_t get_flags() const;
 
         /**
          * @breif 获取自身的资源holder
          */
-        ptr_t watch() const;
+        ATBUS_MACRO_API ptr_t watch() const;
 
-        inline const std::list<std::string> &get_listen() const { return listen_address_; }
-        void add_listen(const std::string &addr);
+        ATBUS_MACRO_API const std::list<std::string> &get_listen() const;
+        ATBUS_MACRO_API void add_listen(const std::string &addr);
 
     private:
         static bool sort_connection_cmp_fn(const connection::ptr_t &left, const connection::ptr_t &right);
 
     public:
-        connection *get_ctrl_connection(endpoint *ep) const;
+        ATBUS_MACRO_API connection *get_ctrl_connection(endpoint *ep) const;
 
-        connection *get_data_connection(endpoint *ep) const;
-        connection *get_data_connection(endpoint *ep, bool enable_fallback_ctrl) const;
+        ATBUS_MACRO_API connection *get_data_connection(endpoint *ep) const;
+        ATBUS_MACRO_API connection *get_data_connection(endpoint *ep, bool enable_fallback_ctrl) const;
 
         /** 增加错误计数 **/
-        size_t add_stat_fault();
+        ATBUS_MACRO_API size_t add_stat_fault();
 
         /** 清空错误计数 **/
-        void clear_stat_fault();
+        ATBUS_MACRO_API void clear_stat_fault();
 
-        void set_stat_ping(uint32_t p);
+        ATBUS_MACRO_API void set_stat_ping(uint32_t p);
 
-        uint32_t get_stat_ping() const;
+        ATBUS_MACRO_API uint32_t get_stat_ping() const;
 
-        void set_stat_ping_delay(time_t pd, time_t pong_tm);
+        ATBUS_MACRO_API void set_stat_ping_delay(time_t pd, time_t pong_tm);
 
-        time_t get_stat_ping_delay() const;
+        ATBUS_MACRO_API time_t get_stat_ping_delay() const;
 
-        time_t get_stat_last_pong() const;
+        ATBUS_MACRO_API time_t get_stat_last_pong() const;
 
-        size_t get_stat_push_start_times() const;
-        size_t get_stat_push_start_size() const;
-        size_t get_stat_push_success_times() const;
-        size_t get_stat_push_success_size() const;
-        size_t get_stat_push_failed_times() const;
-        size_t get_stat_push_failed_size() const;
-        size_t get_stat_pull_times() const;
-        size_t get_stat_pull_size() const;
+        ATBUS_MACRO_API size_t get_stat_push_start_times() const;
+        ATBUS_MACRO_API size_t get_stat_push_start_size() const;
+        ATBUS_MACRO_API size_t get_stat_push_success_times() const;
+        ATBUS_MACRO_API size_t get_stat_push_success_size() const;
+        ATBUS_MACRO_API size_t get_stat_push_failed_times() const;
+        ATBUS_MACRO_API size_t get_stat_push_failed_size() const;
+        ATBUS_MACRO_API size_t get_stat_pull_times() const;
+        ATBUS_MACRO_API size_t get_stat_pull_size() const;
 
-        inline const node *get_owner() const { return owner_; }
+        ATBUS_MACRO_API const node *get_owner() const;
 
-        static void merge_subnets(std::vector<endpoint_subnet_range>& subnets);
+        static ATBUS_MACRO_API void merge_subnets(std::vector<endpoint_subnet_range>& subnets);
 
-        static std::vector<endpoint_subnet_range>::const_iterator search_subnet_for_id(const std::vector<endpoint_subnet_range>& subnets, bus_id_t id);
-        static bool contain(const std::vector<endpoint_subnet_range>& parent_subnets, const std::vector<endpoint_subnet_range>& child_subnets);
-        static bool contain(const std::vector<endpoint_subnet_range>& parent_subnets, const std::vector<endpoint_subnet_conf>& child_subnets);
-        static bool contain(const std::vector<endpoint_subnet_range>& parent_subnets, bus_id_t id);
-        static bool contain(const std::vector<endpoint_subnet_conf>& parent_subnets, bus_id_t id);
+        static ATBUS_MACRO_API std::vector<endpoint_subnet_range>::const_iterator search_subnet_for_id(const std::vector<endpoint_subnet_range>& subnets, bus_id_t id);
+        static ATBUS_MACRO_API bool contain(const std::vector<endpoint_subnet_range>& parent_subnets, const std::vector<endpoint_subnet_range>& child_subnets);
+        static ATBUS_MACRO_API bool contain(const std::vector<endpoint_subnet_range>& parent_subnets, const std::vector<endpoint_subnet_conf>& child_subnets);
+        static ATBUS_MACRO_API bool contain(const std::vector<endpoint_subnet_range>& parent_subnets, bus_id_t id);
+        static ATBUS_MACRO_API bool contain(const std::vector<endpoint_subnet_conf>& parent_subnets, bus_id_t id);
     private:
         bus_id_t id_;
         std::vector<endpoint_subnet_range> subnets_;
