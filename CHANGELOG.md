@@ -23,6 +23,7 @@ CHANGELOG
 - [ ] 单元测试: endpoint::merge_subnets
 - [ ] 单元测试: endpoint_subnet_range::contain
 - [ ] 单元测试: endpoint_subnet_range::search_subnet_for_id(====#^++####====)
+- [ ] 单元测试: node::is_parent
 - [x] access_token验证的单元测试（成功+失败）
 - [ ] 重构父节点范围管理的结构
 - [x] 协议版本兼容性单元测试

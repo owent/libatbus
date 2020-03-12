@@ -55,6 +55,7 @@ namespace atbus {
 
     class ATBUS_MACRO_API endpoint_subnet_range {
     public:
+        endpoint_subnet_range();
         endpoint_subnet_range(ATBUS_MACRO_BUSID_TYPE a, uint32_t b);
 
         bool operator<(const endpoint_subnet_range& other) const;

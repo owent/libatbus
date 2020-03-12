@@ -69,6 +69,8 @@ namespace atbus {
         send_buffer_size = other.send_buffer_size;
         send_buffer_number = other.send_buffer_number;
         flags = other.flags;
+
+        return *this;
     }
 
     ATBUS_MACRO_API node::flag_guard_t::flag_guard_t(const node *o, flag_t::type f) : owner(const_cast<node *>(o)), flag(f), holder(false) {
@@ -377,7 +379,7 @@ namespace atbus {
         if (!conf_.parent_address.empty() && 0 != event_timer_.parent_opr_time_point && event_timer_.parent_opr_time_point < sec) {
             // 获取命令节点
             connection *ctl_conn = NULL;
-            if (node_parent_.node_) {
+            if (node_parent_.node_ && self_) {
                 ctl_conn = self_->get_ctrl_connection(node_parent_.node_.get());
             }
 
@@ -537,6 +539,10 @@ namespace atbus {
         int ret = conn->listen(addr_str);
         if (ret < 0) {
             return ret;
+        }
+
+        if (!self_) {
+            return EN_ATBUS_ERR_NOT_INITED;
         }
 
         // 添加到self_里
@@ -789,6 +795,10 @@ namespace atbus {
     }
 
     ATBUS_MACRO_API int node::get_remote_channel(bus_id_t tid, endpoint::get_connection_fn_t fn, endpoint **ep_out, connection **conn_out) {
+        if (!self_) {
+            return EN_ATBUS_ERR_NOT_INITED;
+        }
+
 #define ASSIGN_EPCONN()                   \
     if (NULL != ep_out) *ep_out = target; \
     if (NULL != conn_out) *conn_out = conn
@@ -1065,7 +1075,7 @@ namespace atbus {
     ATBUS_MACRO_API node::ptr_t node::get_watcher() { return watcher_.lock(); }
 
     ATBUS_MACRO_API bool node::is_child_node(bus_id_t id) const {
-        if (0 == get_id()) {
+        if (0 == get_id() || !self_) {
             return false;
         }
         
@@ -1196,7 +1206,14 @@ namespace atbus {
         return conf_.protocol_minimal_version;
     }
 
-    ATBUS_MACRO_API const std::list<std::string> &node::get_listen_list() const { return self_->get_listen(); }
+    ATBUS_MACRO_API const std::list<std::string> &node::get_listen_list() const {
+        if (likely(self_)) {
+            return self_->get_listen(); 
+        }
+
+        static std::list<std::string> empty;
+        return empty;
+    }
 
     ATBUS_MACRO_API bool node::add_proc_connection(connection::ptr_t conn) {
         if (state_t::CREATED == state_) {
@@ -1576,6 +1593,9 @@ namespace atbus {
             }
         }
 
+        if (!self_) {
+            return EN_ATBUS_ERR_NOT_INITED;
+        }
 
         // 允许跳过未连接或握手完成的endpoint
         connection *ctl_conn = self_->get_ctrl_connection(&ep);

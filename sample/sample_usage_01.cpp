@@ -15,8 +15,8 @@ int main() {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
 
-    // 子域的范围设为16（后16位都是子节点）
-    conf.children_mask = 16;
+    // 子域的范围设为16（后16位都是子节点）, id_prefix=0 等于使用endpoint自己的ID
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
 
     // 初始化libuv事件分发器
     uv_loop_t ev_loop;

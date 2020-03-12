@@ -19,6 +19,11 @@ namespace atbus {
     ATBUS_MACRO_API endpoint_subnet_conf::endpoint_subnet_conf(): id_prefix(0), mask_bits(0) {}
     ATBUS_MACRO_API endpoint_subnet_conf::endpoint_subnet_conf(ATBUS_MACRO_BUSID_TYPE a, uint32_t b): id_prefix(a), mask_bits(b) {}
 
+    ATBUS_MACRO_API endpoint_subnet_range::endpoint_subnet_range(): id_prefix_(0), mask_bits_(0) {
+        max_id_ = 0;
+        min_id_ = 0;
+    }
+
     ATBUS_MACRO_API endpoint_subnet_range::endpoint_subnet_range(ATBUS_MACRO_BUSID_TYPE a, uint32_t b): id_prefix_(a), mask_bits_(b) {
         max_id_ = id_prefix_ | ((1<< mask_bits_) - 1);
         min_id_ = max_id_ - ((1<< mask_bits_) - 1);
@@ -183,7 +188,7 @@ namespace atbus {
         }
     }
 
-    ATBUS_MACRO_API bus_id_t endpoint::get_id() const { return id_; }
+    ATBUS_MACRO_API endpoint::bus_id_t endpoint::get_id() const { return id_; }
     ATBUS_MACRO_API const std::vector<endpoint_subnet_range>& endpoint::get_subnets() const { return subnets_; }
 
     ATBUS_MACRO_API int32_t endpoint::get_pid() const { return pid_; };
@@ -524,7 +529,7 @@ namespace atbus {
         return ret;
     }
 
-    ATBUS_MACRO_API ize_t endpoint::get_stat_push_failed_times() const {
+    ATBUS_MACRO_API size_t endpoint::get_stat_push_failed_times() const {
         size_t ret = 0;
         for (std::list<connection::ptr_t>::const_iterator iter = data_conn_.begin(); iter != data_conn_.end(); ++iter) {
             if (*iter) {

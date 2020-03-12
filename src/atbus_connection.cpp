@@ -450,7 +450,7 @@ namespace atbus {
 
     ATBUS_MACRO_API const endpoint *connection::get_binding() const { return binding_; }
 
-    ATBUS_MACRO_API state_t::type connection::get_status() const { return state_; }
+    ATBUS_MACRO_API connection::state_t::type connection::get_status() const { return state_; }
     ATBUS_MACRO_API bool connection::check_flag(flag_t::type f) const { return flags_.test(f); }
 
     ATBUS_MACRO_API connection::ptr_t connection::watch() const {
@@ -467,7 +467,7 @@ namespace atbus {
         return state_t::CONNECTING == state_ || state_t::HANDSHAKING == state_ || state_t::CONNECTED == state_;
     }
 
-    ATBUS_MACRO_API const stat_t &connection::get_statistic() const { return stat_; }
+    ATBUS_MACRO_API const connection::stat_t &connection::get_statistic() const { return stat_; }
 
     ATBUS_MACRO_API void connection::remove_owner_checker(const timer_desc_ls<ptr_t>::type::iterator& v) {
         if (owner_checker_ != v) {
