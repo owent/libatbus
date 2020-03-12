@@ -23,8 +23,10 @@ CHANGELOG
 - [ ] 单元测试: endpoint::merge_subnets
 - [ ] 单元测试: endpoint_subnet_range::contain
 - [ ] 单元测试: endpoint_subnet_range::search_subnet_for_id(====#^++####====)
+- [ ] 单元测试: 无监听不允许启动
+- [ ] 修复父节点多一次ping包的问题
 - [x] access_token验证的单元测试（成功+失败）
-- [ ] 重构父节点范围管理的结构
+- [x] 重构父节点范围管理的结构
 - [x] 协议版本兼容性单元测试
 - [x] 内存通道版本兼容性单元测试
 - [x] 字符串路径共享内存测试
