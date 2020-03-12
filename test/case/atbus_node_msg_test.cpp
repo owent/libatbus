@@ -161,7 +161,7 @@ static int node_msg_test_remove_endpoint_fn(const atbus::node &, atbus::endpoint
 CASE_TEST(atbus_node_msg, ping_pong) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
-    conf.children_mask = 16;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     uv_loop_t ev_loop;
     uv_loop_init(&ev_loop);
 
@@ -174,6 +174,9 @@ CASE_TEST(atbus_node_msg, ping_pong) {
         node2->on_debug          = node_msg_test_on_debug;
         node1->set_on_error_handle(node_msg_test_on_error);
         node2->set_on_error_handle(node_msg_test_on_error);
+
+        CASE_EXPECT_EQ(NULL, node1->get_self_endpoint());
+        CASE_EXPECT_EQ(NULL, node2->get_self_endpoint());
 
         node1->init(0x12345678, &conf);
         node2->init(0x12356789, &conf);
@@ -254,7 +257,7 @@ static int node_msg_test_recv_msg_test_custom_rsp_fn(const atbus::node &, const 
 CASE_TEST(atbus_node_msg, custom_cmd) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
-    conf.children_mask = 16;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     uv_loop_t ev_loop;
     uv_loop_init(&ev_loop);
 
@@ -322,7 +325,7 @@ CASE_TEST(atbus_node_msg, custom_cmd) {
 CASE_TEST(atbus_node_msg, send_cmd_to_self) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
-    conf.children_mask = 16;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     uv_loop_t ev_loop;
     uv_loop_init(&ev_loop);
 
@@ -380,7 +383,7 @@ CASE_TEST(atbus_node_msg, send_cmd_to_self) {
 CASE_TEST(atbus_node_msg, reset_and_send) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
-    conf.children_mask = 16;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     uv_loop_t ev_loop;
     uv_loop_init(&ev_loop);
 
@@ -460,7 +463,7 @@ static int node_msg_test_recv_and_send_msg_fn(const atbus::node &n, const atbus:
 CASE_TEST(atbus_node_msg, send_msg_to_self_and_need_rsp) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
-    conf.children_mask = 16;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     uv_loop_t ev_loop;
     uv_loop_init(&ev_loop);
 
@@ -501,7 +504,7 @@ CASE_TEST(atbus_node_msg, send_msg_to_self_and_need_rsp) {
 CASE_TEST(atbus_node_msg, parent_and_child) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
-    conf.children_mask = 16;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     uv_loop_t ev_loop;
     uv_loop_init(&ev_loop);
 
@@ -517,7 +520,8 @@ CASE_TEST(atbus_node_msg, parent_and_child) {
 
         node_parent->init(0x12345678, &conf);
 
-        conf.children_mask  = 8;
+        conf.subnets.clear();
+        conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 8));
         conf.parent_address = "ipv4://127.0.0.1:16387";
         node_child->init(0x12346789, &conf);
 
@@ -582,7 +586,7 @@ CASE_TEST(atbus_node_msg, parent_and_child) {
 CASE_TEST(atbus_node_msg, transfer_and_connect) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
-    conf.children_mask = 16;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     uv_loop_t ev_loop;
     uv_loop_init(&ev_loop);
 
@@ -602,7 +606,8 @@ CASE_TEST(atbus_node_msg, transfer_and_connect) {
 
         node_parent->init(0x12345678, &conf);
 
-        conf.children_mask  = 8;
+        conf.subnets.clear();
+        conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 8));
         conf.parent_address = "ipv4://127.0.0.1:16387";
         node_child_1->init(0x12346789, &conf);
         node_child_2->init(0x12346890, &conf);
@@ -656,7 +661,7 @@ CASE_TEST(atbus_node_msg, transfer_and_connect) {
 CASE_TEST(atbus_node_msg, transfer_only) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
-    conf.children_mask = 16;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     uv_loop_t ev_loop;
     uv_loop_init(&ev_loop);
 
@@ -680,7 +685,8 @@ CASE_TEST(atbus_node_msg, transfer_only) {
         node_parent_1->init(0x12345678, &conf);
         node_parent_2->init(0x12356789, &conf);
 
-        conf.children_mask  = 8;
+        conf.subnets.clear();
+        conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 8));
         conf.parent_address = "ipv4://127.0.0.1:16387";
         node_child_1->init(0x12346789, &conf);
         conf.parent_address = "ipv4://127.0.0.1:16388";
@@ -745,7 +751,7 @@ CASE_TEST(atbus_node_msg, transfer_only) {
 CASE_TEST(atbus_node_msg, send_failed) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
-    conf.children_mask = 16;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     uv_loop_t ev_loop;
     uv_loop_init(&ev_loop);
 
@@ -779,7 +785,7 @@ CASE_TEST(atbus_node_msg, send_failed) {
 CASE_TEST(atbus_node_msg, transfer_failed) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
-    conf.children_mask = 16;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     uv_loop_t ev_loop;
     uv_loop_init(&ev_loop);
 
@@ -796,7 +802,8 @@ CASE_TEST(atbus_node_msg, transfer_failed) {
 
         node_parent->init(0x12345678, &conf);
 
-        conf.children_mask  = 8;
+        conf.subnets.clear();
+        conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 8));
         conf.parent_address = "ipv4://127.0.0.1:16387";
         node_child_1->init(0x12346789, &conf);
 
@@ -847,7 +854,7 @@ CASE_TEST(atbus_node_msg, transfer_failed) {
 CASE_TEST(atbus_node_msg, transfer_failed_cross_parents) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
-    conf.children_mask = 16;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     uv_loop_t ev_loop;
     uv_loop_init(&ev_loop);
 
@@ -873,7 +880,8 @@ CASE_TEST(atbus_node_msg, transfer_failed_cross_parents) {
         node_parent_2->set_on_remove_endpoint_handle(node_msg_test_remove_endpoint_fn);
 
 
-        conf.children_mask  = 8;
+        conf.subnets.clear();
+        conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 8));
         conf.parent_address = "ipv4://127.0.0.1:16387";
         node_child_1->init(0x12346789, &conf);
 

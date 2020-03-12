@@ -1,8 +1,8 @@
 使用示例
 ======
 
-+ 配置里的 children_mask 决定了子节点的BUS ID范围，规则类似路由器。
-> 比如children_mask=8,BUS ID=0x12345678, 则0x12345600-0x123456FF都是它的子节点，0x12345778则是它的兄弟节点
++ 配置里的 subnets 决定了子节点的BUS ID范围，规则类似路由器。
+> 比如 mask_bits=8,id_prefix=0x12345678, 则0x12345600-0x123456FF都是它的子节点，0x12345778则是它的兄弟节点
 
 + 父子节点之间会自动断线重连
 + 拥有相同父节点的兄弟节点之间会自动按需断线重连
@@ -36,8 +36,8 @@ int main() {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
 
-    // 子域的范围设为16（后16位都是子节点）
-    conf.children_mask = 16;
+    // 子域的范围设为16（后16位都是子节点）, id_prefix=0 等于使用endpoint自己的ID
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
 
     // 初始化libuv事件分发器
     uv_loop_t ev_loop;

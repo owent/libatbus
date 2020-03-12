@@ -69,7 +69,7 @@ namespace atbus {
         memset(&stat_, 0, sizeof(stat_));
     }
 
-    connection::ptr_t connection::create(node *owner) {
+    ATBUS_MACRO_API connection::ptr_t connection::create(node *owner) {
         if (!owner) {
             return connection::ptr_t();
         }
@@ -86,7 +86,7 @@ namespace atbus {
         return ret;
     }
 
-    connection::~connection() {
+    ATBUS_MACRO_API connection::~connection() {
         flags_.set(flag_t::DESTRUCTING, true);
 
         if (NULL != owner_) {
@@ -96,7 +96,7 @@ namespace atbus {
         reset();
     }
 
-    void connection::reset() {
+    ATBUS_MACRO_API void connection::reset() {
         // 这个函数可能会在析构时被调用，这时候不能使用watcher_.lock()
         if (flags_.test(flag_t::RESETTING)) {
             return;
@@ -132,7 +132,7 @@ namespace atbus {
         // owner_ = NULL;
     }
 
-    int connection::proc(node &n, time_t sec, time_t usec) {
+    ATBUS_MACRO_API int connection::proc(node &n, time_t sec, time_t usec) {
         if (state_t::CONNECTED != state_) {
             return 0;
         }
@@ -144,7 +144,7 @@ namespace atbus {
         return 0;
     }
 
-    int connection::listen(const char *addr_str) {
+    ATBUS_MACRO_API int connection::listen(const char *addr_str) {
         if (state_t::DISCONNECTED != state_) {
             return EN_ATBUS_ERR_ALREADY_INITED;
         }
@@ -258,7 +258,7 @@ namespace atbus {
         }
     }
 
-    int connection::connect(const char *addr_str) {
+    ATBUS_MACRO_API int connection::connect(const char *addr_str) {
         if (state_t::DISCONNECTED != state_) {
             return EN_ATBUS_ERR_ALREADY_INITED;
         }
@@ -378,7 +378,7 @@ namespace atbus {
         }
     }
 
-    int connection::disconnect() {
+    ATBUS_MACRO_API int connection::disconnect() {
         if (state_t::DISCONNECTED == state_) {
             return EN_ATBUS_ERR_NOT_INITED;
         }
@@ -415,7 +415,7 @@ namespace atbus {
         return EN_ATBUS_ERR_SUCCESS;
     }
 
-    int connection::push(const void *buffer, size_t s) {
+    ATBUS_MACRO_API int connection::push(const void *buffer, size_t s) {
         ++stat_.push_start_times;
         stat_.push_start_size += s;
 
@@ -437,18 +437,23 @@ namespace atbus {
     }
 
     /** 增加错误计数 **/
-    size_t connection::add_stat_fault() { return ++stat_.fault_count; }
+    ATBUS_MACRO_API size_t connection::add_stat_fault() { return ++stat_.fault_count; }
 
     /** 清空错误计数 **/
-    void connection::clear_stat_fault() { stat_.fault_count = 0; }
+    ATBUS_MACRO_API void connection::clear_stat_fault() { stat_.fault_count = 0; }
 
-    bool connection::is_connected() const { return state_t::CONNECTED == state_; }
+    ATBUS_MACRO_API const channel::channel_address_t &connection::get_address() const { return address_; };
 
-    endpoint *connection::get_binding() { return binding_; }
+    ATBUS_MACRO_API bool connection::is_connected() const { return state_t::CONNECTED == state_; }
 
-    const endpoint *connection::get_binding() const { return binding_; }
+    ATBUS_MACRO_API endpoint *connection::get_binding() { return binding_; }
 
-    connection::ptr_t connection::watch() const {
+    ATBUS_MACRO_API const endpoint *connection::get_binding() const { return binding_; }
+
+    ATBUS_MACRO_API connection::state_t::type connection::get_status() const { return state_; }
+    ATBUS_MACRO_API bool connection::check_flag(flag_t::type f) const { return flags_.test(f); }
+
+    ATBUS_MACRO_API connection::ptr_t connection::watch() const {
         if (flags_.test(flag_t::DESTRUCTING) || watcher_.expired()) {
             return connection::ptr_t();
         }
@@ -458,11 +463,13 @@ namespace atbus {
 
 
     /** 是否正在连接、或者握手或者已连接 **/
-    bool connection::is_running() const {
+    ATBUS_MACRO_API bool connection::is_running() const {
         return state_t::CONNECTING == state_ || state_t::HANDSHAKING == state_ || state_t::CONNECTED == state_;
     }
 
-    void connection::remove_owner_checker(const timer_desc_ls<ptr_t>::type::iterator& v) {
+    ATBUS_MACRO_API const connection::stat_t &connection::get_statistic() const { return stat_; }
+
+    ATBUS_MACRO_API void connection::remove_owner_checker(const timer_desc_ls<ptr_t>::type::iterator& v) {
         if (owner_checker_ != v) {
             return;
         }
@@ -472,7 +479,7 @@ namespace atbus {
         }
     }
 
-    void connection::set_status(state_t::type v) {
+    ATBUS_MACRO_API void connection::set_status(state_t::type v) {
         if (state_ == v) {
             return;
         }
@@ -484,7 +491,7 @@ namespace atbus {
         }
     }
 
-    void connection::iostream_on_listen_cb(channel::io_stream_channel *channel, channel::io_stream_connection *connection, int status,
+    ATBUS_MACRO_API void connection::iostream_on_listen_cb(channel::io_stream_channel *channel, channel::io_stream_connection *connection, int status,
                                            void *buffer, size_t) {
         detail::connection_async_data *async_data = reinterpret_cast<detail::connection_async_data *>(buffer);
         assert(NULL != async_data);
@@ -516,7 +523,7 @@ namespace atbus {
         delete async_data;
     }
 
-    void connection::iostream_on_connected_cb(channel::io_stream_channel *channel, channel::io_stream_connection *connection, int status,
+    ATBUS_MACRO_API void connection::iostream_on_connected_cb(channel::io_stream_channel *channel, channel::io_stream_connection *connection, int status,
                                               void *buffer, size_t) {
         detail::connection_async_data *async_data = reinterpret_cast<detail::connection_async_data *>(buffer);
         assert(NULL != async_data);
@@ -554,7 +561,7 @@ namespace atbus {
         delete async_data;
     }
 
-    void connection::iostream_on_recv_cb(channel::io_stream_channel *channel, channel::io_stream_connection *conn_ios, int status,
+    ATBUS_MACRO_API void connection::iostream_on_recv_cb(channel::io_stream_channel *channel, channel::io_stream_connection *conn_ios, int status,
                                          void *buffer, size_t s) {
 
         assert(channel && channel->data);
@@ -605,7 +612,7 @@ namespace atbus {
         }
     }
 
-    void connection::iostream_on_accepted(channel::io_stream_channel *channel, channel::io_stream_connection *conn_ios, int /*status*/,
+    ATBUS_MACRO_API void connection::iostream_on_accepted(channel::io_stream_channel *channel, channel::io_stream_connection *conn_ios, int /*status*/,
                                           void * /*buffer*/, size_t) {
         // 连接成功加入点对点传输池
         // 加入超时检测
@@ -641,10 +648,10 @@ namespace atbus {
         n->on_new_connection(conn.get());
     }
 
-    void connection::iostream_on_connected(channel::io_stream_channel *, channel::io_stream_connection *, int /*status*/, void * /*buffer*/,
+    ATBUS_MACRO_API void connection::iostream_on_connected(channel::io_stream_channel *, channel::io_stream_connection *, int /*status*/, void * /*buffer*/,
                                            size_t) {}
 
-    void connection::iostream_on_disconnected(channel::io_stream_channel *, channel::io_stream_connection *conn_ios, int /*status*/,
+    ATBUS_MACRO_API void connection::iostream_on_disconnected(channel::io_stream_channel *, channel::io_stream_connection *conn_ios, int /*status*/,
                                               void * /*buffer*/, size_t) {
         connection *conn = reinterpret_cast<connection *>(conn_ios->data);
 
@@ -657,7 +664,7 @@ namespace atbus {
         conn->reset();
     }
 
-    void connection::iostream_on_written(channel::io_stream_channel *channel, channel::io_stream_connection *conn_ios, int status,
+    ATBUS_MACRO_API void connection::iostream_on_written(channel::io_stream_channel *channel, channel::io_stream_connection *conn_ios, int status,
                                          void * /*buffer*/, size_t s) {
         node *n = reinterpret_cast<node *>(channel->data);
         assert(NULL != n);
@@ -692,7 +699,7 @@ namespace atbus {
     }
 
 #ifdef ATBUS_CHANNEL_SHM
-    int connection::shm_proc_fn(node &n, connection &conn, time_t /*sec*/, time_t /*usec*/) {
+    ATBUS_MACRO_API int connection::shm_proc_fn(node &n, connection &conn, time_t /*sec*/, time_t /*usec*/) {
         int ret                             = 0;
         size_t left_times                   = n.get_conf().loop_times;
         detail::buffer_block *static_buffer = n.get_temp_static_buffer();
@@ -741,9 +748,9 @@ namespace atbus {
         return ret;
     }
 
-    int connection::shm_free_fn(node &, connection &conn) { return channel::shm_close(conn.get_address().host.c_str()); }
+    ATBUS_MACRO_API int connection::shm_free_fn(node &, connection &conn) { return channel::shm_close(conn.get_address().host.c_str()); }
 
-    int connection::shm_push_fn(connection &conn, const void *buffer, size_t s) {
+    ATBUS_MACRO_API int connection::shm_push_fn(connection &conn, const void *buffer, size_t s) {
         int ret = channel::shm_send(conn.conn_data_.shared.shm.channel, buffer, s);
         if (ret >= 0) {
             ++conn.stat_.push_success_times;
@@ -757,7 +764,7 @@ namespace atbus {
     }
 #endif
 
-    int connection::mem_proc_fn(node &n, connection &conn, time_t /*sec*/, time_t /*usec*/) {
+    ATBUS_MACRO_API int connection::mem_proc_fn(node &n, connection &conn, time_t /*sec*/, time_t /*usec*/) {
         int ret                             = 0;
         size_t left_times                   = n.get_conf().loop_times;
         detail::buffer_block *static_buffer = n.get_temp_static_buffer();
@@ -805,9 +812,9 @@ namespace atbus {
         return ret;
     }
 
-    int connection::mem_free_fn(node &, connection &) { return 0; }
+    ATBUS_MACRO_API int connection::mem_free_fn(node &, connection &) { return 0; }
 
-    int connection::mem_push_fn(connection &conn, const void *buffer, size_t s) {
+    ATBUS_MACRO_API int connection::mem_push_fn(connection &conn, const void *buffer, size_t s) {
         int ret = channel::mem_send(conn.conn_data_.shared.mem.channel, buffer, s);
         if (ret >= 0) {
             ++conn.stat_.push_success_times;
@@ -819,7 +826,7 @@ namespace atbus {
         return ret;
     }
 
-    int connection::ios_free_fn(node &, connection &conn) {
+    ATBUS_MACRO_API int connection::ios_free_fn(node &, connection &conn) {
         int ret = channel::io_stream_disconnect(conn.conn_data_.shared.ios_fd.channel, conn.conn_data_.shared.ios_fd.conn, NULL);
         // 释放后移除关联关系
         conn.conn_data_.shared.ios_fd.conn->data = NULL;
@@ -827,7 +834,7 @@ namespace atbus {
         return ret;
     }
 
-    int connection::ios_push_fn(connection &conn, const void *buffer, size_t s) {
+    ATBUS_MACRO_API int connection::ios_push_fn(connection &conn, const void *buffer, size_t s) {
         int ret = channel::io_stream_send(conn.conn_data_.shared.ios_fd.conn, buffer, s);
         if (ret < 0) {
             ++conn.stat_.push_failed_times;
@@ -836,7 +843,7 @@ namespace atbus {
         return ret;
     }
 
-    bool connection::unpack(connection &conn, ::atbus::msg_t *&m, ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena& arena, std::vector<unsigned char> &in) {
+    ATBUS_MACRO_API bool connection::unpack(connection &conn, ::atbus::msg_t *&m, ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena& arena, std::vector<unsigned char> &in) {
         m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
         if (NULL == m) {
             ATBUS_FUNC_NODE_ERROR(*conn.owner_, conn.binding_, &conn, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC);

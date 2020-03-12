@@ -179,7 +179,7 @@ CASE_TEST(atbus_node_reg, reset_and_send_tcp) {
 
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
-    conf.children_mask = 16;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     conf.access_tokens.push_back(std::vector<unsigned char>());
     unsigned char access_token[] = "test access token";
     conf.access_tokens.back().assign(access_token, access_token + sizeof(access_token) - 1);
@@ -292,7 +292,7 @@ CASE_TEST(atbus_node_reg, reset_and_send_tcp) {
 CASE_TEST(atbus_node_reg, timeout) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
-    conf.children_mask = 16;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     conf.access_tokens.push_back(std::vector<unsigned char>());
     unsigned char access_token[] = "test access token";
     conf.access_tokens.back().assign(access_token, access_token + sizeof(access_token) - 1);
@@ -377,7 +377,7 @@ CASE_TEST(atbus_node_reg, timeout) {
 CASE_TEST(atbus_node_reg, message_size_limit) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
-    conf.children_mask = 16;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     conf.access_tokens.push_back(std::vector<unsigned char>());
     unsigned char access_token[] = "test access token";
     conf.access_tokens.back().assign(access_token, access_token + sizeof(access_token) - 1);
@@ -484,8 +484,8 @@ CASE_TEST(atbus_node_reg, reg_failed_with_mismatch_access_token) {
     atbus::node::conf_t conf2;
     atbus::node::default_conf(&conf1);
     atbus::node::default_conf(&conf2);
-    conf1.children_mask = 16;
-    conf2.children_mask = 16;
+    conf1.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
+    conf2.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     {
         conf1.access_tokens.push_back(std::vector<unsigned char>());
         unsigned char access_token1[] = "test access token";
@@ -559,8 +559,8 @@ CASE_TEST(atbus_node_reg, reg_failed_with_missing_access_token) {
     atbus::node::conf_t conf2;
     atbus::node::default_conf(&conf1);
     atbus::node::default_conf(&conf2);
-    conf1.children_mask = 16;
-    conf2.children_mask = 16;
+    conf1.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
+    conf2.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     {
         conf1.access_tokens.push_back(std::vector<unsigned char>());
         unsigned char access_token1[] = "test access token";
@@ -629,8 +629,8 @@ CASE_TEST(atbus_node_reg, reg_failed_with_unsupported) {
     atbus::node::conf_t conf2;
     atbus::node::default_conf(&conf1);
     atbus::node::default_conf(&conf2);
-    conf1.children_mask = 16;
-    conf2.children_mask = 16;
+    conf1.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
+    conf2.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     uv_loop_t ev_loop;
     uv_loop_init(&ev_loop);
 
@@ -699,7 +699,7 @@ CASE_TEST(atbus_node_reg, reg_failed_with_unsupported) {
 CASE_TEST(atbus_node_reg, destruct) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
-    conf.children_mask = 16;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     uv_loop_t ev_loop;
     uv_loop_init(&ev_loop);
 
@@ -764,7 +764,7 @@ CASE_TEST(atbus_node_reg, destruct) {
 CASE_TEST(atbus_node_reg, reg_pc_success) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
-    conf.children_mask = 16;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     uv_loop_t ev_loop;
     uv_loop_init(&ev_loop);
 
@@ -791,7 +791,8 @@ CASE_TEST(atbus_node_reg, reg_pc_success) {
 
         node_parent->init(0x12345678, &conf);
 
-        conf.children_mask  = 8;
+        conf.subnets.clear();
+        conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 8));
         conf.parent_address = "ipv4://127.0.0.1:16387";
         node_child->init(0x12346789, &conf);
 
@@ -866,7 +867,7 @@ CASE_TEST(atbus_node_reg, reg_pc_success) {
 CASE_TEST(atbus_node_reg, reg_bro_success) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
-    conf.children_mask = 8;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     uv_loop_t ev_loop;
     uv_loop_init(&ev_loop);
 
@@ -960,7 +961,7 @@ static int node_test_on_shutdown(const atbus::node &, int reason) {
 CASE_TEST(atbus_node_reg, conflict) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
-    conf.children_mask = 16;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     uv_loop_t ev_loop;
     uv_loop_init(&ev_loop);
 
@@ -980,7 +981,8 @@ CASE_TEST(atbus_node_reg, conflict) {
 
         node_parent->init(0x12345678, &conf);
 
-        conf.children_mask  = 8;
+        conf.subnets.clear();
+        conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 8));
         conf.parent_address = "ipv4://127.0.0.1:16387";
         node_child->init(0x12346789, &conf);
         // 子域冲突，注册失败
@@ -1030,7 +1032,7 @@ CASE_TEST(atbus_node_reg, conflict) {
 CASE_TEST(atbus_node_reg, reconnect_parent_failed) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
-    conf.children_mask = 16;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     uv_loop_t ev_loop;
     uv_loop_init(&ev_loop);
 
@@ -1048,7 +1050,8 @@ CASE_TEST(atbus_node_reg, reconnect_parent_failed) {
 
         node_parent->init(0x12345678, &conf);
 
-        conf.children_mask  = 8;
+        conf.subnets.clear();
+        conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 8));
         conf.parent_address = "ipv4://127.0.0.1:16387";
         node_child->init(0x12346789, &conf);
 
@@ -1096,7 +1099,8 @@ CASE_TEST(atbus_node_reg, reconnect_parent_failed) {
 
         // 父节点断线重连测试
         // 子节点断线后重新注册测试
-        conf.children_mask  = 16;
+        conf.subnets.clear();
+        conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
         conf.parent_address = "";
         node_parent->init(0x12345678, &conf);
         CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_parent->listen("ipv4://127.0.0.1:16387"));
@@ -1138,7 +1142,7 @@ CASE_TEST(atbus_node_reg, set_hostname) {
 CASE_TEST(atbus_node_reg, mem_and_send) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
-    conf.children_mask = 16;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     uv_loop_t ev_loop;
     uv_loop_init(&ev_loop);
 
@@ -1309,7 +1313,7 @@ CASE_TEST(atbus_node_reg, shm_and_send) {
         return;
     }
 
-    conf.children_mask = 16;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     uv_loop_t ev_loop;
     uv_loop_init(&ev_loop);
 

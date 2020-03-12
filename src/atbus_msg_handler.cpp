@@ -24,6 +24,48 @@ namespace atbus {
             return field_desc->name().c_str();
         }
 
+        static int forward_data_message(::atbus::node &n, ::atbus::node::msg_builder_ref_t m, 
+            uint64_t from_server_id, uint64_t to_server_id, endpoint **out_endpoint) {
+            if (0 == to_server_id) {
+                ATBUS_FUNC_NODE_ERROR(n, NULL, NULL, EN_ATBUS_ERR_PARAMS, EN_ATBUS_ERR_PARAMS);
+                return EN_ATBUS_ERR_PARAMS;
+            }
+
+            if (n.get_id() == to_server_id) {
+                ATBUS_FUNC_NODE_ERROR(n, NULL, NULL, EN_ATBUS_ERR_PARAMS, EN_ATBUS_ERR_PARAMS);
+                return EN_ATBUS_ERR_PARAMS;
+            }
+
+            // 检查如果发送目标不是来源，则转发失败消息
+            endpoint *target        = NULL;
+            connection *target_conn = NULL;
+            int ret                 = n.get_remote_channel(to_server_id, &endpoint::get_data_connection, &target, &target_conn);
+
+            if (NULL != out_endpoint) {
+                *out_endpoint = target;
+            }
+
+            if (NULL == target || NULL == target_conn) {
+                ATBUS_FUNC_NODE_ERROR(n, target, target_conn, ret, 0);
+                return ret;
+            }
+
+            if (0 != from_server_id && target->get_id() == from_server_id) {
+                ret = EN_ATBUS_ERR_ATNODE_SRC_DST_IS_SAME;
+                ATBUS_FUNC_NODE_ERROR(n, target, target_conn, ret, 0);
+                return ret;
+            }
+
+            // 重设发送源
+            ::atbus::protocol::msg_head* head = m.mutable_head();
+            assert(head);
+            if (head) {
+                head->set_src_bus_id(n.get_id());
+                ret = msg_handler::send_msg(n, *target_conn, m);
+            }
+            return ret;
+        }
+
     } // namespace detail
 
     ATBUS_MACRO_API int msg_handler::dispatch_msg(node &n, connection *conn, ::atbus::protocol::msg ATBUS_MACRO_RVALUE_REFERENCES m, int status, int errcode) {
@@ -146,18 +188,25 @@ namespace atbus {
         body->set_bus_id(n.get_id());
         body->set_pid(n.get_pid());
         body->set_hostname(n.get_hostname());
-        const std::vector<endpoint_subnet_range>& subsets = n.get_self_endpoint()->get_subnets();
+
+        const endpoint* self_ep = n.get_self_endpoint();
+        if (NULL == self_ep) {
+            ATBUS_FUNC_NODE_ERROR(n, self_ep, NULL, EN_ATBUS_ERR_NOT_INITED, EN_ATBUS_ERR_NOT_INITED);
+            return EN_ATBUS_ERR_NOT_INITED;
+        }
+
+        const std::vector<endpoint_subnet_range>& subsets = self_ep->get_subnets();
         for (size_t i = 0; i < subsets.size(); ++ i) {
             atbus::protocol::subnet_range* subset = body->add_subnets();
             if (NULL == subset) {
-                ATBUS_FUNC_NODE_ERROR(n, n.get_self_endpoint().get(), NULL, EN_ATBUS_ERR_MALLOC, EN_ATBUS_ERR_MALLOC);
+                ATBUS_FUNC_NODE_ERROR(n, self_ep, NULL, EN_ATBUS_ERR_MALLOC, EN_ATBUS_ERR_MALLOC);
                 break;
             }
 
             subset->set_id_prefix(subsets[i].get_id_prefix());
             subset->set_mask_bits(subsets[i].get_mask_bits());
         }
-        body->set_flags(n.get_self_endpoint()->get_flags());
+        body->set_flags(self_ep->get_flags());
 
         return send_msg(n, conn, *m);
     }
@@ -390,8 +439,7 @@ namespace atbus {
             return EN_ATBUS_ERR_SUCCESS;
         }
 
-        size_t router_size = 0;
-        router_size = fwd_data->router().size();
+        size_t router_size = fwd_data->router().size();
         if (router_size >= static_cast<size_t>(n.get_conf().ttl)) {
             return send_transfer_rsp(n, ATBUS_MACRO_MOVE(m), EN_ATBUS_ERR_ATNODE_TTL);
         }
@@ -401,11 +449,9 @@ namespace atbus {
         // 转发数据
         node::bus_id_t direct_from_bus_id = m.head().src_bus_id();
 
-        // reset src_bus_id
-        m.mutable_head()->set_src_bus_id(n.get_id());
         // add router id
         fwd_data->add_router(n.get_id());
-        res = n.send_data_msg(fwd_data->to(), m, &to_ep, NULL);
+        res = detail::forward_data_message(n, m, direct_from_bus_id, fwd_data->to(), &to_ep);
 
         // 子节点转发成功
         if (res >= 0 && n.is_child_node(fwd_data->to())) {
@@ -424,7 +470,7 @@ namespace atbus {
             // 如果失败的发送目标已经是父节点则不需要重发
             const endpoint *parent_ep = n.get_parent_endpoint();
             if (NULL != parent_ep && (NULL == to_ep || false == n.is_parent_node(to_ep->get_id()))) {
-                res = n.send_data_msg(parent_ep->get_id(), m);
+                res = detail::forward_data_message(n, m, direct_from_bus_id, parent_ep->get_id(), NULL);
             }
         }
 
@@ -483,28 +529,7 @@ namespace atbus {
         }
 
         // 检查如果发送目标不是来源，则转发失败消息
-        endpoint *target        = NULL;
-        connection *target_conn = NULL;
-        int ret                 = n.get_remote_channel(fwd_data->to(), &endpoint::get_data_connection, &target, &target_conn);
-        if (NULL == target || NULL == target_conn) {
-            ATBUS_FUNC_NODE_ERROR(n, target, target_conn, ret, 0);
-            return ret;
-        }
-
-        if (target->get_id() == m.head().src_bus_id()) {
-            ret = EN_ATBUS_ERR_ATNODE_SRC_DST_IS_SAME;
-            ATBUS_FUNC_NODE_ERROR(n, target, target_conn, ret, 0);
-            return ret;
-        }
-
-        // 重设发送源
-        ::atbus::protocol::msg_head* head = m.mutable_head();
-        assert(head);
-        if (head) {
-            head->set_src_bus_id(n.get_id());
-            ret = send_msg(n, *target_conn, m);
-        }
-        return ret;
+        return detail::forward_data_message(n, m, m.head().src_bus_id(), fwd_data->to(), NULL);
     }
 
     ATBUS_MACRO_API int msg_handler::on_recv_custom_cmd_req(node &n, connection *conn, ::atbus::protocol::msg ATBUS_MACRO_RVALUE_REFERENCES m, int /*status*/, int /*errcode*/) {
@@ -746,21 +771,45 @@ namespace atbus {
 
             // 创建新端点时需要判定全局路由表权限
             std::bitset<endpoint::flag_t::MAX> reg_flags(reg_data->flags());
+            std::vector<endpoint_subnet_conf> ep_subnets;
+            ep_subnets.reserve(reg_data->subnets_size() + 1);
+            {
+                bool contains_self = false;
+                for (int i = 0; i < reg_data->subnets_size(); ++ i) {
+                    const atbus::protocol::subnet_range& subnet_net_conf = reg_data->subnets(i);
+                    endpoint_subnet_conf conf_item(subnet_net_conf.id_prefix(), subnet_net_conf.mask_bits());
+                    if (endpoint_subnet_range::contain(conf_item, reg_data->bus_id())) {
+                        contains_self = true;
+                    }
+                    ep_subnets.push_back(conf_item);
+                }
+
+                if (!contains_self) {
+                    ep_subnets.push_back(endpoint_subnet_conf(reg_data->bus_id(), 0));
+                }
+            }
 
             if (n.is_child_node(reg_data->bus_id())) {
-                // TODO children prefix 必须小于自身
+                // 子节点路由子网范围必须小于自身
+                const endpoint* self_ep = n.get_self_endpoint();
+                if (NULL == self_ep) {
+                    rsp_code = EN_ATBUS_ERR_NOT_INITED;
+                    ATBUS_FUNC_NODE_DEBUG(n, ep, conn, &m, "node not initialized");
+                    ATBUS_FUNC_NODE_ERROR(n, self_ep, NULL, rsp_code, rsp_code);
+                    break;
+                }
 
-                // 子节点域范围必须小于自身
-                if (n.get_self_endpoint()->get_children_mask() <= reg_data->children_id_mask()) {
+                if (!endpoint::contain(self_ep->get_subnets(), ep_subnets)) {
                     rsp_code = EN_ATBUS_ERR_ATNODE_MASK_CONFLICT;
 
                     ATBUS_FUNC_NODE_DEBUG(n, ep, conn, &m, "child mask must be greater than child node");
+                    ATBUS_FUNC_NODE_ERROR(n, self_ep, NULL, rsp_code, rsp_code);
                     break;
                 }
             }
 
             endpoint::ptr_t new_ep =
-                endpoint::create(&n, reg_data->bus_id(), reg_data->children_id_mask(), reg_data->pid(), hostname);
+                endpoint::create(&n, reg_data->bus_id(), ep_subnets, reg_data->pid(), hostname);
             if (!new_ep) {
                 ATBUS_FUNC_NODE_ERROR(n, NULL, conn, EN_ATBUS_ERR_MALLOC, 0);
                 rsp_code = EN_ATBUS_ERR_MALLOC;
@@ -939,7 +988,7 @@ namespace atbus {
                 std::vector<endpoint_subnet_conf> subsets;
                 subsets.reserve(static_cast<size_t>(reg_data->subnets_size()));
                 for (int i = 0; i < reg_data->subnets_size(); ++ i) {
-                    subsets.push_back(endpoint_subnet_conf(reg_data->subnets(i).id_prefix(), reg_data->subnets.mask_bits()));
+                    subsets.push_back(endpoint_subnet_conf(reg_data->subnets(i).id_prefix(), reg_data->subnets(i).mask_bits()));
                 }
                 // 父节点还没注册完成，等父节点注册完成后再 on_actived()
                 if (endpoint::contain(subsets, n.get_id())) {

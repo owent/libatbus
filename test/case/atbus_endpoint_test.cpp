@@ -27,9 +27,10 @@ CASE_TEST(atbus_endpoint, get_children_min_max) {
 CASE_TEST(atbus_endpoint, is_child) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
-    conf.children_mask = 16;
 
     {
+        conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
+        conf.subnets.push_back(atbus::endpoint_subnet_conf(0x22345678, 16));
         atbus::node::ptr_t node = atbus::node::create();
         node->init(0x12345678, &conf);
 
@@ -40,12 +41,17 @@ CASE_TEST(atbus_endpoint, is_child) {
         CASE_EXPECT_FALSE(node->is_child_node(0x1233FFFF));
         CASE_EXPECT_FALSE(node->is_child_node(0x12350000));
 
+        CASE_EXPECT_TRUE(node->is_child_node(0x22340000));
+        CASE_EXPECT_TRUE(node->is_child_node(0x2234FFFF));
+        CASE_EXPECT_FALSE(node->is_child_node(0x2233FFFF));
+        CASE_EXPECT_FALSE(node->is_child_node(0x22350000));
+
         // 自己是自己的子节点
         CASE_EXPECT_TRUE(node->is_child_node(node->get_id()));
     }
 
     {
-        conf.children_mask      = 0;
+        conf.subnets.clear();
         atbus::node::ptr_t node = atbus::node::create();
         node->init(0x12345678, &conf);
         // 0值判定，无子节点
@@ -54,73 +60,10 @@ CASE_TEST(atbus_endpoint, is_child) {
     }
 }
 
-CASE_TEST(atbus_endpoint, is_brother) {
-    uint32_t fake_mask = 24;
-    atbus::node::conf_t conf;
-    atbus::node::default_conf(&conf);
-    conf.children_mask = 16;
-
-    atbus::node::ptr_t node = atbus::node::create();
-    node->init(0x12345678, &conf);
-
-    // 自己不是自己的兄弟节点
-    CASE_EXPECT_FALSE(node->get_self_endpoint()->is_brother_node(node->get_id(), fake_mask));
-
-    /*       F               F
-    //      / \             / \
-    //    [A]  B          [A]  F
-    //                        / \
-    //                       X   B
-    // 兄弟节点的子节点仍然是兄弟节点
-    */
-    CASE_EXPECT_TRUE(node->get_self_endpoint()->is_brother_node(0x12335678, fake_mask));
-
-    /*       B
-    //      / \
-    //    [A]  X
-    // 父节点是兄弟节点
-    */
-    CASE_EXPECT_TRUE(node->get_self_endpoint()->is_brother_node(0x12000001, fake_mask));
-
-
-    /*      [A]
-    //      / \
-    //     B   X
-    // 子节点不是兄弟节点
-    */
-    CASE_EXPECT_FALSE(node->get_self_endpoint()->is_brother_node(0x12340001, fake_mask));
-
-    /*         F
-    //        / \
-    //       F   B
-    //      / \
-    //    [A]  X
-    // 父节点的兄弟节点不是兄弟节点
-    */
-    CASE_EXPECT_FALSE(node->get_self_endpoint()->is_brother_node(0x11345678, fake_mask));
-
-    // 0值判定，无父节点
-    CASE_EXPECT_TRUE(node->get_self_endpoint()->is_brother_node(0x12000001, 0));
-    CASE_EXPECT_FALSE(node->get_self_endpoint()->is_brother_node(0x12340001, 0));
-}
-
-CASE_TEST(atbus_endpoint, is_parent) {
-    uint32_t fake_mask = 24;
-    atbus::node::conf_t conf;
-    atbus::node::default_conf(&conf);
-    conf.children_mask = 16;
-
-    atbus::node::ptr_t node = atbus::node::create();
-    node->init(0x12345678, &conf);
-    CASE_EXPECT_TRUE(node->get_self_endpoint()->is_parent_node(0x12000001, 0x12000001, fake_mask));
-
-    CASE_EXPECT_FALSE(node->get_self_endpoint()->is_parent_node(0x12000002, 0x12000001, fake_mask));
-}
-
 CASE_TEST(atbus_endpoint, get_connection) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
-    conf.children_mask = 16;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     uv_loop_t ev_loop;
     uv_loop_init(&ev_loop);
 
@@ -145,11 +88,13 @@ CASE_TEST(atbus_endpoint, get_connection) {
         atbus::connection::ptr_t conn1 = atbus::connection::create(node.get());
 
         CASE_EXPECT_EQ(0, conn1->connect(addr));
-
         atbus::connection::ptr_t conn2 = atbus::connection::create(node.get());
         conn2->connect("ipv4://127.0.0.1:80");
 
-        atbus::endpoint::ptr_t ep = atbus::endpoint::create(node.get(), 0x12345679, 8, node->get_pid(), node->get_hostname());
+        std::vector<atbus::endpoint_subnet_conf> ep_subnets;
+        ep_subnets.push_back(atbus::endpoint_subnet_conf(0, 8));
+
+        atbus::endpoint::ptr_t ep = atbus::endpoint::create(node.get(), 0x12345679, ep_subnets, node->get_pid(), node->get_hostname());
         CASE_EXPECT_TRUE(ep->add_connection(conn1.get(), false));
         CASE_EXPECT_TRUE(ep->add_connection(conn2.get(), false));
 
@@ -157,6 +102,20 @@ CASE_TEST(atbus_endpoint, get_connection) {
 
         atbus::connection *conn3 = node->get_self_endpoint()->get_data_connection(ep.get());
         CASE_EXPECT_EQ(conn3, conn1.get());
+
+
+        // conflict id range
+        ep = atbus::endpoint::create(node.get(), 0x12345680, ep_subnets, node->get_pid(), node->get_hostname());
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_ATNODE_MASK_CONFLICT, node->add_endpoint(ep));
+
+        ep_subnets.clear();
+        ep_subnets.push_back(atbus::endpoint_subnet_conf(0, 24));
+        ep = atbus::endpoint::create(node.get(), 0x12355680, ep_subnets, node->get_pid(), node->get_hostname());
+        CASE_EXPECT_EQ(0, node->add_endpoint(ep));
+
+        // It can only add one parent endpoint
+        ep = atbus::endpoint::create(node.get(), 0x12365680, ep_subnets, node->get_pid(), node->get_hostname());
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_ATNODE_INVALID_ID, node->add_endpoint(ep));
     }
 
     while (UV_EBUSY == uv_loop_close(&ev_loop)) {

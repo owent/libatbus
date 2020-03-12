@@ -71,35 +71,43 @@ CASE_TEST(atbus_node_rela, basic_test) {
 CASE_TEST(atbus_node_rela, child_endpoint_opr) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
-    conf.children_mask = 16;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
 
     atbus::node::ptr_t node = atbus::node::create();
     node->init(0x12345678, &conf);
 
 
-    atbus::endpoint::ptr_t ep = atbus::endpoint::create(node.get(), 0x12345679, 8, node->get_pid(), node->get_hostname());
+    std::vector<atbus::endpoint_subnet_conf> ep_subnets;
+    ep_subnets.push_back(atbus::endpoint_subnet_conf(0, 8));
+    atbus::endpoint::ptr_t ep = atbus::endpoint::create(node.get(), 0x12345679, ep_subnets, node->get_pid(), node->get_hostname());
     // 插入到末尾
     CASE_EXPECT_EQ(0, node->add_endpoint(ep));
-    CASE_EXPECT_EQ(1, node->get_children().size());
+    CASE_EXPECT_EQ(1, node->get_routes().size());
 
     // 插入到中间
-    ep = atbus::endpoint::create(node.get(), 0x12345589, 8, node->get_pid(), node->get_hostname());
+    ep = atbus::endpoint::create(node.get(), 0x12345589, ep_subnets, node->get_pid(), node->get_hostname());
     CASE_EXPECT_EQ(0, node->add_endpoint(ep));
-    CASE_EXPECT_EQ(2, node->get_children().size());
+    CASE_EXPECT_EQ(2, node->get_routes().size());
 
     // 新端点子域冲突-父子关系
-    ep = atbus::endpoint::create(node.get(), 0x12345680, 4, node->get_pid(), node->get_hostname());
+    ep_subnets.clear();
+    ep_subnets.push_back(atbus::endpoint_subnet_conf(0, 4));
+    ep = atbus::endpoint::create(node.get(), 0x12345680, ep_subnets, node->get_pid(), node->get_hostname());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_PARAMS, node->add_endpoint(atbus::endpoint::ptr_t()));
     CASE_EXPECT_EQ(EN_ATBUS_ERR_ATNODE_MASK_CONFLICT, node->add_endpoint(ep));
 
     // 新端点子域冲突-子父关系
-    ep = atbus::endpoint::create(node.get(), 0x12345780, 12, node->get_pid(), node->get_hostname());
+    ep_subnets.clear();
+    ep_subnets.push_back(atbus::endpoint_subnet_conf(0, 12));
+    ep = atbus::endpoint::create(node.get(), 0x12345780, ep_subnets, node->get_pid(), node->get_hostname());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_ATNODE_MASK_CONFLICT, node->add_endpoint(ep));
-    ep = atbus::endpoint::create(node.get(), 0x12345480, 12, node->get_pid(), node->get_hostname());
+    ep = atbus::endpoint::create(node.get(), 0x12345480, ep_subnets, node->get_pid(), node->get_hostname());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_ATNODE_MASK_CONFLICT, node->add_endpoint(ep));
 
     // 新端点子域冲突-ID不同子域相同
-    ep = atbus::endpoint::create(node.get(), 0x12345680, 8, node->get_pid(), node->get_hostname());
+    ep_subnets.clear();
+    ep_subnets.push_back(atbus::endpoint_subnet_conf(0, 8));
+    ep = atbus::endpoint::create(node.get(), 0x12345680, ep_subnets, node->get_pid(), node->get_hostname());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_ATNODE_MASK_CONFLICT, node->add_endpoint(ep));
 
     // 移除失败-找不到
