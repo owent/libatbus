@@ -1367,6 +1367,7 @@ CASE_TEST(atbus_node_reg, mem_and_send) {
 
     const size_t memory_chan_len = conf.recv_buffer_size;
     char *memory_chan_buf        = reinterpret_cast<char *>(malloc(memory_chan_len));
+    memset(memory_chan_buf, 0, memory_chan_len);
 
     {
         atbus::node::ptr_t node1 = atbus::node::create();
