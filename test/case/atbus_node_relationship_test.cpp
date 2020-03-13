@@ -72,6 +72,7 @@ CASE_TEST(atbus_node_rela, child_endpoint_opr) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
     conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0x22345679, 16));
 
     atbus::node::ptr_t node = atbus::node::create();
     node->init(0x12345678, &conf);
@@ -110,8 +111,20 @@ CASE_TEST(atbus_node_rela, child_endpoint_opr) {
     ep = atbus::endpoint::create(node.get(), 0x12345680, ep_subnets, node->get_pid(), node->get_hostname());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_ATNODE_MASK_CONFLICT, node->add_endpoint(ep));
 
+    // 跨域添加节点 - 成功
+    ep = atbus::endpoint::create(node.get(), 0x22345679, ep_subnets, node->get_pid(), node->get_hostname());
+    CASE_EXPECT_EQ(0, node->add_endpoint(ep));
+
+    // 跨域添加节点 - 范围不完全覆盖
+    ep_subnets.push_back(atbus::endpoint_subnet_conf(0x32345680, 8));
+    ep = atbus::endpoint::create(node.get(), 0x22345680, ep_subnets, node->get_pid(), node->get_hostname());
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_ATNODE_MASK_CONFLICT, node->add_endpoint(ep));
+
+    CASE_EXPECT_EQ(3, node->get_routes().size());
+
     // 移除失败-找不到
     CASE_EXPECT_EQ(EN_ATBUS_ERR_ATNODE_NOT_FOUND, node->remove_endpoint(0x12345680));
     // 移除成功
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node->remove_endpoint(0x12345589));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node->remove_endpoint(0x22345679));
 }

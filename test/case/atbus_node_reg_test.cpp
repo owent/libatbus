@@ -695,6 +695,7 @@ CASE_TEST(atbus_node_reg, reg_failed_with_unsupported) {
     unit_test_setup_exit(&ev_loop);
 }
 
+
 // 被动析构流程测试
 CASE_TEST(atbus_node_reg, destruct) {
     atbus::node::conf_t conf;
@@ -860,6 +861,222 @@ CASE_TEST(atbus_node_reg, reg_pc_success) {
     unit_test_setup_exit(&ev_loop);
 
     CASE_EXPECT_LE(check_ep_rm + 2, recv_msg_history.remove_endpoint_count);
+}
+
+// 注册成功流程测试 - 父子(跨子网)
+CASE_TEST(atbus_node_reg, reg_pc_success_cross_subnet) {
+    atbus::node::conf_t conf;
+    atbus::node::default_conf(&conf);
+    uv_loop_t ev_loop;
+    uv_loop_init(&ev_loop);
+
+    conf.ev_loop = &ev_loop;
+
+    int check_ep_rm = recv_msg_history.remove_endpoint_count;
+    {
+        int old_register_count  = recv_msg_history.register_count;
+        int old_available_count = recv_msg_history.availavle_count;
+
+        atbus::node::ptr_t node_parent = atbus::node::create();
+        atbus::node::ptr_t node_child  = atbus::node::create();
+        node_parent->on_debug          = node_reg_test_on_debug;
+        node_parent->set_on_error_handle(node_reg_test_on_error);
+        node_parent->set_on_register_handle(node_reg_test_on_register_fn);
+        node_parent->set_on_available_handle(node_reg_test_on_available_fn);
+
+        node_child->on_debug = node_reg_test_on_debug;
+        node_child->set_on_error_handle(node_reg_test_on_error);
+        node_child->set_on_register_handle(node_reg_test_on_register_fn);
+        node_child->set_on_available_handle(node_reg_test_on_available_fn);
+        CASE_EXPECT_TRUE(!!node_child->get_on_register_handle());
+        CASE_EXPECT_TRUE(!!node_child->get_on_available_handle());
+
+        conf.subnets.push_back(atbus::endpoint_subnet_conf(0x22345678, 16));
+        node_parent->init(0x12345678, &conf);
+
+        conf.subnets.clear();
+        conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 8));
+        conf.parent_address = "ipv4://127.0.0.1:16387";
+        node_child->init(0x22346789, &conf);
+
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_parent->listen("ipv4://127.0.0.1:16387"));
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_child->listen("ipv4://127.0.0.1:16388"));
+
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_parent->start());
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_child->start());
+
+        CASE_EXPECT_EQ(old_register_count, recv_msg_history.register_count);
+        CASE_EXPECT_EQ(old_available_count + 1, recv_msg_history.availavle_count);
+
+        // 父子节点注册回调测试
+        int check_ep_count = recv_msg_history.add_endpoint_count;
+        node_parent->set_on_add_endpoint_handle(node_reg_test_add_endpoint_fn);
+        CASE_EXPECT_TRUE(!!node_parent->get_on_add_endpoint_handle());
+        node_parent->set_on_remove_endpoint_handle(node_reg_test_remove_endpoint_fn);
+        CASE_EXPECT_TRUE(!!node_parent->get_on_remove_endpoint_handle());
+        node_child->set_on_add_endpoint_handle(node_reg_test_add_endpoint_fn);
+        node_child->set_on_remove_endpoint_handle(node_reg_test_remove_endpoint_fn);
+
+        time_t proc_t = time(NULL);
+        node_parent->poll();
+        node_child->poll();
+        node_parent->proc(proc_t + 1, 0);
+        node_child->proc(proc_t + 1, 0);
+
+
+        // 注册成功自动会有可用的端点
+        UNITTEST_WAIT_UNTIL(
+            conf.ev_loop,
+            node_child->is_endpoint_available(node_parent->get_id()) && node_parent->is_endpoint_available(node_child->get_id()), 8000, 0) {
+        }
+
+        // in windows CI, connection will be closed sometimes, it will lead to add one endpoint more than one times
+        CASE_EXPECT_LE(check_ep_count + 2, recv_msg_history.add_endpoint_count);
+        CASE_EXPECT_LE(old_register_count + 2, recv_msg_history.register_count);
+        CASE_EXPECT_LE(old_available_count + 2, recv_msg_history.availavle_count);
+
+        // API - test
+        {
+            atbus::endpoint *test_ep     = NULL;
+            atbus::connection *test_conn = NULL;
+            node_parent->get_remote_channel(node_child->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
+            CASE_EXPECT_NE(NULL, test_ep);
+            CASE_EXPECT_NE(NULL, test_conn);
+        }
+
+        // API - test
+        {
+            atbus::endpoint *test_ep     = NULL;
+            atbus::connection *test_conn = NULL;
+            node_child->get_remote_channel(node_parent->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
+            CASE_EXPECT_NE(NULL, test_ep);
+            CASE_EXPECT_NE(NULL, test_conn);
+        }
+
+        // disconnect - parent and child
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_parent->disconnect(0x22346789));
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_ATNODE_NOT_FOUND, node_parent->disconnect(0x22346789));
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_child->disconnect(0x12345678));
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_ATNODE_NOT_FOUND, node_child->disconnect(0x12345678));
+    }
+
+    unit_test_setup_exit(&ev_loop);
+
+    CASE_EXPECT_LE(check_ep_rm + 2, recv_msg_history.remove_endpoint_count);
+}
+
+// 注册失败流程测试 - 父子subnet不匹配
+CASE_TEST(atbus_node_reg, reg_pc_failed_with_subnet_mismatch) {
+    atbus::node::conf_t conf;
+    atbus::node::default_conf(&conf);
+    uv_loop_t ev_loop;
+    uv_loop_init(&ev_loop);
+
+    conf.ev_loop = &ev_loop;
+    {
+        int old_register_count  = recv_msg_history.register_count;
+        int old_available_count = recv_msg_history.availavle_count;
+
+        atbus::node::ptr_t node_parent = atbus::node::create();
+        atbus::node::ptr_t node_child  = atbus::node::create();
+        node_parent->on_debug          = node_reg_test_on_debug;
+        node_parent->set_on_error_handle(node_reg_test_on_error);
+        node_parent->set_on_register_handle(node_reg_test_on_register_fn);
+        node_parent->set_on_available_handle(node_reg_test_on_available_fn);
+
+        node_child->on_debug = node_reg_test_on_debug;
+        node_child->set_on_error_handle(node_reg_test_on_error);
+        node_child->set_on_register_handle(node_reg_test_on_register_fn);
+        node_child->set_on_available_handle(node_reg_test_on_available_fn);
+        CASE_EXPECT_TRUE(!!node_child->get_on_register_handle());
+        CASE_EXPECT_TRUE(!!node_child->get_on_available_handle());
+
+        conf.subnets.push_back(atbus::endpoint_subnet_conf(0x22345678, 16));
+        node_parent->init(0x12345678, &conf);
+
+        conf.subnets.clear();
+        conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 8));
+        conf.parent_address = "ipv4://127.0.0.1:16387";
+        node_child->init(0x12346789, &conf);
+
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_parent->listen("ipv4://127.0.0.1:16387"));
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_child->listen("ipv4://127.0.0.1:16388"));
+
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_parent->start());
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_child->start());
+
+        CASE_EXPECT_EQ(old_register_count, recv_msg_history.register_count);
+        CASE_EXPECT_EQ(old_available_count + 1, recv_msg_history.availavle_count);
+
+        // 父子节点注册回调测试
+        int check_ep_count = recv_msg_history.add_endpoint_count;
+        node_parent->set_on_add_endpoint_handle(node_reg_test_add_endpoint_fn);
+        CASE_EXPECT_TRUE(!!node_parent->get_on_add_endpoint_handle());
+        node_parent->set_on_remove_endpoint_handle(node_reg_test_remove_endpoint_fn);
+        CASE_EXPECT_TRUE(!!node_parent->get_on_remove_endpoint_handle());
+        node_child->set_on_add_endpoint_handle(node_reg_test_add_endpoint_fn);
+        node_child->set_on_remove_endpoint_handle(node_reg_test_remove_endpoint_fn);
+
+        time_t proc_t = time(NULL);
+        node_parent->poll();
+        node_child->poll();
+        ++ proc_t;
+        node_parent->proc(proc_t, 0);
+        node_child->proc(proc_t, 0);
+
+
+        // 注册成功自动会有可用的端点
+        time_t proc_us = 0;
+        UNITTEST_WAIT_UNTIL(
+            conf.ev_loop,
+            atbus::node::state_t::CREATED == node_child->get_state() &&
+            false == node_parent->is_endpoint_available(node_child->get_id())
+            , 8000, 4) {
+            proc_us += 4000;
+            if (proc_us >= 1000000) {
+                ++ proc_t;
+                proc_us = 0;
+            }
+            node_parent->proc(proc_t, proc_us);
+            node_child->proc(proc_t, proc_us);
+        }
+
+        node_parent->proc(proc_t, proc_us);
+        node_child->proc(proc_t, proc_us);
+
+        // in windows CI, connection will be closed sometimes, it will lead to add one endpoint more than one times
+        CASE_EXPECT_EQ(atbus::node::state_t::CREATED, node_child->get_state());
+        CASE_EXPECT_LE(check_ep_count, recv_msg_history.add_endpoint_count);
+        CASE_EXPECT_LE(old_register_count, recv_msg_history.register_count);
+        CASE_EXPECT_LE(old_available_count, recv_msg_history.availavle_count);
+
+        // API - test
+        {
+            atbus::endpoint *test_ep     = NULL;
+            atbus::connection *test_conn = NULL;
+            node_parent->get_remote_channel(node_child->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
+            CASE_EXPECT_EQ(NULL, test_ep);
+            CASE_EXPECT_EQ(NULL, test_conn);
+        }
+
+        // API - test
+        {
+            atbus::endpoint *test_ep     = NULL;
+            atbus::connection *test_conn = NULL;
+            node_child->get_remote_channel(node_parent->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
+            CASE_EXPECT_EQ(NULL, test_ep);
+            CASE_EXPECT_EQ(NULL, test_conn);
+        }
+
+        CASE_MSG_INFO()<< "atbus_node_reg.reg_pc_failed_with_subnet_mismatch done."<< std::endl;
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_ATNODE_MASK_CONFLICT, recv_msg_history.status);
+
+        // disconnect - parent and child
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_ATNODE_NOT_FOUND, node_parent->disconnect(0x12346789));
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_ATNODE_NOT_FOUND, node_child->disconnect(0x12345678));
+    }
+
+    unit_test_setup_exit(&ev_loop);
 }
 
 

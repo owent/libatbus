@@ -157,7 +157,7 @@ namespace atbus {
         flags_.set(flag_t::RESETTING, true);
 
         // 需要临时给自身加引用计数，否则后续移除的过程中可能导致数据被提前释放
-        ptr_t tmp_holder = watcher_.lock();
+        ptr_t tmp_holder = watch();
 
         // 释放连接
         if (ctrl_conn_) {
@@ -251,10 +251,10 @@ namespace atbus {
         }
 
         if (force_data || ctrl_conn_) {
-            data_conn_.push_back(conn->watcher_.lock());
+            data_conn_.push_back(conn->watch());
             flags_.set(flag_t::CONNECTION_SORTED, false); // 置为未排序状态
         } else {
-            ctrl_conn_ = conn->watcher_.lock();
+            ctrl_conn_ = conn->watch();
         }
 
         // 已经成功连接可以不需要握手
