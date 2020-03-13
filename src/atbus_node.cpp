@@ -51,6 +51,8 @@ namespace atbus {
     ATBUS_MACRO_API node::conf_t& node::conf_t::operator=(const conf_t& other) {
         ev_loop = other.ev_loop;
         subnets = other.subnets;
+        flags = other.flags;
+        parent_address = other.parent_address;
         loop_times = other.loop_times;
         ttl = other.ttl;
         protocol_version = other.protocol_version;
@@ -68,7 +70,6 @@ namespace atbus {
         recv_buffer_size = other.recv_buffer_size;
         send_buffer_size = other.send_buffer_size;
         send_buffer_number = other.send_buffer_number;
-        flags = other.flags;
 
         return *this;
     }
@@ -108,6 +109,8 @@ namespace atbus {
 
         conf->ev_loop       = NULL;
         conf->subnets.clear();
+        conf->flags.reset();
+        conf->parent_address.clear();
         conf->loop_times    = 128;
         conf->ttl           = 16; // 默认最长8次跳转
         conf->protocol_version = atbus::protocol::ATBUS_PROTOCOL_VERSION;
@@ -129,8 +132,6 @@ namespace atbus {
         // send_buffer_size 用于IO流通道的发送缓冲区长度，远程节点可能数量很多所以设的小一点
         conf->send_buffer_size   = ATBUS_MACRO_IOS_SEND_BUFFER_LENGTH;
         conf->send_buffer_number = 0; // 默认不使用静态缓冲区，所以设为0
-
-        conf->flags.reset();
     }
 
     ATBUS_MACRO_API node::ptr_t node::create() {
@@ -419,6 +420,7 @@ namespace atbus {
             }
         }
 
+#if 0 // disabled
         // 节点同步协议-推送
         if (0 != event_timer_.node_sync_push && event_timer_.node_sync_push < sec) {
             // 发起子节点同步信息推送
@@ -429,7 +431,7 @@ namespace atbus {
                 event_timer_.node_sync_push = 0;
             }
         }
-
+#endif
 
         // dispatcher all self msgs
         ret += dispatch_all_self_msgs();
@@ -857,7 +859,11 @@ namespace atbus {
 
 #undef ASSIGN_EPCONN
 
-        if (NULL == conn || NULL == target) {
+        if (NULL == target) {
+            return EN_ATBUS_ERR_ATNODE_INVALID_ID;
+        }
+
+        if (NULL == conn) {
             return EN_ATBUS_ERR_ATNODE_NO_CONNECTION;
         }
 
@@ -897,12 +903,7 @@ namespace atbus {
         }
 
         // 父节点单独判定
-        if (0 != get_id() && endpoint::contain(ep->get_subnets(), get_id())) {
-            if (!endpoint::contain(ep->get_subnets(), self_->get_subnets())) {
-                ATBUS_FUNC_NODE_ERROR(*this, ep.get(), NULL, EN_ATBUS_ERR_ATNODE_MASK_CONFLICT, EN_ATBUS_ERR_ATNODE_MASK_CONFLICT);
-                return EN_ATBUS_ERR_ATNODE_MASK_CONFLICT;
-            }
-            
+        if (0 != get_id() && endpoint::contain(ep->get_subnets(), self_->get_subnets())) {
             if (!node_parent_.node_) {
                 node_parent_.node_ = ep;
                 add_ping_timer(ep);
@@ -933,8 +934,6 @@ namespace atbus {
         } else {
             return EN_ATBUS_ERR_ATNODE_MASK_CONFLICT;
         }
-
-        return EN_ATBUS_ERR_ATNODE_INVALID_ID;
     }
 
     ATBUS_MACRO_API int node::remove_endpoint(bus_id_t tid) {
@@ -1621,6 +1620,7 @@ namespace atbus {
         return EN_ATBUS_ERR_SUCCESS;
     }
 
+#if 0 // disabled
     ATBUS_MACRO_API int node::push_node_sync() {
         // TODO 防止短时间内批量上报注册协议，所以合并上报数据包
 
@@ -1632,6 +1632,7 @@ namespace atbus {
         // TODO 拉取全局节点信息表
         return EN_ATBUS_ERR_SUCCESS;
     }
+#endif
 
     ATBUS_MACRO_API uint64_t node::alloc_msg_seq() {
         uint64_t ret = 0;

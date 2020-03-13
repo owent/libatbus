@@ -475,9 +475,11 @@ namespace atbus {
 
         ATBUS_MACRO_API int ping_endpoint(endpoint &ep);
 
+#if 0 // disabled
         ATBUS_MACRO_API int push_node_sync();
 
         ATBUS_MACRO_API int pull_node_sync();
+#endif
 
         ATBUS_MACRO_API uint64_t alloc_msg_seq();
 
