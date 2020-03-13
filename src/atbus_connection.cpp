@@ -104,7 +104,7 @@ namespace atbus {
         flags_.set(flag_t::RESETTING, true);
 
         // 需要临时给自身加引用计数，否则后续移除的过程中可能导致数据被提前释放
-        ptr_t tmp_holder = watcher_.lock();
+        ptr_t tmp_holder = watch();
 
         // 后面会重置状态，影响事件判定，所以要先移除检查队列
         owner_->remove_connection_timer(owner_checker_);
@@ -179,7 +179,7 @@ namespace atbus {
             conn_data_.shared.mem.channel = mem_chann;
             conn_data_.shared.mem.buffer  = reinterpret_cast<void *>(ad);
             conn_data_.shared.mem.len     = conf.recv_buffer_size;
-            owner_->add_proc_connection(watcher_.lock());
+            owner_->add_proc_connection(watch());
             flags_.set(flag_t::REG_PROC, true);
             flags_.set(flag_t::ACCESS_SHARE_ADDR, true);
             flags_.set(flag_t::ACCESS_SHARE_HOST, true);
@@ -207,7 +207,7 @@ namespace atbus {
             // 加入轮询队列
             conn_data_.shared.shm.channel = shm_chann;
             conn_data_.shared.shm.len     = conf.recv_buffer_size;
-            owner_->add_proc_connection(watcher_.lock());
+            owner_->add_proc_connection(watch());
             flags_.set(flag_t::REG_PROC, true);
             flags_.set(flag_t::ACCESS_SHARE_HOST, true);
             set_status(state_t::CONNECTED);
@@ -244,7 +244,7 @@ namespace atbus {
                 ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_MALLOC, 0);
                 return EN_ATBUS_ERR_MALLOC;
             }
-            connection::ptr_t self = watcher_.lock();
+            connection::ptr_t self = watch();
             async_data->conn       = self;
 
             set_status(state_t::CONNECTING);
@@ -364,7 +364,7 @@ namespace atbus {
                 ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_MALLOC, 0);
                 return EN_ATBUS_ERR_MALLOC;
             }
-            connection::ptr_t self = watcher_.lock();
+            connection::ptr_t self = watch();
             async_data->conn       = self;
 
             set_status(state_t::CONNECTING);

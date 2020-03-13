@@ -817,6 +817,29 @@ namespace atbus {
             }
             ep = new_ep.get();
 
+            // 如果是正在连接父节点，要检查一下父节点覆盖的subnets是不是完全覆盖自己
+            if (conn->get_address().address == n.get_conf().parent_address) {
+                const endpoint* self_ep = n.get_self_endpoint();
+                if (NULL == self_ep) {
+                    rsp_code = EN_ATBUS_ERR_NOT_INITED;
+                    ATBUS_FUNC_NODE_DEBUG(n, ep, conn, &m, "node not initialized");
+                }
+                if (!endpoint::contain(new_ep->get_subnets(), self_ep->get_subnets())) {
+                    rsp_code = EN_ATBUS_ERR_ATNODE_MASK_CONFLICT;
+                    ATBUS_FUNC_NODE_DEBUG(n, ep, conn, &m, "parent subnets do not include all self's subnets");
+                }
+                // 如果处于正在初始化要强制失败
+                if (EN_ATBUS_ERR_SUCCESS != rsp_code) {
+                    if (node::state_t::CONNECTING_PARENT == n.get_state()) {
+                        ATBUS_FUNC_NODE_FATAL_SHUTDOWN(n, ep, conn, rsp_code, rsp_code);
+                    }
+
+                    conn->reset();
+                    n.add_endpoint_gc_list(new_ep);
+                    break;
+                }
+            }
+
             res = n.add_endpoint(new_ep);
             if (res < 0) {
                 ATBUS_FUNC_NODE_ERROR(n, ep, conn, res, 0);

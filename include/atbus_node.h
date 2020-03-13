@@ -68,6 +68,8 @@ namespace atbus {
                 EN_FT_IN_CALLBACK,        /** 在回调函数中 **/
                 EN_FT_IN_PROC,            /** 在Proc函数中 **/
                 EN_FT_IN_POLL,            /** 在Poll函数中 **/
+                EN_FT_IN_GC_ENDPOINTS,    /** 在清理endpoint过程中 **/
+                EN_FT_IN_GC_CONNECTIONS,  /** 在清理connection过程中 **/
                 EN_FT_MAX,                /** flag max **/
             };
         };
@@ -344,6 +346,8 @@ namespace atbus {
         ATBUS_MACRO_API adapter::loop_t *get_evloop();
 
     private:
+        int remove_endpoint(bus_id_t tid, endpoint* expected);
+        
         /**
          * @brief 发送数据消息
          * @param tid 发送目标ID
@@ -475,9 +479,11 @@ namespace atbus {
 
         ATBUS_MACRO_API int ping_endpoint(endpoint &ep);
 
+#if 0 // disabled
         ATBUS_MACRO_API int push_node_sync();
 
         ATBUS_MACRO_API int pull_node_sync();
+#endif
 
         ATBUS_MACRO_API uint64_t alloc_msg_seq();
 
@@ -536,7 +542,7 @@ namespace atbus {
 
         bool insert_child(endpoint_collection_t &coll, endpoint::ptr_t ep);
 
-        bool remove_child(endpoint_collection_t &coll, bus_id_t id);
+        bool remove_child(endpoint_collection_t &coll, bus_id_t id, endpoint* expected = NULL);
 
         bool remove_collection(endpoint_collection_t &coll);
 

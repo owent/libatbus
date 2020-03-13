@@ -51,6 +51,8 @@ namespace atbus {
     ATBUS_MACRO_API node::conf_t& node::conf_t::operator=(const conf_t& other) {
         ev_loop = other.ev_loop;
         subnets = other.subnets;
+        flags = other.flags;
+        parent_address = other.parent_address;
         loop_times = other.loop_times;
         ttl = other.ttl;
         protocol_version = other.protocol_version;
@@ -68,7 +70,6 @@ namespace atbus {
         recv_buffer_size = other.recv_buffer_size;
         send_buffer_size = other.send_buffer_size;
         send_buffer_number = other.send_buffer_number;
-        flags = other.flags;
 
         return *this;
     }
@@ -108,6 +109,8 @@ namespace atbus {
 
         conf->ev_loop       = NULL;
         conf->subnets.clear();
+        conf->flags.reset();
+        conf->parent_address.clear();
         conf->loop_times    = 128;
         conf->ttl           = 16; // 默认最长8次跳转
         conf->protocol_version = atbus::protocol::ATBUS_PROTOCOL_VERSION;
@@ -129,8 +132,6 @@ namespace atbus {
         // send_buffer_size 用于IO流通道的发送缓冲区长度，远程节点可能数量很多所以设的小一点
         conf->send_buffer_size   = ATBUS_MACRO_IOS_SEND_BUFFER_LENGTH;
         conf->send_buffer_number = 0; // 默认不使用静态缓冲区，所以设为0
-
-        conf->flags.reset();
     }
 
     ATBUS_MACRO_API node::ptr_t node::create() {
@@ -419,6 +420,7 @@ namespace atbus {
             }
         }
 
+#if 0 // disabled
         // 节点同步协议-推送
         if (0 != event_timer_.node_sync_push && event_timer_.node_sync_push < sec) {
             // 发起子节点同步信息推送
@@ -429,13 +431,14 @@ namespace atbus {
                 event_timer_.node_sync_push = 0;
             }
         }
-
+#endif
 
         // dispatcher all self msgs
         ret += dispatch_all_self_msgs();
 
         // GC - endpoint
         if (!event_timer_.pending_endpoint_gc_list.empty()) {
+            flag_guard_t fgd_gc_endpoints(this, flag_t::EN_FT_IN_GC_ENDPOINTS);
             std::list<endpoint::ptr_t> checked;
             checked.swap(event_timer_.pending_endpoint_gc_list);
 
@@ -444,17 +447,18 @@ namespace atbus {
                     if (false == (*iter)->is_available()) {
                         (*iter)->reset();
                         ATBUS_FUNC_NODE_DEBUG(*this, (*iter).get(), NULL, NULL, "endpoint handshake timeout and reset");
-                        remove_endpoint((*iter)->get_id());
+                        remove_endpoint((*iter)->get_id(), (*iter).get());
                     }
                 }
             }
 
-            // 再清理一次，因为endpoint::reset可能触发进入pending_check_list_
+            // 再清理一次，因为endpoint::reset可能触发进入pending_endpoint_gc_list
             event_timer_.pending_endpoint_gc_list.clear();
         }
 
         // GC - connection
         if (!event_timer_.pending_connection_gc_list.empty()) {
+            flag_guard_t fgd_gc_connections(this, flag_t::EN_FT_IN_GC_CONNECTIONS);
             event_timer_.pending_connection_gc_list.clear();
         }
 
@@ -495,6 +499,7 @@ namespace atbus {
 
         // GC - endpoint
         if (!event_timer_.pending_endpoint_gc_list.empty()) {
+            flag_guard_t fgd_gc_endpoints(this, flag_t::EN_FT_IN_GC_ENDPOINTS);
             std::list<endpoint::ptr_t> checked;
             checked.swap(event_timer_.pending_endpoint_gc_list);
 
@@ -503,17 +508,18 @@ namespace atbus {
                     if (false == (*iter)->is_available()) {
                         (*iter)->reset();
                         ATBUS_FUNC_NODE_DEBUG(*this, (*iter).get(), NULL, NULL, "endpoint handshake timeout and reset");
-                        remove_endpoint((*iter)->get_id());
+                        remove_endpoint((*iter)->get_id(), (*iter).get());
                     }
                 }
             }
 
-            // 再清理一次，因为endpoint::reset可能触发进入pending_check_list_
+            // 再清理一次，因为endpoint::reset可能触发进入pending_endpoint_gc_list
             event_timer_.pending_endpoint_gc_list.clear();
         }
 
         // GC - connection
         if (!event_timer_.pending_connection_gc_list.empty()) {
+            flag_guard_t fgd_gc_connections(this, flag_t::EN_FT_IN_GC_CONNECTIONS);
             event_timer_.pending_connection_gc_list.clear();
         }
 
@@ -857,7 +863,11 @@ namespace atbus {
 
 #undef ASSIGN_EPCONN
 
-        if (NULL == conn || NULL == target) {
+        if (NULL == target) {
+            return EN_ATBUS_ERR_ATNODE_INVALID_ID;
+        }
+
+        if (NULL == conn) {
             return EN_ATBUS_ERR_ATNODE_NO_CONNECTION;
         }
 
@@ -897,12 +907,7 @@ namespace atbus {
         }
 
         // 父节点单独判定
-        if (0 != get_id() && endpoint::contain(ep->get_subnets(), get_id())) {
-            if (!endpoint::contain(ep->get_subnets(), self_->get_subnets())) {
-                ATBUS_FUNC_NODE_ERROR(*this, ep.get(), NULL, EN_ATBUS_ERR_ATNODE_MASK_CONFLICT, EN_ATBUS_ERR_ATNODE_MASK_CONFLICT);
-                return EN_ATBUS_ERR_ATNODE_MASK_CONFLICT;
-            }
-            
+        if (0 != get_id() && endpoint::contain(ep->get_subnets(), self_->get_subnets())) {
             if (!node_parent_.node_) {
                 node_parent_.node_ = ep;
                 add_ping_timer(ep);
@@ -926,6 +931,13 @@ namespace atbus {
             }
         }
 
+        // 如果是子节点则必须包含子节点的所有subnet
+        if (0 != get_id() && is_child_node(ep->get_id())) {
+            if (!endpoint::contain(self_->get_subnets(), ep->get_subnets())) {
+                return EN_ATBUS_ERR_ATNODE_MASK_CONFLICT;
+            }
+        }
+
         if (insert_child(node_routes_, ep)) {
             add_ping_timer(ep);
 
@@ -933,43 +945,10 @@ namespace atbus {
         } else {
             return EN_ATBUS_ERR_ATNODE_MASK_CONFLICT;
         }
-
-        return EN_ATBUS_ERR_ATNODE_INVALID_ID;
     }
 
     ATBUS_MACRO_API int node::remove_endpoint(bus_id_t tid) {
-        // 父节点单独判定，由于防止测试兄弟节点
-        if (is_parent_node(tid)) {
-            endpoint::ptr_t ep = node_parent_.node_;
-
-            node_parent_.node_.reset();
-            state_ = state_t::LOST_PARENT;
-
-            // set reconnect to parent into retry interval
-            event_timer_.parent_opr_time_point = get_timer_sec() + conf_.retry_interval;
-
-            // event
-            if (event_msg_.on_endpoint_removed) {
-                flag_guard_t fgd(this, flag_t::EN_FT_IN_CALLBACK);
-                event_msg_.on_endpoint_removed(std::cref(*this), ep.get(), EN_ATBUS_ERR_SUCCESS);
-            }
-
-            // if not activited, shutdown
-            if (!flags_.test(flag_t::EN_FT_ACTIVED)) {
-                ATBUS_FUNC_NODE_FATAL_SHUTDOWN(*this, ep.get(), NULL, EN_ATBUS_ERR_ATNODE_MASK_CONFLICT, 0);
-            }
-            return EN_ATBUS_ERR_SUCCESS;
-        }
-
-        if (get_id() == tid) {
-            return EN_ATBUS_ERR_ATNODE_INVALID_ID;
-        }
-
-        if (remove_child(node_routes_, tid)) {
-            return EN_ATBUS_ERR_SUCCESS;
-        } else {
-            return EN_ATBUS_ERR_ATNODE_NOT_FOUND;
-        }
+        return remove_endpoint(tid, NULL);
     }
 
     ATBUS_MACRO_API bool node::is_endpoint_available(bus_id_t tid) const {
@@ -1621,6 +1600,7 @@ namespace atbus {
         return EN_ATBUS_ERR_SUCCESS;
     }
 
+#if 0 // disabled
     ATBUS_MACRO_API int node::push_node_sync() {
         // TODO 防止短时间内批量上报注册协议，所以合并上报数据包
 
@@ -1632,6 +1612,7 @@ namespace atbus {
         // TODO 拉取全局节点信息表
         return EN_ATBUS_ERR_SUCCESS;
     }
+#endif
 
     ATBUS_MACRO_API uint64_t node::alloc_msg_seq() {
         uint64_t ret = 0;
@@ -1644,7 +1625,7 @@ namespace atbus {
     ATBUS_MACRO_API void node::add_endpoint_gc_list(const endpoint::ptr_t &ep) {
         // 重置过程中不需要再加进来了，反正等会也会移除
         // 这个代码加不加一样，只不过会少一些废操作
-        if (flags_.test(flag_t::EN_FT_RESETTING_GC)) {
+        if (flags_.test(flag_t::EN_FT_RESETTING_GC) || flags_.test(flag_t::EN_FT_IN_GC_ENDPOINTS)) {
             return;
         }
 
@@ -1654,7 +1635,7 @@ namespace atbus {
     }
 
     ATBUS_MACRO_API void node::add_connection_gc_list(const connection::ptr_t &conn) {
-        if (flags_.test(flag_t::EN_FT_RESETTING_GC)) {
+        if (flags_.test(flag_t::EN_FT_RESETTING_GC) || flags_.test(flag_t::EN_FT_IN_GC_CONNECTIONS)) {
             return;
         }
 
@@ -1782,13 +1763,17 @@ namespace atbus {
         return true;
     }
 
-    bool node::remove_child(endpoint_collection_t &coll, bus_id_t id) {
+    bool node::remove_child(endpoint_collection_t &coll, bus_id_t id, endpoint* expected) {
         endpoint_collection_t::iterator iter = coll.lower_bound(endpoint_subnet_range(id, 0));
         if (iter == coll.end()) {
             return false;
         }
 
         if (iter->second->get_id() != id) {
+            return false;
+        }
+
+        if (NULL != expected && iter->second.get() != expected) {
             return false;
         }
 
@@ -1855,6 +1840,45 @@ namespace atbus {
     }
 
     ATBUS_MACRO_API void node::stat_add_dispatch_times() { ++stat_.dispatch_times; }
+
+    int node::remove_endpoint(bus_id_t tid, endpoint* expected) {
+        // 父节点单独判定，由于防止测试兄弟节点
+        if (is_parent_node(tid)) {
+            endpoint::ptr_t ep = node_parent_.node_;
+
+            if (NULL != expected && node_parent_.node_.get() != expected) {
+                return EN_ATBUS_ERR_ATNODE_NOT_FOUND;
+            }
+
+            node_parent_.node_.reset();
+            state_ = state_t::LOST_PARENT;
+
+            // set reconnect to parent into retry interval
+            event_timer_.parent_opr_time_point = get_timer_sec() + conf_.retry_interval;
+
+            // event
+            if (event_msg_.on_endpoint_removed) {
+                flag_guard_t fgd(this, flag_t::EN_FT_IN_CALLBACK);
+                event_msg_.on_endpoint_removed(std::cref(*this), ep.get(), EN_ATBUS_ERR_SUCCESS);
+            }
+
+            // if not activited, shutdown
+            if (!flags_.test(flag_t::EN_FT_ACTIVED)) {
+                ATBUS_FUNC_NODE_FATAL_SHUTDOWN(*this, ep.get(), NULL, EN_ATBUS_ERR_ATNODE_MASK_CONFLICT, 0);
+            }
+            return EN_ATBUS_ERR_SUCCESS;
+        }
+
+        if (get_id() == tid) {
+            return EN_ATBUS_ERR_ATNODE_INVALID_ID;
+        }
+
+        if (remove_child(node_routes_, tid, expected)) {
+            return EN_ATBUS_ERR_SUCCESS;
+        } else {
+            return EN_ATBUS_ERR_ATNODE_NOT_FOUND;
+        }
+    }
 
     int node::send_data_msg(bus_id_t tid, msg_builder_ref_t mb) { return send_data_msg(tid, mb, NULL, NULL); }
 
