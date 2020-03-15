@@ -15,29 +15,6 @@ CHANGELOG
 7. 支持字符串路径的共享内存(使用: ```shm_open/ftruncate/mmap/munmap/shm_unlink/close/fstat``` 来管理)，支持字符串命名的共享内存(长度限定为NAME_MAX(255))
 8. 增加大量错误流程的单元测试
 
-### TODO 1.2.0
-
-- [x] 单元测试: 父节点连接注册信息的子网范围不包含本节点或本节点的子网，出错
-- [x] 单元测试: 父子节点在不同的子网范围
-- [x] 单元测试: 转发目标和来源ep一样，回环，出错
-- [x] 单元测试: endpoint::merge_subnets
-- [x] 单元测试: endpoint_subnet_range::contain
-- [x] 单元测试: endpoint_subnet_range::search_subnet_for_id(====#^++####====)
-- [x] 单元测试: node::is_parent
-- [-] 单元测试: 无监听不允许启动
-- [x] 单元测试: 父节点和兄弟节点ping包频率
-- [x] 单元测试: get_stat_created_time_sec
-- [x] 单元测试: get_stat_created_time_usec
-- [x] 修复父节点多一次ping包的问题
-- [x] access_token验证的单元测试（成功+失败）
-- [x] 重构父节点范围管理的结构
-- [x] 协议版本兼容性单元测试
-- [x] 内存通道版本兼容性单元测试
-- [x] 字符串路径共享内存测试
-- [x] 握手connection的backlog支持，定时器优化
-- [x] unit test -- max msg size : EN_ATBUS_ERR_INVALID_SIZE
-- [x] msg size -> configure: 256KB
-
 1.1.0
 ------------
 
