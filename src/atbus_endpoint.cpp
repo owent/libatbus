@@ -113,6 +113,9 @@ namespace atbus {
         ret->hostname_      = hn;
 
         ret->owner_   = owner;
+        if(node_access_controller::add_ping_timer(*owner, ret, ret->ping_timer_)) {
+            ret->set_flag(flag_t::HAS_PING_TIMER, true);
+        }
         ret->watcher_ = ret;
 
         ret->subnets_.reserve(subnets.size() + 1);
@@ -177,15 +180,16 @@ namespace atbus {
         }
 
         listen_address_.clear();
-
-        flags_.reset();
-        // 只要endpoint存在，则它一定存在于owner_的某个位置。
-        // 并且这个值只能在创建时指定，所以不能重置这个值
+        clear_ping_timer();
 
         // 所有的endpoint的reset行为都要加入到检测和释放列表
         if (NULL != owner_) {
             owner_->add_endpoint_gc_list(tmp_holder);
         }
+
+        flags_.reset();
+        // 只要endpoint存在，则它一定存在于owner_的某个位置。
+        // 并且这个值只能在创建时指定，所以不能重置这个值
     }
 
     ATBUS_MACRO_API endpoint::bus_id_t endpoint::get_id() const { return id_; }
@@ -363,6 +367,31 @@ namespace atbus {
         listen_address_.push_back(addr);
     }
 
+    ATBUS_MACRO_API void endpoint::add_ping_timer() {
+        if (NULL == owner_) {
+            return;
+        }
+
+        clear_ping_timer();
+
+        if (flags_.test(flag_t::RESETTING)) {
+            return;
+        }
+
+        if(node_access_controller::add_ping_timer(*owner_, watch(), ping_timer_)) {
+            set_flag(flag_t::HAS_PING_TIMER, true);
+        }
+    }
+
+    ATBUS_MACRO_API void endpoint::clear_ping_timer() {
+        if (NULL == owner_ || false == get_flag(flag_t::HAS_PING_TIMER)) {
+            return;
+        }
+
+        node_access_controller::remove_ping_timer(*owner_, ping_timer_);
+        set_flag(flag_t::HAS_PING_TIMER, false);
+    }
+
     bool endpoint::sort_connection_cmp_fn(const connection::ptr_t &left, const connection::ptr_t &right) {
         int lscore = 0, rscore = 0;
         if (!left->check_flag(connection::flag_t::ACCESS_SHARE_ADDR)) {
@@ -448,7 +477,7 @@ namespace atbus {
         }
     }
 
-    endpoint::stat_t::stat_t() : fault_count(0), unfinished_ping(0), ping_delay(0), last_pong_time(0) {}
+    endpoint::stat_t::stat_t() : fault_count(0), unfinished_ping(0), ping_delay(0), last_pong_time(0), created_time_sec(0), created_time_usec(0) {}
 
     /** 增加错误计数 **/
     ATBUS_MACRO_API size_t endpoint::add_stat_fault() { return ++stat_.fault_count; }
@@ -589,6 +618,26 @@ namespace atbus {
         return ret;
     }
 
+    ATBUS_MACRO_API time_t endpoint::get_stat_created_time_sec() {
+        if (likely(stat_.created_time_sec > 0)) {
+            return stat_.created_time_sec;
+        }
+
+        stat_.created_time_sec = owner_->get_timer_sec();
+        stat_.created_time_usec = owner_->get_timer_usec();
+        return stat_.created_time_sec;
+    }
+
+    ATBUS_MACRO_API time_t endpoint::get_stat_created_time_usec() {
+        if (likely(stat_.created_time_sec > 0)) {
+            return stat_.created_time_usec;
+        }
+
+        stat_.created_time_sec = owner_->get_timer_sec();
+        stat_.created_time_usec = owner_->get_timer_usec();
+        return stat_.created_time_usec;
+    }
+
     ATBUS_MACRO_API const node *endpoint::get_owner() const { return owner_; }
 
     ATBUS_MACRO_API void endpoint::merge_subnets(std::vector<endpoint_subnet_range>& subnets) {
@@ -657,6 +706,8 @@ namespace atbus {
 
     ATBUS_MACRO_API std::vector<endpoint_subnet_range>::const_iterator endpoint::search_subnet_for_id(const std::vector<endpoint_subnet_range>& subnets, bus_id_t id) {
         std::vector<endpoint_subnet_range>::const_iterator iter = subnets.begin();
+        // 初始也可以用下面的二分查找，但是没什么意义。最终还是要while循环判到底,因为后面如果有范围更大的max_id然后覆盖到id的
+        // iter = std::lower_bound(subnets.begin(), subnets.end(), id, endpoint_subnet_range::lower_bound_by_max_id);
 
         while (iter != subnets.end()) {
             if ((*iter).contain(id)) {

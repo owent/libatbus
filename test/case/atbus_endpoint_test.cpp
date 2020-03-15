@@ -7,6 +7,7 @@
 #include <map>
 #include <memory>
 #include <numeric>
+#include <vector>
 
 #include <common/string_oprs.h>
 
@@ -124,3 +125,317 @@ CASE_TEST(atbus_endpoint, get_connection) {
 
     delete[] buffer;
 }
+
+CASE_TEST(atbus_endpoint, subnet_range) {
+    {
+        atbus::endpoint_subnet_range subnet(0x12345678, 8);
+
+        CASE_EXPECT_EQ(subnet.get_id_prefix(), 0x12345678);
+        CASE_EXPECT_EQ(subnet.get_mask_bits(), 8);
+        CASE_EXPECT_EQ(subnet.get_id_min(), 0x12345600);
+        CASE_EXPECT_EQ(subnet.get_id_max(), 0x123456ff);
+
+        CASE_EXPECT_TRUE(subnet.contain(0x12345600));
+        CASE_EXPECT_TRUE(subnet.contain(0x123456ff));
+        CASE_EXPECT_TRUE(subnet.contain(0x12345678));
+        CASE_EXPECT_FALSE(subnet.contain(0x12345700));
+        CASE_EXPECT_FALSE(subnet.contain(0x123455ff));
+    }
+
+    {
+        atbus::endpoint_subnet_range subnet(0x12345678, 0);
+
+        CASE_EXPECT_EQ(subnet.get_id_prefix(), 0x12345678);
+        CASE_EXPECT_EQ(subnet.get_mask_bits(), 0);
+        CASE_EXPECT_EQ(subnet.get_id_min(), 0x12345678);
+        CASE_EXPECT_EQ(subnet.get_id_max(), 0x12345678);
+
+        CASE_EXPECT_FALSE(subnet.contain(0x12345600));
+        CASE_EXPECT_FALSE(subnet.contain(0x123456ff));
+        CASE_EXPECT_TRUE(subnet.contain(0x12345678));
+        CASE_EXPECT_FALSE(subnet.contain(0x12345679));
+        CASE_EXPECT_FALSE(subnet.contain(0x12345677));
+    }
+
+    {
+        atbus::endpoint_subnet_range l(0x12345678, 8);
+        atbus::endpoint_subnet_range r(0x12345789, 8);
+        CASE_EXPECT_TRUE(l < r);
+        CASE_EXPECT_TRUE(l <= r);
+        CASE_EXPECT_FALSE(l > r);
+        CASE_EXPECT_FALSE(l >= r);
+        CASE_EXPECT_FALSE(l == r);
+        CASE_EXPECT_TRUE(l != r);
+    }
+
+    {
+        atbus::endpoint_subnet_range l(0x12345678, 8);
+        atbus::endpoint_subnet_range r(0x12345789, 16);
+        CASE_EXPECT_TRUE(l < r);
+        CASE_EXPECT_TRUE(l <= r);
+        CASE_EXPECT_FALSE(l > r);
+        CASE_EXPECT_FALSE(l >= r);
+        CASE_EXPECT_FALSE(l == r);
+        CASE_EXPECT_TRUE(l != r);
+    }
+
+    {
+        atbus::endpoint_subnet_range l(0x1234ffff, 8);
+        atbus::endpoint_subnet_range r(0x12345789, 16);
+        CASE_EXPECT_TRUE(l < r);
+        CASE_EXPECT_TRUE(l <= r);
+        CASE_EXPECT_FALSE(l > r);
+        CASE_EXPECT_FALSE(l >= r);
+        CASE_EXPECT_FALSE(l == r);
+        CASE_EXPECT_TRUE(l != r);
+    }
+
+    {
+        atbus::endpoint_subnet_range l(0x1234ffff, 16);
+        atbus::endpoint_subnet_range r(0x12340000, 16);
+        CASE_EXPECT_FALSE(l < r);
+        CASE_EXPECT_TRUE(l <= r);
+        CASE_EXPECT_FALSE(l > r);
+        CASE_EXPECT_TRUE(l >= r);
+        CASE_EXPECT_TRUE(l == r);
+        CASE_EXPECT_FALSE(l != r);
+    }
+}
+
+CASE_TEST(atbus_endpoint, merge_subnets) {
+    {
+        std::vector<atbus::endpoint_subnet_range> subnets;
+        subnets.push_back(atbus::endpoint_subnet_range(0x12345678, 8));
+        subnets.push_back(atbus::endpoint_subnet_range(0x12345670, 0));
+
+        atbus::endpoint::merge_subnets(subnets);
+        CASE_EXPECT_EQ(1, subnets.size());
+
+        CASE_EXPECT_EQ(subnets[0].get_mask_bits(), 8);
+        CASE_EXPECT_EQ(subnets[0].get_id_min(), 0x12345600);
+        CASE_EXPECT_EQ(subnets[0].get_id_max(), 0x123456ff);
+    }
+
+    {
+        std::vector<atbus::endpoint_subnet_range> subnets;
+        subnets.push_back(atbus::endpoint_subnet_range(0x12345678, 8));
+        subnets.push_back(atbus::endpoint_subnet_range(0x12345789, 8));
+
+        atbus::endpoint::merge_subnets(subnets);
+        CASE_EXPECT_EQ(1, subnets.size());
+
+        CASE_EXPECT_EQ(subnets[0].get_mask_bits(), 9);
+        CASE_EXPECT_EQ(subnets[0].get_id_min(), 0x12345600);
+        CASE_EXPECT_EQ(subnets[0].get_id_max(), 0x123457ff);
+    }
+
+    {
+        std::vector<atbus::endpoint_subnet_range> subnets;
+        subnets.push_back(atbus::endpoint_subnet_range(0x12345678, 8));
+        subnets.push_back(atbus::endpoint_subnet_range(0x12356789, 8));
+
+        atbus::endpoint::merge_subnets(subnets);
+        CASE_EXPECT_EQ(2, subnets.size());
+
+        CASE_EXPECT_EQ(subnets[0].get_id_prefix(), 0x12345678);
+        CASE_EXPECT_EQ(subnets[0].get_mask_bits(), 8);
+        CASE_EXPECT_EQ(subnets[0].get_id_min(), 0x12345600);
+        CASE_EXPECT_EQ(subnets[0].get_id_max(), 0x123456ff);
+
+        CASE_EXPECT_EQ(subnets[1].get_id_prefix(), 0x12356789);
+        CASE_EXPECT_EQ(subnets[1].get_mask_bits(), 8);
+        CASE_EXPECT_EQ(subnets[1].get_id_min(), 0x12356700);
+        CASE_EXPECT_EQ(subnets[1].get_id_max(), 0x123567ff);
+    }
+
+    {
+        std::vector<atbus::endpoint_subnet_range> subnets;
+        subnets.push_back(atbus::endpoint_subnet_range(0x12345709, 7));
+        subnets.push_back(atbus::endpoint_subnet_range(0x12345678, 8));
+        subnets.push_back(atbus::endpoint_subnet_range(0x12356789, 16));
+        subnets.push_back(atbus::endpoint_subnet_range(0x12345789, 7));
+        subnets.push_back(atbus::endpoint_subnet_range(0x12356900, 8));
+        subnets.push_back(atbus::endpoint_subnet_range(0x12396789, 16));
+
+        atbus::endpoint::merge_subnets(subnets);
+        CASE_EXPECT_EQ(3, subnets.size());
+
+        CASE_EXPECT_EQ(subnets[0].get_mask_bits(), 9);
+        CASE_EXPECT_EQ(subnets[0].get_id_min(), 0x12345600);
+        CASE_EXPECT_EQ(subnets[0].get_id_max(), 0x123457ff);
+
+        CASE_EXPECT_EQ(subnets[1].get_mask_bits(), 16);
+        CASE_EXPECT_EQ(subnets[1].get_id_min(), 0x12350000);
+        CASE_EXPECT_EQ(subnets[1].get_id_max(), 0x1235ffff);
+
+        CASE_EXPECT_EQ(subnets[2].get_id_prefix(), 0x12396789);
+        CASE_EXPECT_EQ(subnets[2].get_mask_bits(), 16);
+        CASE_EXPECT_EQ(subnets[2].get_id_min(), 0x12390000);
+        CASE_EXPECT_EQ(subnets[2].get_id_max(), 0x1239ffff);
+    }
+}
+
+CASE_TEST(atbus_endpoint, subnet_range_contain) {
+    std::vector<atbus::endpoint_subnet_range> subnets;
+
+    subnets.push_back(atbus::endpoint_subnet_range(0x12345678, 16));  // 0x12340000-0x1234ffff
+    subnets.push_back(atbus::endpoint_subnet_range(0x12356789, 8));   // 0x12356700-0x123567ff
+
+    CASE_EXPECT_TRUE(atbus::endpoint::contain(subnets, 0x12340000));
+    CASE_EXPECT_TRUE(atbus::endpoint::contain(subnets, 0x1234ffff));
+    CASE_EXPECT_FALSE(atbus::endpoint::contain(subnets, 0x1233ffff));
+    CASE_EXPECT_FALSE(atbus::endpoint::contain(subnets, 0x12350000));
+    CASE_EXPECT_TRUE(atbus::endpoint::contain(subnets, 0x12356700));
+    CASE_EXPECT_TRUE(atbus::endpoint::contain(subnets, 0x123567ff));
+    CASE_EXPECT_FALSE(atbus::endpoint::contain(subnets, 0x123566ff));
+    CASE_EXPECT_FALSE(atbus::endpoint::contain(subnets, 0x12356800));
+    CASE_EXPECT_FALSE(atbus::endpoint::contain(subnets, 0));
+
+    {
+        std::vector<atbus::endpoint_subnet_range> child_subnets;
+        child_subnets.push_back(atbus::endpoint_subnet_range(0x12345678, 16));
+        child_subnets.push_back(atbus::endpoint_subnet_range(0x12356789, 8));
+
+        CASE_EXPECT_TRUE(atbus::endpoint::contain(subnets, child_subnets));
+    }
+
+    {
+        std::vector<atbus::endpoint_subnet_range> child_subnets;
+        child_subnets.push_back(atbus::endpoint_subnet_range(0x12345678, 8));
+        child_subnets.push_back(atbus::endpoint_subnet_range(0x12356789, 8));
+
+        CASE_EXPECT_TRUE(atbus::endpoint::contain(subnets, child_subnets));
+        CASE_EXPECT_FALSE(atbus::endpoint::contain(child_subnets, subnets));
+    }
+
+    {
+        std::vector<atbus::endpoint_subnet_range> child_subnets;
+        child_subnets.push_back(atbus::endpoint_subnet_range(0x12345678, 8));
+        child_subnets.push_back(atbus::endpoint_subnet_range(0x12356789, 16));
+
+        CASE_EXPECT_FALSE(atbus::endpoint::contain(subnets, child_subnets));
+        CASE_EXPECT_FALSE(atbus::endpoint::contain(child_subnets, subnets));
+    }
+
+    {
+        std::vector<atbus::endpoint_subnet_conf> child_subnets;
+        child_subnets.push_back(atbus::endpoint_subnet_conf(0x12345678, 16));
+        child_subnets.push_back(atbus::endpoint_subnet_conf(0x12356789, 8));
+
+        CASE_EXPECT_TRUE(atbus::endpoint::contain(subnets, child_subnets));
+    }
+
+    {
+        std::vector<atbus::endpoint_subnet_conf> child_subnets;
+        child_subnets.push_back(atbus::endpoint_subnet_conf(0x12345678, 8));
+        child_subnets.push_back(atbus::endpoint_subnet_conf(0x12356789, 8));
+
+        CASE_EXPECT_TRUE(atbus::endpoint::contain(subnets, child_subnets));
+    }
+
+    {
+        std::vector<atbus::endpoint_subnet_conf> child_subnets;
+        child_subnets.push_back(atbus::endpoint_subnet_conf(0x12345678, 16));
+        child_subnets.push_back(atbus::endpoint_subnet_conf(0x12356789, 16));
+
+        CASE_EXPECT_FALSE(atbus::endpoint::contain(subnets, child_subnets));
+    }
+
+    {
+        std::vector<atbus::endpoint_subnet_conf> child_subnets;
+        child_subnets.push_back(atbus::endpoint_subnet_conf(0x12345678, 8));
+        child_subnets.push_back(atbus::endpoint_subnet_conf(0x12356789, 16));
+
+        CASE_EXPECT_FALSE(atbus::endpoint::contain(subnets, child_subnets));
+    }
+
+    std::vector<atbus::endpoint_subnet_conf> subnets_conf;
+
+    subnets_conf.push_back(atbus::endpoint_subnet_conf(0x12345678, 16));  // 0x12340000-0x1234ffff
+    subnets_conf.push_back(atbus::endpoint_subnet_conf(0x12356789, 8));   // 0x12356700-0x123567ff
+
+    CASE_EXPECT_TRUE(atbus::endpoint::contain(subnets_conf, 0x12340000));
+    CASE_EXPECT_TRUE(atbus::endpoint::contain(subnets_conf, 0x1234ffff));
+    CASE_EXPECT_FALSE(atbus::endpoint::contain(subnets_conf, 0x1233ffff));
+    CASE_EXPECT_FALSE(atbus::endpoint::contain(subnets_conf, 0x12350000));
+    CASE_EXPECT_TRUE(atbus::endpoint::contain(subnets_conf, 0x12356700));
+    CASE_EXPECT_TRUE(atbus::endpoint::contain(subnets_conf, 0x123567ff));
+    CASE_EXPECT_FALSE(atbus::endpoint::contain(subnets_conf, 0x123566ff));
+    CASE_EXPECT_FALSE(atbus::endpoint::contain(subnets_conf, 0x12356800));
+    CASE_EXPECT_FALSE(atbus::endpoint::contain(subnets_conf, 0));
+}
+
+CASE_TEST(atbus_endpoint, search_subnet_for_id) {
+    {
+        std::vector<atbus::endpoint_subnet_range> subnets;
+
+        subnets.push_back(atbus::endpoint_subnet_range(0x12345678, 16));  // 0x12340000-0x1234ffff
+        subnets.push_back(atbus::endpoint_subnet_range(0x12356789, 8));   // 0x12356700-0x123567ff
+
+        {
+            std::vector<atbus::endpoint_subnet_range>::const_iterator iter1 = atbus::endpoint::search_subnet_for_id(subnets, 0x12356700);
+            std::vector<atbus::endpoint_subnet_range>::const_iterator iter2 = atbus::endpoint::search_subnet_for_id(subnets, 0x123567ff);
+            std::vector<atbus::endpoint_subnet_range>::const_iterator iter3 = atbus::endpoint::search_subnet_for_id(subnets, 0x12350000);
+            std::vector<atbus::endpoint_subnet_range>::const_iterator iter4 = atbus::endpoint::search_subnet_for_id(subnets, 0x123566ff);
+            std::vector<atbus::endpoint_subnet_range>::const_iterator iter5 = atbus::endpoint::search_subnet_for_id(subnets, 0x1234ffff);
+            std::vector<atbus::endpoint_subnet_range>::const_iterator iter6 = atbus::endpoint::search_subnet_for_id(subnets, 0x12340000);
+            std::vector<atbus::endpoint_subnet_range>::const_iterator iter7 = atbus::endpoint::search_subnet_for_id(subnets, 0x1233ffff);
+
+            CASE_EXPECT_TRUE(iter1 == iter2);
+            CASE_EXPECT_TRUE(subnets.end() == iter3);
+            CASE_EXPECT_TRUE(subnets.end() == iter4);
+            CASE_EXPECT_TRUE(iter1 != subnets.end());
+            CASE_EXPECT_TRUE(iter1 != iter5);
+            CASE_EXPECT_TRUE(iter5 != subnets.end());
+            CASE_EXPECT_TRUE(iter5 == iter6);
+            CASE_EXPECT_TRUE(subnets.end() == iter7);
+        }
+
+        {
+            std::vector<atbus::endpoint_subnet_range>::const_iterator iter = atbus::endpoint::search_subnet_for_id(subnets, 0x12356800);
+            CASE_EXPECT_TRUE(iter == subnets.end());
+        }
+
+        {
+            std::vector<atbus::endpoint_subnet_range>::const_iterator iter = atbus::endpoint::search_subnet_for_id(subnets, 0);
+            CASE_EXPECT_TRUE(iter == subnets.end());
+        }
+    }
+
+
+    {
+        std::vector<atbus::endpoint_subnet_range> subnets;
+
+        subnets.push_back(atbus::endpoint_subnet_range(0x12340000, 8));  // 0x12340000-0x123400ff
+        subnets.push_back(atbus::endpoint_subnet_range(0x12345678, 8));  // 0x12345600-0x123456ff
+        subnets.push_back(atbus::endpoint_subnet_range(0x1234ff78, 8));  // 0x1234ff00-0x1234ffff
+        subnets.push_back(atbus::endpoint_subnet_range(0x12345679, 16));   // 0x12340000-0x1234ffff
+
+        std::vector<atbus::endpoint_subnet_range>::const_iterator iter1 = atbus::endpoint::search_subnet_for_id(subnets, 0x1233ffff);
+        std::vector<atbus::endpoint_subnet_range>::const_iterator iter2 = atbus::endpoint::search_subnet_for_id(subnets, 0x12340035);
+        std::vector<atbus::endpoint_subnet_range>::const_iterator iter3 = atbus::endpoint::search_subnet_for_id(subnets, 0x12340100);
+        std::vector<atbus::endpoint_subnet_range>::const_iterator iter4 = atbus::endpoint::search_subnet_for_id(subnets, 0x12345678);
+        std::vector<atbus::endpoint_subnet_range>::const_iterator iter5 = atbus::endpoint::search_subnet_for_id(subnets, 0x12347890);
+        std::vector<atbus::endpoint_subnet_range>::const_iterator iter6 = atbus::endpoint::search_subnet_for_id(subnets, 0x1234ff79);
+        std::vector<atbus::endpoint_subnet_range>::const_iterator iter7 = atbus::endpoint::search_subnet_for_id(subnets, 0x1234ffff);
+
+        CASE_EXPECT_TRUE(iter1 == subnets.end());
+        CASE_EXPECT_TRUE(iter2 != subnets.end());
+        CASE_EXPECT_EQ((*iter2).get_id_prefix(), 0x12340000);
+        CASE_EXPECT_EQ((*iter2).get_mask_bits(), 8);
+        CASE_EXPECT_TRUE(iter3 != subnets.end());
+        CASE_EXPECT_EQ((*iter3).get_id_prefix(), 0x12345679);
+        CASE_EXPECT_EQ((*iter3).get_mask_bits(), 16);
+        CASE_EXPECT_TRUE(iter4 != subnets.end());
+        CASE_EXPECT_EQ((*iter4).get_id_prefix(), 0x12345678);
+        CASE_EXPECT_EQ((*iter4).get_mask_bits(), 8);
+        CASE_EXPECT_TRUE(iter5 != subnets.end());
+        CASE_EXPECT_EQ((*iter5).get_id_prefix(), 0x12345679);
+        CASE_EXPECT_EQ((*iter5).get_mask_bits(), 16);
+        CASE_EXPECT_TRUE(iter6 != subnets.end());
+        CASE_EXPECT_EQ((*iter6).get_id_prefix(), 0x1234ff78);
+        CASE_EXPECT_EQ((*iter6).get_mask_bits(), 8);
+        CASE_EXPECT_TRUE(iter6 == iter7);
+    }
+}
+

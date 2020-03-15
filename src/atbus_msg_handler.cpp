@@ -7,6 +7,7 @@
 #include "atbus_msg_handler.h"
 #include "atbus_node.h"
 
+#include "detail/libatbus_channel_export.h"
 #include "libatbus_protocol.h"
 
 #define ATBUS_PROTOCOL_MSG_BODY_MAX ::atbus::protocol::msg::kNodePongRsp
@@ -853,11 +854,17 @@ namespace atbus {
 
             // 如果双方一边有IOS通道，另一边没有，则没有的连接有的
             // 如果双方都有IOS通道，则ID小的连接ID大的
-            bool has_ios_listen = false;
+            bool can_be_connected_by_ep = false;
+            bool is_same_host   = ep->get_hostname() == n.get_hostname();
+            bool is_same_pid    = ep->get_pid() == n.get_pid();
             for (std::list<std::string>::const_iterator iter = n.get_listen_list().begin();
-                 !has_ios_listen && iter != n.get_listen_list().end(); ++iter) {
-                if (0 != UTIL_STRFUNC_STRNCASE_CMP("mem:", iter->c_str(), 4) && 0 != UTIL_STRFUNC_STRNCASE_CMP("shm:", iter->c_str(), 4)) {
-                    has_ios_listen = true;
+                 !can_be_connected_by_ep && iter != n.get_listen_list().end(); ++iter) {
+                if (atbus::channel::is_duplex_address(iter->c_str())) {
+                    if ((is_same_host && is_same_pid) || false == atbus::channel::is_local_process_address(iter->c_str())) {
+                        can_be_connected_by_ep = true;
+                    } else if (is_same_host || false == atbus::channel::is_local_host_address(iter->c_str())) {
+                        can_be_connected_by_ep = true;
+                    }
                 }
             }
 
@@ -870,33 +877,24 @@ namespace atbus {
                     continue;
                 }
 
-                if (has_ios_listen && n.get_id() > ep->get_id()) {
+                if (can_be_connected_by_ep && n.get_id() > ep->get_id()) {
                     // wait peer to connect n, do not check and close endpoint
                     has_data_conn = true;
-                    if (0 != UTIL_STRFUNC_STRNCASE_CMP("mem:", chan.address().c_str(), 4) &&
-                        0 != UTIL_STRFUNC_STRNCASE_CMP("shm:", chan.address().c_str(), 4)) {
+                    if (atbus::channel::is_duplex_address(chan.address().c_str())) {
                         continue;
                     }
                 }
 
-                bool check_hostname = false;
-                bool check_pid      = false;
-
-                // unix sock and shm only available in the same host
-                if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix:", chan.address().c_str(), 5) ||
-                    0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", chan.address().c_str(), 4)) {
-                    check_hostname = true;
-                } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", chan.address().c_str(), 4)) {
-                    check_pid = true;
-                }
+                bool local_host_address    = atbus::channel::is_local_host_address(chan.address().c_str());
+                bool local_process_address = atbus::channel::is_local_process_address(chan.address().c_str());
 
                 // check hostname
-                if ((check_hostname || check_pid) && ep->get_hostname() != n.get_hostname()) {
+                if (local_host_address && !is_same_host) {
                     continue;
                 }
 
                 // check pid
-                if (check_pid && ep->get_pid() != n.get_pid()) {
+                if (local_process_address && !is_same_pid) {
                     continue;
                 }
 
@@ -918,7 +916,11 @@ namespace atbus {
 
             // 如果没有成功进行的数据连接，加入检测列表，下一帧释放
             if (!has_data_conn) {
-                n.add_endpoint_gc_list(new_ep);
+                // 如果不能被对方连接，进入GC检测列表
+                // 否则在ping包时会检测endpoint有效性
+                if (!can_be_connected_by_ep) {
+                    n.add_endpoint_gc_list(new_ep);
+                }
             }
         } while (false);
 
@@ -1073,6 +1075,7 @@ namespace atbus {
 
         if (NULL != conn) {
             endpoint *ep = conn->get_binding();
+            n.on_ping(ep, std::cref(m), std::cref(m.node_ping_req()));
             if (NULL != ep) {
                 ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
                 arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
@@ -1113,7 +1116,7 @@ namespace atbus {
 
         if (NULL != conn) {
             endpoint *ep = conn->get_binding();
-
+            n.on_pong(ep, std::cref(m), std::cref(m.node_ping_req()));
             if (NULL != ep && m.head().sequence() == ep->get_stat_ping()) {
                 ep->set_stat_ping(0);
 

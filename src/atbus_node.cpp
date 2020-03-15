@@ -38,6 +38,14 @@
 #include "libatbus_protocol.h"
 
 namespace atbus {
+    bool node_access_controller::add_ping_timer(node& n, const endpoint::ptr_t &ep, timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator& out) {
+        return n.add_ping_timer(ep, out);
+    }
+
+    void node_access_controller::remove_ping_timer(node& n, timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator& inout) {
+        n.remove_ping_timer(inout);
+    }
+
     ATBUS_MACRO_API node::conf_t::conf_t() {
         node::default_conf(this);
     }
@@ -134,6 +142,15 @@ namespace atbus {
         conf->send_buffer_number = 0; // 默认不使用静态缓冲区，所以设为0
     }
 
+    ATBUS_MACRO_API void node::default_conf(start_conf_t *conf) {
+        if (NULL == conf) {
+            return;
+        }
+
+        conf->timer_sec = 0;
+        conf->timer_usec = 0;
+    }
+
     ATBUS_MACRO_API node::ptr_t node::create() {
         ptr_t ret(new node());
         if (!ret) {
@@ -149,6 +166,7 @@ namespace atbus {
             reset();
         }
 
+        self_.reset();
         ATBUS_FUNC_NODE_DEBUG(*this, NULL, NULL, NULL, "node destroyed");
     }
 
@@ -175,6 +193,7 @@ namespace atbus {
         if (!self_) {
             return EN_ATBUS_ERR_MALLOC;
         }
+        self_->clear_ping_timer();
         // 复制配置
 
         static_buffer_ = detail::buffer_block::malloc(conf_.msg_size + detail::buffer_block::head_size(conf_.msg_size) +
@@ -187,13 +206,19 @@ namespace atbus {
         return EN_ATBUS_ERR_SUCCESS;
     }
 
-    ATBUS_MACRO_API int node::start() {
+    ATBUS_MACRO_API int node::start(const start_conf_t& start_conf) {
         if (state_t::CREATED == state_) {
             return EN_ATBUS_ERR_NOT_INITED;
         }
 
         // 初始化时间
-        event_timer_.sec = time(NULL);
+        if (0 == start_conf.timer_sec && 0 == start_conf.timer_usec) {
+            event_timer_.sec = time(NULL);
+            event_timer_.usec = 0;
+        } else {
+            event_timer_.sec = start_conf.timer_sec;
+            event_timer_.usec = start_conf.timer_usec;
+        }
 
         // 连接父节点
         if (!conf_.parent_address.empty()) {
@@ -212,6 +237,12 @@ namespace atbus {
         }
 
         return 0;
+    }
+
+    ATBUS_MACRO_API int node::start() {
+        start_conf_t start_conf;
+        default_conf(&start_conf);
+        return start(start_conf);
     }
 
     ATBUS_MACRO_API int node::reset() {
@@ -276,7 +307,31 @@ namespace atbus {
         flags_.set(flag_t::EN_FT_RESETTING_GC, true);
         event_timer_.pending_endpoint_gc_list.clear();
         event_timer_.pending_connection_gc_list.clear();
-        event_timer_.ping_list.clear();
+        {
+            std::vector<endpoint::ptr_t> force_clear_endpoint;
+            force_clear_endpoint.reserve(event_timer_.ping_list.size());
+            // 清理ping定时器
+            for (timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator iter = event_timer_.ping_list.begin(); 
+                iter != event_timer_.ping_list.end(); ++ iter) {
+                if (iter->second.expired()) {
+                    continue;
+                }
+                force_clear_endpoint.push_back(iter->second.lock());
+            }
+
+#if defined(ATBUS_MACRO_ABORT_ON_PROTECTED_ERROR) && ATBUS_MACRO_ABORT_ON_PROTECTED_ERROR
+            assert(0 == force_clear_endpoint.size());
+#endif
+
+            for (size_t i = 0; i < force_clear_endpoint.size(); ++ i) {
+                if (force_clear_endpoint[i]) {
+                    force_clear_endpoint[i]->reset();
+                    force_clear_endpoint[i]->clear_ping_timer();
+                    force_clear_endpoint[i].reset();
+                }
+            }
+            event_timer_.ping_list.clear();
+        }
 
         // 引用的数据(正在进行的连接)也必须全部释放完成
         // 保证延迟释放的连接也释放完成
@@ -397,9 +452,13 @@ namespace atbus {
                     state_                             = state_t::CONNECTING_PARENT;
                 }
             } else {
-                int res = ping_endpoint(*node_parent_.node_);
-                if (res < 0) {
-                    ATBUS_FUNC_NODE_ERROR(*this, NULL, NULL, res, 0);
+                if (node_parent_.node_ && !node_parent_.node_->is_available() && node_parent_.node_->get_stat_created_time_sec() + conf_.first_idle_timeout < sec) {
+                    add_endpoint_gc_list(node_parent_.node_);
+                } else {
+                    int res = ping_endpoint(*node_parent_.node_);
+                    if (res < 0) {
+                        ATBUS_FUNC_NODE_ERROR(*this, NULL, NULL, res, 0);
+                    }
                 }
 
                 // ping包不需要重试
@@ -408,15 +467,66 @@ namespace atbus {
         }
 
         // Ping包
-        while (!event_timer_.ping_list.empty() && event_timer_.ping_list.front().first < sec) {
-            endpoint::ptr_t ep = event_timer_.ping_list.front().second.lock();
-            event_timer_.ping_list.pop_front();
+        {
+            endpoint::ptr_t next_ep = NULL;
+            while (true) {
+                if (event_timer_.ping_list.empty()) {
+                    break;
+                }
 
-            // 已移除对象则忽略
-            if (ep) {
-                // 忽略错误
-                ping_endpoint(*ep);
-                event_timer_.ping_list.push_back(std::make_pair(sec + conf_.ping_interval, ep));
+                timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator timer_iter = event_timer_.ping_list.begin();
+                time_t timeout_tick = timer_iter->first;
+                if (timeout_tick > sec) {
+                    break;
+                }
+
+                if(!next_ep) {
+                    next_ep = timer_iter->second.lock();
+                }
+
+                // Ping 前检测有效性，如果超出最大首次空闲时间后还处于不可用状态（没有数据连接），可能是等待对方连接超时。这时候需要踢下线
+                if (next_ep && !next_ep->is_available() && next_ep->get_stat_created_time_sec() + conf_.first_idle_timeout < sec) {
+                    add_endpoint_gc_list(next_ep);
+                    // 多追加一次，以防万一状态错误能够自动恢复或则再次回收
+                    // 正常是不会触发这次的定时器的，一会回收的时候会删除掉
+                    next_ep->add_ping_timer();
+                    continue;
+                }
+
+                if (next_ep) {
+                    // 已移除对象则忽略, 父节点使用上面的定时ping流程
+                    if (next_ep != node_parent_.node_) {
+                        ping_endpoint(*next_ep);
+                    }
+
+                    // 重设定时器
+                    next_ep->add_ping_timer();
+                }
+
+                // 如果endpoint对象过期了这里也要移除（保护性措施，理论上不会跑到）
+                if (event_timer_.ping_list.empty()) {
+                    break;
+                }
+
+                time_t next_tick = event_timer_.ping_list.front().first;
+                if (next_tick > sec) {
+                    break;
+                }
+
+                if (next_tick != timeout_tick) {
+                    next_ep.reset();
+                } else {
+                    endpoint::ptr_t test_ep = event_timer_.ping_list.front().second.lock();;
+                    if (test_ep == next_ep) {
+    #if defined(ATBUS_MACRO_ABORT_ON_PROTECTED_ERROR) && ATBUS_MACRO_ABORT_ON_PROTECTED_ERROR
+                        assert(false);
+    #endif
+                        event_timer_.ping_list.pop_front();
+                        next_ep.reset();
+                    } else {
+                        next_ep.swap(test_ep);
+                    }
+                }
             }
         }
 
@@ -909,8 +1019,12 @@ namespace atbus {
         // 父节点单独判定
         if (0 != get_id() && endpoint::contain(ep->get_subnets(), self_->get_subnets())) {
             if (!node_parent_.node_) {
+                if (node_parent_.node_ == ep) {
+                    return EN_ATBUS_ERR_SUCCESS;
+                }
+
                 node_parent_.node_ = ep;
-                add_ping_timer(ep);
+                ep->add_ping_timer();
 
                 if ((state_t::LOST_PARENT == get_state() || state_t::CONNECTING_PARENT == get_state()) &&
                     check_flag(flag_t::EN_FT_PARENT_REG_DONE)) {
@@ -939,7 +1053,7 @@ namespace atbus {
         }
 
         if (insert_child(node_routes_, ep)) {
-            add_ping_timer(ep);
+            ep->add_ping_timer();
 
             return EN_ATBUS_ERR_SUCCESS;
         } else {
@@ -965,7 +1079,7 @@ namespace atbus {
             return false;
         }
 
-        return NULL != self_->get_data_connection(ep, false);
+        return 0 == get_id() || NULL != self_->get_data_connection(ep, false);
     }
 
     ATBUS_MACRO_API bool node::generate_access_hash(size_t idx, uint32_t &salt, uint64_t &hashval1, uint64_t &hashval2) {
@@ -1425,6 +1539,12 @@ namespace atbus {
 
     ATBUS_MACRO_API int node::on_parent_reg_done() {
         flags_.set(flag_t::EN_FT_PARENT_REG_DONE, true);
+
+        // 父节点成功上线以后要更新一下父节点action定时器。以便能够及时发起第一个ping包
+        time_t ping_timepoint = get_timer_sec() + conf_.ping_interval;
+        if (ping_timepoint < event_timer_.parent_opr_time_point) {
+            event_timer_.parent_opr_time_point = ping_timepoint;
+        }
         return EN_ATBUS_ERR_SUCCESS;
     }
 
@@ -1442,6 +1562,22 @@ namespace atbus {
         if (event_msg_.on_custom_rsp) {
             flag_guard_t fgd(this, flag_t::EN_FT_IN_CALLBACK);
             event_msg_.on_custom_rsp(std::cref(*this), ep, conn, from, std::cref(cmd_args), seq);
+        }
+        return EN_ATBUS_ERR_SUCCESS;
+    }
+
+    ATBUS_MACRO_API int node::on_ping(const endpoint *ep, const ::atbus::protocol::msg &m, const ::atbus::protocol::ping_data & body) {
+        if (event_msg_.on_endpoint_ping) {
+            flag_guard_t fgd(this, flag_t::EN_FT_IN_CALLBACK);
+            event_msg_.on_endpoint_ping(std::cref(*this), ep, std::cref(m), std::cref(body));
+        }
+        return EN_ATBUS_ERR_SUCCESS;
+    }
+
+    ATBUS_MACRO_API int node::on_pong(const endpoint *ep, const ::atbus::protocol::msg &m, const ::atbus::protocol::ping_data & body) {
+        if (event_msg_.on_endpoint_pong) {
+            flag_guard_t fgd(this, flag_t::EN_FT_IN_CALLBACK);
+            event_msg_.on_endpoint_pong(std::cref(*this), ep, std::cref(m), std::cref(body));
         }
         return EN_ATBUS_ERR_SUCCESS;
     }
@@ -1576,6 +1712,11 @@ namespace atbus {
             return EN_ATBUS_ERR_NOT_INITED;
         }
 
+        // 临时节点不需要对外发送ping包
+        if (0 == get_id()) {
+            return EN_ATBUS_ERR_SUCCESS;
+        }
+
         // 允许跳过未连接或握手完成的endpoint
         connection *ctl_conn = self_->get_ctrl_connection(&ep);
         if (NULL == ctl_conn) {
@@ -1684,6 +1825,12 @@ namespace atbus {
 
     ATBUS_MACRO_API void node::set_on_remove_endpoint_handle(evt_msg_t::on_remove_endpoint_fn_t fn) { event_msg_.on_endpoint_removed = fn; }
     ATBUS_MACRO_API const node::evt_msg_t::on_remove_endpoint_fn_t &node::get_on_remove_endpoint_handle() const { return event_msg_.on_endpoint_removed; }
+
+    ATBUS_MACRO_API void node::set_on_ping_endpoint_handle(evt_msg_t::on_ping_pong_endpoint_fn_t fn) { event_msg_.on_endpoint_ping = fn; }
+    ATBUS_MACRO_API const node::evt_msg_t::on_ping_pong_endpoint_fn_t &node::get_on_ping_endpoint_handle() const { return event_msg_.on_endpoint_ping; }
+
+    ATBUS_MACRO_API void node::set_on_pong_endpoint_handle(evt_msg_t::on_ping_pong_endpoint_fn_t fn) { event_msg_.on_endpoint_pong = fn; }
+    ATBUS_MACRO_API const node::evt_msg_t::on_ping_pong_endpoint_fn_t &node::get_on_pong_endpoint_handle() const { return event_msg_.on_endpoint_pong; }
 
     ATBUS_MACRO_API void node::ref_object(void *obj) {
         if (NULL == obj) {
@@ -1827,16 +1974,39 @@ namespace atbus {
     }
 
 
-    void node::add_ping_timer(endpoint::ptr_t &ep) {
+    bool node::add_ping_timer(const endpoint::ptr_t &ep, timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator& out) {
         if (!ep) {
-            return;
+            out = event_timer_.ping_list.end();
+            return false;
+        }
+
+        // 自己不用ping
+        if (ep->get_id() == get_id()) {
+            out = event_timer_.ping_list.end();
+            return false;
         }
 
         if (conf_.ping_interval <= 0) {
+            out = event_timer_.ping_list.end();
+            return false;
+        }
+
+        if (flags_.test(flag_t::EN_FT_RESETTING_GC)) {
+            out = event_timer_.ping_list.end();
+            return false;
+        }
+
+        out = event_timer_.ping_list.insert(event_timer_.ping_list.end(), std::make_pair(event_timer_.sec + conf_.ping_interval, ep));
+        return out != event_timer_.ping_list.end();
+    }
+
+    void node::remove_ping_timer(timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator& inout) {
+        if (inout == event_timer_.ping_list.end()) {
             return;
         }
 
-        event_timer_.ping_list.push_back(std::make_pair(event_timer_.sec + conf_.ping_interval, ep));
+        event_timer_.ping_list.erase(inout);
+        inout = event_timer_.ping_list.end();
     }
 
     ATBUS_MACRO_API void node::stat_add_dispatch_times() { ++stat_.dispatch_times; }

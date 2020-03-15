@@ -20,6 +20,7 @@ set(ATBUS_MACRO_CONNECTION_CONFIRM_TIMEOUT 30 CACHE STRING "connection confirm t
 set(ATBUS_MACRO_CONNECTION_BACKLOG 128 CACHE STRING "tcp backlog")
 set(ATBUS_MACRO_SHM_MEM_CHANNEL_LENGTH 8388608 CACHE STRING "channel size for shm/mem channel")
 set(ATBUS_MACRO_IOS_SEND_BUFFER_LENGTH 2097152 CACHE STRING "send buffer size for iostream channel")
+option(ATBUS_MACRO_ABORT_ON_PROTECTED_ERROR "abort when any inner error found." OFF)
 
 # libuv选项
 set(LIBUV_ROOT "" CACHE STRING "libuv root directory")

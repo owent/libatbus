@@ -97,7 +97,8 @@ namespace atbus {
                 HAS_LISTEN_PORC, /** 是否有proc类的listen地址 **/
                 HAS_LISTEN_FD,   /** 是否有fd类的listen地址 **/
 
-                MUTABLE_FLAGS,
+                MUTABLE_FLAGS,   /** 可动态变化的属性其实边界 **/
+                HAS_PING_TIMER,  /** 是否设置了ping定时器 **/
                 MAX
             };
         } flag_t;
@@ -171,8 +172,11 @@ namespace atbus {
         ATBUS_MACRO_API ptr_t watch() const;
 
         ATBUS_MACRO_API const std::list<std::string> &get_listen() const;
+
         ATBUS_MACRO_API void add_listen(const std::string &addr);
 
+        ATBUS_MACRO_API void add_ping_timer();
+        ATBUS_MACRO_API void clear_ping_timer();
     private:
         static bool sort_connection_cmp_fn(const connection::ptr_t &left, const connection::ptr_t &right);
 
@@ -207,6 +211,9 @@ namespace atbus {
         ATBUS_MACRO_API size_t get_stat_pull_times() const;
         ATBUS_MACRO_API size_t get_stat_pull_size() const;
 
+        ATBUS_MACRO_API time_t get_stat_created_time_sec();
+        ATBUS_MACRO_API time_t get_stat_created_time_usec();
+
         ATBUS_MACRO_API const node *get_owner() const;
 
         static ATBUS_MACRO_API void merge_subnets(std::vector<endpoint_subnet_range>& subnets);
@@ -225,6 +232,7 @@ namespace atbus {
 
         // 这里不用智能指针是为了该值在上层对象（node）析构时仍然可用
         node *owner_;
+        timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator ping_timer_;
         std::weak_ptr<endpoint> watcher_;
 
         std::list<std::string> listen_address_;
@@ -237,6 +245,8 @@ namespace atbus {
             uint32_t unfinished_ping; // 上一次未完成的ping的序号
             time_t ping_delay;
             time_t last_pong_time; // 上一次接到PONG包时间
+            time_t created_time_sec;
+            time_t created_time_usec;
             stat_t();
         };
         stat_t stat_;

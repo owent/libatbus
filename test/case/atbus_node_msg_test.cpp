@@ -19,6 +19,8 @@
 
 #include "frame/test_macros.h"
 
+#include <atbus_msg_handler.h>
+
 #include "atbus_test_utils.h"
 
 #include <stdarg.h>
@@ -69,14 +71,16 @@ struct node_msg_test_recv_msg_record_t {
     int count;
     int failed_count;
     int remove_endpoint_count;
+    int ping_count;
+    int pong_count;
     std::vector<ATBUS_MACRO_BUSID_TYPE> last_msg_router;
     uint64_t last_cmd_seq;
     uint64_t expect_cmd_req_from;
     uint64_t expect_cmd_rsp_from;
 
     node_msg_test_recv_msg_record_t()
-        : n(NULL), ep(NULL), conn(NULL), status(0), count(0), failed_count(0), remove_endpoint_count(0), last_cmd_seq(0),
-          expect_cmd_req_from(0), expect_cmd_rsp_from(0) {}
+        : n(NULL), ep(NULL), conn(NULL), status(0), count(0), failed_count(0), remove_endpoint_count(0), 
+          ping_count(0), pong_count(0), last_cmd_seq(0), expect_cmd_req_from(0), expect_cmd_rsp_from(0) {}
 };
 
 static node_msg_test_recv_msg_record_t recv_msg_history;
@@ -157,11 +161,29 @@ static int node_msg_test_remove_endpoint_fn(const atbus::node &, atbus::endpoint
     return 0;
 }
 
+static int node_msg_test_on_ping(const atbus::node &n, const atbus::endpoint *ep, const ::atbus::protocol::msg &, const ::atbus::protocol::ping_data & ping_data) {
+    std::streamsize w = std::cout.width();
+    CASE_MSG_INFO() << "[Ping] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x" << std::setw(8)
+                    << (NULL == ep ? 0 : ep->get_id()) << ", time point="<< ping_data.time_point()<< std::setfill(' ') << std::setw(w) << std::dec<< std::endl;
+
+    ++ recv_msg_history.ping_count;
+    return 0;
+}
+
+static int node_msg_test_on_pong(const atbus::node &n, const atbus::endpoint *ep, const ::atbus::protocol::msg &, const ::atbus::protocol::ping_data & ping_data) {
+    std::streamsize w = std::cout.width();
+    CASE_MSG_INFO() << "[Pong] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x" << std::setw(8)
+                    << (NULL == ep ? 0 : ep->get_id()) << ", time point="<< ping_data.time_point()<< std::setfill(' ') << std::setw(w) << std::dec<< std::endl;
+
+    ++ recv_msg_history.pong_count;
+    return 0;
+}
+
 // 定时Ping Pong协议测试
 CASE_TEST(atbus_node_msg, ping_pong) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);
-    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
+    conf.ping_interval = 1;
     uv_loop_t ev_loop;
     uv_loop_init(&ev_loop);
 
@@ -174,42 +196,71 @@ CASE_TEST(atbus_node_msg, ping_pong) {
         node2->on_debug          = node_msg_test_on_debug;
         node1->set_on_error_handle(node_msg_test_on_error);
         node2->set_on_error_handle(node_msg_test_on_error);
+        node1->set_on_ping_endpoint_handle(node_msg_test_on_ping);
+        node1->set_on_pong_endpoint_handle(node_msg_test_on_pong);
+        node2->set_on_ping_endpoint_handle(node_msg_test_on_ping);
+        node2->set_on_pong_endpoint_handle(node_msg_test_on_pong);
+
+        atbus::node::ptr_t parent = atbus::node::create();
+        parent->on_debug          = node_msg_test_on_debug;
+        parent->set_on_error_handle(node_msg_test_on_error);
+        parent->set_on_ping_endpoint_handle(node_msg_test_on_ping);
+        parent->set_on_pong_endpoint_handle(node_msg_test_on_pong);
+
 
         CASE_EXPECT_EQ(NULL, node1->get_self_endpoint());
         CASE_EXPECT_EQ(NULL, node2->get_self_endpoint());
+        CASE_EXPECT_EQ(NULL, parent->get_self_endpoint());
 
-        node1->init(0x12345678, &conf);
+        
+        conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
+        parent->init(0x12346789, &conf);
+
+        conf.subnets.clear();
         node2->init(0x12356789, &conf);
+        conf.parent_address = "ipv4://127.0.0.1:16389";
+        node1->init(0x12345678, &conf);
 
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, parent->listen("ipv4://127.0.0.1:16389"));
         CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->listen("ipv4://127.0.0.1:16387"));
         CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->listen("ipv4://127.0.0.1:16388"));
 
-        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
-        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
-
-        time_t proc_t = time(NULL) + 1;
-        node1->poll();
-        node2->poll();
-        node1->proc(proc_t, 0);
-        node2->proc(proc_t, 0);
+        atbus::node::start_conf_t start_conf;
+        start_conf.timer_sec = time(NULL);
+        start_conf.timer_usec = 0;
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, parent->start(start_conf));
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start(start_conf));
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start(start_conf));
 
         node1->connect("ipv4://127.0.0.1:16388");
 
+        int tick_sec_count = 0;
+        int old_ping_count = recv_msg_history.ping_count;
+        int old_pong_count = recv_msg_history.pong_count;
         // 8s timeout
-        UNITTEST_WAIT_UNTIL(conf.ev_loop, node1->is_endpoint_available(node2->get_id()) && node2->is_endpoint_available(node1->get_id()),
-                            8000, 0) {}
+        UNITTEST_WAIT_UNTIL(conf.ev_loop, 
+            recv_msg_history.pong_count - old_pong_count >= 40,
+                            8000, 8) {
+            start_conf.timer_usec += 80000;
+            if (start_conf.timer_usec >= 1000000) {
+                start_conf.timer_usec -= 1000000;
+                ++ start_conf.timer_sec;
+                ++ tick_sec_count;
+            }
 
-        proc_t += conf.ping_interval;
-
-        UNITTEST_WAIT_UNTIL(conf.ev_loop,
-                            !node1->is_endpoint_available(node2->get_id()) || !node2->is_endpoint_available(node1->get_id()) ||
-                                (node2->get_endpoint(node1->get_id())->get_stat_last_pong() > 0 &&
-                                 node1->get_endpoint(node2->get_id())->get_stat_last_pong() > 0),
-                            8000, 32) {
-            ++proc_t;
-            node1->proc(proc_t, 0);
-            node2->proc(proc_t, 0);
+            node1->proc(start_conf.timer_sec, start_conf.timer_usec);
+            node2->proc(start_conf.timer_sec, start_conf.timer_usec);
+            parent->proc(start_conf.timer_sec, start_conf.timer_usec);
         }
+
+        CASE_EXPECT_GE(recv_msg_history.pong_count - old_pong_count, 40);
+        CASE_EXPECT_GE(recv_msg_history.pong_count - old_pong_count, 4 * tick_sec_count - 8);
+        CASE_EXPECT_LE(recv_msg_history.pong_count - old_pong_count, 4 * tick_sec_count + 8);
+        CASE_EXPECT_GE(recv_msg_history.pong_count - old_pong_count, recv_msg_history.ping_count - old_ping_count);
+        CASE_EXPECT_LE(recv_msg_history.pong_count - old_pong_count, recv_msg_history.ping_count - old_ping_count + 8);
+
+        CASE_EXPECT_GT(node2->get_endpoint(node1->get_id())->get_stat_last_pong(), 0);
+        CASE_EXPECT_GT(node1->get_endpoint(node2->get_id())->get_stat_last_pong(), 0);
     }
 
     unit_test_setup_exit(&ev_loop);
@@ -309,9 +360,77 @@ CASE_TEST(atbus_node_msg, custom_cmd) {
         send_data += '\0';
 
         recv_msg_history.last_cmd_seq        = 0;
-        recv_msg_history.expect_cmd_req_from = node1->get_id();
-        recv_msg_history.expect_cmd_rsp_from = node2->get_id();
+        recv_msg_history.expect_cmd_req_from = node2->get_id();
+        recv_msg_history.expect_cmd_rsp_from = node1->get_id();
+        recv_msg_history.data.clear();
         CASE_EXPECT_EQ(0, node1->send_custom_cmd(node2->get_id(), custom_data, custom_len, 3, &recv_msg_history.last_cmd_seq));
+
+        UNITTEST_WAIT_UNTIL(conf.ev_loop, count + 1 < recv_msg_history.count, 3000, 0) {}
+
+        CASE_EXPECT_EQ(send_data, recv_msg_history.data);
+    } while (false);
+
+    unit_test_setup_exit(&ev_loop);
+}
+
+CASE_TEST(atbus_node_msg, custom_cmd_by_temp_node) {
+    atbus::node::conf_t conf;
+    atbus::node::default_conf(&conf);
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
+    uv_loop_t ev_loop;
+    uv_loop_init(&ev_loop);
+
+    conf.ev_loop = &ev_loop;
+
+    do {
+        atbus::node::ptr_t node1 = atbus::node::create();
+        atbus::node::ptr_t node2 = atbus::node::create();
+        node1->on_debug          = node_msg_test_on_debug;
+        node2->on_debug          = node_msg_test_on_debug;
+        node1->set_on_error_handle(node_msg_test_on_error);
+        node2->set_on_error_handle(node_msg_test_on_error);
+
+        node1->init(0x12345678, &conf);
+        node2->init(0, &conf);
+
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->listen("ipv4://127.0.0.1:16387"));
+
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
+
+        time_t proc_t = time(NULL) + 1;
+        node1->poll();
+        node2->poll();
+        node1->proc(proc_t, 0);
+        node2->proc(proc_t, 0);
+
+        node2->connect("ipv4://127.0.0.1:16387");
+
+        UNITTEST_WAIT_UNTIL(conf.ev_loop, node2->is_endpoint_available(node1->get_id()),
+                            8000, 0) {}
+
+        int count = recv_msg_history.count;
+        node1->set_on_custom_cmd_handle(node_msg_test_recv_msg_test_custom_cmd_fn);
+        node2->set_on_custom_rsp_handle(node_msg_test_recv_msg_test_custom_rsp_fn);
+
+        char test_str[]       = "hello world!";
+        std::string send_data = test_str;
+        const void *custom_data[3];
+        custom_data[0]      = &test_str[0];
+        custom_data[1]      = &test_str[6];
+        custom_data[2]      = &test_str[11];
+        size_t custom_len[] = {5, 5, 1};
+
+        send_data[5]  = '\0';
+        send_data[11] = '\0';
+        send_data += '!';
+        send_data += '\0';
+
+        recv_msg_history.last_cmd_seq        = 0;
+        recv_msg_history.expect_cmd_req_from = node2->get_id();
+        recv_msg_history.expect_cmd_rsp_from = node1->get_id();
+        recv_msg_history.data.clear();
+        CASE_EXPECT_EQ(0, node2->send_custom_cmd(node1->get_id(), custom_data, custom_len, 3, &recv_msg_history.last_cmd_seq));
 
         UNITTEST_WAIT_UNTIL(conf.ev_loop, count + 1 < recv_msg_history.count, 3000, 0) {}
 
@@ -417,6 +536,104 @@ CASE_TEST(atbus_node_msg, reset_and_send) {
 
     unit_test_setup_exit(&ev_loop);
 }
+
+static int node_msg_test_recv_on_forward_response_error_fn(const atbus::node &, const atbus::endpoint *, const atbus::connection *,
+                                                        const atbus::protocol::msg *m) {
+    ++recv_msg_history.count;
+    if (NULL != m) {
+        recv_msg_history.status = m->head().ret();
+        recv_msg_history.data = m->data_transform_rsp().content();
+
+        if (0 != recv_msg_history.status) {
+            ++ recv_msg_history.failed_count;
+        }
+    }
+    return 0;
+}
+
+CASE_TEST(atbus_node_msg, send_loopback_error) {
+    atbus::node::conf_t conf;
+    atbus::node::default_conf(&conf);
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
+    uv_loop_t ev_loop;
+    uv_loop_init(&ev_loop);
+
+    conf.ev_loop = &ev_loop;
+
+    do {
+        atbus::node::ptr_t node1 = atbus::node::create();
+        atbus::node::ptr_t node2 = atbus::node::create();
+        node1->on_debug          = node_msg_test_on_debug;
+        node2->on_debug          = node_msg_test_on_debug;
+        node1->set_on_error_handle(node_msg_test_on_error);
+        node2->set_on_error_handle(node_msg_test_on_error);
+
+        node1->init(0x12345678, &conf);
+        node2->init(0x12356789, &conf);
+
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->listen("ipv4://127.0.0.1:16387"));
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->listen("ipv4://127.0.0.1:16388"));
+
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
+
+        time_t proc_t = time(NULL) + 1;
+        node1->poll();
+        node2->poll();
+        node1->proc(proc_t, 0);
+        node2->proc(proc_t, 0);
+
+        node1->connect("ipv4://127.0.0.1:16388");
+
+        UNITTEST_WAIT_UNTIL(conf.ev_loop, node1->is_endpoint_available(node2->get_id()) && node2->is_endpoint_available(node1->get_id()),
+                            8000, 0) {}
+
+        int count = recv_msg_history.count;
+        node1->set_on_forward_response_handle(node_msg_test_recv_on_forward_response_error_fn);
+
+        std::string send_data = "loop back message!";
+
+        recv_msg_history.last_cmd_seq        = 0;
+        recv_msg_history.status              = 0;
+        recv_msg_history.expect_cmd_req_from = node2->get_id();
+        recv_msg_history.expect_cmd_rsp_from = node1->get_id();
+        recv_msg_history.data.clear();
+
+        do {
+            atbus::endpoint *target        = NULL;
+            atbus::connection *target_conn = NULL;
+            CASE_EXPECT_EQ(0, node1->get_remote_channel(node2->get_id(), &atbus::endpoint::get_data_connection, &target, &target_conn));
+            CASE_EXPECT_NE(NULL, target);
+            CASE_EXPECT_NE(NULL, target_conn);
+            if (NULL == target_conn) {
+                break;
+            }
+
+            atbus::protocol::msg m;
+            m.mutable_head()->set_version(node1->get_protocol_version());
+            m.mutable_head()->set_type(0);
+            m.mutable_head()->set_ret(0);
+            m.mutable_head()->set_sequence(node1->alloc_msg_seq());
+            m.mutable_head()->set_src_bus_id(0); // fake bad parameter, this should be reset by receiver
+
+            m.mutable_data_transform_req()->set_from(node1->get_id());
+            m.mutable_data_transform_req()->set_to(0x12346789);
+            m.mutable_data_transform_req()->add_router(node1->get_id());
+            *m.mutable_data_transform_req()->mutable_content() = send_data;
+            m.mutable_data_transform_req()->set_flags(atbus::protocol::FORWARD_DATA_FLAG_REQUIRE_RSP);
+            CASE_EXPECT_EQ(0, atbus::msg_handler::send_msg(*node1, *target_conn, m));
+
+        } while (false);
+
+        UNITTEST_WAIT_UNTIL(conf.ev_loop, count + 1 <= recv_msg_history.count, 3000, 0) {}
+
+        CASE_EXPECT_EQ(send_data, recv_msg_history.data);
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_ATNODE_SRC_DST_IS_SAME, recv_msg_history.status);
+    } while (false);
+
+    unit_test_setup_exit(&ev_loop);
+}
+
 
 static int node_msg_test_recv_and_send_msg_on_forward_response_fn(const atbus::node &, const atbus::endpoint *, const atbus::connection *,
                                                         const atbus::protocol::msg *) {

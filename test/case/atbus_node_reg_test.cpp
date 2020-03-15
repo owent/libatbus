@@ -38,6 +38,31 @@ struct node_reg_test_destory_protobuf_meta {
 };
 node_reg_test_destory_protobuf_meta g_protobuf_shutdown_helper;
 
+struct node_reg_test_recv_msg_record_t {
+    const atbus::node *n;
+    const atbus::endpoint *ep;
+    const atbus::connection *conn;
+    std::string data;
+    int status;
+    int count;
+    int add_endpoint_count;
+    int remove_endpoint_count;
+    int register_count;
+    int register_failed_count;
+    int availavle_count;
+    int new_connection_count;
+    int invalid_connection_count;
+    int dealloc_endpoint_count;
+    int dealloc_connection_count;
+
+    node_reg_test_recv_msg_record_t()
+        : n(NULL), ep(NULL), conn(NULL), status(0), count(0), add_endpoint_count(0), remove_endpoint_count(0), register_count(0),
+          register_failed_count(0), availavle_count(0), new_connection_count(0), invalid_connection_count(0), dealloc_endpoint_count(0), 
+          dealloc_connection_count(0) {}
+};
+
+static node_reg_test_recv_msg_record_t recv_msg_history;
+
 static void node_reg_test_on_debug(const char *file_path, size_t line, const atbus::node &n, const atbus::endpoint *ep,
                                    const atbus::connection *conn, EXPLICIT_UNUSED_ATTR const atbus::protocol::msg *m, const char *fmt,
                                    ...) {
@@ -54,14 +79,21 @@ static void node_reg_test_on_debug(const char *file_path, size_t line, const atb
                     << std::hex << std::setw(8) << n.get_id() << ", ep=0x" << std::setw(8) << (NULL == ep ? 0 : ep->get_id())
                     << ", c=" << conn << std::setfill(' ') << std::setw(w) << std::dec << "\t";
 
+    char log_content[2048] = {0};
     va_list ap;
     va_start(ap, fmt);
 
-    vprintf(fmt, ap);
+    UTIL_STRFUNC_VSNPRINTF(log_content, 2047, fmt, ap);
 
     va_end(ap);
 
-    puts("");
+    puts(log_content);
+    std::string content = log_content;
+    if (std::string::npos != content.find("connection deallocated")) {
+        ++ recv_msg_history.dealloc_connection_count;
+    } else if (std::string::npos != content.find("endpoint deallocated")) {
+        ++ recv_msg_history.dealloc_endpoint_count;
+    }
 
 #ifdef _MSC_VER
 
@@ -74,28 +106,6 @@ static void node_reg_test_on_debug(const char *file_path, size_t line, const atb
     // }
 #endif
 }
-
-struct node_reg_test_recv_msg_record_t {
-    const atbus::node *n;
-    const atbus::endpoint *ep;
-    const atbus::connection *conn;
-    std::string data;
-    int status;
-    int count;
-    int add_endpoint_count;
-    int remove_endpoint_count;
-    int register_count;
-    int register_failed_count;
-    int availavle_count;
-    int new_connection_count;
-    int invalid_connection_count;
-
-    node_reg_test_recv_msg_record_t()
-        : n(NULL), ep(NULL), conn(NULL), status(0), count(0), add_endpoint_count(0), remove_endpoint_count(0), register_count(0),
-          register_failed_count(0), availavle_count(0), new_connection_count(0), invalid_connection_count(0) {}
-};
-
-static node_reg_test_recv_msg_record_t recv_msg_history;
 
 static int node_reg_test_on_error(const atbus::node &n, const atbus::endpoint *ep, const atbus::connection *conn, int status, int errcode) {
     if ((0 == status && 0 == errcode) || UV_EOF == errcode || UV_ECONNRESET == errcode) {
@@ -815,17 +825,28 @@ CASE_TEST(atbus_node_reg, reg_pc_success) {
         node_child->set_on_add_endpoint_handle(node_reg_test_add_endpoint_fn);
         node_child->set_on_remove_endpoint_handle(node_reg_test_remove_endpoint_fn);
 
-        time_t proc_t = time(NULL);
+        time_t proc_t_start_sec = time(NULL);
+        time_t proc_t_sec = proc_t_start_sec;
+        time_t proc_t_usec = 0;
         node_parent->poll();
         node_child->poll();
-        node_parent->proc(proc_t + 1, 0);
-        node_child->proc(proc_t + 1, 0);
+
+        ++ proc_t_sec;
+        node_parent->proc(proc_t_sec, proc_t_usec);
+        node_child->proc(proc_t_sec, proc_t_usec);
 
 
         // 注册成功自动会有可用的端点
         UNITTEST_WAIT_UNTIL(
             conf.ev_loop,
-            node_child->is_endpoint_available(node_parent->get_id()) && node_parent->is_endpoint_available(node_child->get_id()), 8000, 0) {
+            node_child->is_endpoint_available(node_parent->get_id()) && node_parent->is_endpoint_available(node_child->get_id()), 8000, 8) {
+            proc_t_usec += 8000;
+            if (proc_t_usec >= 1000000) {
+                proc_t_usec = 0;
+                ++ proc_t_sec;
+            }
+            node_parent->proc(proc_t_sec, proc_t_usec);
+            node_child->proc(proc_t_sec, proc_t_usec);
         }
 
         // in windows CI, connection will be closed sometimes, it will lead to add one endpoint more than one times
@@ -840,6 +861,12 @@ CASE_TEST(atbus_node_reg, reg_pc_success) {
             node_parent->get_remote_channel(node_child->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
             CASE_EXPECT_NE(NULL, test_ep);
             CASE_EXPECT_NE(NULL, test_conn);
+            if (NULL != test_ep) {
+                CASE_EXPECT_GE(test_ep->get_stat_created_time_sec(), proc_t_start_sec);
+                CASE_EXPECT_GE(test_ep->get_stat_created_time_usec(), 0);
+                CASE_EXPECT_LE(test_ep->get_stat_created_time_usec(), 1000000);
+            }
+            CASE_EXPECT_TRUE(node_parent->is_child_node(node_child->get_id()));
         }
 
         // API - test
@@ -849,6 +876,13 @@ CASE_TEST(atbus_node_reg, reg_pc_success) {
             node_child->get_remote_channel(node_parent->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
             CASE_EXPECT_NE(NULL, test_ep);
             CASE_EXPECT_NE(NULL, test_conn);
+            if (NULL != test_ep) {
+                CASE_EXPECT_GE(test_ep->get_stat_created_time_sec(), proc_t_start_sec);
+                CASE_EXPECT_GE(test_ep->get_stat_created_time_usec(), 0);
+                CASE_EXPECT_LE(test_ep->get_stat_created_time_usec(), 1000000);
+            }
+
+            CASE_EXPECT_TRUE(node_child->is_parent_node(node_parent->get_id()));
         }
 
         // disconnect - parent and child
@@ -1002,6 +1036,9 @@ CASE_TEST(atbus_node_reg, reg_pc_failed_with_subnet_mismatch) {
         CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_parent->listen("ipv4://127.0.0.1:16387"));
         CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_child->listen("ipv4://127.0.0.1:16388"));
 
+        int old_dealloc_connection_count = recv_msg_history.dealloc_connection_count;
+        int old_dealloc_endpoint_count = recv_msg_history.dealloc_endpoint_count;
+
         CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_parent->start());
         CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_child->start());
 
@@ -1068,7 +1105,13 @@ CASE_TEST(atbus_node_reg, reg_pc_failed_with_subnet_mismatch) {
             CASE_EXPECT_EQ(NULL, test_conn);
         }
 
+        
+
         CASE_MSG_INFO()<< "atbus_node_reg.reg_pc_failed_with_subnet_mismatch done."<< std::endl;
+        // Check deallocated endpoints
+        CASE_EXPECT_GE(recv_msg_history.dealloc_endpoint_count - old_dealloc_endpoint_count, 2);
+        // Maybe 4 data/control connection and 1 listen connection at most
+        CASE_EXPECT_GE(recv_msg_history.dealloc_connection_count - old_dealloc_connection_count, 2);
         CASE_EXPECT_EQ(EN_ATBUS_ERR_ATNODE_MASK_CONFLICT, recv_msg_history.status);
 
         // disconnect - parent and child

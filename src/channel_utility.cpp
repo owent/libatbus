@@ -48,5 +48,61 @@ namespace atbus {
                 addr.address += &port_str[0];
             }
         }
+
+        ATBUS_MACRO_API bool is_duplex_address(const char *in) {
+            if (NULL == in || !(*in)) {
+                return false;
+            }
+
+            return false == is_simplex_address(in);
+        }
+
+        ATBUS_MACRO_API bool is_simplex_address(const char *in) {
+            if (NULL == in || !(*in)) {
+                return false;
+            }
+
+            if (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", in, 4)) {
+                return true;
+            }
+
+            if (0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", in, 4)) {
+                return true;
+            }
+
+            return false;
+        }
+
+        ATBUS_MACRO_API bool is_local_host_address(const char *in) {
+            if (NULL == in || !(*in)) {
+                return false;
+            }
+
+            if (is_local_process_address(in)) {
+                return true;
+            }
+
+            if (0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", in, 4)) {
+                return true;
+            }
+
+            if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix:", in, 5)) {
+                return true;
+            }
+
+            return false;
+        }
+
+        ATBUS_MACRO_API bool is_local_process_address(const char *in) {
+            if (NULL == in || !(*in)) {
+                return false;
+            }
+
+            if (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", in, 4)) {
+                return true;
+            }
+
+            return false;
+        }
     }
 }

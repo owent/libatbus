@@ -40,6 +40,15 @@
 
 namespace atbus {
 
+    class node;
+    class node_access_controller {
+    private:
+        friend class endpoint;
+
+        static bool add_ping_timer(node& n, const endpoint::ptr_t &ep, timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator& out);
+        static void remove_ping_timer(node& n, timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator& inout);
+    };
+
     class node UTIL_CONFIG_FINAL : public util::design_pattern::noncopyable {
     public:
         typedef std::shared_ptr<node> ptr_t;
@@ -105,6 +114,11 @@ namespace atbus {
             ATBUS_MACRO_API conf_t& operator=(const conf_t& other);
         };
 
+        struct start_conf_t {
+            time_t timer_sec;
+            time_t timer_usec;
+        };
+
         typedef std::map<endpoint_subnet_range, endpoint::ptr_t> endpoint_collection_t;
 
         struct evt_msg_t {
@@ -141,6 +155,8 @@ namespace atbus {
             typedef std::function<int(const node &, endpoint *, int)> on_add_endpoint_fn_t;
             // 对端离线事件回调 => 参数列表: 发起节点，新增的对端，错误码，通常是 EN_ATBUS_ERR_SUCCESS
             typedef std::function<int(const node &, endpoint *, int)> on_remove_endpoint_fn_t;
+            // 对端ping/pong事件回调 => 参数列表: 发起节点，ping/pong的对端，消息体，ping_data
+            typedef std::function<int(const node &, const endpoint *, const ::atbus::protocol::msg &, const ::atbus::protocol::ping_data &)> on_ping_pong_endpoint_fn_t;
 
             on_recv_msg_fn_t on_recv_msg;
             on_forward_response_fn_t on_forward_response;
@@ -154,6 +170,8 @@ namespace atbus {
             on_custom_rsp_fn_t on_custom_rsp;
             on_add_endpoint_fn_t on_endpoint_added;
             on_remove_endpoint_fn_t on_endpoint_removed;
+            on_ping_pong_endpoint_fn_t on_endpoint_ping;
+            on_ping_pong_endpoint_fn_t on_endpoint_pong;
         };
 
         struct flag_guard_t {
@@ -168,6 +186,7 @@ namespace atbus {
 
     public:
         static ATBUS_MACRO_API void default_conf(conf_t *conf);
+        static ATBUS_MACRO_API void default_conf(start_conf_t *conf);
 
         UTIL_DESIGN_PATTERN_NOCOPYABLE(node)
         UTIL_DESIGN_PATTERN_NOMOVABLE(node)
@@ -188,6 +207,12 @@ namespace atbus {
          * @return 0或错误码
          */
         ATBUS_MACRO_API int init(bus_id_t id, const conf_t *conf);
+
+        /**
+         * @brief 启动连接流程
+         * @return 0或错误码
+         */
+        ATBUS_MACRO_API int start(const start_conf_t& start_conf);
 
         /**
          * @brief 启动连接流程
@@ -457,6 +482,9 @@ namespace atbus {
         ATBUS_MACRO_API int on_custom_rsp(const endpoint *, const connection *, bus_id_t from,
                           const std::vector<std::pair<const void *, size_t> > &cmd_args, uint64_t seq);
 
+        ATBUS_MACRO_API int on_ping(const endpoint *ep, const ::atbus::protocol::msg &m, const ::atbus::protocol::ping_data & body);
+        ATBUS_MACRO_API int on_pong(const endpoint *ep, const ::atbus::protocol::msg &m, const ::atbus::protocol::ping_data & body);
+
         /**
          * @brief 关闭node
          * @param reason 关闭原因ID
@@ -530,6 +558,12 @@ namespace atbus {
         ATBUS_MACRO_API void set_on_remove_endpoint_handle(evt_msg_t::on_remove_endpoint_fn_t fn);
         ATBUS_MACRO_API const evt_msg_t::on_remove_endpoint_fn_t &get_on_remove_endpoint_handle() const;
 
+        ATBUS_MACRO_API void set_on_ping_endpoint_handle(evt_msg_t::on_ping_pong_endpoint_fn_t fn);
+        ATBUS_MACRO_API const evt_msg_t::on_ping_pong_endpoint_fn_t &get_on_ping_endpoint_handle() const;
+
+        ATBUS_MACRO_API void set_on_pong_endpoint_handle(evt_msg_t::on_ping_pong_endpoint_fn_t fn);
+        ATBUS_MACRO_API const evt_msg_t::on_ping_pong_endpoint_fn_t &get_on_pong_endpoint_handle() const;
+
         // inner API, please don't use it if you don't known what will happen
         ATBUS_MACRO_API void ref_object(void *);
         // inner API, please don't use it if you don't known what will happen
@@ -559,10 +593,16 @@ namespace atbus {
         bool add_connection_fault(connection &conn);
 
         /**
-         * @brief 添加到ping列表
+         * @brief 添加到ping timer列表
          */
-        void add_ping_timer(endpoint::ptr_t &ep);
+        bool add_ping_timer(const endpoint::ptr_t &ep, timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator& out);
 
+        /**
+         * @brief 从ping timer列表中移除
+         */
+        void remove_ping_timer(timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator& inout);
+
+        friend class node_access_controller;
     public:
         ATBUS_MACRO_API void stat_add_dispatch_times();
 

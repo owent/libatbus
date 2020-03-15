@@ -32,7 +32,7 @@ else
     CHECK_MSYS="";
 fi
 
-while getopts "ab:c:d:e:hlm:o:tus-" OPTION; do
+while getopts "ab:c:d:e:hlm:o:ptus-" OPTION; do
     case $OPTION in
         a)
             echo "Ready to check ccc-analyzer and c++-analyzer, please do not use -c to change the compiler when using clang-analyzer.";
@@ -104,6 +104,7 @@ while getopts "ab:c:d:e:hlm:o:tus-" OPTION; do
             echo "-h                            help message.";
             echo "-m [mbedtls root]             set root of mbedtls.";
             echo "-o [openssl root]             set root of openssl.";
+            echo "-p                            abort on inner error.";
             echo "-t                            enable clang-tidy.";
             echo "-u                            enable unit test.";
             echo "-s                            enable sample.";
@@ -126,6 +127,9 @@ while getopts "ab:c:d:e:hlm:o:tus-" OPTION; do
         ;;
         t)
             CMAKE_CLANG_TIDY="-D -checks=* --";
+        ;;
+        p)
+            CMAKE_OPTIONS="$CMAKE_OPTIONS -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=YES";
         ;;
         u)
             CMAKE_OPTIONS="$CMAKE_OPTIONS -DPROJECT_ENABLE_UNITTEST=YES";
