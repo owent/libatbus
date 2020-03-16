@@ -893,7 +893,7 @@ namespace atbus {
             }
         }
 
-        body->mutable_commands()->Reserve(arr_count);
+        body->mutable_commands()->Reserve(static_cast<int>(arr_count));
         for (size_t i = 0; i < arr_count; ++i) {
             ::atbus::protocol::custom_command_argv*  arg = body->add_commands();
             if (NULL == arg) {
@@ -2097,7 +2097,7 @@ namespace atbus {
                 // serialize message
                 size_t msg_size = mb.ByteSizeLong();
                 bin_data.resize(msg_size);
-                mb.SerializeToArray(reinterpret_cast<void*>(&bin_data[0]), msg_size);
+                mb.SerializeToArray(reinterpret_cast<void*>(&bin_data[0]), static_cast<int>(msg_size));
             }
 
             // self command msg
@@ -2109,7 +2109,7 @@ namespace atbus {
                 // serialize message
                 size_t msg_size = mb.ByteSizeLong();
                 bin_data.resize(msg_size);
-                mb.SerializeToArray(reinterpret_cast<void*>(&bin_data[0]), msg_size);
+                mb.SerializeToArray(reinterpret_cast<void*>(&bin_data[0]), static_cast<int>(msg_size));
             }
 
             dispatch_all_self_msgs();

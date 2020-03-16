@@ -3,8 +3,6 @@ EchoWithColor(COLOR GREEN "-- Configure Unit Test ${CMAKE_CURRENT_LIST_DIR}")
 
 include("${PROJECT_TEST_BAS_DIR}/test.build_bin.cmake")
 
-include_directories(${PROJECT_LIBATBUS_ROOT_SRC_DIR})
-
 file(GLOB_RECURSE PROJECT_TEST_SRC_LIST
     ${PROJECT_TEST_SRC_DIR}/app/*.cpp
     ${PROJECT_TEST_SRC_DIR}/frame/*.h
@@ -24,13 +22,13 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/test")
 add_compiler_define(_CRT_SECURE_NO_WARNINGS=1)
 
 add_executable(atbus_unit_test ${PROJECT_TEST_SRC_LIST})
+target_compile_options(atbus_unit_test PRIVATE ${PROJECT_LIBATBUS_PRIVATE_COMPILE_OPTIONS})
 target_link_libraries(atbus_unit_test
     ${PROJECT_LIBATBUS_LIB_LINK}
-    ${PROJECT_TEST_LIB_LINK}
-    ${3RD_PARTY_LIBUV_LINK_NAME}
-    ${3RD_PARTY_ATFRAME_UTILS_LINK_NAME}
-    ${3RD_PARTY_LIBUV_LINK_DEPS}
-    ${COMPILER_OPTION_EXTERN_CXX_LIBS}
+)
+
+target_include_directories(atbus_unit_test
+    PRIVATE "$<BUILD_INTERFACE:${PROJECT_LIBATBUS_ROOT_SRC_DIR}>"
 )
 
 if (MSVC)

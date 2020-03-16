@@ -28,7 +28,7 @@ else()
                 WORKING_DIRECTORY ${3RD_PARTY_ATFRAME_UTILS_BASE_DIR}
             )
         endif()
-    else ()
+    elseif(PROJECT_RESET_DENPEND_REPOSITORIES)
         execute_process(
             COMMAND ${GIT_EXECUTABLE} fetch -f --depth=100 origin
             COMMAND ${GIT_EXECUTABLE} reset --hard origin/master

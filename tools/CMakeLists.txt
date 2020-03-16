@@ -3,8 +3,6 @@
 EchoWithColor(COLOR GREEN "-- Configure Tools ${CMAKE_CURRENT_LIST_DIR}")
 
 # ============ TOOLS - [...] ============
-include_directories(${PROJECT_TOOLS_INC_DIR})
-
 file(GLOB TOOLS_SRC_LIST
     ${PROJECT_TOOLS_SRC_DIR}/*.cpp
     ${PROJECT_TOOLS_SRC_DIR}/*.cc
@@ -20,11 +18,9 @@ foreach(TOOLS_SRC_FILE IN LISTS TOOLS_SRC_LIST)
     add_executable("${TOOLS_SRC_BIN_NAME}" ${TOOLS_SRC_FILE})
     target_link_libraries("${TOOLS_SRC_BIN_NAME}"
 	    ${PROJECT_LIBATBUS_LIB_LINK}
-		${PROJECT_TOOLS_LIB_LINK}
-        ${3RD_PARTY_LIBUV_LINK_NAME}
-        ${3RD_PARTY_ATFRAME_UTILS_LINK_NAME}
-        ${3RD_PARTY_LIBUV_LINK_DEPS}
-        ${COMPILER_OPTION_EXTERN_CXX_LIBS}
+    )
+    target_include_directories("${TOOLS_SRC_BIN_NAME}"
+        PRIVATE "$<BUILD_INTERFACE:${PROJECT_TOOLS_INC_DIR}>"
     )
     
     if (MSVC)

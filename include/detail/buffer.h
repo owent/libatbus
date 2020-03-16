@@ -56,27 +56,27 @@ namespace atbus {
         /**
          * @brief buffer block, not thread safe
          */
-        ATBUS_MACRO_API class buffer_block {
+        class buffer_block {
         public:
-            void *data();
-            const void *data() const;
-            void *raw_data();
-            const void *raw_data() const;
+            ATBUS_MACRO_API void *data();
+            ATBUS_MACRO_API const void *data() const;
+            ATBUS_MACRO_API void *raw_data();
+            ATBUS_MACRO_API const void *raw_data() const;
 
-            size_t size() const;
+            ATBUS_MACRO_API size_t size() const;
 
-            size_t raw_size() const;
+            ATBUS_MACRO_API size_t raw_size() const;
 
-            void *pop(size_t s);
+            ATBUS_MACRO_API void *pop(size_t s);
 
-            size_t instance_size() const;
+            ATBUS_MACRO_API size_t instance_size() const;
 
         public:
             /** alloc and init buffer_block **/
-            static buffer_block *malloc(size_t s);
+            static ATBUS_MACRO_API buffer_block *malloc(size_t s);
 
             /** destroy and free buffer_block **/
-            static void free(buffer_block *p);
+            static ATBUS_MACRO_API void free(buffer_block *p);
 
             /**
              * @brief init buffer_block as specify address
@@ -85,14 +85,14 @@ namespace atbus {
              * @param bs buffer size
              * @return unused data address
              **/
-            static void *create(void *pointer, size_t s, size_t bs);
+            static ATBUS_MACRO_API void *create(void *pointer, size_t s, size_t bs);
 
             /** init buffer_block as specify address **/
-            static void *destroy(buffer_block *p);
+            static ATBUS_MACRO_API void *destroy(buffer_block *p);
 
-            static size_t padding_size(size_t s);
-            static size_t head_size(size_t s);
-            static size_t full_size(size_t s);
+            static ATBUS_MACRO_API size_t padding_size(size_t s);
+            static ATBUS_MACRO_API size_t head_size(size_t s);
+            static ATBUS_MACRO_API size_t full_size(size_t s);
 
         private:
             friend class buffer_manager;

@@ -3,7 +3,7 @@
 endif()
 
 # =========== 3rdparty libuv ==================
-if (NOT 3RD_PARTY_LIBUV_INC_DIR OR NOT 3RD_PARTY_LIBUV_LINK_NAME)
+if (NOT 3RD_PARTY_LIBUV_INC_DIR AND NOT 3RD_PARTY_LIBUV_LINK_NAME)
     if (NOT 3RD_PARTY_LIBUV_BASE_DIR)
         set (3RD_PARTY_LIBUV_BASE_DIR ${CMAKE_CURRENT_LIST_DIR})
     endif()
@@ -30,7 +30,7 @@ if (NOT 3RD_PARTY_LIBUV_INC_DIR OR NOT 3RD_PARTY_LIBUV_LINK_NAME)
             execute_process(COMMAND ${GIT_EXECUTABLE} clone "--depth=${FindConfigurePackageGitFetchDepth}" -b "v${3RD_PARTY_LIBUV_DEFAULT_VERSION}" "https://github.com/libuv/libuv.git" "repo-v${3RD_PARTY_LIBUV_DEFAULT_VERSION}"
                 WORKING_DIRECTORY ${3RD_PARTY_LIBUV_PKG_DIR}
             )
-        else ()
+        elseif (PROJECT_RESET_DENPEND_REPOSITORIES)
             execute_process(
                 COMMAND ${GIT_EXECUTABLE} clean -df
                 COMMAND ${GIT_EXECUTABLE} fetch -f "--depth=${FindConfigurePackageGitFetchDepth}" origin "v${3RD_PARTY_LIBUV_DEFAULT_VERSION}"
@@ -64,18 +64,31 @@ if (NOT 3RD_PARTY_LIBUV_INC_DIR OR NOT 3RD_PARTY_LIBUV_LINK_NAME)
         message(FATAL_ERROR "Libuv not found")
     endif()
 
-    set (3RD_PARTY_LIBUV_INC_DIR ${Libuv_INCLUDE_DIRS})
-    set (3RD_PARTY_LIBUV_LINK_NAME ${Libuv_LIBRARIES})
-
-    include_directories(${3RD_PARTY_LIBUV_INC_DIR})
-
-    # mingw
-    unset(3RD_PARTY_LIBUV_LINK_DEPS)
-    if (MINGW)
-        EchoWithColor(COLOR GREEN "-- MinGW: custom add lib advapi32 iphlpapi psapi shell32 user32 userenv ws2_32.")
-        list(APPEND 3RD_PARTY_LIBUV_LINK_DEPS advapi32 iphlpapi psapi shell32 user32 userenv ws2_32)
-    elseif (WIN32)
-        EchoWithColor(COLOR GREEN "-- Win32: custom add lib advapi32 iphlpapi psapi shell32 user32 userenv ws2_32")
-        list(APPEND 3RD_PARTY_LIBUV_LINK_DEPS advapi32 iphlpapi psapi shell32 user32 userenv ws2_32)
+    if (TARGET uv_a)
+        message(STATUS "libuv using target: uv_a")
+        set (3RD_PARTY_LIBUV_LINK_NAME uv_a)
+    elseif (TARGET uv)
+        message(STATUS "libuv using target: uv")
+        set (3RD_PARTY_LIBUV_LINK_NAME uv)
+    elseif (TARGET libuv)
+        message(STATUS "libuv using target: libuv")
+        set (3RD_PARTY_LIBUV_LINK_NAME libuv)
+    else()
+        find_package(Libuv)
+        if(Libuv_FOUND)
+            message(STATUS "Libuv support enabled")
+            set(3RD_PARTY_LIBUV_INC_DIR ${Libuv_INCLUDE_DIRS})
+            set(3RD_PARTY_LIBUV_LINK_NAME ${Libuv_LIBRARIES})
+        else()
+            message(STATUS "Libuv support disabled")
+        endif()
     endif()
+endif ()
+
+if (3RD_PARTY_LIBUV_INC_DIR)
+    list(APPEND PROJECT_LIBATBUS_PUBLIC_INCLUDE_DIRS ${3RD_PARTY_LIBUV_INC_DIR})
+endif ()
+
+if (3RD_PARTY_LIBUV_LINK_NAME)
+    list(APPEND PROJECT_LIBATBUS_PUBLIC_LINK_NAMES ${3RD_PARTY_LIBUV_LINK_NAME})
 endif ()

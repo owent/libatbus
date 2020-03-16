@@ -13,6 +13,13 @@ environment:
         MSYS2_PREFIX: C:/tools/msys64
         MSYS2_LOG_FILE: C:/Users/appveyor/pkg_src/output.log
     matrix:
+        - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
+          platform: x64
+          CMAKE_GEN: Visual Studio 16 2019
+          BUILD_SHARED_LIBS: "ON"
+        - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
+          platform: x64
+          CMAKE_GEN: Visual Studio 2019
         - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
           platform: x64
           CMAKE_GEN: Visual Studio 15 2017 Win64
@@ -26,6 +33,9 @@ environment:
           CMAKE_GEN: MinGW32
         - os: MinGW
           CMAKE_GEN: MinGW64
+        - os: MinGW
+          CMAKE_GEN: MinGW64
+          BUILD_SHARED_LIBS: "ON"
 
 configuration: RelWithDebInfo
 
@@ -118,33 +128,55 @@ build_script:
 
           if ( "$Env:OS" -ieq "MinGW" ) {
 
-              if ( "$Env:CMAKE_GEN" -ieq "MinGW32" ) {
+            $CMAKE_CONFIGURE_EXT_ARGS = ""
 
-                  echo "$Env:MSYS2_PREFIX/msys2_shell -mingw32 -lc cd '$Env:APPVEYOR_BUILD_FOLDER/build'; mkdir build cmake .. -G 'MSYS Makefiles' -DPROJECT_ENABLE_UNITTEST=ON -DPROJECT_ENABLE_SAMPLE=ON -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON ; make -j4"
+            if ( Test-Path Env:BUILD_SHARED_LIBS ) {
 
-                  & "$Env:MSYS2_PREFIX/msys2_shell" -mingw32 -lc "cd '$Env:APPVEYOR_BUILD_FOLDER/build'; cmake .. -G 'MSYS Makefiles' -DPROJECT_ENABLE_UNITTEST=ON -DPROJECT_ENABLE_SAMPLE=ON -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON > '$Env:MSYS2_LOG_FILE' 2>&1; make -j4 >> '$Env:MSYS2_LOG_FILE' 2>&1" | Out-Host
+              $CMAKE_CONFIGURE_EXT_ARGS = "-DBUILD_SHARED_LIBS=ON"
 
-                  Get-Content "$Env:MSYS2_LOG_FILE"
+            }
 
-              } else {
+            if ( "$Env:CMAKE_GEN" -ieq "MinGW32" ) {
 
-                  echo "$Env:MSYS2_PREFIX/msys2_shell -mingw64 -lc cd '$Env:APPVEYOR_BUILD_FOLDER/build'; cmake .. -G 'MSYS Makefiles' -DPROJECT_ENABLE_UNITTEST=ON -DPROJECT_ENABLE_SAMPLE=ON -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON ; make -j4"
+              echo "$Env:MSYS2_PREFIX/msys2_shell -mingw32 -lc cd '$Env:APPVEYOR_BUILD_FOLDER/build'; mkdir build cmake .. -G 'MSYS Makefiles' -DPROJECT_ENABLE_UNITTEST=ON -DPROJECT_ENABLE_SAMPLE=ON -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON $CMAKE_CONFIGURE_EXT_ARGS; make -j4"
 
-                  & "$Env:MSYS2_PREFIX/msys2_shell" -mingw64 -lc "cd '$Env:APPVEYOR_BUILD_FOLDER/build'; cmake ..  -G 'MSYS Makefiles' -DPROJECT_ENABLE_UNITTEST=ON -DPROJECT_ENABLE_SAMPLE=ON -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON > '$Env:MSYS2_LOG_FILE' 2>&1; make -j4 >> '$Env:MSYS2_LOG_FILE' 2>&1" | Out-Host
+              & "$Env:MSYS2_PREFIX/msys2_shell" -mingw32 -lc "cd '$Env:APPVEYOR_BUILD_FOLDER/build'; cmake .. -G 'MSYS Makefiles' -DPROJECT_ENABLE_UNITTEST=ON -DPROJECT_ENABLE_SAMPLE=ON -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON $CMAKE_CONFIGURE_EXT_ARGS > '$Env:MSYS2_LOG_FILE' 2>&1; make -j4 >> '$Env:MSYS2_LOG_FILE' 2>&1" | Out-Host
 
-                  Get-Content "$Env:MSYS2_LOG_FILE"
+              Get-Content "$Env:MSYS2_LOG_FILE"
 
-              }
+            } else {
+
+              echo "$Env:MSYS2_PREFIX/msys2_shell -mingw64 -lc cd '$Env:APPVEYOR_BUILD_FOLDER/build'; cmake .. -G 'MSYS Makefiles' -DPROJECT_ENABLE_UNITTEST=ON -DPROJECT_ENABLE_SAMPLE=ON -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON $CMAKE_CONFIGURE_EXT_ARGS; make -j4"
+
+              & "$Env:MSYS2_PREFIX/msys2_shell" -mingw64 -lc "cd '$Env:APPVEYOR_BUILD_FOLDER/build'; cmake ..  -G 'MSYS Makefiles' -DPROJECT_ENABLE_UNITTEST=ON -DPROJECT_ENABLE_SAMPLE=ON -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON $CMAKE_CONFIGURE_EXT_ARGS> '$Env:MSYS2_LOG_FILE' 2>&1; make -j4 >> '$Env:MSYS2_LOG_FILE' 2>&1" | Out-Host
+
+              Get-Content "$Env:MSYS2_LOG_FILE"
+
+            }
 
           } else {
 
-              echo "cmake ..  -G '$Env:CMAKE_GEN' -DPROJECT_ENABLE_UNITTEST=ON -DPROJECT_ENABLE_SAMPLE=ON -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON -DCMAKE_BUILD_TYPE=$Env:CONFIGURATION"
+            $CMAKE_CONFIGURE_ARGS = @("..", "-G", $Env:CMAKE_GEN)
 
-              & cmake ..  -G "$Env:CMAKE_GEN" -DPROJECT_ENABLE_UNITTEST=ON -DPROJECT_ENABLE_SAMPLE=ON -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON -DCMAKE_BUILD_TYPE=$Env:CONFIGURATION
+            if ( "$Env:CMAKE_GEN" -ieq "Visual Studio 16 2019" ) {
 
-              echo "cmake --build . --config $Env:CONFIGURATION"
+                $CMAKE_CONFIGURE_ARGS += "-A", $Env:PLATFORM
 
-              & cmake --build . --config $Env:CONFIGURATION
+            }
+
+            if ( Test-Path Env:BUILD_SHARED_LIBS ) {
+                $CMAKE_CONFIGURE_ARGS += "-DBUILD_SHARED_LIBS=ON"
+            }
+
+            $CMAKE_CONFIGURE_ARGS += "-DPROJECT_ENABLE_UNITTEST=ON", "-DPROJECT_ENABLE_SAMPLE=ON", "-DPROJECT_ENABLE_TOOLS=ON", "-DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON", "-DCMAKE_BUILD_TYPE=$Env:CONFIGURATION"
+
+            echo "cmake $($CMAKE_CONFIGURE_ARGS -join ' ')"
+
+            & cmake $CMAKE_CONFIGURE_ARGS
+
+            echo "cmake --build . --config $Env:CONFIGURATION"
+
+            & cmake --build . --config $Env:CONFIGURATION
           }
 #
 # Run unit test

@@ -3,7 +3,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.10")
 endif()
 
 # =========== 3rdparty protobuf ==================
-if (NOT 3RD_PARTY_PROTOBUF_BIN_PROTOC OR NOT 3RD_PARTY_PROTOBUF_BASE_DIR OR NOT 3RD_PARTY_PROTOBUF_ROOT_DIR)
+if (NOT 3RD_PARTY_PROTOBUF_BIN_PROTOC OR (NOT 3RD_PARTY_PROTOBUF_LINK_NAME AND NOT 3RD_PARTY_PROTOBUF_INC_DIR))
     set (3RD_PARTY_PROTOBUF_BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
     set (3RD_PARTY_PROTOBUF_PKG_DIR "${CMAKE_CURRENT_LIST_DIR}/pkg")
 
@@ -211,18 +211,19 @@ if (NOT 3RD_PARTY_PROTOBUF_BIN_PROTOC OR NOT 3RD_PARTY_PROTOBUF_BASE_DIR OR NOT 
         execute_process(COMMAND chmod +x "${PROTOBUF_PROTOC_EXECUTABLE}")
     endif()
 
-    set (3RD_PARTY_PROTOBUF_INC_DIR ${PROTOBUF_INCLUDE_DIRS})
     if (TARGET protobuf::libprotobuf AND TARGET protobuf::libprotobuf-lite)
         set (3RD_PARTY_PROTOBUF_LINK_NAME protobuf::libprotobuf)
         set (3RD_PARTY_PROTOBUF_LITE_LINK_NAME protobuf::libprotobuf-lite)
         EchoWithColor(COLOR GREEN "-- Dependency: Protobuf libraries.(${Protobuf_LIBRARY_DEBUG})")
         EchoWithColor(COLOR GREEN "-- Dependency: Protobuf lite libraries.(${Protobuf_LITE_LIBRARY_DEBUG})")
     elseif (${CMAKE_BUILD_TYPE} STREQUAL "Debug" AND Protobuf_LIBRARY_DEBUG)
+        set (3RD_PARTY_PROTOBUF_INC_DIR ${PROTOBUF_INCLUDE_DIRS})
         set (3RD_PARTY_PROTOBUF_LINK_NAME ${Protobuf_LIBRARY_DEBUG})
         set (3RD_PARTY_PROTOBUF_LITE_LINK_NAME ${Protobuf_LITE_LIBRARY_DEBUG})
         EchoWithColor(COLOR GREEN "-- Dependency: Protobuf libraries.(${Protobuf_LIBRARY_DEBUG})")
         EchoWithColor(COLOR GREEN "-- Dependency: Protobuf lite libraries.(${Protobuf_LITE_LIBRARY_DEBUG})")
     else()
+        set (3RD_PARTY_PROTOBUF_INC_DIR ${PROTOBUF_INCLUDE_DIRS})
         if (Protobuf_LIBRARY_RELEASE)
             set (3RD_PARTY_PROTOBUF_LINK_NAME ${Protobuf_LIBRARY_RELEASE})
         else ()
@@ -242,6 +243,13 @@ if (NOT 3RD_PARTY_PROTOBUF_BIN_PROTOC OR NOT 3RD_PARTY_PROTOBUF_BASE_DIR OR NOT 
     else ()
         set (3RD_PARTY_PROTOBUF_BIN_PROTOC ${PROTOBUF_PROTOC_EXECUTABLE})
     endif ()
-
-    include_directories(${3RD_PARTY_PROTOBUF_INC_DIR})
 endif()
+
+if (3RD_PARTY_PROTOBUF_INC_DIR)
+    list(APPEND PROJECT_LIBATBUS_PUBLIC_INCLUDE_DIRS ${3RD_PARTY_PROTOBUF_INC_DIR})
+endif ()
+
+if (3RD_PARTY_PROTOBUF_LINK_NAME)
+    list(APPEND PROJECT_LIBATBUS_PUBLIC_LINK_NAMES ${3RD_PARTY_PROTOBUF_LINK_NAME})
+endif ()
+

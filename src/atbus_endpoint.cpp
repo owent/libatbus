@@ -485,9 +485,9 @@ namespace atbus {
     /** 清空错误计数 **/
     ATBUS_MACRO_API void endpoint::clear_stat_fault() { stat_.fault_count = 0; }
 
-    ATBUS_MACRO_API void endpoint::set_stat_ping(uint32_t p) { stat_.unfinished_ping = p; }
+    ATBUS_MACRO_API void endpoint::set_stat_ping(uint64_t p) { stat_.unfinished_ping = p; }
 
-    ATBUS_MACRO_API uint32_t endpoint::get_stat_ping() const { return stat_.unfinished_ping; }
+    ATBUS_MACRO_API uint64_t endpoint::get_stat_ping() const { return stat_.unfinished_ping; }
 
     ATBUS_MACRO_API void endpoint::set_stat_ping_delay(time_t pd, time_t pong_tm) {
         stat_.ping_delay     = pd;

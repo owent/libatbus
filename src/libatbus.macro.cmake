@@ -3,8 +3,6 @@ set (PROJECT_LIBATBUS_ROOT_SRC_DIR ${CMAKE_CURRENT_LIST_DIR})
 
 set (PROJECT_LIBATBUS_LIB_LINK "atbus")
 set (PROJECT_LIBATBUS_EXPORT_NAME libatbus-target)
-unset (PROJECT_LIBATBUS_INTERFACE_LINK_LIBRARIES)
-list(APPEND PROJECT_LIBATBUS_INTERFACE_LINK_LIBRARIES ${3RD_PARTY_PROTOBUF_LINK_NAME} ${3RD_PARTY_LIBUV_LINK_NAME})
 
 # include("${PROJECT_LIBATBUS_ROOT_SRC_DIR}/XXX.cmake")
 
@@ -24,12 +22,12 @@ add_custom_command (
     COMMENT "Generate ${PROJECT_LIBATBUS_ROOT_INC_DIR}/detail/libatbus_protocol.pb.h, ${PROJECT_LIBATBUS_ROOT_SRC_DIR}/detail/libatbus_protocol.pb.cc and ${PROJECT_LIBATBUS_ROOT_INC_DIR}/detail/libatbus_protocol.pb"
 )
 
-add_custom_target(atbus_generate_protocol SOURCES
+add_custom_target("atbus-generate-protocol" SOURCES
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/detail/libatbus_protocol.pb.h"
     "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/detail/libatbus_protocol.pb.cc"
 )
 
 if (MSVC)
-    set_property(TARGET atbus_generate_protocol PROPERTY FOLDER "atframework")
+    set_property(TARGET "atbus-generate-protocol" PROPERTY FOLDER "atframework")
 endif ()
 

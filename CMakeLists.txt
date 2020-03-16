@@ -39,6 +39,11 @@ EchoWithColor(COLOR GREEN "-- Build Type: ${CMAKE_BUILD_TYPE}")
 string(TOLOWER "${CMAKE_SYSTEM_NAME}_${CMAKE_SYSTEM_PROCESSOR}" PLATFORM_BUILD_PLATFORM_NAME)
 string(TOLOWER "${CMAKE_HOST_SYSTEM_NAME}_${CMAKE_HOST_SYSTEM_PROCESSOR}" PLATFORM_BUILD_HOST_PLATFORM_NAME)
 
+unset(PROJECT_LIBATBUS_PRIVATE_COMPILE_OPTIONS)
+unset(PROJECT_LIBATBUS_PUBLIC_INCLUDE_DIRS)
+unset(PROJECT_LIBATBUS_PUBLIC_LINK_NAMES)
+unset(PROJECT_LIBATBUS_INTERFACE_LINK_NAMES)
+
 ########################################################################
 # 导入项目配置
 ## 导入所有 macro 定义
@@ -46,19 +51,6 @@ include("${CMAKE_CURRENT_LIST_DIR}/3rd_party/3rd_party.macro.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/include/include.macro.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/src/libatbus.macro.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/tools/tools.macro.cmake")
-
-
-# ================ multi thread ================
-find_package(Threads)
-if (CMAKE_USE_PTHREADS_INIT)
-    add_definitions(-D_POSIX_MT_)
-    if(NOT ANDROID)
-        list(APPEND PROJECT_LIBATBUS_INTERFACE_LINK_LIBRARIES pthread)
-    endif ()
-    if (THREADS_PREFER_PTHREAD_FLAG)
-        add_definitions(${THREADS_PREFER_PTHREAD_FLAG})
-    endif ()
-endif ()
 
 ## 导入工程项目
 if(TARGET ${3RD_PARTY_ATFRAME_UTILS_LINK_NAME})
@@ -69,23 +61,31 @@ else()
     endif ()
     add_subdirectory(${3RD_PARTY_ATFRAME_UTILS_PKG_DIR} "${CMAKE_BINARY_DIR}/deps/${3RD_PARTY_ATFRAME_UTILS_LINK_NAME}")
 endif()
+list(PREPEND PROJECT_LIBATBUS_PUBLIC_LINK_NAMES ${3RD_PARTY_ATFRAME_UTILS_LINK_NAME})
 
 if (COMPILER_STRICT_EXTRA_CFLAGS)
-    add_definitions(${COMPILER_STRICT_EXTRA_CFLAGS})
+    list(APPEND PROJECT_LIBATBUS_PRIVATE_COMPILE_OPTIONS ${COMPILER_STRICT_EXTRA_CFLAGS})
 endif ()
 
 if (COMPILER_STRICT_CFLAGS)
-    add_definitions(${COMPILER_STRICT_CFLAGS})
-
-    # TODO 先临时关闭下VC下的int类型转换warning，后面再修订
-    if (MSVC)
-        add_definitions(/wd4244 /wd4267)
-    endif ()
+    list(APPEND PROJECT_LIBATBUS_PRIVATE_COMPILE_OPTIONS ${COMPILER_STRICT_CFLAGS})
 endif ()
 
 # VS 2013的STL里会报这个warning
 if (MSVC_VERSION LESS_EQUAL 1800)
-    add_definitions(/wd4702)
+    list(APPEND PROJECT_LIBATBUS_PRIVATE_COMPILE_OPTIONS "/wd4702")
+endif ()
+
+if (WIN32)
+    list(APPEND PROJECT_LIBATBUS_INTERFACE_LINK_NAMES 
+        advapi32
+        iphlpapi
+        psapi
+        shell32
+        user32
+        userenv
+        ws2_32
+    )
 endif ()
 
 add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/src")

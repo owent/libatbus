@@ -1,5 +1,6 @@
 {
   "cmake.configureSettings": {
+    "BUILD_SHARED_LIBS": "YES",
     "PROJECT_ENABLE_UNITTEST": "YES",
     "PROJECT_ENABLE_SAMPLE": "YES",
     "PROJECT_ENABLE_TOOLS": "YES",

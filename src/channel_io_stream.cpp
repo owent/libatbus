@@ -341,7 +341,11 @@ namespace atbus {
 
             // 正在读取vint时，指定缓冲区为head内存块
             if (NULL == data || 0 == swrite) {
+#ifdef _MSC_VER
+                buf->len = static_cast<decltype(buf->len)>(sizeof(conn_raw_ptr->read_head.buffer) - conn_raw_ptr->read_head.len);
+#else
                 buf->len = sizeof(conn_raw_ptr->read_head.buffer) - conn_raw_ptr->read_head.len;
+#endif
 
                 if (0 == buf->len) {
                     // 理论上这里不会走到，因为如果必然会先收取一次header的大小，这时候已经可以解出msg的大小
@@ -357,7 +361,11 @@ namespace atbus {
 
             // 否则指定为大内存块缓冲区
             buf->base = reinterpret_cast<char *>(data);
-            buf->len  = swrite;
+#ifdef _MSC_VER
+            buf->len = static_cast<decltype(buf->len)>(swrite);
+#else
+            buf->len = swrite;
+#endif
         }
 
         static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const uv_buf_t * /*buf*/) {

@@ -192,9 +192,9 @@ namespace atbus {
         /** 清空错误计数 **/
         ATBUS_MACRO_API void clear_stat_fault();
 
-        ATBUS_MACRO_API void set_stat_ping(uint32_t p);
+        ATBUS_MACRO_API void set_stat_ping(uint64_t p);
 
-        ATBUS_MACRO_API uint32_t get_stat_ping() const;
+        ATBUS_MACRO_API uint64_t get_stat_ping() const;
 
         ATBUS_MACRO_API void set_stat_ping_delay(time_t pd, time_t pong_tm);
 
@@ -242,7 +242,7 @@ namespace atbus {
         // 统计数据
         struct stat_t {
             size_t fault_count;       // 错误容忍计数
-            uint32_t unfinished_ping; // 上一次未完成的ping的序号
+            uint64_t unfinished_ping; // 上一次未完成的ping的序号
             time_t ping_delay;
             time_t last_pong_time; // 上一次接到PONG包时间
             time_t created_time_sec;

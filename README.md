@@ -6,7 +6,7 @@ libatbus
 > Build & Run Unit Test in |  Linux+OSX(clang+gcc) | Windows+MinGW(vc+gcc) |
 > -------------------------|--------|---------|
 > Status |  [![Build Status](https://travis-ci.org/atframework/libatbus.svg?branch=master)](https://travis-ci.org/atframework/libatbus) | [![Build status](https://ci.appveyor.com/api/projects/status/v2ufe4xuwbc6gjlf/branch/master?svg=true)](https://ci.appveyor.com/project/owt5008137/libatbus-k408k/branch/master) |
-> Compilers | linux-gcc-4.4 <br /> linux-gcc-4.9 <br /> linux-gcc-9 <br /> osx-apple-clang-9.0 <br /> | MSVC 12(Visual Studio 2013) <br /> MSVC 14(Visual Studio 2015) <br /> MSVC 14+(Visual Studio 2017) <br /> Mingw32-gcc<br /> Mingw64-gcc
+> Compilers | linux-gcc-4.4 <br /> linux-gcc-4.9 <br /> linux-gcc-9 <br /> osx-apple-clang-9.0 <br /> | MSVC 12(Visual Studio 2013) <br /> MSVC 14(Visual Studio 2015) <br /> MSVC 15(Visual Studio 2017) <br /> MSVC 16(Visual Studio 2019) <br /> Mingw32-gcc<br /> Mingw64-gcc
 >
 
 [![Coverage Status](https://coveralls.io/repos/github/atframework/libatbus/badge.svg?branch=master)](https://coveralls.io/github/atframework/libatbus?branch=master)
