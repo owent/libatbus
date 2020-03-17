@@ -19,12 +19,13 @@ if ( "@CMAKE_SYSTEM@" -ne "@CMAKE_HOST_SYSTEM@" ) {
 
     Set-Location "$3RD_PARTY_PROTOBUF_HOST_BUILD_DIR"
 
-    & @3RD_PARTY_PROTOBUF_BUILD_FLAGS_CMD@ "-DCMAKE_INSTALL_PREFIX=@3RD_PARTY_PROTOBUF_HOST_ROOT_DIR@"
-
-    if (("@MSVC@".ToLower() -ne "true") -or ("@MSVC@".ToLower() -ne "yes")) {
-        & "@CMAKE_COMMAND@" --build . --target install --config Debug @3RD_PARTY_PROTOBUF_BUILD_MULTI_CORE@
+    if (!(Test-Path "@3RD_PARTY_PROTOBUF_HOST_ROOT_DIR@/bin/protoc" ) -and !(Test-Path "@3RD_PARTY_PROTOBUF_HOST_ROOT_DIR@/bin/protoc.exe" )) {
+        & @3RD_PARTY_PROTOBUF_HOST_BUILD_FLAGS_CMD@ "-DCMAKE_INSTALL_PREFIX=@3RD_PARTY_PROTOBUF_HOST_ROOT_DIR@"
+        if (("@MSVC@".ToLower() -ne "true") -or ("@MSVC@".ToLower() -ne "yes")) {
+            & "@CMAKE_COMMAND@" --build . --target install --config Debug @3RD_PARTY_PROTOBUF_BUILD_MULTI_CORE@
+        }
+        & "@CMAKE_COMMAND@" --build . --target install --config Release @3RD_PARTY_PROTOBUF_BUILD_MULTI_CORE@
     }
-    & "@CMAKE_COMMAND@" --build . --target install --config Release @3RD_PARTY_PROTOBUF_BUILD_MULTI_CORE@
 
 }
 else {
