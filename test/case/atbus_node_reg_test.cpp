@@ -4,16 +4,6 @@
 #include <iostream>
 #include <sstream>
 
-#ifdef max
-#undef max
-#endif
-
-#ifdef min
-#undef min
-#endif
-
-#include <google/protobuf/stubs/common.h>
-
 #include <atbus_node.h>
 #include <libatbus_protocol.h>
 

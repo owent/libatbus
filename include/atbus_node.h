@@ -633,7 +633,7 @@ namespace atbus {
         self_cmd_msgs_t self_cmd_msgs_;
 
         // ============ 定时器 ============
-        typedef struct {
+        struct evt_timer_t {
             time_t sec;
             time_t usec;
 
@@ -643,7 +643,7 @@ namespace atbus {
             timer_desc_ls<connection::ptr_t>::type connecting_list;  // 未完成连接（正在网络连接或握手）
             std::list<endpoint::ptr_t> pending_endpoint_gc_list;     // 待检测GC的endpoint列表
             std::list<connection::ptr_t> pending_connection_gc_list; // 待检测GC的connection列表
-        } evt_timer_t;
+        };
         evt_timer_t event_timer_;
 
         // 轮训接收通道集

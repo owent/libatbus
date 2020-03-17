@@ -89,7 +89,7 @@ namespace atbus {
         typedef ATBUS_MACRO_BUSID_TYPE bus_id_t;
         typedef std::shared_ptr<endpoint> ptr_t;
 
-        typedef struct {
+        struct flag_t {
             enum type {
                 RESETTING, /** 正在执行重置（防止递归死循环） **/
                 CONNECTION_SORTED,
@@ -101,7 +101,7 @@ namespace atbus {
                 HAS_PING_TIMER,  /** 是否设置了ping定时器 **/
                 MAX
             };
-        } flag_t;
+        };
 
         typedef connection *(endpoint::*get_connection_fn_t)(endpoint *ep) const;
 

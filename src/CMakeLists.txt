@@ -34,31 +34,6 @@ set(PROJECT_LIB_PROTOCOL_SRC_LIST
     "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/detail/libatbus_protocol.pb.cc"
 )
 
-# 关闭下VC下的int类型转换warning
-if (MSVC)
-    get_source_file_property(PROJECT_LIBATBUS_PROTOCOL_HEADER_OPTIONS "${PROJECT_LIBATBUS_ROOT_INC_DIR}/detail/libatbus_protocol.pb.h" COMPILE_OPTIONS)
-    get_source_file_property(PROJECT_LIBATBUS_PROTOCOL_SOURCE_OPTIONS "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/detail/libatbus_protocol.pb.cc" COMPILE_OPTIONS)
-    if (PROJECT_LIBATBUS_PROTOCOL_HEADER_OPTIONS)
-        set(PROJECT_LIBATBUS_PROTOCOL_HEADER_OPTIONS "${PROJECT_LIBATBUS_PROTOCOL_HEADER_OPTIONS};/wd4244")
-    else ()
-        set(PROJECT_LIBATBUS_PROTOCOL_HEADER_OPTIONS "/wd4244")
-    endif()
-    if (PROJECT_LIBATBUS_PROTOCOL_SOURCE_OPTIONS)
-        set(PROJECT_LIBATBUS_PROTOCOL_SOURCE_OPTIONS "${PROJECT_LIBATBUS_PROTOCOL_SOURCE_OPTIONS};/wd4244")
-    else ()
-        set(PROJECT_LIBATBUS_PROTOCOL_SOURCE_OPTIONS "/wd4244")
-    endif()
-    set_source_files_properties("${PROJECT_LIBATBUS_ROOT_INC_DIR}/detail/libatbus_protocol.pb.h"
-        PROPERTIES COMPILE_OPTIONS ${PROJECT_LIBATBUS_PROTOCOL_HEADER_OPTIONS}
-    )
-    set_source_files_properties("${PROJECT_LIBATBUS_ROOT_SRC_DIR}/detail/libatbus_protocol.pb.cc"
-        PROPERTIES COMPILE_OPTIONS ${PROJECT_LIBATBUS_PROTOCOL_SOURCE_OPTIONS}
-    )
-    # list(APPEND PROJECT_LIBATBUS_PRIVATE_COMPILE_OPTIONS "/wd4244") # "/wd4267"
-    unset(PROJECT_LIBATBUS_PROTOCOL_HEADER_OPTIONS)
-    unset(PROJECT_LIBATBUS_PROTOCOL_SOURCE_OPTIONS)
-endif ()
-
 set_source_files_properties(
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/detail/libatbus_protocol.pb.h"
     "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/detail/libatbus_protocol.pb.cc"
@@ -68,24 +43,31 @@ list(REMOVE_DUPLICATES PROJECT_LIB_SRC_LIST)
 source_group_by_dir(PROJECT_LIB_SRC_LIST)
 
 # ============ libatbus - src ============
-if(BUILD_SHARED_LIBS)
-    add_library("${PROJECT_LIBATBUS_LIB_LINK}-protocol" STATIC ${PROJECT_LIB_PROTOCOL_SRC_LIST})
-    set_target_properties("${PROJECT_LIBATBUS_LIB_LINK}-protocol" PROPERTIES 
-        C_VISIBILITY_PRESET "default"
-        CXX_VISIBILITY_PRESET "default"
-        WINDOWS_EXPORT_ALL_SYMBOLS TRUE
-    )
-    target_link_libraries("${PROJECT_LIBATBUS_LIB_LINK}-protocol"
-        PUBLIC ${3RD_PARTY_PROTOBUF_LINK_NAME}
-    )
-    target_include_directories("${PROJECT_LIBATBUS_LIB_LINK}-protocol"
-        PRIVATE 
-            "$<BUILD_INTERFACE:${PROJECT_LIBATBUS_ROOT_INC_DIR}/detail>"
-    )
-    target_compile_options("${PROJECT_LIBATBUS_LIB_LINK}-protocol" PRIVATE ${PROJECT_LIBATBUS_PRIVATE_COMPILE_OPTIONS})
-    add_dependencies("${PROJECT_LIBATBUS_LIB_LINK}-protocol" "atbus-generate-protocol")
-    list(PREPEND PROJECT_LIBATBUS_PUBLIC_LINK_NAMES "${PROJECT_LIBATBUS_LIB_LINK}-protocol")
-    
+add_library("${PROJECT_LIBATBUS_LIB_LINK}-protocol" STATIC ${PROJECT_LIB_PROTOCOL_SRC_LIST})
+set_target_properties("${PROJECT_LIBATBUS_LIB_LINK}-protocol" PROPERTIES 
+    C_VISIBILITY_PRESET "default"
+    CXX_VISIBILITY_PRESET "default"
+    WINDOWS_EXPORT_ALL_SYMBOLS TRUE
+)
+target_link_libraries("${PROJECT_LIBATBUS_LIB_LINK}-protocol"
+    PUBLIC ${3RD_PARTY_PROTOBUF_LINK_NAME}
+)
+target_include_directories("${PROJECT_LIBATBUS_LIB_LINK}-protocol"
+    PRIVATE  "$<BUILD_INTERFACE:${PROJECT_LIBATBUS_ROOT_INC_DIR}/detail>"
+)
+target_compile_options("${PROJECT_LIBATBUS_LIB_LINK}-protocol" PRIVATE ${PROJECT_LIBATBUS_PRIVATE_COMPILE_OPTIONS})
+if (MSVC)
+    set (PROJECT_LIBATBUS_PROTOCOL_COMPILE_OPTIONS "/wd4244")
+    if (MSVC_VERSION GREATER_EQUAL 1922)
+        # see https://docs.microsoft.com/en-us/cpp/overview/cpp-conformance-improvements?view=vs-2019#improvements_162 for detail
+        list(APPEND PROJECT_LIBATBUS_PROTOCOL_COMPILE_OPTIONS "/wd5054")
+    endif ()
+    target_compile_options("${PROJECT_LIBATBUS_LIB_LINK}-protocol" PRIVATE ${PROJECT_LIBATBUS_PROTOCOL_COMPILE_OPTIONS})
+endif ()
+add_dependencies("${PROJECT_LIBATBUS_LIB_LINK}-protocol" "atbus-generate-protocol")
+list(PREPEND PROJECT_LIBATBUS_PUBLIC_LINK_NAMES "${PROJECT_LIBATBUS_LIB_LINK}-protocol")
+
+if(BUILD_SHARED_LIBS)   
     add_library(${PROJECT_LIBATBUS_LIB_LINK} SHARED ${PROJECT_LIB_SRC_LIST})
     set_target_properties(${PROJECT_LIBATBUS_LIB_LINK} PROPERTIES 
         C_VISIBILITY_PRESET "hidden"
@@ -96,7 +78,7 @@ if(BUILD_SHARED_LIBS)
     )
     set_target_properties(${PROJECT_LIBATBUS_LIB_LINK} PROPERTIES INTERFACE_COMPILE_DEFINITIONS ATBUS_MACRO_API_DLL=1)
 else ()
-    add_library(${PROJECT_LIBATBUS_LIB_LINK} STATIC ${PROJECT_LIB_SRC_LIST} ${PROJECT_LIB_PROTOCOL_SRC_LIST})
+    add_library(${PROJECT_LIBATBUS_LIB_LINK} STATIC ${PROJECT_LIB_SRC_LIST})
     set_target_properties(${PROJECT_LIBATBUS_LIB_LINK} PROPERTIES 
         C_VISIBILITY_PRESET "hidden"
         CXX_VISIBILITY_PRESET "hidden"
@@ -135,15 +117,9 @@ endif ()
 
 if (MSVC)
     set_property(TARGET ${PROJECT_LIBATBUS_LIB_LINK} PROPERTY FOLDER "atframework")
+    set_property(TARGET "${PROJECT_LIBATBUS_LIB_LINK}-protocol" PROPERTY FOLDER "atframework")
 endif ()
-set(PROJECT_LIBATBUS_EXPORT_TARGETS ${PROJECT_LIBATBUS_LIB_LINK})
-
-if (TARGET "${PROJECT_LIBATBUS_LIB_LINK}-protocol")
-    if (MSVC)
-        set_property(TARGET "${PROJECT_LIBATBUS_LIB_LINK}-protocol" PROPERTY FOLDER "atframework")
-    endif ()
-    list(APPEND PROJECT_LIBATBUS_EXPORT_TARGETS "${PROJECT_LIBATBUS_LIB_LINK}-protocol")
-endif()
+set(PROJECT_LIBATBUS_EXPORT_TARGETS ${PROJECT_LIBATBUS_LIB_LINK} "${PROJECT_LIBATBUS_LIB_LINK}-protocol")
 
 install(TARGETS ${PROJECT_LIBATBUS_EXPORT_TARGETS}
     EXPORT ${PROJECT_LIBATBUS_EXPORT_NAME}

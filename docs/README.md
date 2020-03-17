@@ -46,7 +46,7 @@
 
 ```cpp
 // 通道头
-typedef struct {
+struct mem_channel {
     // 数据节点
     size_t node_size;  /** 每个节点的size **/
     size_t node_size_bin_power; // (用于优化算法) node_size = 1 << node_size_bin_power
@@ -74,17 +74,17 @@ typedef struct {
     size_t block_bad_count; 	// 读取到坏块次数
     size_t block_timeout_count; // 读取到写入超时块次数
     size_t node_bad_count; 		// 读取到坏node次数
-} mem_channel;
+};
 
 // 配置数据结构
-typedef struct {
+struct mem_conf {
     size_t protect_node_count;	/** 保护节点个数：用于降低冲突概率 **/
     size_t protect_memory_size;	/** 保护内存大小：用于降低冲突概率 **/
     uint64_t conf_send_timeout_ms;	/** 发送超时阀值：用于降低冲突概率 **/
 
     // TODO 接收端校验号(用于保证只有一个接收者)
     volatile std::atomic<size_t> atomic_receiver_identify;
-} mem_conf;
+};
 ```
 
 **写数据步骤：**
@@ -162,7 +162,7 @@ struct sock_status_t {
 };
 
 // Sock通道头
-typedef struct {
+struct io_stream_channel {
     std::string host;           // 主机地址
     uint16_t    port;           // 端口
     int         fd;             // socket设备描述符/HANDLE
@@ -181,7 +181,7 @@ typedef struct {
     size_t block_bad_count; 	// 读取到坏块次数
     size_t block_timeout_count; // 读取到写入超时块次数
     size_t node_bad_count; 		// 读取到坏node次数
-} io_stream_channel;
+};
 ```
 
 ### 数据节点

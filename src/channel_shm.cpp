@@ -73,24 +73,24 @@ namespace atbus {
         } shm_conf_cswitcher;
 
 #ifdef WIN32
-        typedef struct {
+        struct shm_mapped_handle_info {
             HANDLE handle;
             LPCTSTR buffer;
             size_t size;
-        } shm_mapped_handle_info;
+        };
 #else
-        typedef struct {
+        struct shm_mapped_handle_info {
             int shm_id;
             int shm_fd;
             std::string shm_path;
             void *buffer;
             size_t size;
-        } shm_mapped_handle_info;
+        };
 #endif
-        typedef struct {
+        struct shm_mapped_record_type {
             shm_mapped_handle_info handle;
             util::lock::atomic_int_type<size_t> reference_count;
-        } shm_mapped_record_type;
+        };
 
         typedef ATBUS_ADVANCE_TYPE_MAP(std::string, std::shared_ptr<shm_mapped_record_type>) shm_mapped_by_key_t;
         static shm_mapped_by_key_t shm_mapped_by_key_records;

@@ -52,7 +52,7 @@ namespace atbus {
         typedef std::shared_ptr<connection> ptr_t;
 
         /** 并没有非常复杂的状态切换，所以没有引入状态机 **/
-        typedef struct {
+        struct state_t {
             enum type {
                 DISCONNECTED = 0, /** 未连接 **/
                 CONNECTING,       /** 正在连接 **/
@@ -60,9 +60,9 @@ namespace atbus {
                 CONNECTED,        /** 已连接 **/
                 DISCONNECTING,    /** 正在断开连接 **/
             };
-        } state_t;
+        };
 
-        typedef struct {
+        struct flag_t {
             enum type {
                 REG_PROC = 0,      /** 注册了proc记录到node，清理的时候需要移除 **/
                 REG_FD,            /** 关联了fd到node或endpoint，清理的时候需要移除 **/
@@ -73,7 +73,7 @@ namespace atbus {
                 LISTEN_FD,         /** 是否是用于listen的连接 **/
                 MAX
             };
-        } flag_t;
+        };
 
         struct stat_t {
             size_t push_start_times;
@@ -235,25 +235,25 @@ namespace atbus {
         endpoint *binding_;
         std::weak_ptr<connection> watcher_;
 
-        typedef struct {
+        struct conn_data_mem {
             channel::mem_channel *channel;
             void *buffer;
             size_t len;
-        } conn_data_mem;
+        };
 
 #ifdef ATBUS_CHANNEL_SHM
-        typedef struct {
+        struct conn_data_shm {
             channel::shm_channel *channel;
             size_t len;
-        } conn_data_shm;
+        } ;
 #endif
 
-        typedef struct {
+        struct conn_data_ios {
             channel::io_stream_channel *channel;
             channel::io_stream_connection *conn;
-        } conn_data_ios;
+        };
 
-        typedef struct {
+        struct connection_data_t {
             typedef union {
                 conn_data_mem mem;
 #ifdef ATBUS_CHANNEL_SHM
@@ -269,7 +269,7 @@ namespace atbus {
             proc_fn_t proc_fn;
             free_fn_t free_fn;
             push_fn_t push_fn;
-        } connection_data_t;
+        };
         connection_data_t conn_data_;
         stat_t stat_;
 

@@ -140,10 +140,10 @@ namespace atbus {
 #endif
 
         // 对齐头
-        typedef struct {
+        struct mem_channel_head_align {
             mem_channel channel;
             char align[4 * 1024 - sizeof(mem_channel)]; // 对齐到4KB,用于以后拓展
-        } mem_channel_head_align;
+        };
 
 
         /**
@@ -151,16 +151,16 @@ namespace atbus {
          * @note 暂时忽略伪共享造成的cache line失效问题。否则head的内存浪费太大了
          * @see https://en.wikipedia.org/wiki/False_sharing
          */
-        typedef struct {
+        struct mem_node_head {
             uint32_t flag;
             uint32_t operation_seq;
-        } mem_node_head;
+        };
 
         // 数据头
-        typedef struct {
+        struct mem_block_head {
             size_t buffer_size;
             uint64_t fast_check;
-        } mem_block_head;
+        };
 
 
         typedef enum {
