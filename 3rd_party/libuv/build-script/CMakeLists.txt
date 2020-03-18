@@ -275,7 +275,7 @@ install(TARGETS libuv
 export(TARGETS libuv
     FILE "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake/libuv-target.cmake"
     NAMESPACE libuv::
-    EXPORT_LINK_INTERFACE_LIBRARIES
+    # EXPORT_LINK_INTERFACE_LIBRARIES
 )
 
 install(
