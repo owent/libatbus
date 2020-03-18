@@ -14,7 +14,8 @@ CHANGELOG
 6. 连接层面也增加错误计数，如果超出容忍值直接断开连接
 7. 支持字符串路径的共享内存(使用: ```shm_open/ftruncate/mmap/munmap/shm_unlink/close/fstat``` 来管理)，支持字符串命名的共享内存(长度限定为NAME_MAX(255))
 8. 增加大量错误流程的单元测试
-9. 优化工程脚本，逐步使用Modern CMake规范
+9. 优化工程脚本，逐步使用Modern CMake规范管理依赖链。
+10. 增加对符号隐藏、符号导出和Windows下dll的支持。现在GCC/Clang/MSVC使用相同的符号可见性和导出规则。
 
 1.1.0
 ------------
