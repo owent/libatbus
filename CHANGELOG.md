@@ -8,13 +8,14 @@ CHANGELOG
 
 1. 移除对msgpack的依赖，使用protobuf作为内部交互协议
 2. 增加access_token的支持，防止误操作
-3. 增加children_prefix功能，可以支持自身node的id不在自己管理的子节点集合中
+3. 增加subnet功能，可以支持自身node的id不在自己管理的子节点集合中
 4. 重构父节点范围管理的结构，现在更清晰易懂一些
 5. 增加（共享）内存通道的版本号功能，增加协议版本号功能，用于跨版本兼容性检查
 6. 连接层面也增加错误计数，如果超出容忍值直接断开连接
 7. 支持字符串路径的共享内存(使用: ```shm_open/ftruncate/mmap/munmap/shm_unlink/close/fstat``` 来管理)，支持字符串命名的共享内存(长度限定为NAME_MAX(255))
 8. 增加大量错误流程的单元测试
-9. 优化工程脚本，逐步使用Modern CMake规范
+9. 优化工程脚本，逐步使用Modern CMake规范管理依赖链。
+10. 增加对符号隐藏、符号导出和Windows下dll的支持。现在GCC/Clang/MSVC使用相同的符号可见性和导出规则。
 
 1.1.0
 ------------
