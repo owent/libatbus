@@ -32,6 +32,8 @@ namespace atbus {
 
         static ATBUS_MACRO_API int dispatch_msg(node &n, connection *conn, ::atbus::protocol::msg ATBUS_MACRO_RVALUE_REFERENCES, int status, int errcode);
 
+        static ATBUS_MACRO_API const char* get_body_name(int body_case);
+
         static ATBUS_MACRO_API int send_ping(node &n, connection &conn, uint64_t seq);
 
         static ATBUS_MACRO_API int send_reg(int32_t msg_id, node &n, connection &conn, int32_t ret_code, uint64_t seq);

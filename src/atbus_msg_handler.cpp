@@ -106,6 +106,31 @@ namespace atbus {
         return fns[m.msg_body_case()](n, conn, ATBUS_MACRO_MOVE(m), status, errcode);
     }
 
+    ATBUS_MACRO_API const char* msg_handler::get_body_name(int body_case) {
+        static std::string atbus_fn_names[ATBUS_PROTOCOL_MSG_BODY_MAX + 1];
+        if (atbus_fn_names[0].empty()) {
+            atbus_fn_names[0] = "Unknown";
+            const ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Descriptor* msg_desc = atbus::protocol::msg::descriptor();
+            for (int i = 0; i < msg_desc->field_count(); ++ i) {
+                const ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::FieldDescriptor* fds = msg_desc->field(i);
+                assert(fds->number() <= ATBUS_PROTOCOL_MSG_BODY_MAX);
+                assert(fds->number() >= ATBUS_PROTOCOL_MSG_BODY_MIN);
+                atbus_fn_names[fds->number()] = fds->full_name();
+            }
+        }
+
+        const char* ret = NULL;
+        if (body_case <= ATBUS_PROTOCOL_MSG_BODY_MAX && body_case >= ATBUS_PROTOCOL_MSG_BODY_MIN) {
+            ret = atbus_fn_names[body_case].c_str();
+        }
+
+        if (NULL == ret || !*ret) {
+            ret = atbus_fn_names[0].c_str();
+        }
+
+        return ret;
+    }
+
     ATBUS_MACRO_API int msg_handler::send_ping(node &n, connection &conn, uint64_t msg_seq) {
         ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
         arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
