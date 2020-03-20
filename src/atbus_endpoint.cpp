@@ -29,6 +29,32 @@ namespace atbus {
         min_id_ = max_id_ - ((1<< mask_bits_) - 1);
     }
 
+    ATBUS_MACRO_API bool endpoint_subnet_range::operator==(const endpoint_subnet_range& other) const {
+        return max_id_ == other.max_id_ && min_id_ == other.min_id_;
+    }
+
+#ifdef __cpp_impl_three_way_comparison
+    ATBUS_MACRO_API std::strong_ordering endpoint_subnet_range::operator<=>(const endpoint_subnet_range& other) const {
+        if (max_id_ != other.max_id_) {
+            if (max_id_ < other.max_id_) {
+                return std::strong_ordering::less;
+            }
+
+            return std::strong_ordering::greater;
+        }
+
+        if (min_id_ != other.min_id_) {
+            if (min_id_ > other.min_id_) {
+                return std::strong_ordering::less;
+            }
+
+            return std::strong_ordering::greater;
+        }
+
+        return std::strong_ordering::equal;
+    }
+#else
+
     ATBUS_MACRO_API bool endpoint_subnet_range::operator<(const endpoint_subnet_range& other) const {
         if (max_id_ != other.max_id_) {
             return max_id_ < other.max_id_;
@@ -61,13 +87,11 @@ namespace atbus {
         return min_id_ <= other.min_id_;
     }
 
-    ATBUS_MACRO_API bool endpoint_subnet_range::operator==(const endpoint_subnet_range& other) const {
-        return max_id_ == other.max_id_ && min_id_ == other.min_id_;
-    }
-
     ATBUS_MACRO_API bool endpoint_subnet_range::operator!=(const endpoint_subnet_range& other) const {
         return max_id_ != other.max_id_ || min_id_ != other.min_id_;
     }
+
+#endif
 
     ATBUS_MACRO_API bool endpoint_subnet_range::contain(const endpoint_subnet_range& other) const {
         return max_id_ >= other.max_id_ && min_id_ <= other.min_id_;

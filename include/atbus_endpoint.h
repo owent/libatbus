@@ -15,6 +15,10 @@
 #include <list>
 #include <vector>
 
+#ifdef __cpp_impl_three_way_comparison
+#include <compare>
+#endif
+
 #ifdef _MSC_VER
 #include <WinSock2.h>
 #endif
@@ -58,12 +62,17 @@ namespace atbus {
         endpoint_subnet_range();
         endpoint_subnet_range(ATBUS_MACRO_BUSID_TYPE a, uint32_t b);
 
+        bool operator==(const endpoint_subnet_range& other) const;
+#ifdef __cpp_impl_three_way_comparison
+        std::strong_ordering operator<=>(const endpoint_subnet_range& other) const;
+#else
+
         bool operator<(const endpoint_subnet_range& other) const;
         bool operator<=(const endpoint_subnet_range& other) const;
         bool operator>(const endpoint_subnet_range& other) const;
         bool operator>=(const endpoint_subnet_range& other) const;
-        bool operator==(const endpoint_subnet_range& other) const;
         bool operator!=(const endpoint_subnet_range& other) const;
+#endif
 
         inline ATBUS_MACRO_BUSID_TYPE get_id_prefix() const { return id_prefix_; }
         inline uint32_t get_mask_bits() const { return mask_bits_; }
