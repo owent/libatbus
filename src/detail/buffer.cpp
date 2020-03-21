@@ -12,7 +12,13 @@
 
 #if (defined(__cplusplus) && __cplusplus >= 201103L) || (defined(_MSC_VER) && _MSC_VER >= 1900)
 #include <type_traits>
-static_assert(std::is_trivial<atbus::detail::buffer_block>::value, "buffer_block must be a POD type");
+#if (defined(__cplusplus) && __cplusplus >= 201402L) || ((defined(_MSVC_LANG) && _MSVC_LANG >= 201402L))
+    static_assert(std::is_trivially_copyable<atbus::detail::buffer_block>::value, "buffer_block must be trivially copyable");
+#elif (defined(__cplusplus) && __cplusplus >= 201103L) || ((defined(_MSVC_LANG) && _MSVC_LANG >= 201103L))
+    static_assert(std::is_trivial<atbus::detail::buffer_block>::value, "buffer_block must be trivially");
+#else
+    static_assert(std::is_pod<atbus::detail::buffer_block>::value, "buffer_block must be a POD type");
+#endif
 #endif
 
 namespace atbus {

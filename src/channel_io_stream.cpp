@@ -109,7 +109,13 @@ namespace atbus {
     namespace channel {
 
 #ifdef ATBUS_MACRO_ENABLE_STATIC_ASSERT
-        static_assert(std::is_trivial<io_stream_conf>::value, "io_stream_conf should be a pod type");
+    #if (defined(__cplusplus) && __cplusplus >= 201402L) || ((defined(_MSVC_LANG) && _MSVC_LANG >= 201402L))
+        static_assert(std::is_trivially_copyable<io_stream_conf>::value, "io_stream_conf should be trivially copyable");
+    #elif (defined(__cplusplus) && __cplusplus >= 201103L) || ((defined(_MSVC_LANG) && _MSVC_LANG >= 201103L))
+        static_assert(std::is_trivial<io_stream_conf>::value, "io_stream_conf should be trivially");
+    #else
+        static_assert(std::is_pod<io_stream_conf>::value, "io_stream_conf should be a pod type");
+    #endif
         static_assert(io_stream_channel::EN_CF_MAX <= sizeof(int) * 8,
                       "io_stream_channel::flag_t should has no more bits than io_stream_channel::flags");
 #endif
