@@ -12,7 +12,7 @@
 
 #if (defined(__cplusplus) && __cplusplus >= 201103L) || (defined(_MSC_VER) && _MSC_VER >= 1900)
 #include <type_traits>
-static_assert(std::is_pod<atbus::detail::buffer_block>::value, "buffer_block must be a POD type");
+static_assert(std::is_trivial<atbus::detail::buffer_block>::value, "buffer_block must be a POD type");
 #endif
 
 namespace atbus {

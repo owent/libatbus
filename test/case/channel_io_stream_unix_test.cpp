@@ -13,7 +13,40 @@
 #include "frame/test_macros.h"
 #include <detail/libatbus_error.h>
 
+#include <common/file_system.h>
+
+struct channel_ios_unix_addr_holder {
+    std::string file_path;
+    channel_ios_unix_addr_holder() {
+
 #ifndef _WIN32
+    std::string res;
+    util::file_system::generate_tmp_file_name(res);
+    if (res.empty()) {
+        file_path = "unix:///tmp/atbut-unit-test-ios-unix.sock";
+    } else {
+        file_path = "unix://";
+        file_path = file_path + res;
+    }
+#else
+        file_path = "unix://\\\\.\\pipe\\unit_test.sock";
+#endif
+
+    }
+    ~channel_ios_unix_addr_holder() {
+#ifndef _WIN32
+        if (util::file_system::is_exist(file_path.c_str())) {
+            util::file_system::remove(file_path.c_str());
+        }
+#endif
+    }
+};
+
+
+
+#ifndef _WIN32
+
+channel_ios_unix_addr_holder g_channel_ios_unix_test_path;
 
 static const size_t MAX_TEST_BUFFER_LEN     = ATBUS_MACRO_MSG_LIMIT * 4;
 static int g_check_flag                     = 0;
@@ -21,10 +54,8 @@ static std::pair<size_t, size_t> g_recv_rec = std::make_pair(0, 0);
 static std::list<std::pair<size_t, size_t> > g_check_buff_sequence;
 
 #ifdef _WIN32
-#define UNIT_TEST_LISTEN_ADDR "unix://\\\\.\\pipe\\unit_test.sock"
 #define UNIT_TEST_INVALID_ADDR "unix://\\\\.\\pipe\\unit_test.invalid.sock"
 #else
-#define UNIT_TEST_LISTEN_ADDR "unix://unit_test.sock"
 #define UNIT_TEST_INVALID_ADDR "unix://unit_test.invalid.sock"
 #endif
 
@@ -190,13 +221,13 @@ CASE_TEST(channel, io_stream_unix_basic) {
 
     g_check_flag = 0;
 
-    setup_channel(svr, UNIT_TEST_LISTEN_ADDR, NULL);
+    setup_channel(svr, g_channel_ios_unix_test_path.file_path.c_str(), NULL);
     CASE_EXPECT_EQ(1, g_check_flag);
     CASE_EXPECT_NE(NULL, svr.ev_loop);
 
-    setup_channel(cli, NULL, UNIT_TEST_LISTEN_ADDR);
-    setup_channel(cli, NULL, UNIT_TEST_LISTEN_ADDR);
-    setup_channel(cli, NULL, UNIT_TEST_LISTEN_ADDR);
+    setup_channel(cli, NULL, g_channel_ios_unix_test_path.file_path.c_str());
+    setup_channel(cli, NULL, g_channel_ios_unix_test_path.file_path.c_str());
+    setup_channel(cli, NULL, g_channel_ios_unix_test_path.file_path.c_str());
 
     int check_flag = g_check_flag;
     while (g_check_flag - check_flag < 6) {
@@ -229,7 +260,7 @@ CASE_TEST(channel, io_stream_unix_basic) {
         check_flag                                                  = g_check_flag;
         atbus::channel::io_stream_channel::conn_pool_t::iterator it = svr.conn_pool.begin();
         // 跳过listen的socket
-        if (it->second->addr.address == UNIT_TEST_LISTEN_ADDR) {
+        if (it->second->addr.address == g_channel_ios_unix_test_path.file_path) {
             ++it;
         }
 
@@ -272,13 +303,13 @@ CASE_TEST(channel, io_stream_unix_reset_by_client) {
 
     int check_flag = g_check_flag = 0;
 
-    setup_channel(svr, UNIT_TEST_LISTEN_ADDR, NULL);
+    setup_channel(svr, g_channel_ios_unix_test_path.file_path.c_str(), NULL);
     CASE_EXPECT_EQ(1, g_check_flag);
     CASE_EXPECT_NE(NULL, svr.ev_loop);
 
-    setup_channel(cli, NULL, UNIT_TEST_LISTEN_ADDR);
-    setup_channel(cli, NULL, UNIT_TEST_LISTEN_ADDR);
-    setup_channel(cli, NULL, UNIT_TEST_LISTEN_ADDR);
+    setup_channel(cli, NULL, g_channel_ios_unix_test_path.file_path.c_str());
+    setup_channel(cli, NULL, g_channel_ios_unix_test_path.file_path.c_str());
+    setup_channel(cli, NULL, g_channel_ios_unix_test_path.file_path.c_str());
 
     while (g_check_flag - check_flag < 7) {
         atbus::channel::io_stream_run(&svr, atbus::adapter::RUN_NOWAIT);
@@ -311,13 +342,13 @@ CASE_TEST(channel, io_stream_unix_reset_by_server) {
 
     int check_flag = g_check_flag = 0;
 
-    setup_channel(svr, UNIT_TEST_LISTEN_ADDR, NULL);
+    setup_channel(svr, g_channel_ios_unix_test_path.file_path.c_str(), NULL);
     CASE_EXPECT_EQ(1, g_check_flag);
     CASE_EXPECT_NE(NULL, svr.ev_loop);
 
-    setup_channel(cli, NULL, UNIT_TEST_LISTEN_ADDR);
-    setup_channel(cli, NULL, UNIT_TEST_LISTEN_ADDR);
-    setup_channel(cli, NULL, UNIT_TEST_LISTEN_ADDR);
+    setup_channel(cli, NULL, g_channel_ios_unix_test_path.file_path.c_str());
+    setup_channel(cli, NULL, g_channel_ios_unix_test_path.file_path.c_str());
+    setup_channel(cli, NULL, g_channel_ios_unix_test_path.file_path.c_str());
 
     while (g_check_flag - check_flag < 7) {
         atbus::channel::io_stream_run(&svr, atbus::adapter::RUN_NOWAIT);
@@ -381,11 +412,11 @@ CASE_TEST(channel, io_stream_unix_size_extended) {
 
     int check_flag = g_check_flag = 0;
 
-    setup_channel(svr, UNIT_TEST_LISTEN_ADDR, NULL);
+    setup_channel(svr, g_channel_ios_unix_test_path.file_path.c_str(), NULL);
     CASE_EXPECT_EQ(1, g_check_flag);
     CASE_EXPECT_NE(NULL, svr.ev_loop);
 
-    setup_channel(cli, NULL, UNIT_TEST_LISTEN_ADDR);
+    setup_channel(cli, NULL, g_channel_ios_unix_test_path.file_path.c_str());
 
     while (g_check_flag - check_flag < 3) {
         atbus::channel::io_stream_run(&svr, atbus::adapter::RUN_NOWAIT);

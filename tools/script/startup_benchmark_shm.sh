@@ -4,11 +4,11 @@ ADDRESS=12345679 ;
 UNIT_SIZE=1024 ;
 SHM_SIZE=16777216 ; # 16MB
 
-if [ $# -gt 1 ]; then
+if [ $# -ge 1 ]; then
     ADDRESS="$1";
 fi
 
-if [ $# -gt 2 ]; then
+if [ $# -ge 2 ]; then
     UNIT_SIZE=$2 ;
 fi
 

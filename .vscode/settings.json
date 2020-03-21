@@ -118,7 +118,8 @@
     "xloctime": "cpp",
     "xstddef": "cpp",
     "xtr1common": "cpp",
-    "xtree": "cpp"
+    "xtree": "cpp",
+    "compare": "cpp"
   },
   "C_Cpp.default.configurationProvider": "vector-of-bool.cmake-tools"
 }

@@ -109,7 +109,7 @@ namespace atbus {
     namespace channel {
 
 #ifdef ATBUS_MACRO_ENABLE_STATIC_ASSERT
-        static_assert(std::is_pod<io_stream_conf>::value, "io_stream_conf should be a pod type");
+        static_assert(std::is_trivial<io_stream_conf>::value, "io_stream_conf should be a pod type");
         static_assert(io_stream_channel::EN_CF_MAX <= sizeof(int) * 8,
                       "io_stream_channel::flag_t should has no more bits than io_stream_channel::flags");
 #endif
@@ -1126,7 +1126,9 @@ namespace atbus {
                 std::shared_ptr<adapter::stream_t> listen_conn;
                 std::shared_ptr<io_stream_connection> conn;
                 adapter::pipe_t *handle = io_stream_make_stream_ptr<adapter::pipe_t>(listen_conn);
-                uv_pipe_init(ev_loop, handle, 1);
+                // Only a connected pipe that will be passing the handles should have this flag set, not the listening pipe that uv_accept is called on.
+                // @see http://docs.libuv.org/en/v1.x/pipe.html
+                uv_pipe_init(ev_loop, handle, 0);
                 int ret = EN_ATBUS_ERR_SUCCESS;
                 do {
                     if (0 != (channel->error_code = uv_pipe_bind(handle, addr.host.c_str()))) {
