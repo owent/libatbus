@@ -79,7 +79,7 @@ if (NOT 3RD_PARTY_PROTOBUF_BIN_PROTOC OR (NOT 3RD_PARTY_PROTOBUF_LINK_NAME AND N
             if ( CMAKE_CXX_COMPILER_VERSION VERSION_LESS "5.0")
                 set (3RD_PARTY_PROTOBUF_VERSION "3.5.1")
             endif()
-        elseif( ${CMAKE_CXX_COMPILER_ID} STREQUAL "MSVC")
+        elseif(MSVC)
             if ( MSVC_VERSION LESS 1900)
                 set (3RD_PARTY_PROTOBUF_VERSION "3.5.1")
             endif()
