@@ -20,7 +20,7 @@ else()
             OUTPUT_STRIP_TRAILING_WHITESPACE
         )
         string(REGEX MATCH "^http(s?):" PROJECT_GIT_REMOTE_ORIGIN_USE_SSH "${PROJECT_GIT_REMOTE_ORIGIN_URL}")
-        if (PROJECT_GIT_REMOTE_ORIGIN_USE_SSH)
+        if (PROJECT_GIT_REMOTE_ORIGIN_USE_SSH AND NOT PROJECT_GIT_CLONE_REMOTE_ORIGIN_DISABLE_SSH)
             execute_process(COMMAND ${GIT_EXECUTABLE} clone --depth=100 -b master "git@github.com:atframework/atframe_utils.git" ${3RD_PARTY_ATFRAME_UTILS_PKG_DIR}
                 WORKING_DIRECTORY ${3RD_PARTY_ATFRAME_UTILS_BASE_DIR}
             )

@@ -23,6 +23,7 @@ set(ATBUS_MACRO_IOS_SEND_BUFFER_LENGTH 2097152 CACHE STRING "send buffer size fo
 option(ATBUS_MACRO_ABORT_ON_PROTECTED_ERROR "abort when any inner error found." OFF)
 
 option(PROJECT_RESET_DENPEND_REPOSITORIES "Reset depended repositories if it's already exists." OFF)
+option(PROJECT_GIT_CLONE_REMOTE_ORIGIN_DISABLE_SSH "Do not try to use ssh url when clone dependency." OFF)
 
 # libuv选项
 set(LIBUV_ROOT "" CACHE STRING "libuv root directory")
