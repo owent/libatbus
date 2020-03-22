@@ -214,7 +214,11 @@ test_script:
 
       } else {
 
-          & ctest . -V -C $Env:CONFIGURATION
+          if (!( Test-Path Env:BUILD_SHARED_LIBS )) {
+
+            & ctest . -V -C $Env:CONFIGURATION
+
+          }
 
       }
 
