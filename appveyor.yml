@@ -10,6 +10,7 @@
 environment:
   global:
     PREBUILT_ROOT: C:/Users/appveyor/prebuilt
+    PKG_SRC_ROOT: C:/Users/appveyor/pkg_src
     MSYS2_PREFIX: C:/tools/msys64
     MSYS2_LOG_FILE: C:/Users/appveyor/pkg_src/output.log
   matrix:
@@ -19,7 +20,7 @@ environment:
       BUILD_SHARED_LIBS: "ON"
     - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
       platform: x64
-      CMAKE_GEN: Visual Studio 2019
+      CMAKE_GEN: Visual Studio 16 2019
     - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
       platform: x64
       CMAKE_GEN: Visual Studio 15 2017 Win64
@@ -60,6 +61,12 @@ init:
       if ( -not ( Test-Path "$Env:MSYS2_PREFIX" ) ) {
 
           mkdir "$Env:MSYS2_PREFIX"
+
+      }
+
+      if ( -not ( Test-Path "$Env:PKG_SRC_ROOT" ) ) {
+
+          mkdir "$Env:PKG_SRC_ROOT"
 
       }
 
