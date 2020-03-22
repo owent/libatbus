@@ -69,15 +69,15 @@ if (NOT 3RD_PARTY_PROTOBUF_BIN_PROTOC OR (NOT 3RD_PARTY_PROTOBUF_LINK_NAME AND N
 
         if( ${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
             if ( CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.7.0")
-                set (3RD_PARTY_PROTOBUF_VERSION "3.5.2")
+                set (3RD_PARTY_PROTOBUF_VERSION "3.5.1")
             endif()
         elseif( ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang")
             if ( CMAKE_CXX_COMPILER_VERSION VERSION_LESS "3.3")
-                set (3RD_PARTY_PROTOBUF_VERSION "3.5.2")
+                set (3RD_PARTY_PROTOBUF_VERSION "3.5.1")
             endif()
         elseif( ${CMAKE_CXX_COMPILER_ID} STREQUAL "AppleClang")
             if ( CMAKE_CXX_COMPILER_VERSION VERSION_LESS "5.0")
-                set (3RD_PARTY_PROTOBUF_VERSION "3.5.2")
+                set (3RD_PARTY_PROTOBUF_VERSION "3.5.1")
             endif()
         endif()
 
