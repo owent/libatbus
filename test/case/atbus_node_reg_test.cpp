@@ -334,7 +334,9 @@ CASE_TEST(atbus_node_reg, timeout) {
         int check_new_connection_count = recv_msg_history.new_connection_count;
         int check_invalid_connection_count = recv_msg_history.invalid_connection_count;
         node1->set_on_new_connection_handle(node_reg_test_new_connection_fn);
+        CASE_EXPECT_TRUE(!!node1->get_on_new_connection_handle());
         node1->set_on_invalid_connection_handle(node_reg_test_invalid_fn);
+        CASE_EXPECT_TRUE(!!node1->get_on_invalid_connection_handle());
         node2->set_on_new_connection_handle(node_reg_test_new_connection_fn);
         node2->set_on_invalid_connection_handle(node_reg_test_invalid_fn);
 

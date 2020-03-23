@@ -68,6 +68,14 @@ CASE_TEST(atbus_node_rela, basic_test) {
 }
 #endif
 
+CASE_TEST(atbus_node_rela, copy_conf) {
+    atbus::node::conf_t c1;
+    atbus::node::conf_t c2(c1);
+
+    atbus::node::default_conf((atbus::node::conf_t*)NULL);
+    atbus::node::default_conf((atbus::node::start_conf_t*)NULL);
+}
+
 CASE_TEST(atbus_node_rela, child_endpoint_opr) {
     atbus::node::conf_t conf;
     atbus::node::default_conf(&conf);

@@ -745,7 +745,7 @@ namespace atbus {
     }
 
     ATBUS_MACRO_API bool endpoint::contain(const std::vector<endpoint_subnet_range>& parent_subnets, const std::vector<endpoint_subnet_range>& child_subnets) {
-        if (parent_subnets.empty()) {
+        if (parent_subnets.empty() && !child_subnets.empty()) {
             return false;
         }
 
@@ -766,7 +766,7 @@ namespace atbus {
     }
 
     ATBUS_MACRO_API bool endpoint::contain(const std::vector<endpoint_subnet_range>& parent_subnets, const std::vector<endpoint_subnet_conf>& child_subnets) {
-        if (parent_subnets.empty()) {
+        if (parent_subnets.empty() && !child_subnets.empty()) {
             return false;
         }
 

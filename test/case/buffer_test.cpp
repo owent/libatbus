@@ -35,6 +35,8 @@ CASE_TEST(buffer, varint)
     res = atbus::detail::fn::read_vint(j, buf, sizeof(buf));
     CASE_EXPECT_EQ(1, res);
     CASE_EXPECT_EQ(0, j);
+    CASE_EXPECT_EQ(0, atbus::detail::fn::read_vint(j, NULL, sizeof(buf)));
+    CASE_EXPECT_EQ(0, atbus::detail::fn::read_vint(j, buf, 0));
 
     // bound-max
     i = 127;
@@ -74,6 +76,9 @@ CASE_TEST(buffer, varint)
     i = UINT64_MAX;
     res = atbus::detail::fn::write_vint(i, buf, sizeof(buf));
     CASE_EXPECT_EQ(10, res);
+
+    CASE_EXPECT_EQ(0, atbus::detail::fn::write_vint(i, buf, 0));
+    CASE_EXPECT_EQ(0, atbus::detail::fn::write_vint(i, NULL, sizeof(buf)));
 }
 
 CASE_TEST(buffer, buffer_block)
@@ -95,15 +100,21 @@ CASE_TEST(buffer, buffer_block)
     CASE_EXPECT_EQ(49, p->size());
     CASE_EXPECT_EQ(99, p->raw_size());
     CASE_EXPECT_EQ(atbus::detail::fn::buffer_next(p->raw_data(), 50), p->data());
+    CASE_EXPECT_EQ(atbus::detail::fn::buffer_prev(p->data(), 50), p->raw_data());
+    CASE_EXPECT_EQ(atbus::detail::fn::buffer_next((void*)p->raw_data(), 50), atbus::detail::fn::buffer_next((const void*)p->raw_data(), 50));
+    CASE_EXPECT_EQ(atbus::detail::fn::buffer_prev((void*)p->data(), 50), atbus::detail::fn::buffer_prev((const void*)p->data(), 50));
     CASE_EXPECT_NE(p->raw_data(), p->data());
 
     p->pop(100);
     CASE_EXPECT_EQ(0, p->size());
     CASE_EXPECT_EQ(atbus::detail::fn::buffer_next(p->raw_data(), 99), p->data());
 
+    CASE_EXPECT_EQ(p->instance_size(), atbus::detail::buffer_block::head_size(p->raw_size()));
     atbus::detail::buffer_block::free(p);
 
     // failed
+    CASE_EXPECT_EQ(NULL, atbus::detail::buffer_block::create(NULL, 256, 256));
+    CASE_EXPECT_EQ(NULL, atbus::detail::buffer_block::destroy(NULL));
     void* next_free = atbus::detail::buffer_block::create(buf, 256, 256);
     CASE_EXPECT_EQ(NULL, next_free);
     for (size_t i = 0; i < sizeof(atbus::detail::buffer_block); ++ i) {

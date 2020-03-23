@@ -12,10 +12,22 @@
 #include <common/string_oprs.h>
 
 #include <atbus_endpoint.h>
+#include <atbus_connection.h>
 #include <atbus_node.h>
 #include <detail/libatbus_error.h>
 
 #include "frame/test_macros.h"
+
+CASE_TEST(atbus_endpoint, connection_basic) {
+    atbus::connection::ptr_t p = atbus::connection::create(NULL);
+    CASE_EXPECT_TRUE(!p);
+}
+
+CASE_TEST(atbus_endpoint, endpoint_basic) {
+    std::vector<atbus::endpoint_subnet_conf> subnets;
+    atbus::endpoint::ptr_t p = atbus::endpoint::create(NULL, 0, subnets, 0, "");
+    CASE_EXPECT_TRUE(!p);
+}
 
 CASE_TEST(atbus_endpoint, get_children_min_max) {
     atbus::endpoint::bus_id_t tested = atbus::endpoint::get_children_max_id(0x12345678, 16);
@@ -49,6 +61,15 @@ CASE_TEST(atbus_endpoint, is_child) {
 
         // 自己是自己的子节点
         CASE_EXPECT_TRUE(node->is_child_node(node->get_id()));
+
+        // 0值边界检测 - 静态接口
+        CASE_EXPECT_TRUE(atbus::endpoint::is_child_node(0x12345678, 0x12345678, 16, 0x12340000));
+        CASE_EXPECT_TRUE(atbus::endpoint::is_child_node(0x12345678, 0x12345678, 16, 0x1234FFFF));
+        CASE_EXPECT_FALSE(atbus::endpoint::is_child_node(0x12345678, 0x12345678, 16, 0x1233FFFF));
+        CASE_EXPECT_FALSE(atbus::endpoint::is_child_node(0x12345678, 0x12345678, 16, 0x12350000));
+
+        // 自己是自己的子节点 - 静态接口
+        CASE_EXPECT_TRUE(atbus::endpoint::is_child_node(0x12345678, 0x12345678, 16, 0x12345678));
     }
 
     {
@@ -128,6 +149,17 @@ CASE_TEST(atbus_endpoint, get_connection) {
 
 CASE_TEST(atbus_endpoint, subnet_range) {
     {
+        atbus::endpoint_subnet_range subnet;
+
+        CASE_EXPECT_EQ(subnet.get_id_prefix(), 0);
+        CASE_EXPECT_EQ(subnet.get_mask_bits(), 0);
+        CASE_EXPECT_EQ(subnet.get_id_min(), 0);
+        CASE_EXPECT_EQ(subnet.get_id_max(), 0);
+
+        CASE_EXPECT_TRUE(subnet.contain(subnet));
+    }
+
+    {
         atbus::endpoint_subnet_range subnet(0x12345678, 8);
 
         CASE_EXPECT_EQ(subnet.get_id_prefix(), 0x12345678);
@@ -135,6 +167,7 @@ CASE_TEST(atbus_endpoint, subnet_range) {
         CASE_EXPECT_EQ(subnet.get_id_min(), 0x12345600);
         CASE_EXPECT_EQ(subnet.get_id_max(), 0x123456ff);
 
+        CASE_EXPECT_TRUE(subnet.contain(subnet));
         CASE_EXPECT_TRUE(subnet.contain(0x12345600));
         CASE_EXPECT_TRUE(subnet.contain(0x123456ff));
         CASE_EXPECT_TRUE(subnet.contain(0x12345678));
@@ -363,6 +396,17 @@ CASE_TEST(atbus_endpoint, subnet_range_contain) {
     CASE_EXPECT_FALSE(atbus::endpoint::contain(subnets_conf, 0x123566ff));
     CASE_EXPECT_FALSE(atbus::endpoint::contain(subnets_conf, 0x12356800));
     CASE_EXPECT_FALSE(atbus::endpoint::contain(subnets_conf, 0));
+
+    {
+        std::vector<atbus::endpoint_subnet_range> subnets_empty;
+        std::vector<atbus::endpoint_subnet_conf> subnets_conf_empty;
+        CASE_EXPECT_TRUE(atbus::endpoint::contain(subnets_empty, subnets_empty));
+        CASE_EXPECT_FALSE(atbus::endpoint::contain(subnets_empty, subnets));
+        CASE_EXPECT_TRUE(atbus::endpoint::contain(subnets_empty, subnets_conf_empty));
+        CASE_EXPECT_FALSE(atbus::endpoint::contain(subnets_empty, subnets_conf));
+        CASE_EXPECT_FALSE(atbus::endpoint::contain(subnets_empty, 0));
+        CASE_EXPECT_FALSE(atbus::endpoint::contain(subnets_conf_empty, 0));
+    }
 }
 
 CASE_TEST(atbus_endpoint, search_subnet_for_id) {
@@ -437,5 +481,23 @@ CASE_TEST(atbus_endpoint, search_subnet_for_id) {
         CASE_EXPECT_EQ((*iter6).get_mask_bits(), 8);
         CASE_EXPECT_TRUE(iter6 == iter7);
     }
+}
+
+CASE_TEST(atbus_channel, address) {
+    atbus::channel::channel_address_t addr;
+    CASE_EXPECT_FALSE(atbus::channel::make_address("", addr));
+
+
+    CASE_EXPECT_FALSE(atbus::channel::is_duplex_address(NULL));
+    CASE_EXPECT_FALSE(atbus::channel::is_simplex_address(NULL));
+
+    CASE_EXPECT_TRUE(atbus::channel::is_simplex_address("mem://0x1234"));
+    CASE_EXPECT_TRUE(atbus::channel::is_simplex_address("shm://0x1234"));
+
+    CASE_EXPECT_FALSE(atbus::channel::is_local_host_address(NULL));
+    CASE_EXPECT_TRUE(atbus::channel::is_local_host_address("unix:///tmp/abc.sock"));
+
+    CASE_EXPECT_FALSE(atbus::channel::is_local_process_address(NULL));
+    CASE_EXPECT_TRUE(atbus::channel::is_local_process_address("mem://0x1234"));
 }
 

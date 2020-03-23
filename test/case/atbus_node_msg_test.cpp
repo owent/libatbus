@@ -195,9 +195,12 @@ CASE_TEST(atbus_node_msg, ping_pong) {
         node1->on_debug          = node_msg_test_on_debug;
         node2->on_debug          = node_msg_test_on_debug;
         node1->set_on_error_handle(node_msg_test_on_error);
+        CASE_EXPECT_TRUE(!!node1->get_on_error_handle());
         node2->set_on_error_handle(node_msg_test_on_error);
         node1->set_on_ping_endpoint_handle(node_msg_test_on_ping);
+        CASE_EXPECT_TRUE(!!node1->get_on_ping_endpoint_handle());
         node1->set_on_pong_endpoint_handle(node_msg_test_on_pong);
+        CASE_EXPECT_TRUE(!!node1->get_on_pong_endpoint_handle());
         node2->set_on_ping_endpoint_handle(node_msg_test_on_ping);
         node2->set_on_pong_endpoint_handle(node_msg_test_on_pong);
 
@@ -261,6 +264,7 @@ CASE_TEST(atbus_node_msg, ping_pong) {
 
         CASE_EXPECT_GT(node2->get_endpoint(node1->get_id())->get_stat_last_pong(), 0);
         CASE_EXPECT_GT(node1->get_endpoint(node2->get_id())->get_stat_last_pong(), 0);
+        CASE_MSG_INFO()<< "Ping delay: "<< node2->get_endpoint(node1->get_id())->get_stat_ping_delay()<< std::endl;
     }
 
     unit_test_setup_exit(&ev_loop);
@@ -345,6 +349,7 @@ CASE_TEST(atbus_node_msg, custom_cmd) {
         int count = recv_msg_history.count;
         node2->set_on_custom_cmd_handle(node_msg_test_recv_msg_test_custom_cmd_fn);
         node1->set_on_custom_rsp_handle(node_msg_test_recv_msg_test_custom_rsp_fn);
+        CASE_EXPECT_TRUE(!!node1->get_on_custom_rsp_handle());
 
         char test_str[]       = "hello world!";
         std::string send_data = test_str;
@@ -793,7 +798,25 @@ CASE_TEST(atbus_node_msg, parent_and_child) {
         }
 
         CASE_EXPECT_GT(node_child->get_endpoint(node_parent->get_id())->get_stat_last_pong(), 0);
-        CASE_EXPECT_GT(node_parent->get_endpoint(node_child->get_id())->get_stat_last_pong(), 0);
+
+        do {
+            atbus::endpoint* child_ep = node_parent->get_endpoint(node_child->get_id());
+            CASE_EXPECT_NE(NULL, child_ep);
+            if (NULL == child_ep) {
+                break;
+            }
+            CASE_EXPECT_GT(child_ep->get_stat_last_pong(), 0);
+
+            CASE_MSG_INFO()<< "Parent push start times: "<< child_ep->get_stat_push_start_times()<< std::endl;
+            CASE_MSG_INFO()<< "Parent push start size: "<< child_ep->get_stat_push_start_size()<< std::endl;
+            CASE_MSG_INFO()<< "Parent push success times: "<< child_ep->get_stat_push_success_times()<< std::endl;
+            CASE_MSG_INFO()<< "Parent push success size: "<< child_ep->get_stat_push_success_size()<< std::endl;
+            CASE_MSG_INFO()<< "Parent push failed times: "<< child_ep->get_stat_push_failed_times()<< std::endl;
+            CASE_MSG_INFO()<< "Parent push failed size: "<< child_ep->get_stat_push_failed_size()<< std::endl;
+            CASE_MSG_INFO()<< "Parent pull size: "<< child_ep->get_stat_pull_size()<< std::endl;
+            CASE_MSG_INFO()<< "Parent created usec: "<< child_ep->get_stat_created_time_usec()<< std::endl;
+            CASE_MSG_INFO()<< "Parent created sec: "<< child_ep->get_stat_created_time_sec()<< std::endl;
+        } while(false);
     }
 
     unit_test_setup_exit(&ev_loop);
@@ -1165,6 +1188,11 @@ CASE_TEST(atbus_node_msg, transfer_failed_cross_parents) {
     unit_test_setup_exit(&ev_loop);
 }
 
+CASE_TEST(atbus_node_msg, msg_handler_get_body_name) {
+    CASE_EXPECT_EQ(0, UTIL_STRFUNC_STRCASE_CMP("Unknown", atbus::msg_handler::get_body_name(0)));
+    CASE_EXPECT_EQ(0, UTIL_STRFUNC_STRCASE_CMP("Unknown", atbus::msg_handler::get_body_name(1000000)));
 
-// TODO 全量表第一次拉取测试
-// TODO 全量表通知给父节点和子节点测试
+    CASE_EXPECT_EQ(0, UTIL_STRFUNC_STRCASE_CMP("Unknown", atbus::msg_handler::get_body_name(0)));
+    CASE_EXPECT_EQ(atbus::protocol::msg::descriptor()->FindFieldByNumber(atbus::protocol::msg::kDataTransformReq)->full_name(),
+        std::string(atbus::msg_handler::get_body_name(atbus::protocol::msg::kDataTransformReq)));
+}

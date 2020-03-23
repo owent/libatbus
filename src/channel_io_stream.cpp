@@ -99,6 +99,19 @@ namespace atbus {
                 }
                 return ret;
             }
+
+            struct gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t {
+                char* buffer_ptr;
+                gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t(){
+                    buffer_ptr = io_stream_get_msg_buffer();
+                }
+
+                ~gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t() {
+                    pthread_setspecific(gt_io_stream_get_msg_buffer_tls_key, NULL);
+                    dtor_pthread_io_stream_get_msg_buffer_tls(buffer_ptr);
+                }
+            };
+            static gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t gt_io_stream_get_msg_buffer_tls_main_thread_dtor;
         } // namespace detail
     }     // namespace channel
 } // namespace atbus
