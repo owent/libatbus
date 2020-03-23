@@ -3,7 +3,7 @@
 
 #pragma once
 
-typedef enum {
+enum ATBUS_ERROR_TYPE {
     EN_ATBUS_ERR_SUCCESS = 0,
 
     EN_ATBUS_ERR_PARAMS              = -1,
@@ -74,6 +74,6 @@ typedef enum {
     EN_ATBUS_ERR_NOT_READY            = -607, // 未准备好（没有握手完成）
 
     EN_ATBUS_ERR_MIN = -999,
-} ATBUS_ERROR_TYPE;
+};
 
 #endif

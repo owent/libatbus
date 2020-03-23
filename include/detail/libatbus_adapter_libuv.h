@@ -22,11 +22,11 @@ namespace atbus {
 
         typedef uv_os_fd_t fd_t;
 
-        typedef enum {
+        enum run_mode_t {
             RUN_DEFAULT = UV_RUN_DEFAULT,
             RUN_ONCE = UV_RUN_ONCE,
             RUN_NOWAIT = UV_RUN_NOWAIT,
-        } run_mode_t;
+        };
     }
 }
 

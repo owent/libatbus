@@ -149,6 +149,9 @@ namespace atbus {
             io_stream_flag_guard &operator=(const io_stream_flag_guard &other);
         };
 
+        static int io_stream_disconnect_inner(io_stream_channel *channel, io_stream_connection *connection, 
+            io_stream_callback_t callback, bool force);
+
         static inline void io_stream_channel_callback(io_stream_callback_evt_t::mem_fn_t fn, io_stream_channel *channel,
                                                       io_stream_callback_t async_callback, io_stream_connection *connection, int status,
                                                       int errcode, void *priv_data, size_t s) {
@@ -405,7 +408,9 @@ namespace atbus {
                 // 任何非重试的错误则关闭
                 // 注意libuv有个特殊的错误码 UV_ENOBUFS 表示缓冲区不足
                 // 理论上除非配置错误，否则不应该会出现，并且可能会导致header数据无法缩减。所以也直接关闭连接
-                io_stream_disconnect(channel, conn_raw_ptr, NULL);
+                io_stream_disconnect_inner(channel, conn_raw_ptr, NULL,
+                    nread == UV_ECONNRESET
+                );
                 return;
             }
 
@@ -638,7 +643,7 @@ namespace atbus {
             io_stream_channel::conn_gc_pool_t::iterator iter = channel->conn_gc_pool.find(reinterpret_cast<uintptr_t>(conn_raw_ptr));
             assert(iter != channel->conn_gc_pool.end());
 
-            iter->second->status = io_stream_connection::EN_ST_DISCONNECTIED;
+            iter->second->status = io_stream_connection::EN_ST_DISCONNECTED;
             io_stream_channel_callback(io_stream_callback_evt_t::EN_FN_DISCONNECTED, channel, iter->second.get(), 0, EN_ATBUS_ERR_SUCCESS,
                                        NULL, 0);
 
@@ -940,6 +945,9 @@ namespace atbus {
                 char pipe_path[MAX_PATH] = {0};
                 size_t path_len          = sizeof(pipe_path);
                 uv_pipe_getpeername(pipe_conn, pipe_path, &path_len);
+                if (0 == path_len || 0 == pipe_path[0]) {
+                    uv_pipe_getsockname(pipe_conn, pipe_path, &path_len);
+                }
                 make_address("unix", pipe_path, 0, conn->addr);
 
             } while (false);
@@ -1471,7 +1479,8 @@ namespace atbus {
             return EN_ATBUS_ERR_SUCCESS;
         }
 
-        int io_stream_disconnect(io_stream_channel *channel, io_stream_connection *connection, io_stream_callback_t callback) {
+        static int io_stream_disconnect_inner(io_stream_channel *channel, io_stream_connection *connection, 
+            io_stream_callback_t callback, bool force) {
             if (NULL == channel || NULL == connection) {
                 return EN_ATBUS_ERR_PARAMS;
             }
@@ -1485,11 +1494,15 @@ namespace atbus {
             connection->status = io_stream_connection::EN_ST_DISCONNECTING;
 
             // if there is any writing data, closing this connection later
-            if (ATBUS_CHANNEL_IOS_CHECK_FLAG(connection->flags, io_stream_connection::EN_CF_WRITING)) {
+            if (!force && ATBUS_CHANNEL_IOS_CHECK_FLAG(connection->flags, io_stream_connection::EN_CF_WRITING)) {
                 return EN_ATBUS_ERR_SUCCESS;
             }
 
             return io_stream_disconnect_run(connection);
+        }
+
+        int io_stream_disconnect(io_stream_channel *channel, io_stream_connection *connection, io_stream_callback_t callback) {
+            return io_stream_disconnect_inner(channel, connection, callback, false);
         }
 
         int io_stream_disconnect_fd(io_stream_channel *channel, adapter::fd_t fd, io_stream_callback_t callback) {
@@ -1574,7 +1587,7 @@ namespace atbus {
             // unset writing mode
             ATBUS_CHANNEL_IOS_UNSET_FLAG(connection->flags, io_stream_connection::EN_CF_WRITING);
 
-            // write left data
+            // Write left data
             io_stream_try_write(connection);
 
             // if in disconnecting status and there is no more data to write, close it
@@ -1601,6 +1614,7 @@ namespace atbus {
             }
 
             // closing or closed, cancle writing
+            // If this connection is closing, it's maybe reset by peer, write data may cause SIGPIPE
             if (ATBUS_CHANNEL_IOS_CHECK_FLAG(connection->flags, io_stream_connection::EN_CF_CLOSING)) {
                 while (!connection->write_buffers.empty()) {
                     ::atbus::detail::buffer_block *bb = connection->write_buffers.front();

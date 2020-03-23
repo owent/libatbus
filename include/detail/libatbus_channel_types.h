@@ -107,20 +107,20 @@ namespace atbus {
 
         // 以下不是POD类型，所以不得不暴露出来
         struct io_stream_connection {
-            typedef enum {
+            enum flag_t {
                 EN_CF_LISTEN = 0,
                 EN_CF_CONNECT,
                 EN_CF_ACCEPT,
                 EN_CF_WRITING,
                 EN_CF_CLOSING,
                 EN_CF_MAX,
-            } flag_t;
+            };
 
             channel_address_t addr;
             std::shared_ptr<adapter::stream_t> handle; // 流设备
             adapter::fd_t fd;                          // 文件描述符
 
-            typedef enum { EN_ST_CREATED = 0, EN_ST_CONNECTED, EN_ST_DISCONNECTING, EN_ST_DISCONNECTIED } status_t;
+            enum status_t { EN_ST_CREATED = 0, EN_ST_CONNECTED, EN_ST_DISCONNECTING, EN_ST_DISCONNECTED };
             status_t status; // 状态
             int flags;       // flag
             io_stream_channel *channel;
@@ -167,12 +167,12 @@ namespace atbus {
         };
 
         struct io_stream_channel {
-            typedef enum {
+            enum flag_t {
                 EN_CF_IS_LOOP_OWNER = 0,
                 EN_CF_CLOSING,
                 EN_CF_IN_CALLBACK,
                 EN_CF_MAX,
-            } flag_t;
+            };
 
             adapter::loop_t *ev_loop;
             int flags;

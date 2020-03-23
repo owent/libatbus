@@ -12,11 +12,11 @@ matrix:
     - os: osx
       env: USE_CC=clang USE_CXX=clang++ CMAKE_BIN=cmake CTEST_BIN=ctest
     - os: linux
-      dist: xenial
+      dist: bionic
       sudo: required
       env: USE_CC=gcc USE_CXX=g++ CMAKE_BIN=$CMAKE_PREFIX/bin/cmake CTEST_BIN=$CMAKE_PREFIX/bin/ctest
     - os: linux
-      dist: xenial
+      dist: bionic
       sudo: required
       env: USE_CC=gcc-4.8 USE_CXX=g++-4.8 CMAKE_BIN=$CMAKE_PREFIX/bin/cmake CTEST_BIN=$CMAKE_PREFIX/bin/ctest
       addons:
@@ -29,7 +29,7 @@ matrix:
             - g++-4.8
             - g++-4.8-multilib
     - os: linux
-      dist: xenial
+      dist: bionic
       sudo: required
       env: USE_CC=gcc-9 USE_CXX=g++-9 CMAKE_BIN=$CMAKE_PREFIX/bin/cmake CTEST_BIN=$CMAKE_PREFIX/bin/ctest
       addons:
@@ -42,15 +42,15 @@ matrix:
             - g++-9
             - g++-9-multilib
     #- os: linux
-    #  dist: xenial
+    #  dist: bionic
     #  sudo: required
     #  env: USE_CC=clang USE_CXX=clang++ CMAKE_BIN=$CMAKE_PREFIX/bin/cmake CTEST_BIN=$CMAKE_PREFIX/bin/ctest
     # - os: linux
-    #   dist: xenial
+    #   dist: bionic
     #   sudo: required
     #   env: USE_CC=clang-3.8 USE_CXX=clang++-3.8 CMAKE_BIN=$CMAKE_PREFIX/bin/cmake CTEST_BIN=$CMAKE_PREFIX/bin/ctest
     - os: linux
-      dist: xenial
+      dist: bionic
       sudo: required
       env: COVERALLS_SERVICE_NAME=travis-ci GCOV_FLAGS='--coverage -fprofile-arcs -ftest-coverage' CMAKE_BIN=$CMAKE_PREFIX/bin/cmake CTEST_BIN=$CMAKE_PREFIX/bin/ctest
       # COVERALLS_REPO_TOKEN is set in travis-ci

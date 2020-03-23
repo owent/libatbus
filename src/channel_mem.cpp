@@ -163,10 +163,10 @@ namespace atbus {
         };
 
 
-        typedef enum {
+        enum MEM_FLAG {
             MF_WRITEN     = 0x00000001,
             MF_START_NODE = 0x00000002,
-        } MEM_FLAG;
+        };
 
         namespace detail {
             /**
