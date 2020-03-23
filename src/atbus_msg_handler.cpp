@@ -114,7 +114,7 @@ namespace atbus {
             for (int i = 0; i < msg_desc->field_count(); ++ i) {
                 const ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::FieldDescriptor* fds = msg_desc->field(i);
                 assert(fds->number() <= ATBUS_PROTOCOL_MSG_BODY_MAX);
-                assert(fds->number() >= ATBUS_PROTOCOL_MSG_BODY_MIN);
+                assert(fds->number() >= 0);
                 atbus_fn_names[fds->number()] = fds->full_name();
             }
         }

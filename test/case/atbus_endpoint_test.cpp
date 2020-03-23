@@ -69,7 +69,7 @@ CASE_TEST(atbus_endpoint, is_child) {
         CASE_EXPECT_FALSE(atbus::endpoint::is_child_node(0x12345678, 0x12345678, 16, 0x12350000));
 
         // 自己是自己的子节点 - 静态接口
-        CASE_EXPECT_TRUE(atbus::endpoint::is_child_node(0x12345678, 0x12345678, 16, 0x12345678));
+        CASE_EXPECT_FALSE(atbus::endpoint::is_child_node(0x12345678, 0x12345678, 16, 0x12345678));
     }
 
     {
