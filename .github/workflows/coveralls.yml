@@ -1,0 +1,36 @@
+name: Build And Upload To coveralls.io
+on:
+  push:
+    branches:
+      - dev
+jobs:
+  build:
+    name: Build And Publish
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+      - name: Build
+        shell: bash
+        env:
+          GCOV_FLAGS: "--coverage -fprofile-arcs -ftest-coverage"
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/build_jobs_dir_linux"
+          cd "$GITHUB_WORKSPACE/build_jobs_dir_linux"
+          cmake .. -DCMAKE_BUILD_TYPE=Debug "-DCMAKE_C_FLAGS=$GCOV_FLAGS" "-DCMAKE_CXX_FLAGS=$GCOV_FLAGS" "-DCMAKE_EXE_LINKER_FLAGS=$GCOV_FLAGS" -DPROJECT_ENABLE_UNITTEST=ON -DPROJECT_ENABLE_SAMPLE=ON -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON -DPROJECT_GIT_CLONE_REMOTE_ORIGIN_DISABLE_SSH=ON
+          cmake --build . -j
+      - name: Upload To coveralls.io
+        env:
+          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+        shell: bash
+        run: |
+          cd "$GITHUB_WORKSPACE/build_jobs_dir_linux"
+          $CTEST_BIN . -V
+          timeout 5s ./tools/benchmark_shm_channel_recv 12345679 1024 4194304 > recv.log 2>&1 &
+          timeout 6s ./tools/benchmark_shm_channel_send 12345679 1024 4194304 > send.log 2>&1
+          ./tools/show_shm_channel 12345679 1 16 > /dev/null
+          pip install --user cpp-coveralls
+          coveralls -r .. --gcov-options '\-lp' -e docs -e 3rd_party -e sample -e test -e tools -e build/CMakeFiles -e include/detail/libatbus_protocol.pb.h -e src/detail/libatbus_protocol.pb.cc

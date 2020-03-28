@@ -28,7 +28,9 @@
 #include <stdint.h>
 
 #include <algorithm/murmur_hash.h>
+#include <algorithm/sha.h>
 #include <common/string_oprs.h>
+#include <time/time_utility.h>
 
 #include "detail/buffer.h"
 
@@ -94,6 +96,22 @@ namespace atbus {
             owner->flags_.set(flag, false);
         }
     }
+
+    ATBUS_MACRO_API node::send_data_options_t::send_data_options_t() : flags(EN_SDOPT_NONE) {}
+    ATBUS_MACRO_API node::send_data_options_t::~send_data_options_t() {}
+    ATBUS_MACRO_API node::send_data_options_t::send_data_options_t(const send_data_options_t& other) : flags(other.flags) {}
+    ATBUS_MACRO_API node::send_data_options_t& node::send_data_options_t::operator=(const send_data_options_t& other) {
+        flags = other.flags;
+        return *this;
+    }
+#if defined(UTIL_CONFIG_COMPILER_CXX_RVALUE_REFERENCES) && UTIL_CONFIG_COMPILER_CXX_RVALUE_REFERENCES
+    ATBUS_MACRO_API node::send_data_options_t::send_data_options_t(send_data_options_t&& other) : flags(other.flags) {}
+    ATBUS_MACRO_API node::send_data_options_t& node::send_data_options_t::operator=(send_data_options_t&& other) {
+        flags = other.flags;
+        return *this;
+    }
+#endif
+
 
     node::node() : state_(state_t::CREATED), ev_loop_(NULL), static_buffer_(NULL), on_debug(NULL) {
         event_timer_.sec                   = 0;
@@ -213,11 +231,17 @@ namespace atbus {
 
         // 初始化时间
         if (0 == start_conf.timer_sec && 0 == start_conf.timer_usec) {
-            event_timer_.sec = time(NULL);
-            event_timer_.usec = 0;
+            util::time::time_utility::update();
+            event_timer_.sec = util::time::time_utility::get_sys_now();
+            event_timer_.usec = util::time::time_utility::get_now_usec();
         } else {
             event_timer_.sec = start_conf.timer_sec;
             event_timer_.usec = start_conf.timer_usec;
+        }
+
+        init_hash_code();
+        if (self_) {
+            self_->update_hash_code(get_hash_code());
         }
 
         // 连接父节点
@@ -793,6 +817,23 @@ namespace atbus {
     }
 
     ATBUS_MACRO_API int node::send_data(bus_id_t tid, int type, const void *buffer, size_t s, bool require_rsp) {
+        send_data_options_t options;
+        if (require_rsp) {
+            options.flags |= send_data_options_t::EN_SDOPT_REQUIRE_RESPONSE;
+        }
+        return send_data(tid, type, buffer, s, options);
+    }
+
+    ATBUS_MACRO_API int node::send_data(bus_id_t tid, int type, const void *buffer, size_t s, uint64_t *seq) {
+        send_data_options_t options;
+        return send_data(tid, type, buffer, s, seq, options);
+    }
+
+    ATBUS_MACRO_API int node::send_data(bus_id_t tid, int type, const void *buffer, size_t s, const send_data_options_t& options) {
+        return send_data(tid, type, buffer, s, NULL, options);
+    }
+
+    ATBUS_MACRO_API int node::send_data(bus_id_t tid, int type, const void *buffer, size_t s, uint64_t *seq, const send_data_options_t& options) {
         if (state_t::CREATED == state_) {
             return EN_ATBUS_ERR_NOT_INITED;
         }
@@ -819,7 +860,7 @@ namespace atbus {
 
         uint64_t self_id = get_id();
         uint32_t flags   = 0;
-        if (require_rsp) {
+        if (0 != (options.flags & send_data_options_t::EN_SDOPT_REQUIRE_RESPONSE)) {
             flags |= atbus::protocol::FORWARD_DATA_FLAG_REQUIRE_RSP;
         }
 
@@ -835,6 +876,10 @@ namespace atbus {
         body->add_router(self_id);
         body->mutable_content()->assign(reinterpret_cast<const char*>(buffer), s);
         body->set_flags(flags);
+
+        if (NULL != seq) {
+            *seq = head->sequence();
+        }
 
         return send_data_msg(tid, *m);
     }
@@ -1114,6 +1159,10 @@ namespace atbus {
         }
 
         return false;
+    }
+
+    ATBUS_MACRO_API const std::string& node::get_hash_code() const {
+        return hash_code_;
     }
 
     ATBUS_MACRO_API channel::io_stream_channel *node::get_iostream_channel() {
@@ -2009,6 +2058,87 @@ namespace atbus {
         inout = event_timer_.ping_list.end();
     }
 
+    void node::init_hash_code() {
+        util::hash::sha sha256;
+        sha256.init(util::hash::sha::EN_ALGORITHM_SHA256);
+
+        // hash all interface
+        {
+            std::vector<std::string> all_outter_inters;
+            uv_interface_address_t *interface_addrs = NULL;
+            int interface_sz                        = 0;
+            size_t total_size                       = 0;
+            uv_interface_addresses(&interface_addrs, &interface_sz);
+            for (int i = 0; i < interface_sz; ++i) {
+                uv_interface_address_t *inter_addr = interface_addrs + i;
+                if (inter_addr->is_internal) {
+                    continue;
+                }
+
+                std::string one_addr;
+                size_t dump_index = 0;
+                while (dump_index < sizeof(inter_addr->phys_addr) && 0 == inter_addr->phys_addr[dump_index]) {
+                    ++dump_index;
+                }
+                if (dump_index < sizeof(inter_addr->phys_addr)) {
+                    one_addr.resize((sizeof(inter_addr->phys_addr) - dump_index) * 2);
+                    util::string::dumphex(inter_addr->phys_addr + dump_index, (sizeof(inter_addr->phys_addr) - dump_index), &one_addr[0]);
+                }
+
+                if (!one_addr.empty()) {
+                    all_outter_inters.push_back(one_addr);
+                    total_size += one_addr.size();
+                }
+            }
+
+            std::sort(all_outter_inters.begin(), all_outter_inters.end());
+            std::vector<std::string>::iterator new_end = std::unique(all_outter_inters.begin(), all_outter_inters.end());
+            all_outter_inters.erase(new_end, all_outter_inters.end());
+            for (size_t i = 0; i < all_outter_inters.size(); ++i) {
+                sha256.update(reinterpret_cast<const unsigned char*>(all_outter_inters[i].c_str()), all_outter_inters[i].size());
+            }
+
+            if (NULL != interface_addrs) {
+                uv_free_interface_addresses(interface_addrs, interface_sz);
+            }
+        }
+
+        // hash hostname
+        {
+            const std::string& hostname = get_hostname();
+            sha256.update(reinterpret_cast<const unsigned char*>(hostname.c_str()), hostname.size());
+        }
+
+        // hash pid
+        {
+            int pid = get_pid();
+            sha256.update(reinterpret_cast<const unsigned char*>(&pid), sizeof(pid));
+        }
+
+        // hash address
+        {
+            const unsigned char* self = reinterpret_cast<const unsigned char*>(this);
+            sha256.update(reinterpret_cast<const unsigned char*>(&self), sizeof(self));
+        }
+
+        // hash id
+        {
+            bus_id_t id = get_id();
+            sha256.update(reinterpret_cast<const unsigned char*>(&id), sizeof(id));
+        }
+
+        // hash start timer
+        {
+            time_t t = get_timer_sec();
+            sha256.update(reinterpret_cast<const unsigned char*>(&t), sizeof(t));
+            t = get_timer_usec();
+            sha256.update(reinterpret_cast<const unsigned char*>(&t), sizeof(t));
+        }
+
+        sha256.final();
+        hash_code_ = sha256.get_output_hex();
+    }
+
     ATBUS_MACRO_API void node::stat_add_dispatch_times() { ++stat_.dispatch_times; }
 
     int node::remove_endpoint(bus_id_t tid, endpoint* expected) {
@@ -2074,6 +2204,11 @@ namespace atbus {
                 ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), NULL, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_UNPACK);
                 return EN_ATBUS_ERR_UNPACK;
             }
+
+            if (0 == mb.head().sequence()) {
+                mb.mutable_head()->set_sequence(alloc_msg_seq());
+            }
+
             if (!(::atbus::protocol::msg::kDataTransformReq == mb.msg_body_case() ||
                   ::atbus::protocol::msg::kDataTransformRsp == mb.msg_body_case() ||
                   ::atbus::protocol::msg::kCustomCommandReq == mb.msg_body_case() ||
@@ -2135,6 +2270,9 @@ namespace atbus {
             return EN_ATBUS_ERR_UNPACK;
         }
 
+        if (0 == mb.head().sequence()) {
+            mb.mutable_head()->set_sequence(alloc_msg_seq());
+        }
         return msg_handler::send_msg(*this, *conn, mb);
     }
 

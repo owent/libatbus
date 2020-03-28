@@ -857,6 +857,9 @@ CASE_TEST(atbus_node_reg, reg_pc_success) {
                 CASE_EXPECT_GE(test_ep->get_stat_created_time_sec(), proc_t_start_sec);
                 CASE_EXPECT_GE(test_ep->get_stat_created_time_usec(), 0);
                 CASE_EXPECT_LE(test_ep->get_stat_created_time_usec(), 1000000);
+
+                CASE_EXPECT_FALSE(test_ep->get_hash_code().empty());
+                CASE_EXPECT_EQ(node_child->get_self_endpoint()->get_hash_code(), test_ep->get_hash_code());
             }
             CASE_EXPECT_TRUE(node_parent->is_child_node(node_child->get_id()));
         }
@@ -872,6 +875,8 @@ CASE_TEST(atbus_node_reg, reg_pc_success) {
                 CASE_EXPECT_GE(test_ep->get_stat_created_time_sec(), proc_t_start_sec);
                 CASE_EXPECT_GE(test_ep->get_stat_created_time_usec(), 0);
                 CASE_EXPECT_LE(test_ep->get_stat_created_time_usec(), 1000000);
+                CASE_EXPECT_FALSE(test_ep->get_hash_code().empty());
+                CASE_EXPECT_EQ(node_parent->get_self_endpoint()->get_hash_code(), test_ep->get_hash_code());
             }
 
             CASE_EXPECT_TRUE(node_child->is_parent_node(node_parent->get_id()));
