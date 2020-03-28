@@ -28,8 +28,8 @@ jobs:
       - name: Build
         shell: pwsh
         run: |
-          New-Item -Path "$GITHUB_WORKSPACE/build_jobs_msvc" -ItemType directory
-          cd "$GITHUB_WORKSPACE/build_jobs_msvc"
+          New-Item -Path "$Env:GITHUB_WORKSPACE/build_jobs_msvc" -ItemType directory
+          cd "$Env:GITHUB_WORKSPACE/build_jobs_msvc"
           Remove-Item -r *
           $CMAKE_CONFIGURE_ARGS = @("..", "-DPROJECT_GIT_CLONE_REMOTE_ORIGIN_DISABLE_SSH=ON")
           if ( "${{ matrix.os }}" -ieq "windows-2016" ) {
@@ -45,7 +45,7 @@ jobs:
       - name: Sample and Tests
         shell: bash
         run: |
-          cd "$GITHUB_WORKSPACE/build_jobs_msvc"
+          cd "$Env:GITHUB_WORKSPACE/build_jobs_msvc"
           if ("${{ matrix.cmake_dll_option }}" -ine "-DBUILD_SHARED_LIBS=ON" ) {
             & ctest . -V -C RelWithDebInfo
           }
