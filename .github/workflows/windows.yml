@@ -43,7 +43,7 @@ jobs:
           echo "cmake --build . --config RelWithDebInfo"
           & cmake --build . --config RelWithDebInfo
       - name: Sample and Tests
-        shell: bash
+        shell: pwsh
         run: |
           cd "$Env:GITHUB_WORKSPACE/build_jobs_msvc"
           if ("${{ matrix.cmake_dll_option }}" -ine "-DBUILD_SHARED_LIBS=ON" ) {
