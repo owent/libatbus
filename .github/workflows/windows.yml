@@ -33,9 +33,9 @@ jobs:
           Remove-Item -r *
           $CMAKE_CONFIGURE_ARGS = @("..", "-DPROJECT_GIT_CLONE_REMOTE_ORIGIN_DISABLE_SSH=ON")
           if ( "${{ matrix.os }}" -ieq "windows-2016" ) {
-            $CMAKE_CONFIGURE_ARGS += "-G", "Visual Studio 16 2019", "-A", "x64"
-          } else {
             $CMAKE_CONFIGURE_ARGS += "-G", "Visual Studio 15 2017 Win64"
+          } else {
+            $CMAKE_CONFIGURE_ARGS += "-G", "Visual Studio 16 2019", "-A", "x64"
           }
           $CMAKE_CONFIGURE_ARGS += "-DPROJECT_GIT_CLONE_REMOTE_ORIGIN_DISABLE_SSH=ON", "${{ matrix.cmake_dll_option }}", "-DPROJECT_ENABLE_UNITTEST=ON", "-DPROJECT_ENABLE_SAMPLE=ON", "-DPROJECT_ENABLE_TOOLS=ON", "-DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON", "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
           echo "cmake $($CMAKE_CONFIGURE_ARGS -join ' ')"
