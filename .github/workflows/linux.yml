@@ -20,7 +20,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
-        cc: [clang-6, clang-9, gcc, gcc-9]
+        cc: [clang-6.0, clang-9, gcc, gcc-9]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout

@@ -2,7 +2,7 @@
 # environment @see https://help.github.com/en/articles/software-in-virtual-environments-for-github-actions
 #                  https://help.github.com/en/articles/virtual-environments-for-github-actions
 # example     @see https://github.com/actions/toolkit/blob/master/.github/workflows/workflow.yml
-name: Linux Building
+name: macOS Building
 # This workflow is triggered on pushes to the repository.
 on: # @see https://help.github.com/en/articles/events-that-trigger-workflows#webhook-events
   push:
@@ -31,12 +31,12 @@ jobs:
           USE_CC=${{ matrix.cc }}
           USE_CXX="${USE_CC/%clang/clang++}"
           USE_CXX="${USE_CXX/%gcc/g++}"
-          mkdir -p "$GITHUB_WORKSPACE/build_jobs_dir_linux"
-          cd "$GITHUB_WORKSPACE/build_jobs_dir_linux"
+          mkdir -p "$GITHUB_WORKSPACE/build_jobs_dir_macos"
+          cd "$GITHUB_WORKSPACE/build_jobs_dir_macos"
           cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_COMPILER=$USE_CC -DCMAKE_CXX_COMPILER=$USE_CXX -DPROJECT_ENABLE_UNITTEST=ON -DPROJECT_ENABLE_SAMPLE=ON -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON -DPROJECT_GIT_CLONE_REMOTE_ORIGIN_DISABLE_SSH=ON
           cmake --build . -j
       - name: Sample and Tests
         shell: bash
         run: |
-          cd "$GITHUB_WORKSPACE/build_jobs_dir_linux"
+          cd "$GITHUB_WORKSPACE/build_jobs_dir_macos"
           ctest . -V

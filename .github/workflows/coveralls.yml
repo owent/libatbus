@@ -28,7 +28,7 @@ jobs:
         shell: bash
         run: |
           cd "$GITHUB_WORKSPACE/build_jobs_dir_linux"
-          $CTEST_BIN . -V
+          ctest . -V
           timeout 5s ./tools/benchmark_shm_channel_recv 12345679 1024 4194304 > recv.log 2>&1 &
           timeout 6s ./tools/benchmark_shm_channel_send 12345679 1024 4194304 > send.log 2>&1
           ./tools/show_shm_channel 12345679 1 16 > /dev/null
