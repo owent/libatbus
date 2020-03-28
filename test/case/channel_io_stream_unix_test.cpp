@@ -9,6 +9,8 @@
 #include <map>
 #include <memory>
 
+#include <config/atframe_utils_build_feature.h>
+
 #include "detail/libatbus_channel_export.h"
 #include "frame/test_macros.h"
 #include <detail/libatbus_error.h>
@@ -21,12 +23,35 @@ struct channel_ios_unix_addr_holder {
 
 #ifndef _WIN32
     std::string res;
-    util::file_system::generate_tmp_file_name(res);
-    if (res.empty()) {
+    std::string prefix = util::file_system::getenv("TMP");
+    if (prefix.empty()) {
+        prefix = util::file_system::getenv("TEMP");
+    }
+    if (prefix.empty()) {
+        prefix = util::file_system::getenv("tmp");
+    }
+    if (prefix.empty()) {
+        prefix = util::file_system::getenv("temp");
+    }
+
+    if (prefix.empty()) {
+        prefix = "temp";
+    } else {
+        prefix += util::file_system::DIRECTORY_SEPARATOR;
+    }
+
+    if (prefix.empty()) {
+        prefix = "/tmp/";
+    } else {
+        prefix += util::file_system::DIRECTORY_SEPARATOR;
+    }
+    prefix += "atbus-unit-test";
+
+    util::file_system::generate_tmp_file_name(prefix);
+    if (prefix.empty()) {
         file_path = "unix:///tmp/atbut-unit-test-ios-unix.sock";
     } else {
-        file_path = "unix://";
-        file_path = file_path + res;
+        file_path = "unix://" + prefix;
     }
 #else
         file_path = "unix://\\\\.\\pipe\\unit_test.sock";
