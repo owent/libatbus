@@ -22,7 +22,7 @@ jobs:
         os: [ubuntu-latest]
         cc:
           # - clang-6.0
-          - clang-9
+          # - clang-9
           - gcc
           - gcc-9
     runs-on: ${{ matrix.os }}

@@ -15,3 +15,5 @@
   1.12 已绑定endpoint的connection在收到注册协议时要检查endpoint的数据节点是否和上报地址匹配，不一致说明同地址换endpoint了，移除endpoint的无效地址缓存，并移除无效的connection后需要重新发起endpoint的数据通道连接流程
   1.13 endpoint的数据通道全部离线后不再下线，而改为进入GC检查列表后尝试重新发起endpoint的数据通道连接流程
   1.14 endpoint的控制通道全部离线后不再下线，而改为进入GC检查列表后尝试重新发起endpoint的控制通道连接流程
+  1.15 ios channel切换到shm/mem channel后发送的data/cmd消息要重排序,并且要处理shm/mem channel拥塞后的自动重发
+  1.16 增加消息超时机制，用于处理重发和GC机制联动导致的消息事件重复触发，forward_response事件增加不确定是否成功的错误码
