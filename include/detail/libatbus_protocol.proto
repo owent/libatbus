@@ -64,13 +64,14 @@ message subnet_range {
 }
 
 message register_data {
-    uint64   bus_id                          = 1;
-    int32    pid                             = 2;
-    string   hostname                        = 3;
-    repeated channel_data channels           = 4;
-    uint32                flags              = 7;
-    repeated access_data access_keys         = 8;
-    repeated subnet_range subnets            = 9;
+    uint64   bus_id                  = 1;
+    int32    pid                     = 2;
+    string   hostname                = 3;
+    repeated channel_data channels   = 4;
+    uint32                flags      = 7;
+    repeated access_data access_keys = 8;
+    repeated subnet_range subnets    = 9;
+    string   hash_code               = 10;
 }
 
 message connection_data { channel_data address = 1; }

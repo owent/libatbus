@@ -533,10 +533,12 @@ CASE_TEST(atbus_node_msg, reset_and_send) {
 
         int count = recv_msg_history.count;
         node1->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
-        node1->send_data(node1->get_id(), 0, send_data.data(), send_data.size());
+        uint64_t data_seq = 0;
+        node1->send_data(node1->get_id(), 0, send_data.data(), send_data.size(), &data_seq);
 
         CASE_EXPECT_EQ(count + 1, recv_msg_history.count);
         CASE_EXPECT_EQ(send_data, recv_msg_history.data);
+        CASE_EXPECT_NE(0, data_seq);
     }
 
     unit_test_setup_exit(&ev_loop);
@@ -779,10 +781,12 @@ CASE_TEST(atbus_node_msg, parent_and_child) {
             std::string send_data;
             send_data.assign("parent to child\0hello world!\n", sizeof("parent to child\0hello world!\n") - 1);
 
-            node_parent->send_data(node_child->get_id(), 0, send_data.data(), send_data.size());
+            uint64_t data_seq = 0;
+            node_parent->send_data(node_child->get_id(), 0, send_data.data(), send_data.size(), &data_seq);
             UNITTEST_WAIT_UNTIL(conf.ev_loop, count != recv_msg_history.count, 3000, 0) {}
 
             CASE_EXPECT_EQ(send_data, recv_msg_history.data);
+            CASE_EXPECT_NE(0, data_seq);
         }
 
         // 发消息啦 - child to parent
@@ -791,10 +795,13 @@ CASE_TEST(atbus_node_msg, parent_and_child) {
             send_data.assign("child to parent\0hello world!\n", sizeof("child to parent\0hello world!\n") - 1);
 
             count = recv_msg_history.count;
-            node_child->send_data(node_parent->get_id(), 0, send_data.data(), send_data.size());
+
+            uint64_t data_seq = 0;
+            node_child->send_data(node_parent->get_id(), 0, send_data.data(), send_data.size(), &data_seq);
             UNITTEST_WAIT_UNTIL(conf.ev_loop, count != recv_msg_history.count, 3000, 0) {}
 
             CASE_EXPECT_EQ(send_data, recv_msg_history.data);
+            CASE_EXPECT_NE(0, data_seq);
         }
 
         CASE_EXPECT_GT(node_child->get_endpoint(node_parent->get_id())->get_stat_last_pong(), 0);

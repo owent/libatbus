@@ -134,7 +134,8 @@ namespace atbus {
 
         ATBUS_MACRO_API int32_t get_pid() const;
         ATBUS_MACRO_API const std::string &get_hostname() const;
-
+        ATBUS_MACRO_API const std::string &get_hash_code() const;
+        ATBUS_MACRO_API void update_hash_code(const std::string &);
 
         ATBUS_MACRO_API bool is_child_node(bus_id_t id) const;
 
@@ -234,6 +235,7 @@ namespace atbus {
         static ATBUS_MACRO_API bool contain(const std::vector<endpoint_subnet_conf>& parent_subnets, bus_id_t id);
     private:
         bus_id_t id_;
+        std::string hash_code_;
         std::vector<endpoint_subnet_range> subnets_;
         std::bitset<flag_t::MAX> flags_;
         std::string hostname_;

@@ -83,6 +83,24 @@ namespace atbus {
             };
         };
 
+        struct send_data_options_t {
+            enum flag_type {
+                EN_SDOPT_NONE = 0,
+                EN_SDOPT_REQUIRE_RESPONSE = 0x01, // 是否强制需要回包（默认情况下如果发送成功是没有回包通知的）
+            };
+
+            int32_t flags; // @see flag_type upper
+
+            ATBUS_MACRO_API send_data_options_t();
+            ATBUS_MACRO_API ~send_data_options_t();
+            ATBUS_MACRO_API send_data_options_t(const send_data_options_t& other);
+            ATBUS_MACRO_API send_data_options_t& operator=(const send_data_options_t& other);
+#if defined(UTIL_CONFIG_COMPILER_CXX_RVALUE_REFERENCES) && UTIL_CONFIG_COMPILER_CXX_RVALUE_REFERENCES
+            ATBUS_MACRO_API send_data_options_t(send_data_options_t&& other);
+            ATBUS_MACRO_API send_data_options_t& operator=(send_data_options_t&& other);
+#endif
+        };
+
         struct conf_t {
             adapter::loop_t *ev_loop;
             std::vector<endpoint_subnet_conf> subnets;   /** 子网范围 **/
@@ -280,10 +298,50 @@ namespace atbus {
          * @param s 数据块长度
          * @param require_rsp 是否强制需要回包（默认情况下如果发送成功是没有回包通知的）
          * @return 0或错误码
-         * @note 接收端收到的数据很可能不是地址对齐的，所以这里不建议发送内存数据
-         *       如果非要发送内存数据的话，一定要memcpy，不能直接类型转换，除非手动设置了地址对齐规则
+         * @note 接收端收到的数据很可能不是地址对齐的，所以这里不建议发送内存数据对象(struct/class)
+         *       如果非要发送内存数据的话，接收端一定要memcpy，不能直接类型转换，除非手动设置了地址对齐规则
          */
         ATBUS_MACRO_API int send_data(bus_id_t tid, int type, const void *buffer, size_t s, bool require_rsp = false);
+
+        /**
+         * @brief 发送数据
+         * @param tid 发送目标ID
+         * @param type 自定义类型，将作为msg.head.type字段传递。可用于业务区分服务类型
+         * @param buffer 数据块地址
+         * @param s 数据块长度
+         * @param sequence 返回本次自定义消息的发送序号，可用于通过回包进行错误处理或确认处理
+         * @return 0或错误码
+         * @note 接收端收到的数据很可能不是地址对齐的，所以这里不建议发送内存数据对象(struct/class)
+         *       如果非要发送内存数据的话，接收端一定要memcpy，不能直接类型转换，除非手动设置了地址对齐规则
+         */
+        ATBUS_MACRO_API int send_data(bus_id_t tid, int type, const void *buffer, size_t s, uint64_t *sequence);
+
+        /**
+         * @brief 发送数据
+         * @param tid 发送目标ID
+         * @param type 自定义类型，将作为msg.head.type字段传递。可用于业务区分服务类型
+         * @param buffer 数据块地址
+         * @param s 数据块长度
+         * @param options 发送选项
+         * @return 0或错误码
+         * @note 接收端收到的数据很可能不是地址对齐的，所以这里不建议发送内存数据对象(struct/class)
+         *       如果非要发送内存数据的话，接收端一定要memcpy，不能直接类型转换，除非手动设置了地址对齐规则
+         */
+        ATBUS_MACRO_API int send_data(bus_id_t tid, int type, const void *buffer, size_t s, const send_data_options_t& options);
+
+        /**
+         * @brief 发送数据
+         * @param tid 发送目标ID
+         * @param type 自定义类型，将作为msg.head.type字段传递。可用于业务区分服务类型
+         * @param buffer 数据块地址
+         * @param s 数据块长度
+         * @param sequence 返回本次自定义消息的发送序号，可用于通过回包进行错误处理或确认处理
+         * @param options 发送选项
+         * @return 0或错误码
+         * @note 接收端收到的数据很可能不是地址对齐的，所以这里不建议发送内存数据对象(struct/class)
+         *       如果非要发送内存数据的话，接收端一定要memcpy，不能直接类型转换，除非手动设置了地址对齐规则
+         */
+        ATBUS_MACRO_API int send_data(bus_id_t tid, int type, const void *buffer, size_t s, uint64_t *sequence, const send_data_options_t& options);
 
         /**
          * @brief 发送自定义命令消息
@@ -291,7 +349,7 @@ namespace atbus {
          * @param arr_buf 自定义消息内容数组
          * @param arr_size 自定义消息内容长度
          * @param arr_count 自定义消息数组个数
-         * @param seq 返回本次自定义消息的发送序号
+         * @param seq 返回本次自定义消息的发送序号，可用于通过回包进行错误处理或确认处理
          * @return 0或错误码
          */
         ATBUS_MACRO_API int send_custom_cmd(bus_id_t tid, const void *arr_buf[], size_t arr_size[], size_t arr_count, uint64_t *seq = NULL);
@@ -355,6 +413,7 @@ namespace atbus {
          */
         ATBUS_MACRO_API bool check_access_hash(const uint32_t salt, const uint64_t hashval1, const uint64_t hashval2) const;
 
+        ATBUS_MACRO_API const std::string& get_hash_code() const;
     public:
         ATBUS_MACRO_API channel::io_stream_channel *get_iostream_channel();
 
@@ -603,6 +662,8 @@ namespace atbus {
         void remove_ping_timer(timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator& inout);
 
         friend class node_access_controller;
+
+        void init_hash_code();
     public:
         ATBUS_MACRO_API void stat_add_dispatch_times();
 
@@ -615,6 +676,7 @@ namespace atbus {
 
         // 配置
         conf_t conf_;
+        std::string hash_code_;
         std::weak_ptr<node> watcher_; // just like std::shared_from_this<T>
         util::lock::seq_alloc_u64 msg_seq_alloc_;
 

@@ -234,6 +234,8 @@ namespace atbus {
         }
         body->set_flags(self_ep->get_flags());
 
+        body->set_hash_code(n.get_hash_code());
+
         return send_msg(n, conn, *m);
     }
 
@@ -768,6 +770,7 @@ namespace atbus {
                     break;
                 }
 
+                ep->update_hash_code(reg_data->hash_code());
                 ATBUS_FUNC_NODE_DEBUG(n, ep, conn, &m, "connection already connected recv req");
                 break;
             }
@@ -791,6 +794,7 @@ namespace atbus {
                 }
                 rsp_code = res;
 
+                ep->update_hash_code(reg_data->hash_code());
                 ATBUS_FUNC_NODE_DEBUG(n, ep, conn, &m, "connection added to existed endpoint, res: %d", res);
                 break;
             }
@@ -842,6 +846,7 @@ namespace atbus {
                 break;
             }
             ep = new_ep.get();
+            ep->update_hash_code(reg_data->hash_code());
 
             // 如果是正在连接父节点，要检查一下父节点覆盖的subnets是不是完全覆盖自己
             if (conn->get_address().address == n.get_conf().parent_address) {

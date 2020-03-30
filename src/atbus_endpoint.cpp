@@ -221,6 +221,16 @@ namespace atbus {
 
     ATBUS_MACRO_API int32_t endpoint::get_pid() const { return pid_; };
     ATBUS_MACRO_API const std::string &endpoint::get_hostname() const { return hostname_; };
+    ATBUS_MACRO_API const std::string &endpoint::get_hash_code() const {
+        return hash_code_;
+    }
+    ATBUS_MACRO_API void endpoint::update_hash_code(const std::string & in) {
+        if (in.empty()) {
+            return;
+        }
+
+        hash_code_ = in;
+    }
 
     ATBUS_MACRO_API bool endpoint::is_child_node(bus_id_t id) const {
         // id_ == 0 means a temporary node, and has no child

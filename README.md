@@ -10,7 +10,6 @@ libatbus
 >
 
 [![Coverage Status](https://coveralls.io/repos/github/atframework/libatbus/badge.svg?branch=master)](https://coveralls.io/github/atframework/libatbus?branch=master)
-[![Gitter](https://badges.gitter.im/atframework/common.svg)](https://gitter.im/atframework/common?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 依赖
 ------
