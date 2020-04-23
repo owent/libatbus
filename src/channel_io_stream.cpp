@@ -907,8 +907,14 @@ namespace atbus {
         static void io_stream_pipe_connection_cb(uv_stream_t *req, int status) {
             io_stream_connection *conn_raw_ptr = reinterpret_cast<io_stream_connection *>(req->data);
             assert(conn_raw_ptr);
+            if(!conn_raw_ptr) {
+                return;
+            }
             io_stream_channel *channel = conn_raw_ptr->channel;
             assert(channel);
+            if(!channel) {
+                return;
+            }
             io_stream_flag_guard flag_guard(channel->flags, io_stream_channel::EN_CF_IN_CALLBACK);
 
             channel->error_code = status;
@@ -1282,7 +1288,13 @@ namespace atbus {
         static void io_stream_dns_connect_cb(uv_getaddrinfo_t *req, int status, struct addrinfo *res) {
             io_stream_dns_async_data *async_data = reinterpret_cast<io_stream_dns_async_data *>(req->data);
             assert(async_data);
+            if (!async_data) {
+                return;
+            }
             assert(async_data->channel);
+            if (!async_data->channel) {
+                return;
+            }
 
             ATBUS_CHANNEL_REQ_END(async_data->channel);
 

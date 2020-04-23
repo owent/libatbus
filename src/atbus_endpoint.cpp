@@ -248,12 +248,12 @@ namespace atbus {
     }
 
     ATBUS_MACRO_API endpoint::bus_id_t endpoint::get_children_min_id(bus_id_t children_prefix, uint32_t mask) {
-        bus_id_t maskv = (1 << mask) - 1;
+        bus_id_t maskv = (static_cast<bus_id_t>(1) << mask) - 1;
         return children_prefix & (~maskv);
     }
 
     ATBUS_MACRO_API endpoint::bus_id_t endpoint::get_children_max_id(bus_id_t children_prefix, uint32_t mask) {
-        bus_id_t maskv = (1 << mask) - 1;
+        bus_id_t maskv = (static_cast<bus_id_t>(1) << mask) - 1;
         return children_prefix | maskv;
     }
 
