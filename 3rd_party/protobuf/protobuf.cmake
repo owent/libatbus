@@ -234,9 +234,9 @@ if (NOT 3RD_PARTY_PROTOBUF_BIN_PROTOC OR (NOT 3RD_PARTY_PROTOBUF_LINK_NAME AND N
                     @ONLY NEWLINE_STYLE CRLF
                 )
 
-                find_program (3RD_PARTY_PROTOBUF_POWERSHELL_BIN NAMES pwsh)
+                find_program (3RD_PARTY_PROTOBUF_POWERSHELL_BIN NAMES pwsh pwsh.exe)
                 if (NOT 3RD_PARTY_PROTOBUF_POWERSHELL_BIN)
-                    find_program (3RD_PARTY_PROTOBUF_POWERSHELL_BIN NAMES powershell)
+                    find_program (3RD_PARTY_PROTOBUF_POWERSHELL_BIN NAMES powershell powershell.exe)
                 endif ()
                 if (NOT 3RD_PARTY_PROTOBUF_POWERSHELL_BIN)
                     EchoWithColor(COLOR RED "-- Dependency: powershell-core or powershell is required to configure protobuf")
