@@ -170,12 +170,12 @@ if (NOT 3RD_PARTY_PROTOBUF_BIN_PROTOC OR (NOT 3RD_PARTY_PROTOBUF_LINK_NAME AND N
             PATHS "${3RD_PARTY_PROTOBUF_ROOT_DIR}/lib" "${3RD_PARTY_PROTOBUF_ROOT_DIR}/lib64" NO_DEFAULT_PATH)
         if (NOT 3RD_PARTY_PROTOBUF_FIND_LIB)
             if (NOT EXISTS "${3RD_PARTY_PROTOBUF_PKG_DIR}/protobuf-${3RD_PARTY_PROTOBUF_VERSION}")
-                if (NOT EXISTS "${3RD_PARTY_PROTOBUF_PKG_DIR}/protobuf-cpp-${3RD_PARTY_PROTOBUF_VERSION}.tar.gz")
-                    FindConfigurePackageDownloadFile("https://github.com/google/protobuf/releases/download/v${3RD_PARTY_PROTOBUF_VERSION}/protobuf-cpp-${3RD_PARTY_PROTOBUF_VERSION}.tar.gz" "${3RD_PARTY_PROTOBUF_PKG_DIR}/protobuf-cpp-${3RD_PARTY_PROTOBUF_VERSION}.tar.gz")
+                if (NOT EXISTS "${3RD_PARTY_PROTOBUF_PKG_DIR}/protobuf-all-${3RD_PARTY_PROTOBUF_VERSION}.tar.gz")
+                    FindConfigurePackageDownloadFile("https://github.com/google/protobuf/releases/download/v${3RD_PARTY_PROTOBUF_VERSION}/protobuf-all-${3RD_PARTY_PROTOBUF_VERSION}.tar.gz" "${3RD_PARTY_PROTOBUF_PKG_DIR}/protobuf-all-${3RD_PARTY_PROTOBUF_VERSION}.tar.gz")
                 endif ()
 
                 FindConfigurePackageTarXV(
-                    "${3RD_PARTY_PROTOBUF_PKG_DIR}/protobuf-cpp-${3RD_PARTY_PROTOBUF_VERSION}.tar.gz"
+                    "${3RD_PARTY_PROTOBUF_PKG_DIR}/protobuf-all-${3RD_PARTY_PROTOBUF_VERSION}.tar.gz"
                     ${3RD_PARTY_PROTOBUF_PKG_DIR}
                 )
             endif ()
