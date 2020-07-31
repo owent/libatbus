@@ -174,6 +174,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "AIX")
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Android")
+  list(APPEND uv_defines _GNU_SOURCE)
   list(APPEND uv_libraries dl)
   list(APPEND uv_sources
        "${3RD_PARTY_LIBUV_REPO_DIR}/src/unix/android-ifaddrs.c"
@@ -185,7 +186,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Android")
        "${3RD_PARTY_LIBUV_REPO_DIR}/src/unix/random-getentropy.c"
        "${3RD_PARTY_LIBUV_REPO_DIR}/src/unix/random-getrandom.c"
        "${3RD_PARTY_LIBUV_REPO_DIR}/src/unix/random-sysctl-linux.c"
-       "${3RD_PARTY_LIBUV_REPO_DIR}/src/unix/sysinfo-loadavg.c"
   )
 endif()
 
@@ -232,7 +232,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
        "${3RD_PARTY_LIBUV_REPO_DIR}/src/unix/procfs-exepath.c"
        "${3RD_PARTY_LIBUV_REPO_DIR}/src/unix/random-getrandom.c"
        "${3RD_PARTY_LIBUV_REPO_DIR}/src/unix/random-sysctl-linux.c"
-       "${3RD_PARTY_LIBUV_REPO_DIR}/src/unix/sysinfo-loadavg.c"
   )
 endif()
 

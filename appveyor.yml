@@ -23,10 +23,10 @@ environment:
       CMAKE_GEN: Visual Studio 16 2019
     - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
       platform: x64
-      CMAKE_GEN: Visual Studio 15 2017 Win64
+      CMAKE_GEN: Visual Studio 15 2017 
     - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
       platform: x64
-      CMAKE_GEN: Visual Studio 14 2015 Win64
+      CMAKE_GEN: Visual Studio 14 2015 
     - os: MinGW
       CMAKE_GEN: MinGW32
     - os: MinGW
@@ -162,11 +162,11 @@ build_script:
 
         $CMAKE_CONFIGURE_ARGS = @("..", "-G", $Env:CMAKE_GEN, "-DPROJECT_GIT_CLONE_REMOTE_ORIGIN_DISABLE_SSH=ON")
 
-        if ( "$Env:CMAKE_GEN" -ieq "Visual Studio 16 2019" ) {
+        # if ( "$Env:CMAKE_GEN" -ieq "Visual Studio 16 2019" ) {
 
             $CMAKE_CONFIGURE_ARGS += "-A", $Env:PLATFORM
 
-        }
+        # }
 
         if ( Test-Path Env:BUILD_SHARED_LIBS ) {
             $CMAKE_CONFIGURE_ARGS += "-DBUILD_SHARED_LIBS=ON"
