@@ -17,7 +17,7 @@ if [[ "@CMAKE_SYSTEM@" != "@CMAKE_HOST_SYSTEM@" ]]; then
 
         env CC= CXX= @3RD_PARTY_PROTOBUF_HOST_BUILD_FLAGS_CMD@ "-DCMAKE_INSTALL_PREFIX=@3RD_PARTY_PROTOBUF_HOST_ROOT_DIR@" ;
 
-        "@CMAKE_COMMAND@" --build . --target install --config Release "@3RD_PARTY_PROTOBUF_BUILD_MULTI_CORE@" ;
+        "@CMAKE_COMMAND@" --build . --target install --config Release "@3RD_PARTY_PROTOBUF_BUILD_MULTI_CORE@" || "@CMAKE_COMMAND@" --build . --target install --config Release ;
 
     fi
 
@@ -41,7 +41,7 @@ else
 
 fi
 
-"@CMAKE_COMMAND@" --build . --target install --config Release "@3RD_PARTY_PROTOBUF_BUILD_MULTI_CORE@" ;
+"@CMAKE_COMMAND@" --build . --target install --config Release "@3RD_PARTY_PROTOBUF_BUILD_MULTI_CORE@" || "@CMAKE_COMMAND@" --build . --target install --config Release ;
 
 if [[ $? -eq 0 ]] && [[ -e "@3RD_PARTY_PROTOBUF_PKG_DIR@/protobuf-@3RD_PARTY_PROTOBUF_VERSION@/python/setup.py" ]]; then
     export PATH="@3RD_PARTY_PROTOBUF_HOST_ROOT_DIR@/bin:$PATH" ;

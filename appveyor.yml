@@ -23,10 +23,10 @@ environment:
       CMAKE_GEN: Visual Studio 16 2019
     - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
       platform: x64
-      CMAKE_GEN: Visual Studio 15 2017 Win64
+      CMAKE_GEN: Visual Studio 15 2017
     - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
       platform: x64
-      CMAKE_GEN: Visual Studio 14 2015 Win64
+      CMAKE_GEN: Visual Studio 14 2015
     - os: MinGW
       CMAKE_GEN: MinGW32
     - os: MinGW
