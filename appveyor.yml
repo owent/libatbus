@@ -10,8 +10,7 @@
 environment:
   global:
     PREBUILT_ROOT: C:/Users/appveyor/prebuilt
-    PKG_SRC_ROOT: C:/Users/appveyor/pkg_src
-    MSYS2_PREFIX: C:/tools/msys64
+    MSYS2_PREFIX: C:/msys64
     MSYS2_LOG_FILE: C:/Users/appveyor/pkg_src/output.log
   matrix:
     - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
@@ -53,50 +52,30 @@ clone_depth: 1
 # Attempt to ensure we don't try to convert line endings to Win32 CRLF as this will cause build to fail
 #
 init:
-  - pwsh: >-
-
-      if ( -not ( Test-Path "$Env:MSYS2_PREFIX" ) ) {
-
-          mkdir "$Env:MSYS2_PREFIX"
-
-      }
-
-      if ( -not ( Test-Path "$Env:PKG_SRC_ROOT" ) ) {
-
-          mkdir "$Env:PKG_SRC_ROOT"
-
-      }
-
-  - pwsh: >-
+  - pwsh: |
       & git config --global core.autocrlf input
-
       if ( "$Env:OS" -ieq "MinGW" ) {
-
           if ( Test-Path "C:/msys64" ) {
-
               $Env:MSYS2_PREFIX="C:/msys64"
-
               $Env:PATH="$Env:MSYS2_PREFIX;$Env:PATH"
-
+          } elseif ( Test-Path "C:/tools/msys64" ) {
+              $Env:MSYS2_PREFIX="C:/tools/msys64"
+              $Env:PATH="$Env:MSYS2_PREFIX;$Env:PATH"
           } else {
-
               & cinst -y msys2 | Out-Host
-
+              if ( Test-Path "C:/msys64" ) {
+                $Env:MSYS2_PREFIX="C:/msys64"
+                $Env:PATH="$Env:MSYS2_PREFIX;$Env:PATH"
+            } elseif ( Test-Path "C:/tools/msys64" ) {
+                $Env:MSYS2_PREFIX="C:/tools/msys64"
+                $Env:PATH="$Env:MSYS2_PREFIX;$Env:PATH"
+            }
           }
-
           echo "" > "$Env:MSYS2_LOG_FILE"
-
           Get-ChildItem "$Env:MSYS2_PREFIX"
 
-      }
-
-  - pwsh: >-
-      if ( "$Env:OS" -ieq "MinGW" ) {
-
-          echo "$Env:MSYS2_PREFIX/msys2_shell -lc 'pacman -Su --noconfirm --force > '$Env:MSYS2_LOG_FILE' 2>&1'"
-
-          & "$Env:MSYS2_PREFIX/msys2_shell" -lc "pacman -Su --noconfirm --force > '$Env:MSYS2_LOG_FILE' 2>&1" | Out-Host
-
+          echo "msys2_shell -lc 'pacman -Su --noconfirm --force > '$Env:MSYS2_LOG_FILE' 2>&1'"
+          msys2_shell -lc "pacman -Su --noconfirm --force > '$Env:MSYS2_LOG_FILE' 2>&1" | Out-Host
           Get-Content "$Env:MSYS2_LOG_FILE"
       }
 
@@ -104,11 +83,16 @@ init:
 # Install needed build dependencies
 #
 install:
-  - pwsh: >-
+  - pwsh: |
       if ( "$Env:OS" -ieq "MinGW" ) {
-
-            & "$Env:MSYS2_PREFIX/msys2_shell" -lc 'for pkg_name in cmake m4 curl wget tar autoconf automake mingw-w64-x86_64-toolchain mingw-w64-x86_64-toolchain mingw-w64-i686-toolchain mingw-w64-x86_64-libtool mingw-w64-i686-libtool python; do pacman -S --noconfirm --force $pkg_name >> '$Env:MSYS2_LOG_FILE' 2>&1; done' | Out-Host
-
+          if ( Test-Path "C:/msys64" ) {
+              $Env:MSYS2_PREFIX="C:/msys64"
+              $Env:PATH="$Env:MSYS2_PREFIX;$Env:PATH"
+          } elseif ( Test-Path "C:/tools/msys64" ) {
+              $Env:MSYS2_PREFIX="C:/tools/msys64"
+              $Env:PATH="$Env:MSYS2_PREFIX;$Env:PATH"
+          }
+          msys2_shell -lc 'for pkg_name in cmake m4 curl wget tar autoconf automake mingw-w64-x86_64-toolchain mingw-w64-x86_64-toolchain mingw-w64-i686-toolchain mingw-w64-x86_64-libtool mingw-w64-i686-libtool python; do pacman -S --noconfirm --force $pkg_name >> '$Env:MSYS2_LOG_FILE' 2>&1; done' | Out-Host
       }
 
 # Build script
@@ -120,70 +104,44 @@ install:
 # default file handles. Ensure a dummy file descriptor is opened with 'exec'.
 #
 build_script:
-  - pwsh: >-
-
+  - pwsh: |
+      if ( Test-Path "C:/msys64" ) {
+          $Env:MSYS2_PREFIX="C:/msys64"
+          $Env:PATH="$Env:MSYS2_PREFIX;$Env:PATH"
+      } elseif ( Test-Path "C:/tools/msys64" ) {
+          $Env:MSYS2_PREFIX="C:/tools/msys64"
+          $Env:PATH="$Env:MSYS2_PREFIX;$Env:PATH"
+      }
       cd "$Env:APPVEYOR_BUILD_FOLDER"
-
       New-Item -Path build -ItemType directory
-
       cd build
-
       Remove-Item -r *
-
       if ( "$Env:OS" -ieq "MinGW" ) {
-
         $CMAKE_CONFIGURE_EXT_ARGS = @("-DPROJECT_GIT_CLONE_REMOTE_ORIGIN_DISABLE_SSH=ON")
-
         if ( Test-Path Env:BUILD_SHARED_LIBS ) {
-
           $CMAKE_CONFIGURE_EXT_ARGS += "-DBUILD_SHARED_LIBS=ON"
-
         }
-
         if ( "$Env:CMAKE_GEN" -ieq "MinGW32" ) {
-
-          echo "$Env:MSYS2_PREFIX/msys2_shell -mingw32 -lc cd '$Env:APPVEYOR_BUILD_FOLDER/build'; mkdir build cmake .. -G 'MSYS Makefiles' -DPROJECT_ENABLE_UNITTEST=ON -DPROJECT_ENABLE_SAMPLE=ON -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON $CMAKE_CONFIGURE_EXT_ARGS; make -j4"
-
-          & "$Env:MSYS2_PREFIX/msys2_shell" -mingw32 -lc "cd '$Env:APPVEYOR_BUILD_FOLDER/build'; cmake .. -G 'MSYS Makefiles' -DPROJECT_ENABLE_UNITTEST=ON -DPROJECT_ENABLE_SAMPLE=ON -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON $CMAKE_CONFIGURE_EXT_ARGS > '$Env:MSYS2_LOG_FILE' 2>&1; make -j4 >> '$Env:MSYS2_LOG_FILE' 2>&1" | Out-Host
-
+          echo "msys2_shell -mingw32 -lc cd '$Env:APPVEYOR_BUILD_FOLDER/build'; mkdir build cmake .. -G 'MSYS Makefiles' -DPROJECT_ENABLE_UNITTEST=ON -DPROJECT_ENABLE_SAMPLE=ON -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON $CMAKE_CONFIGURE_EXT_ARGS; make -j4"
+          msys2_shell -mingw32 -lc "cd '$Env:APPVEYOR_BUILD_FOLDER/build'; cmake .. -G 'MSYS Makefiles' -DPROJECT_ENABLE_UNITTEST=ON -DPROJECT_ENABLE_SAMPLE=ON -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON $CMAKE_CONFIGURE_EXT_ARGS > '$Env:MSYS2_LOG_FILE' 2>&1; make -j4 >> '$Env:MSYS2_LOG_FILE' 2>&1" | Out-Host
           Get-Content "$Env:MSYS2_LOG_FILE"
-
         } else {
-
-          echo "$Env:MSYS2_PREFIX/msys2_shell -mingw64 -lc cd '$Env:APPVEYOR_BUILD_FOLDER/build'; cmake .. -G 'MSYS Makefiles' -DPROJECT_ENABLE_UNITTEST=ON -DPROJECT_ENABLE_SAMPLE=ON -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON $CMAKE_CONFIGURE_EXT_ARGS; make -j4"
-
-          & "$Env:MSYS2_PREFIX/msys2_shell" -mingw64 -lc "cd '$Env:APPVEYOR_BUILD_FOLDER/build'; cmake ..  -G 'MSYS Makefiles' -DPROJECT_ENABLE_UNITTEST=ON -DPROJECT_ENABLE_SAMPLE=ON -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON $CMAKE_CONFIGURE_EXT_ARGS> '$Env:MSYS2_LOG_FILE' 2>&1; make -j4 >> '$Env:MSYS2_LOG_FILE' 2>&1" | Out-Host
-
+          echo "msys2_shell -mingw64 -lc cd '$Env:APPVEYOR_BUILD_FOLDER/build'; cmake .. -G 'MSYS Makefiles' -DPROJECT_ENABLE_UNITTEST=ON -DPROJECT_ENABLE_SAMPLE=ON -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON $CMAKE_CONFIGURE_EXT_ARGS; make -j4"
+          msys2_shell -mingw64 -lc "cd '$Env:APPVEYOR_BUILD_FOLDER/build'; cmake ..  -G 'MSYS Makefiles' -DPROJECT_ENABLE_UNITTEST=ON -DPROJECT_ENABLE_SAMPLE=ON -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON $CMAKE_CONFIGURE_EXT_ARGS> '$Env:MSYS2_LOG_FILE' 2>&1; make -j4 >> '$Env:MSYS2_LOG_FILE' 2>&1" | Out-Host
           Get-Content "$Env:MSYS2_LOG_FILE"
-
         }
-
       } else {
-
         $CMAKE_CONFIGURE_ARGS = @("..", "-G", $Env:CMAKE_GEN, "-DPROJECT_GIT_CLONE_REMOTE_ORIGIN_DISABLE_SSH=ON")
-
-        # if ( "$Env:CMAKE_GEN" -ieq "Visual Studio 16 2019" ) {
-
-            $CMAKE_CONFIGURE_ARGS += "-A", $Env:PLATFORM
-
-        # }
-
+        $CMAKE_CONFIGURE_ARGS += "-A", $Env:PLATFORM
         if ( Test-Path Env:BUILD_SHARED_LIBS ) {
             $CMAKE_CONFIGURE_ARGS += "-DBUILD_SHARED_LIBS=ON"
         }
-
         $CMAKE_CONFIGURE_ARGS += "-DPROJECT_ENABLE_UNITTEST=ON", "-DPROJECT_ENABLE_SAMPLE=ON", "-DPROJECT_ENABLE_TOOLS=ON", "-DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON", "-DCMAKE_BUILD_TYPE=$Env:CONFIGURATION"
-
         echo "cmake $($CMAKE_CONFIGURE_ARGS -join ' ')"
-
         & cmake $CMAKE_CONFIGURE_ARGS
-
         if( Test-Path "deps/protobuf-*/run-build-release.ps1") { Get-Content "deps/protobuf-*/run-build-release.ps1" }
-
         if( Test-Path "deps/protobuf-*/run-build-release.sh") { Get-Content "deps/protobuf-*/run-build-release.sh" }
-
         echo "cmake --build . --config $Env:CONFIGURATION"
-
         & cmake --build . --config $Env:CONFIGURATION
       }
 #
@@ -191,36 +149,28 @@ build_script:
 # Can not get failed log in mingw, so just check if build success in mingw(custom test myself)
 #
 test_script:
-  - pwsh: >-
-
+  - pwsh: |
+      if ( Test-Path "C:/msys64" ) {
+          $Env:MSYS2_PREFIX="C:/msys64"
+          $Env:PATH="$Env:MSYS2_PREFIX;$Env:PATH"
+      } elseif ( Test-Path "C:/tools/msys64" ) {
+          $Env:MSYS2_PREFIX="C:/tools/msys64"
+          $Env:PATH="$Env:MSYS2_PREFIX;$Env:PATH"
+      }
       if ( "$Env:OS" -ieq "MinGW" ) {
-
           if ( "$Env:CMAKE_GEN" -ieq "MinGW32" ) {
-
-              echo "$Env:MSYS2_PREFIX/msys2_shell -mingw32 -lc cd '$Env:APPVEYOR_BUILD_FOLDER/build'; ctest . -V"
-
-              & "$Env:MSYS2_PREFIX/msys2_shell" -mingw32 -lc "cd '$Env:APPVEYOR_BUILD_FOLDER/build'; ctest . -V > '$Env:MSYS2_LOG_FILE' 2>&1" | Out-Host
-
+              echo "msys2_shell -mingw32 -lc cd '$Env:APPVEYOR_BUILD_FOLDER/build'; ctest . -V"
+              msys2_shell -mingw32 -lc "cd '$Env:APPVEYOR_BUILD_FOLDER/build'; ctest . -V > '$Env:MSYS2_LOG_FILE' 2>&1" | Out-Host
               Get-Content "$Env:MSYS2_LOG_FILE"
-
           } else {
-
-              echo "$Env:MSYS2_PREFIX/msys2_shell -mingw64 -lc cd '$Env:APPVEYOR_BUILD_FOLDER/build'; ctest . -V"
-
-              & "$Env:MSYS2_PREFIX/msys2_shell" -mingw64 -lc "cd '$Env:APPVEYOR_BUILD_FOLDER/build'; ctest . -V > '$Env:MSYS2_LOG_FILE' 2>&1" | Out-Host
-
+              echo "msys2_shell -mingw64 -lc cd '$Env:APPVEYOR_BUILD_FOLDER/build'; ctest . -V"
+              msys2_shell -mingw64 -lc "cd '$Env:APPVEYOR_BUILD_FOLDER/build'; ctest . -V > '$Env:MSYS2_LOG_FILE' 2>&1" | Out-Host
               Get-Content "$Env:MSYS2_LOG_FILE"
-
           }
-
       } else {
-
           if (!( Test-Path Env:BUILD_SHARED_LIBS )) {
-
             & ctest . -V -C $Env:CONFIGURATION
-
           }
-
       }
 
 #
