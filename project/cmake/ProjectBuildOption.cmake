@@ -24,6 +24,7 @@ option(ATBUS_MACRO_ABORT_ON_PROTECTED_ERROR "abort when any inner error found." 
 
 option(PROJECT_RESET_DENPEND_REPOSITORIES "Reset depended repositories if it's already exists." OFF)
 option(PROJECT_GIT_CLONE_REMOTE_ORIGIN_DISABLE_SSH "Do not try to use ssh url when clone dependency." OFF)
+option(PROJECT_FIND_CONFIGURE_PACKAGE_PARALLEL_BUILD "Parallel building for FindConfigurePackage. It's usually useful for some CI with low memory." ON)
 
 # libuv选项
 set(LIBUV_ROOT "" CACHE STRING "libuv root directory")

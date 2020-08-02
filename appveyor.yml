@@ -73,7 +73,6 @@ init:
           }
           echo "" > "$Env:MSYS2_LOG_FILE"
           Get-ChildItem "$Env:MSYS2_PREFIX"
-
           echo "msys2_shell -lc 'pacman -Su --noconfirm --force > '$Env:MSYS2_LOG_FILE' 2>&1'"
           msys2_shell -lc "pacman -Su --noconfirm --force > '$Env:MSYS2_LOG_FILE' 2>&1" | Out-Host
           Get-Content "$Env:MSYS2_LOG_FILE"

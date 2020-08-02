@@ -206,7 +206,11 @@ if (NOT 3RD_PARTY_PROTOBUF_BIN_PROTOC OR (NOT 3RD_PARTY_PROTOBUF_LINK_NAME AND N
                 file(MAKE_DIRECTORY ${3RD_PARTY_PROTOBUF_BUILD_SCRIPT_DIR})
             endif()
 
-            set(3RD_PARTY_PROTOBUF_BUILD_MULTI_CORE ${FindConfigurePackageCMakeBuildMultiJobs})
+            if (PROJECT_FIND_CONFIGURE_PACKAGE_PARALLEL_BUILD)
+                set(3RD_PARTY_PROTOBUF_BUILD_MULTI_CORE ${FindConfigurePackageCMakeBuildMultiJobs})
+            else ()
+                unset(3RD_PARTY_PROTOBUF_BUILD_MULTI_CORE)
+            endif ()
 
             string(REGEX REPLACE ";" "\" \"" 3RD_PARTY_PROTOBUF_BUILD_FLAGS_CMD "${3RD_PARTY_PROTOBUF_BUILD_FLAGS}")
             set (3RD_PARTY_PROTOBUF_BUILD_FLAGS_CMD "\"${3RD_PARTY_PROTOBUF_BUILD_FLAGS_CMD}\"")
