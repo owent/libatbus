@@ -11,7 +11,7 @@ environment:
   global:
     PREBUILT_ROOT: C:/Users/appveyor/prebuilt
     MSYS2_PREFIX: C:/msys64
-    MSYS2_LOG_FILE: C:/Users/appveyor/pkg_src/output.log
+    MSYS2_LOG_FILE: C:/Users/appveyor/output.log
   matrix:
     - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
       platform: x64
