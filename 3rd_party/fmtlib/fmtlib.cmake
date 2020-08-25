@@ -47,7 +47,7 @@ if(NOT DEFINED __PROJECT_3RD_PARTY_FMTLIB_LOADED)
 
         set (3RD_PARTY_FMTLIB_PKG_DIR "${3RD_PARTY_FMTLIB_BASE_DIR}/pkg")
 
-        set (3RD_PARTY_FMTLIB_DEFAULT_VERSION "6.2.1")
+        set (3RD_PARTY_FMTLIB_DEFAULT_VERSION "7.0.3")
         if (fmt_ROOT)
             set (FMT_ROOT ${fmt_ROOT})
         elseif (Fmt_ROOT)

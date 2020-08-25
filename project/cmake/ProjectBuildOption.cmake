@@ -26,6 +26,8 @@ option(PROJECT_RESET_DENPEND_REPOSITORIES "Reset depended repositories if it's a
 option(PROJECT_GIT_CLONE_REMOTE_ORIGIN_DISABLE_SSH "Do not try to use ssh url when clone dependency." OFF)
 option(PROJECT_FIND_CONFIGURE_PACKAGE_PARALLEL_BUILD "Parallel building for FindConfigurePackage. It's usually useful for some CI with low memory." ON)
 
+option(ATFRAMEWORK_USE_DYNAMIC_LIBRARY "Build and linking with dynamic libraries." OFF)
+
 # libuv选项
 set(LIBUV_ROOT "" CACHE STRING "libuv root directory")
 
