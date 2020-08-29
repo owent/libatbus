@@ -50,7 +50,7 @@
 namespace atbus {
     namespace channel {
         // utility functions
-        struct channel_address_t {
+        struct ATBUS_MACRO_API_HEAD_ONLY channel_address_t {
             std::string address; // 主机完整地址，比如：ipv4://127.0.0.1:8123 或 unix:///tmp/atbut.sock
             std::string scheme;  // 协议名称，比如：ipv4 或 unix
             std::string host;    // 主机地址，比如：127.0.0.1 或 /tmp/atbut.sock
@@ -61,7 +61,7 @@ namespace atbus {
         struct mem_channel;
         struct mem_conf;
 
-        struct mem_stats_block_error {
+        struct ATBUS_MACRO_API_HEAD_ONLY mem_stats_block_error {
             // 统计信息
             size_t write_check_sequence_failed_count; // 写完后校验操作序号错误
             size_t write_retry_count;                 // 写操作内部重试次数
@@ -92,7 +92,7 @@ namespace atbus {
                                              size_t s                          // 额外参数长度
         );
 
-        struct io_stream_callback_evt_t {
+        struct ATBUS_MACRO_API_HEAD_ONLY io_stream_callback_evt_t {
             enum mem_fn_t {
                 EN_FN_ACCEPTED = 0,
                 EN_FN_CONNECTED, // 连接或listen成功
@@ -106,7 +106,7 @@ namespace atbus {
         };
 
         // 以下不是POD类型，所以不得不暴露出来
-        struct io_stream_connection {
+        struct ATBUS_MACRO_API_HEAD_ONLY io_stream_connection {
             enum flag_t {
                 EN_CF_LISTEN = 0,
                 EN_CF_CONNECT,
@@ -146,7 +146,7 @@ namespace atbus {
             void *data;
         };
 
-        struct io_stream_conf {
+        struct ATBUS_MACRO_API_HEAD_ONLY io_stream_conf {
             time_t keepalive;
 
             bool is_noblock;
@@ -166,7 +166,7 @@ namespace atbus {
             size_t max_read_check_hash_failed_count;
         };
 
-        struct io_stream_channel {
+        struct ATBUS_MACRO_API_HEAD_ONLY io_stream_channel {
             enum flag_t {
                 EN_CF_IS_LOOP_OWNER = 0,
                 EN_CF_CLOSING,
