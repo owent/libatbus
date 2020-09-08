@@ -30,13 +30,13 @@ set(PROJECT_LIB_SRC_LIST
 )
 
 set(PROJECT_LIB_PROTOCOL_SRC_LIST
-    "${PROJECT_LIBATBUS_ROOT_INC_DIR}/detail/libatbus_protocol.pb.h"
-    "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/detail/libatbus_protocol.pb.cc"
+    "${PROJECT_LIBATBUS_ROOT_INC_DIR}/libatbus_protocol.pb.h"
+    "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/libatbus_protocol.pb.cc"
 )
 
 set_source_files_properties(
-    "${PROJECT_LIBATBUS_ROOT_INC_DIR}/detail/libatbus_protocol.pb.h"
-    "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/detail/libatbus_protocol.pb.cc"
+    "${PROJECT_LIBATBUS_ROOT_INC_DIR}/libatbus_protocol.pb.h"
+    "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/libatbus_protocol.pb.cc"
     PROPERTIES GENERATED TRUE
 )
 list(REMOVE_DUPLICATES PROJECT_LIB_SRC_LIST)
@@ -54,7 +54,7 @@ target_link_libraries("${PROJECT_LIBATBUS_LIB_LINK}-protocol"
     INTERFACE ${3RD_PARTY_PROTOBUF_LINK_NAME}
 )
 target_include_directories("${PROJECT_LIBATBUS_LIB_LINK}-protocol"
-    PRIVATE "$<BUILD_INTERFACE:${PROJECT_LIBATBUS_ROOT_INC_DIR}/detail;${3RD_PARTY_PROTOBUF_INC_DIR}>"
+    PRIVATE "$<BUILD_INTERFACE:${PROJECT_LIBATBUS_ROOT_INC_DIR};${3RD_PARTY_PROTOBUF_INC_DIR}>"
     # INTERFACE "$<BUILD_INTERFACE:>"
 )
 target_compile_options("${PROJECT_LIBATBUS_LIB_LINK}-protocol" PRIVATE ${PROJECT_LIBATBUS_PRIVATE_COMPILE_OPTIONS})
@@ -101,7 +101,6 @@ target_include_directories(${PROJECT_LIBATBUS_LIB_LINK}
         "$<INSTALL_INTERFACE:include>"
     PRIVATE 
         "$<BUILD_INTERFACE:${PROJECT_LIBATBUS_ROOT_SRC_DIR}>"
-        "$<BUILD_INTERFACE:${PROJECT_LIBATBUS_ROOT_INC_DIR}/detail>"
 )
 
 target_compile_definitions(${PROJECT_LIBATBUS_LIB_LINK} PRIVATE ATBUS_MACRO_BUILD_API=1)

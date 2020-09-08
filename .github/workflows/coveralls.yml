@@ -33,4 +33,4 @@ jobs:
           timeout 6s ./tools/benchmark_shm_channel_send 12345679 1024 4194304 > send.log 2>&1 || true
           ./tools/show_shm_channel 12345679 1 16 > /dev/null || true
           pip install --user cpp-coveralls
-          coveralls -r .. --gcov-options '\-lp' -e docs -e 3rd_party -e sample -e test -e tools -e build/CMakeFiles -e include/detail/libatbus_protocol.pb.h -e src/detail/libatbus_protocol.pb.cc
+          coveralls -r .. --gcov-options '\-lp' -e docs -e 3rd_party -e sample -e test -e tools -e build/CMakeFiles -e include/libatbus_protocol.pb.h -e src/libatbus_protocol.pb.cc

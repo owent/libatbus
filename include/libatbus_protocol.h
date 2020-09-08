@@ -15,7 +15,8 @@
 #include <config/compiler/protobuf_prefix.h>
 
 #include <google/protobuf/arena.h>
-#include "detail/libatbus_protocol.pb.h"
+
+#include "libatbus_protocol.pb.h"
 
 #include <config/compiler/protobuf_suffix.h>
 

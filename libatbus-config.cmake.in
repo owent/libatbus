@@ -1,38 +1,48 @@
-#.rst:
-# libatbus-config.cmake
-# --------
-#
-# Find the native libatbus includes and library.
-#
-#
-# Result Variables
-# ^^^^^^^^^^^^^^^^
-#
-# This module defines the following variables:
-#
-# ::
-#
-#   Libatbus_INCLUDE_DIRS   - where to find detail/libatbus_config.h , etc.
-#   Libatbus_LIBRARY_DIRS   - where to find (lib)atbus.(a/so/lib/dll/dylib), etc.
-#   Libatbus_LIBRARIES      - List of libraries when using libatbus.
-#   Libatbus_FOUND          - True if libatbus found.
-#   Libatbus_VERSION        - Full version of libatbus
-#
-# ::
-#
+#[=======================================================================[.rst:
+libatbus-config.cmake
+---------------------
 
-#=============================================================================
-# Copyright 2018 OWenT.
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
+Find the native libatbus includes and library.
+
+
+Result Variables
+^^^^^^^^^^^^^^^^
+
+This module defines the following variables:
+
+``Libatbus_INCLUDE_DIRS``
+  Where to find detail/libatbus_config.h , etc.
+``Libatbus_PROTOCOL_DIRS``
+  Where to find libatbus_protocol.proto , etc.
+``Libatbus_LIBRARY_DIRS``
+  Where to find (lib)atbus.(a/so/lib/dll/dylib), etc.
+``Libatbus_LIBRARIES``
+  List of libraries when using libatbus.
+``Libatbus_FOUND``
+  True if libatbus found.
+``Libatbus_VERSION``
+  Full version of libatbus
+
+
+The following :prop_tgt:`IMPORTED` targets are also defined:
+
+``atframework::atbus``
+  The libatbus library
+
+=============================================================================
+Copyright 2020 OWenT.
+
+Distributed under the OSI-approved BSD License (the "License");
+see accompanying file Copyright.txt for details.
+
+This software is distributed WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+See the License for more information.
+=============================================================================
+(To distribute this file outside of CMake, substitute the full License text for 
+the above reference.)
+
+#]=======================================================================]
 
 set(Libatbus_VERSION "@LIBATBUS_VERSION@")
 
@@ -44,6 +54,7 @@ set(Libatbus_SOURCE_DIR "@PROJECT_SOURCE_DIR@")
 
 set_and_check(Libatbus_INCLUDE_DIRS "@PACKAGE_INCLUDE_INSTALL_DIR@")
 set_and_check(Libatbus_LIBRARY_DIRS "@PACKAGE_CMAKE_INSTALL_LIBDIR@")
+set_and_check(Libatbus_PROTOCOL_DIRS "@PACKAGE_INCLUDE_INSTALL_DIR@")
 
 include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_LIBATBUS_EXPORT_NAME@.cmake")
 if (EXISTS "${CMAKE_CURRENT_LIST_DIR}/@PROJECT_LIBATBUS_EXPORT_NAME@.cmake")
