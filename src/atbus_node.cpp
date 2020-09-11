@@ -40,45 +40,42 @@
 #include "libatbus_protocol.h"
 
 namespace atbus {
-    bool node_access_controller::add_ping_timer(node& n, const endpoint::ptr_t &ep, timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator& out) {
+    bool node_access_controller::add_ping_timer(node &n, const endpoint::ptr_t &ep,
+                                                timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator &out) {
         return n.add_ping_timer(ep, out);
     }
 
-    void node_access_controller::remove_ping_timer(node& n, timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator& inout) {
+    void node_access_controller::remove_ping_timer(node &n, timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator &inout) {
         n.remove_ping_timer(inout);
     }
 
-    ATBUS_MACRO_API node::conf_t::conf_t() {
-        node::default_conf(this);
-    }
+    ATBUS_MACRO_API node::conf_t::conf_t() { node::default_conf(this); }
 
-    ATBUS_MACRO_API node::conf_t::conf_t(const conf_t& other) {
-        *this = other;
-    }
+    ATBUS_MACRO_API node::conf_t::conf_t(const conf_t &other) { *this = other; }
 
     ATBUS_MACRO_API node::conf_t::~conf_t() {}
 
-    ATBUS_MACRO_API node::conf_t& node::conf_t::operator=(const conf_t& other) {
-        ev_loop = other.ev_loop;
-        subnets = other.subnets;
-        flags = other.flags;
-        parent_address = other.parent_address;
-        loop_times = other.loop_times;
-        ttl = other.ttl;
-        protocol_version = other.protocol_version;
+    ATBUS_MACRO_API node::conf_t &node::conf_t::operator=(const conf_t &other) {
+        ev_loop                  = other.ev_loop;
+        subnets                  = other.subnets;
+        flags                    = other.flags;
+        parent_address           = other.parent_address;
+        loop_times               = other.loop_times;
+        ttl                      = other.ttl;
+        protocol_version         = other.protocol_version;
         protocol_minimal_version = other.protocol_minimal_version;
 
-        first_idle_timeout = other.first_idle_timeout;
-        ping_interval = other.ping_interval;
-        retry_interval = other.retry_interval;
-        fault_tolerant = other.fault_tolerant;
-        backlog = other.backlog;
+        first_idle_timeout      = other.first_idle_timeout;
+        ping_interval           = other.ping_interval;
+        retry_interval          = other.retry_interval;
+        fault_tolerant          = other.fault_tolerant;
+        backlog                 = other.backlog;
         access_token_max_number = other.access_token_max_number;
-        access_tokens = other.access_tokens;
+        access_tokens           = other.access_tokens;
 
-        msg_size = other.msg_size;
-        recv_buffer_size = other.recv_buffer_size;
-        send_buffer_size = other.send_buffer_size;
+        msg_size           = other.msg_size;
+        recv_buffer_size   = other.recv_buffer_size;
+        send_buffer_size   = other.send_buffer_size;
         send_buffer_number = other.send_buffer_number;
 
         return *this;
@@ -99,14 +96,14 @@ namespace atbus {
 
     ATBUS_MACRO_API node::send_data_options_t::send_data_options_t() : flags(EN_SDOPT_NONE) {}
     ATBUS_MACRO_API node::send_data_options_t::~send_data_options_t() {}
-    ATBUS_MACRO_API node::send_data_options_t::send_data_options_t(const send_data_options_t& other) : flags(other.flags) {}
-    ATBUS_MACRO_API node::send_data_options_t& node::send_data_options_t::operator=(const send_data_options_t& other) {
+    ATBUS_MACRO_API node::send_data_options_t::send_data_options_t(const send_data_options_t &other) : flags(other.flags) {}
+    ATBUS_MACRO_API node::send_data_options_t &node::send_data_options_t::operator=(const send_data_options_t &other) {
         flags = other.flags;
         return *this;
     }
 #if defined(UTIL_CONFIG_COMPILER_CXX_RVALUE_REFERENCES) && UTIL_CONFIG_COMPILER_CXX_RVALUE_REFERENCES
-    ATBUS_MACRO_API node::send_data_options_t::send_data_options_t(send_data_options_t&& other) : flags(other.flags) {}
-    ATBUS_MACRO_API node::send_data_options_t& node::send_data_options_t::operator=(send_data_options_t&& other) {
+    ATBUS_MACRO_API node::send_data_options_t::send_data_options_t(send_data_options_t &&other) : flags(other.flags) {}
+    ATBUS_MACRO_API node::send_data_options_t &node::send_data_options_t::operator=(send_data_options_t &&other) {
         flags = other.flags;
         return *this;
     }
@@ -133,13 +130,13 @@ namespace atbus {
             return;
         }
 
-        conf->ev_loop       = NULL;
+        conf->ev_loop = NULL;
         conf->subnets.clear();
         conf->flags.reset();
         conf->parent_address.clear();
-        conf->loop_times    = 128;
-        conf->ttl           = 16; // 默认最长8次跳转
-        conf->protocol_version = atbus::protocol::ATBUS_PROTOCOL_VERSION;
+        conf->loop_times               = 128;
+        conf->ttl                      = 16; // 默认最长8次跳转
+        conf->protocol_version         = atbus::protocol::ATBUS_PROTOCOL_VERSION;
         conf->protocol_minimal_version = atbus::protocol::ATBUS_PROTOCOL_MINIMAL_VERSION;
 
         conf->first_idle_timeout = ATBUS_MACRO_CONNECTION_CONFIRM_TIMEOUT;
@@ -165,7 +162,7 @@ namespace atbus {
             return;
         }
 
-        conf->timer_sec = 0;
+        conf->timer_sec  = 0;
         conf->timer_usec = 0;
     }
 
@@ -203,7 +200,7 @@ namespace atbus {
             conf_.access_tokens.resize(conf_.access_token_max_number);
         }
         // follow protocol, not input configure
-        conf_.protocol_version = atbus::protocol::ATBUS_PROTOCOL_VERSION;
+        conf_.protocol_version         = atbus::protocol::ATBUS_PROTOCOL_VERSION;
         conf_.protocol_minimal_version = atbus::protocol::ATBUS_PROTOCOL_MINIMAL_VERSION;
 
         ev_loop_ = conf_.ev_loop;
@@ -224,7 +221,7 @@ namespace atbus {
         return EN_ATBUS_ERR_SUCCESS;
     }
 
-    ATBUS_MACRO_API int node::start(const start_conf_t& start_conf) {
+    ATBUS_MACRO_API int node::start(const start_conf_t &start_conf) {
         if (state_t::CREATED == state_) {
             return EN_ATBUS_ERR_NOT_INITED;
         }
@@ -232,10 +229,10 @@ namespace atbus {
         // 初始化时间
         if (0 == start_conf.timer_sec && 0 == start_conf.timer_usec) {
             util::time::time_utility::update();
-            event_timer_.sec = util::time::time_utility::get_sys_now();
+            event_timer_.sec  = util::time::time_utility::get_sys_now();
             event_timer_.usec = util::time::time_utility::get_now_usec();
         } else {
-            event_timer_.sec = start_conf.timer_sec;
+            event_timer_.sec  = start_conf.timer_sec;
             event_timer_.usec = start_conf.timer_usec;
         }
 
@@ -335,8 +332,8 @@ namespace atbus {
             std::vector<endpoint::ptr_t> force_clear_endpoint;
             force_clear_endpoint.reserve(event_timer_.ping_list.size());
             // 清理ping定时器
-            for (timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator iter = event_timer_.ping_list.begin(); 
-                iter != event_timer_.ping_list.end(); ++ iter) {
+            for (timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator iter = event_timer_.ping_list.begin();
+                 iter != event_timer_.ping_list.end(); ++iter) {
                 if (iter->second.expired()) {
                     continue;
                 }
@@ -347,7 +344,7 @@ namespace atbus {
             assert(0 == force_clear_endpoint.size());
 #endif
 
-            for (size_t i = 0; i < force_clear_endpoint.size(); ++ i) {
+            for (size_t i = 0; i < force_clear_endpoint.size(); ++i) {
                 if (force_clear_endpoint[i]) {
                     force_clear_endpoint[i]->reset();
                     force_clear_endpoint[i]->clear_ping_timer();
@@ -423,7 +420,7 @@ namespace atbus {
         // connection超时下线
         while (!event_timer_.connecting_list.empty()) {
             timer_desc_ls<connection::ptr_t>::type::iterator iter = event_timer_.connecting_list.begin();
-            
+
             if (!iter->second) {
                 event_timer_.connecting_list.erase(iter);
                 continue;
@@ -476,7 +473,8 @@ namespace atbus {
                     state_                             = state_t::CONNECTING_PARENT;
                 }
             } else {
-                if (node_parent_.node_ && !node_parent_.node_->is_available() && node_parent_.node_->get_stat_created_time_sec() + conf_.first_idle_timeout < sec) {
+                if (node_parent_.node_ && !node_parent_.node_->is_available() &&
+                    node_parent_.node_->get_stat_created_time_sec() + conf_.first_idle_timeout < sec) {
                     add_endpoint_gc_list(node_parent_.node_);
                 } else {
                     int res = ping_endpoint(*node_parent_.node_);
@@ -499,12 +497,12 @@ namespace atbus {
                 }
 
                 timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator timer_iter = event_timer_.ping_list.begin();
-                time_t timeout_tick = timer_iter->first;
+                time_t timeout_tick                                                = timer_iter->first;
                 if (timeout_tick > sec) {
                     break;
                 }
 
-                if(!next_ep) {
+                if (!next_ep) {
                     next_ep = timer_iter->second.lock();
                 }
 
@@ -540,11 +538,12 @@ namespace atbus {
                 if (next_tick != timeout_tick) {
                     next_ep.reset();
                 } else {
-                    endpoint::ptr_t test_ep = event_timer_.ping_list.front().second.lock();;
+                    endpoint::ptr_t test_ep = event_timer_.ping_list.front().second.lock();
+                    ;
                     if (test_ep == next_ep) {
-    #if defined(ATBUS_MACRO_ABORT_ON_PROTECTED_ERROR) && ATBUS_MACRO_ABORT_ON_PROTECTED_ERROR
+#if defined(ATBUS_MACRO_ABORT_ON_PROTECTED_ERROR) && ATBUS_MACRO_ABORT_ON_PROTECTED_ERROR
                         assert(false);
-    #endif
+#endif
                         event_timer_.ping_list.pop_front();
                         next_ep.reset();
                     } else {
@@ -555,7 +554,7 @@ namespace atbus {
         }
 
 #if 0 // disabled
-        // 节点同步协议-推送
+      // 节点同步协议-推送
         if (0 != event_timer_.node_sync_push && event_timer_.node_sync_push < sec) {
             // 发起子节点同步信息推送
             int res = push_node_sync();
@@ -829,11 +828,12 @@ namespace atbus {
         return send_data(tid, type, buffer, s, seq, options);
     }
 
-    ATBUS_MACRO_API int node::send_data(bus_id_t tid, int type, const void *buffer, size_t s, const send_data_options_t& options) {
+    ATBUS_MACRO_API int node::send_data(bus_id_t tid, int type, const void *buffer, size_t s, const send_data_options_t &options) {
         return send_data(tid, type, buffer, s, NULL, options);
     }
 
-    ATBUS_MACRO_API int node::send_data(bus_id_t tid, int type, const void *buffer, size_t s, uint64_t *seq, const send_data_options_t& options) {
+    ATBUS_MACRO_API int node::send_data(bus_id_t tid, int type, const void *buffer, size_t s, uint64_t *seq,
+                                        const send_data_options_t &options) {
         if (state_t::CREATED == state_) {
             return EN_ATBUS_ERR_NOT_INITED;
         }
@@ -845,14 +845,14 @@ namespace atbus {
         ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
         arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
         ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena arena(arena_options);
-        ::atbus::msg_t * m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
+        ::atbus::msg_t *m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
         if (NULL == m) {
             ATBUS_FUNC_NODE_ERROR(*this, NULL, NULL, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC);
             return EN_ATBUS_ERR_MALLOC;
         }
 
-        atbus::protocol::msg_head* head = m->mutable_head();
-        atbus::protocol::forward_data* body = m->mutable_data_transform_req();
+        atbus::protocol::msg_head *head     = m->mutable_head();
+        atbus::protocol::forward_data *body = m->mutable_data_transform_req();
         if (NULL == head || NULL == body) {
             ATBUS_FUNC_NODE_ERROR(*this, NULL, NULL, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC);
             return EN_ATBUS_ERR_MALLOC;
@@ -869,17 +869,20 @@ namespace atbus {
         head->set_version(get_protocol_version());
         head->set_type(type);
         head->set_src_bus_id(self_id);
-        head->set_sequence(alloc_msg_seq());
+        if (NULL == seq) {
+            head->set_sequence(alloc_msg_seq());
+        } else if (0 != *seq) {
+            head->set_sequence(*seq);
+        } else {
+            head->set_sequence(alloc_msg_seq());
+            *seq = head->sequence();
+        }
 
         body->set_from(self_id);
         body->set_to(tid);
         body->add_router(self_id);
-        body->mutable_content()->assign(reinterpret_cast<const char*>(buffer), s);
+        body->mutable_content()->assign(reinterpret_cast<const char *>(buffer), s);
         body->set_flags(flags);
-
-        if (NULL != seq) {
-            *seq = head->sequence();
-        }
 
         return send_data_msg(tid, *m);
     }
@@ -901,25 +904,31 @@ namespace atbus {
         ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
         arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
         ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena arena(arena_options);
-        ::atbus::msg_t * m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
+        ::atbus::msg_t *m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
         if (NULL == m) {
             ATBUS_FUNC_NODE_ERROR(*this, NULL, NULL, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC);
             return EN_ATBUS_ERR_MALLOC;
         }
 
-        atbus::protocol::msg_head* head = m->mutable_head();
-        atbus::protocol::custom_command_data* body = m->mutable_custom_command_req();
+        atbus::protocol::msg_head *head            = m->mutable_head();
+        atbus::protocol::custom_command_data *body = m->mutable_custom_command_req();
         if (NULL == head || NULL == body) {
             ATBUS_FUNC_NODE_ERROR(*this, NULL, NULL, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC);
             return EN_ATBUS_ERR_MALLOC;
         }
 
         uint64_t self_id = get_id();
-        uint64_t msg_seq = alloc_msg_seq();
+        if (NULL == seq) {
+            head->set_sequence(alloc_msg_seq());
+        } else if (0 != *seq) {
+            head->set_sequence(*seq);
+        } else {
+            head->set_sequence(alloc_msg_seq());
+            *seq = head->sequence();
+        }
 
         head->set_version(get_protocol_version());
         head->set_src_bus_id(self_id);
-        head->set_sequence(msg_seq);
 
         body->set_from(self_id);
         body->mutable_access_keys()->Reserve(static_cast<int>(get_conf().access_tokens.size()));
@@ -928,7 +937,7 @@ namespace atbus {
             uint64_t hashval1 = 0;
             uint64_t hashval2 = 0;
             if (generate_access_hash(idx, salt, hashval1, hashval2)) {
-                ::atbus::protocol::access_data* access = body->add_access_keys();
+                ::atbus::protocol::access_data *access = body->add_access_keys();
                 if (access == NULL) {
                     continue;
                 }
@@ -940,16 +949,12 @@ namespace atbus {
 
         body->mutable_commands()->Reserve(static_cast<int>(arr_count));
         for (size_t i = 0; i < arr_count; ++i) {
-            ::atbus::protocol::custom_command_argv*  arg = body->add_commands();
+            ::atbus::protocol::custom_command_argv *arg = body->add_commands();
             if (NULL == arg) {
                 continue;
             }
 
-            arg->mutable_arg()->assign(reinterpret_cast<const char*>(arr_buf[i]), arr_size[i]);
-        }
-
-        if (NULL != seq) {
-            *seq = msg_seq;
+            arg->mutable_arg()->assign(reinterpret_cast<const char *>(arr_buf[i]), arr_size[i]);
         }
 
         return send_data_msg(tid, *m);
@@ -1073,7 +1078,8 @@ namespace atbus {
 
                 if ((state_t::LOST_PARENT == get_state() || state_t::CONNECTING_PARENT == get_state()) &&
                     check_flag(flag_t::EN_FT_PARENT_REG_DONE)) {
-                    // 这里是自己先注册到父节点，然后才完成父节点对自己的注册流程，在msg_handler::on_recv_node_reg_rsp里已经标记 EN_FT_PARENT_REG_DONE 了
+                    // 这里是自己先注册到父节点，然后才完成父节点对自己的注册流程，在msg_handler::on_recv_node_reg_rsp里已经标记
+                    // EN_FT_PARENT_REG_DONE 了
                     on_actived();
                 }
 
@@ -1106,9 +1112,7 @@ namespace atbus {
         }
     }
 
-    ATBUS_MACRO_API int node::remove_endpoint(bus_id_t tid) {
-        return remove_endpoint(tid, NULL);
-    }
+    ATBUS_MACRO_API int node::remove_endpoint(bus_id_t tid) { return remove_endpoint(tid, NULL); }
 
     ATBUS_MACRO_API bool node::is_endpoint_available(bus_id_t tid) const {
         if (!flags_.test(flag_t::EN_FT_ACTIVED)) {
@@ -1161,9 +1165,7 @@ namespace atbus {
         return false;
     }
 
-    ATBUS_MACRO_API const std::string& node::get_hash_code() const {
-        return hash_code_;
-    }
+    ATBUS_MACRO_API const std::string &node::get_hash_code() const { return hash_code_; }
 
     ATBUS_MACRO_API channel::io_stream_channel *node::get_iostream_channel() {
         if (iostream_channel_) {
@@ -1220,7 +1222,7 @@ namespace atbus {
         if (0 == get_id() || !self_) {
             return false;
         }
-        
+
         return self_->is_child_node(id);
     }
 
@@ -1340,17 +1342,13 @@ namespace atbus {
         return false;
     }
 
-    ATBUS_MACRO_API int32_t node::get_protocol_version() const {
-        return conf_.protocol_version;
-    }
+    ATBUS_MACRO_API int32_t node::get_protocol_version() const { return conf_.protocol_version; }
 
-    ATBUS_MACRO_API int32_t node::get_protocol_minimal_version() const {
-        return conf_.protocol_minimal_version;
-    }
+    ATBUS_MACRO_API int32_t node::get_protocol_minimal_version() const { return conf_.protocol_minimal_version; }
 
     ATBUS_MACRO_API const std::list<std::string> &node::get_listen_list() const {
         if (likely(self_)) {
-            return self_->get_listen(); 
+            return self_->get_listen();
         }
 
         static std::list<std::string> empty;
@@ -1381,7 +1379,7 @@ namespace atbus {
         return true;
     }
 
-    ATBUS_MACRO_API bool node::add_connection_timer(connection::ptr_t conn, timer_desc_ls<connection::ptr_t>::type::iterator& out) {
+    ATBUS_MACRO_API bool node::add_connection_timer(connection::ptr_t conn, timer_desc_ls<connection::ptr_t>::type::iterator &out) {
         out = event_timer_.connecting_list.end();
         if (state_t::CREATED == state_) {
             return false;
@@ -1393,13 +1391,14 @@ namespace atbus {
 
         // 如果处于握手阶段，发送节点关系逻辑并加入握手连接池并加入超时判定池
         if (false == conn->is_connected()) {
-            out = event_timer_.connecting_list.insert(event_timer_.connecting_list.end(), std::make_pair(event_timer_.sec + conf_.first_idle_timeout, conn));
+            out = event_timer_.connecting_list.insert(event_timer_.connecting_list.end(),
+                                                      std::make_pair(event_timer_.sec + conf_.first_idle_timeout, conn));
         }
 
         return true;
     }
 
-    ATBUS_MACRO_API bool node::remove_connection_timer(timer_desc_ls<connection::ptr_t>::type::iterator& out) {
+    ATBUS_MACRO_API bool node::remove_connection_timer(timer_desc_ls<connection::ptr_t>::type::iterator &out) {
         if (out == event_timer_.connecting_list.end()) {
             return false;
         }
@@ -1414,9 +1413,7 @@ namespace atbus {
         return true;
     }
 
-    ATBUS_MACRO_API size_t node::get_connection_timer_size() const {
-        return event_timer_.connecting_list.size();
-    }
+    ATBUS_MACRO_API size_t node::get_connection_timer_size() const { return event_timer_.connecting_list.size(); }
 
     ATBUS_MACRO_API time_t node::get_timer_sec() const { return event_timer_.sec; }
 
@@ -1429,7 +1426,7 @@ namespace atbus {
             if (NULL != conn) {
                 // maybe removed all reference of this connection after call add_endpoint_fault()
                 connection::ptr_t conn_sptr = conn->watch();
-                endpoint *ep = conn->get_binding();
+                endpoint *ep                = conn->get_binding();
                 if (NULL != ep) {
                     add_endpoint_fault(*ep);
                 }
@@ -1470,7 +1467,8 @@ namespace atbus {
         }
     }
 
-    ATBUS_MACRO_API void node::on_recv_data(const endpoint *ep, connection *conn, const ::atbus::msg_t &m, const void *buffer, size_t s) const {
+    ATBUS_MACRO_API void node::on_recv_data(const endpoint *ep, connection *conn, const ::atbus::msg_t &m, const void *buffer,
+                                            size_t s) const {
         if (NULL == ep && NULL != conn) {
             ep = conn->get_binding();
         }
@@ -1488,7 +1486,8 @@ namespace atbus {
         }
     }
 
-    ATBUS_MACRO_API int node::on_error(const char * /*file_path*/, size_t /*line*/, const endpoint *ep, const connection *conn, int status, int errcode) {
+    ATBUS_MACRO_API int node::on_error(const char * /*file_path*/, size_t /*line*/, const endpoint *ep, const connection *conn, int status,
+                                       int errcode) {
         if (NULL == ep && NULL != conn) {
             ep = conn->get_binding();
         }
@@ -1598,7 +1597,7 @@ namespace atbus {
     }
 
     ATBUS_MACRO_API int node::on_custom_cmd(const endpoint *ep, const connection *conn, bus_id_t from,
-                            const std::vector<std::pair<const void *, size_t> > &cmd_args, std::list<std::string> &rsp) {
+                                            const std::vector<std::pair<const void *, size_t> > &cmd_args, std::list<std::string> &rsp) {
         if (event_msg_.on_custom_cmd) {
             flag_guard_t fgd(this, flag_t::EN_FT_IN_CALLBACK);
             event_msg_.on_custom_cmd(std::cref(*this), ep, conn, from, std::cref(cmd_args), std::ref(rsp));
@@ -1607,7 +1606,7 @@ namespace atbus {
     }
 
     ATBUS_MACRO_API int node::on_custom_rsp(const endpoint *ep, const connection *conn, bus_id_t from,
-                            const std::vector<std::pair<const void *, size_t> > &cmd_args, uint64_t seq) {
+                                            const std::vector<std::pair<const void *, size_t> > &cmd_args, uint64_t seq) {
         if (event_msg_.on_custom_rsp) {
             flag_guard_t fgd(this, flag_t::EN_FT_IN_CALLBACK);
             event_msg_.on_custom_rsp(std::cref(*this), ep, conn, from, std::cref(cmd_args), seq);
@@ -1615,7 +1614,7 @@ namespace atbus {
         return EN_ATBUS_ERR_SUCCESS;
     }
 
-    ATBUS_MACRO_API int node::on_ping(const endpoint *ep, const ::atbus::protocol::msg &m, const ::atbus::protocol::ping_data & body) {
+    ATBUS_MACRO_API int node::on_ping(const endpoint *ep, const ::atbus::protocol::msg &m, const ::atbus::protocol::ping_data &body) {
         if (event_msg_.on_endpoint_ping) {
             flag_guard_t fgd(this, flag_t::EN_FT_IN_CALLBACK);
             event_msg_.on_endpoint_ping(std::cref(*this), ep, std::cref(m), std::cref(body));
@@ -1623,7 +1622,7 @@ namespace atbus {
         return EN_ATBUS_ERR_SUCCESS;
     }
 
-    ATBUS_MACRO_API int node::on_pong(const endpoint *ep, const ::atbus::protocol::msg &m, const ::atbus::protocol::ping_data & body) {
+    ATBUS_MACRO_API int node::on_pong(const endpoint *ep, const ::atbus::protocol::msg &m, const ::atbus::protocol::ping_data &body) {
         if (event_msg_.on_endpoint_pong) {
             flag_guard_t fgd(this, flag_t::EN_FT_IN_CALLBACK);
             event_msg_.on_endpoint_pong(std::cref(*this), ep, std::cref(m), std::cref(body));
@@ -1640,7 +1639,8 @@ namespace atbus {
         return on_shutdown(reason);
     }
 
-    ATBUS_MACRO_API int node::fatal_shutdown(const char *file_path, size_t line, const endpoint *ep, const connection *conn, int status, int errcode) {
+    ATBUS_MACRO_API int node::fatal_shutdown(const char *file_path, size_t line, const endpoint *ep, const connection *conn, int status,
+                                             int errcode) {
         if (flags_.test(flag_t::EN_FT_SHUTDOWN)) {
             return 0;
         }
@@ -1671,14 +1671,14 @@ namespace atbus {
                 ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
                 arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
                 ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena arena(arena_options);
-                ::atbus::msg_t * m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
+                ::atbus::msg_t *m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
                 if (NULL == m) {
                     ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), NULL, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC);
                     break;
                 }
 
                 // unpack
-                if (false == m->ParseFromArray(reinterpret_cast<const void*>(&bin_data[0]), static_cast<int>(bin_data.size()))) {
+                if (false == m->ParseFromArray(reinterpret_cast<const void *>(&bin_data[0]), static_cast<int>(bin_data.size()))) {
                     ATBUS_FUNC_NODE_DEBUG(*this, get_self_endpoint(), NULL, m, "%s", m->InitializationErrorString().c_str());
                     ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), NULL, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_UNPACK);
                     return false;
@@ -1691,7 +1691,7 @@ namespace atbus {
                 }
 
                 if (::atbus::protocol::msg::kDataTransformReq == m->msg_body_case()) {
-                    const ::atbus::protocol::forward_data& fwd_data = m->data_transform_req();
+                    const ::atbus::protocol::forward_data &fwd_data = m->data_transform_req();
                     on_recv_data(get_self_endpoint(), NULL, *m, reinterpret_cast<const void *>(fwd_data.content().data()),
                                  fwd_data.content().size());
                     ++ret;
@@ -1700,7 +1700,7 @@ namespace atbus {
                     if (m->data_transform_req().flags() & atbus::protocol::FORWARD_DATA_FLAG_REQUIRE_RSP) {
                         // be careful, all mutable action here can not set any new element.
                         m->mutable_head()->set_ret(0);
-                        m->set_allocated_data_transform_rsp(const_cast<::atbus::protocol::msg *>(m)->release_data_transform_req());
+                        m->set_allocated_data_transform_rsp(const_cast< ::atbus::protocol::msg *>(m)->release_data_transform_req());
                         on_recv_forward_response(get_self_endpoint(), NULL, m);
                     }
                 }
@@ -1716,14 +1716,14 @@ namespace atbus {
                 ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
                 arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
                 ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena arena(arena_options);
-                ::atbus::msg_t * m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
+                ::atbus::msg_t *m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
                 if (NULL == m) {
                     ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), NULL, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC);
                     break;
                 }
 
                 // unpack
-                if (false == m->ParseFromArray(reinterpret_cast<const void*>(&bin_datas[0]), static_cast<int>(bin_datas.size()))) {
+                if (false == m->ParseFromArray(reinterpret_cast<const void *>(&bin_datas[0]), static_cast<int>(bin_datas.size()))) {
                     ATBUS_FUNC_NODE_DEBUG(*this, get_self_endpoint(), NULL, m, "%s", m->InitializationErrorString().c_str());
                     ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), NULL, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_UNPACK);
                     return false;
@@ -1840,8 +1840,12 @@ namespace atbus {
     ATBUS_MACRO_API void node::set_on_receive_handle(evt_msg_t::on_recv_msg_fn_t fn) { set_on_recv_handle(fn); }
     ATBUS_MACRO_API const node::evt_msg_t::on_recv_msg_fn_t &node::get_on_receive_handle() const { return get_on_recv_handle(); }
 
-    ATBUS_MACRO_API void node::set_on_forward_response_handle(evt_msg_t::on_forward_response_fn_t fn) { event_msg_.on_forward_response = fn; }
-    ATBUS_MACRO_API const node::evt_msg_t::on_forward_response_fn_t &node::get_on_forward_response_handle() const { return event_msg_.on_forward_response; }
+    ATBUS_MACRO_API void node::set_on_forward_response_handle(evt_msg_t::on_forward_response_fn_t fn) {
+        event_msg_.on_forward_response = fn;
+    }
+    ATBUS_MACRO_API const node::evt_msg_t::on_forward_response_fn_t &node::get_on_forward_response_handle() const {
+        return event_msg_.on_forward_response;
+    }
 
     ATBUS_MACRO_API void node::set_on_error_handle(node::evt_msg_t::on_error_fn_t fn) { event_msg_.on_error = fn; }
     ATBUS_MACRO_API const node::evt_msg_t::on_error_fn_t &node::get_on_error_handle() const { return event_msg_.on_error; }
@@ -1855,13 +1859,17 @@ namespace atbus {
     ATBUS_MACRO_API void node::set_on_available_handle(node::evt_msg_t::on_node_up_fn_t fn) { event_msg_.on_node_up = fn; }
     ATBUS_MACRO_API const node::evt_msg_t::on_node_up_fn_t &node::get_on_available_handle() const { return event_msg_.on_node_up; }
 
-    ATBUS_MACRO_API void node::set_on_invalid_connection_handle(node::evt_msg_t::on_invalid_connection_fn_t fn) { event_msg_.on_invalid_connection = fn; }
+    ATBUS_MACRO_API void node::set_on_invalid_connection_handle(node::evt_msg_t::on_invalid_connection_fn_t fn) {
+        event_msg_.on_invalid_connection = fn;
+    }
     ATBUS_MACRO_API const node::evt_msg_t::on_invalid_connection_fn_t &node::get_on_invalid_connection_handle() const {
         return event_msg_.on_invalid_connection;
     }
 
     ATBUS_MACRO_API void node::set_on_new_connection_handle(evt_msg_t::on_new_connection_fn_t fn) { event_msg_.on_new_connection = fn; }
-    ATBUS_MACRO_API const node::evt_msg_t::on_new_connection_fn_t &node::get_on_new_connection_handle() const { return event_msg_.on_new_connection; }
+    ATBUS_MACRO_API const node::evt_msg_t::on_new_connection_fn_t &node::get_on_new_connection_handle() const {
+        return event_msg_.on_new_connection;
+    }
 
     ATBUS_MACRO_API void node::set_on_custom_cmd_handle(evt_msg_t::on_custom_cmd_fn_t fn) { event_msg_.on_custom_cmd = fn; }
     ATBUS_MACRO_API const node::evt_msg_t::on_custom_cmd_fn_t &node::get_on_custom_cmd_handle() const { return event_msg_.on_custom_cmd; }
@@ -1870,16 +1878,24 @@ namespace atbus {
     ATBUS_MACRO_API const node::evt_msg_t::on_custom_rsp_fn_t &node::get_on_custom_rsp_handle() const { return event_msg_.on_custom_rsp; }
 
     ATBUS_MACRO_API void node::set_on_add_endpoint_handle(evt_msg_t::on_add_endpoint_fn_t fn) { event_msg_.on_endpoint_added = fn; }
-    ATBUS_MACRO_API const node::evt_msg_t::on_add_endpoint_fn_t &node::get_on_add_endpoint_handle() const { return event_msg_.on_endpoint_added; }
+    ATBUS_MACRO_API const node::evt_msg_t::on_add_endpoint_fn_t &node::get_on_add_endpoint_handle() const {
+        return event_msg_.on_endpoint_added;
+    }
 
     ATBUS_MACRO_API void node::set_on_remove_endpoint_handle(evt_msg_t::on_remove_endpoint_fn_t fn) { event_msg_.on_endpoint_removed = fn; }
-    ATBUS_MACRO_API const node::evt_msg_t::on_remove_endpoint_fn_t &node::get_on_remove_endpoint_handle() const { return event_msg_.on_endpoint_removed; }
+    ATBUS_MACRO_API const node::evt_msg_t::on_remove_endpoint_fn_t &node::get_on_remove_endpoint_handle() const {
+        return event_msg_.on_endpoint_removed;
+    }
 
     ATBUS_MACRO_API void node::set_on_ping_endpoint_handle(evt_msg_t::on_ping_pong_endpoint_fn_t fn) { event_msg_.on_endpoint_ping = fn; }
-    ATBUS_MACRO_API const node::evt_msg_t::on_ping_pong_endpoint_fn_t &node::get_on_ping_endpoint_handle() const { return event_msg_.on_endpoint_ping; }
+    ATBUS_MACRO_API const node::evt_msg_t::on_ping_pong_endpoint_fn_t &node::get_on_ping_endpoint_handle() const {
+        return event_msg_.on_endpoint_ping;
+    }
 
     ATBUS_MACRO_API void node::set_on_pong_endpoint_handle(evt_msg_t::on_ping_pong_endpoint_fn_t fn) { event_msg_.on_endpoint_pong = fn; }
-    ATBUS_MACRO_API const node::evt_msg_t::on_ping_pong_endpoint_fn_t &node::get_on_pong_endpoint_handle() const { return event_msg_.on_endpoint_pong; }
+    ATBUS_MACRO_API const node::evt_msg_t::on_ping_pong_endpoint_fn_t &node::get_on_pong_endpoint_handle() const {
+        return event_msg_.on_endpoint_pong;
+    }
 
     ATBUS_MACRO_API void node::ref_object(void *obj) {
         if (NULL == obj) {
@@ -1891,7 +1907,7 @@ namespace atbus {
 
     ATBUS_MACRO_API void node::unref_object(void *obj) { ref_objs_.erase(obj); }
 
-    ATBUS_MACRO_API bool node::check_conflict(endpoint_collection_t &coll, const endpoint_subnet_range& range) {
+    ATBUS_MACRO_API bool node::check_conflict(endpoint_collection_t &coll, const endpoint_subnet_range &range) {
         endpoint_collection_t::iterator iter = coll.lower_bound(endpoint_subnet_range(range.get_id_min(), 0));
         if (iter == coll.end()) {
             return false;
@@ -1908,8 +1924,8 @@ namespace atbus {
         return false;
     }
 
-    ATBUS_MACRO_API bool node::check_conflict(endpoint_collection_t &coll, const std::vector<endpoint_subnet_range>& confs) {
-        for (size_t i = 0; i < confs.size(); ++ i) {
+    ATBUS_MACRO_API bool node::check_conflict(endpoint_collection_t &coll, const std::vector<endpoint_subnet_range> &confs) {
+        for (size_t i = 0; i < confs.size(); ++i) {
             if (check_conflict(coll, confs[i])) {
                 return true;
             }
@@ -1946,8 +1962,8 @@ namespace atbus {
         }
 
         // insert all routes
-        const std::vector<endpoint_subnet_range>& routes = ep->get_subnets();
-        for (size_t i = 0; i < routes.size(); ++ i) {
+        const std::vector<endpoint_subnet_range> &routes = ep->get_subnets();
+        for (size_t i = 0; i < routes.size(); ++i) {
             coll[routes[i]] = ep;
         }
 
@@ -1959,7 +1975,7 @@ namespace atbus {
         return true;
     }
 
-    bool node::remove_child(endpoint_collection_t &coll, bus_id_t id, endpoint* expected) {
+    bool node::remove_child(endpoint_collection_t &coll, bus_id_t id, endpoint *expected) {
         endpoint_collection_t::iterator iter = coll.lower_bound(endpoint_subnet_range(id, 0));
         if (iter == coll.end()) {
             return false;
@@ -1975,8 +1991,8 @@ namespace atbus {
 
         endpoint::ptr_t ep = iter->second;
         // remove all routes
-        const std::vector<endpoint_subnet_range>& routes = iter->second->get_subnets();
-        for (size_t i = 0; i < routes.size(); ++ i) {
+        const std::vector<endpoint_subnet_range> &routes = iter->second->get_subnets();
+        for (size_t i = 0; i < routes.size(); ++i) {
             coll.erase(routes[i]);
         }
 
@@ -2023,7 +2039,7 @@ namespace atbus {
     }
 
 
-    bool node::add_ping_timer(const endpoint::ptr_t &ep, timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator& out) {
+    bool node::add_ping_timer(const endpoint::ptr_t &ep, timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator &out) {
         if (!ep) {
             out = event_timer_.ping_list.end();
             return false;
@@ -2049,7 +2065,7 @@ namespace atbus {
         return out != event_timer_.ping_list.end();
     }
 
-    void node::remove_ping_timer(timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator& inout) {
+    void node::remove_ping_timer(timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator &inout) {
         if (inout == event_timer_.ping_list.end()) {
             return;
         }
@@ -2095,7 +2111,7 @@ namespace atbus {
             std::vector<std::string>::iterator new_end = std::unique(all_outter_inters.begin(), all_outter_inters.end());
             all_outter_inters.erase(new_end, all_outter_inters.end());
             for (size_t i = 0; i < all_outter_inters.size(); ++i) {
-                sha256.update(reinterpret_cast<const unsigned char*>(all_outter_inters[i].c_str()), all_outter_inters[i].size());
+                sha256.update(reinterpret_cast<const unsigned char *>(all_outter_inters[i].c_str()), all_outter_inters[i].size());
             }
 
             if (NULL != interface_addrs) {
@@ -2105,34 +2121,34 @@ namespace atbus {
 
         // hash hostname
         {
-            const std::string& hostname = get_hostname();
-            sha256.update(reinterpret_cast<const unsigned char*>(hostname.c_str()), hostname.size());
+            const std::string &hostname = get_hostname();
+            sha256.update(reinterpret_cast<const unsigned char *>(hostname.c_str()), hostname.size());
         }
 
         // hash pid
         {
             int pid = get_pid();
-            sha256.update(reinterpret_cast<const unsigned char*>(&pid), sizeof(pid));
+            sha256.update(reinterpret_cast<const unsigned char *>(&pid), sizeof(pid));
         }
 
         // hash address
         {
-            const unsigned char* self = reinterpret_cast<const unsigned char*>(this);
-            sha256.update(reinterpret_cast<const unsigned char*>(&self), sizeof(self));
+            const unsigned char *self = reinterpret_cast<const unsigned char *>(this);
+            sha256.update(reinterpret_cast<const unsigned char *>(&self), sizeof(self));
         }
 
         // hash id
         {
             bus_id_t id = get_id();
-            sha256.update(reinterpret_cast<const unsigned char*>(&id), sizeof(id));
+            sha256.update(reinterpret_cast<const unsigned char *>(&id), sizeof(id));
         }
 
         // hash start timer
         {
             time_t t = get_timer_sec();
-            sha256.update(reinterpret_cast<const unsigned char*>(&t), sizeof(t));
+            sha256.update(reinterpret_cast<const unsigned char *>(&t), sizeof(t));
             t = get_timer_usec();
-            sha256.update(reinterpret_cast<const unsigned char*>(&t), sizeof(t));
+            sha256.update(reinterpret_cast<const unsigned char *>(&t), sizeof(t));
         }
 
         sha256.final();
@@ -2141,7 +2157,7 @@ namespace atbus {
 
     ATBUS_MACRO_API void node::stat_add_dispatch_times() { ++stat_.dispatch_times; }
 
-    int node::remove_endpoint(bus_id_t tid, endpoint* expected) {
+    int node::remove_endpoint(bus_id_t tid, endpoint *expected) {
         // 父节点单独判定，由于防止测试兄弟节点
         if (is_parent_node(tid)) {
             endpoint::ptr_t ep = node_parent_.node_;
@@ -2232,7 +2248,7 @@ namespace atbus {
                 // serialize message
                 size_t msg_size = mb.ByteSizeLong();
                 bin_data.resize(msg_size);
-                mb.SerializeToArray(reinterpret_cast<void*>(&bin_data[0]), static_cast<int>(msg_size));
+                mb.SerializeToArray(reinterpret_cast<void *>(&bin_data[0]), static_cast<int>(msg_size));
             }
 
             // self command msg
@@ -2244,7 +2260,7 @@ namespace atbus {
                 // serialize message
                 size_t msg_size = mb.ByteSizeLong();
                 bin_data.resize(msg_size);
-                mb.SerializeToArray(reinterpret_cast<void*>(&bin_data[0]), static_cast<int>(msg_size));
+                mb.SerializeToArray(reinterpret_cast<void *>(&bin_data[0]), static_cast<int>(msg_size));
             }
 
             dispatch_all_self_msgs();
@@ -2286,13 +2302,15 @@ namespace atbus {
 
         // 接收大小和msg size一致即可，可以只使用一块静态buffer
         iostream_conf_->recv_buffer_limit_size = conf_.msg_size + ATBUS_MACRO_MAX_FRAME_HEADER;
-        iostream_conf_->recv_buffer_max_size   = conf_.msg_size + conf_.msg_size + ATBUS_MACRO_MAX_FRAME_HEADER + 1024; // 预留header和正在处理的buffer块
+        iostream_conf_->recv_buffer_max_size =
+            conf_.msg_size + conf_.msg_size + ATBUS_MACRO_MAX_FRAME_HEADER + 1024; // 预留header和正在处理的buffer块
 
         iostream_conf_->send_buffer_static     = conf_.send_buffer_number;
         iostream_conf_->send_buffer_max_size   = conf_.send_buffer_size;
-        iostream_conf_->send_buffer_limit_size = conf_.msg_size + ATBUS_MACRO_MAX_FRAME_HEADER + ::atbus::detail::buffer_block::padding_size(sizeof(uv_write_t) + sizeof(uint32_t) + 16);
-        iostream_conf_->confirm_timeout        = conf_.first_idle_timeout;
-        iostream_conf_->backlog                = conf_.backlog;
+        iostream_conf_->send_buffer_limit_size = conf_.msg_size + ATBUS_MACRO_MAX_FRAME_HEADER +
+                                                 ::atbus::detail::buffer_block::padding_size(sizeof(uv_write_t) + sizeof(uint32_t) + 16);
+        iostream_conf_->confirm_timeout = conf_.first_idle_timeout;
+        iostream_conf_->backlog         = conf_.backlog;
 
         return iostream_conf_.get();
     }
