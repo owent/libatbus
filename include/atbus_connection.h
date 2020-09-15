@@ -28,8 +28,8 @@
 #include "detail/libatbus_config.h"
 #include "detail/libatbus_error.h"
 
-#include <design_pattern/noncopyable.h>
 #include <design_pattern/nomovable.h>
+#include <design_pattern/noncopyable.h>
 
 #include "libatbus_protocol.h"
 
@@ -71,6 +71,7 @@ namespace atbus {
                 RESETTING,         /** 正在执行重置（防止递归死循环） **/
                 DESTRUCTING,       /** 正在执行析构（屏蔽某些接口） **/
                 LISTEN_FD,         /** 是否是用于listen的连接 **/
+                TEMPORARY,         /** 是否是临时连接 **/
                 MAX
             };
         };
@@ -89,12 +90,12 @@ namespace atbus {
             size_t fault_count;
         };
 
-    UTIL_DESIGN_PATTERN_NOCOPYABLE(connection)
-    UTIL_DESIGN_PATTERN_NOMOVABLE(connection)
+        UTIL_DESIGN_PATTERN_NOCOPYABLE(connection)
+        UTIL_DESIGN_PATTERN_NOMOVABLE(connection)
 
     private:
         connection();
-        
+
     public:
         static ATBUS_MACRO_API ptr_t create(node *owner);
 
@@ -172,6 +173,8 @@ namespace atbus {
         ATBUS_MACRO_API state_t::type get_status() const;
         ATBUS_MACRO_API bool check_flag(flag_t::type f) const;
 
+        ATBUS_MACRO_API void set_temporary();
+
         /**
          * @brief 获取自身的智能指针
          * @note 在析构阶段这个接口无效
@@ -183,26 +186,27 @@ namespace atbus {
 
         ATBUS_MACRO_API const stat_t &get_statistic() const;
 
-        ATBUS_MACRO_API void remove_owner_checker(const timer_desc_ls<ptr_t>::type::iterator& v);
+        ATBUS_MACRO_API void remove_owner_checker(const timer_desc_ls<ptr_t>::type::iterator &v);
+
     private:
         ATBUS_MACRO_API void set_status(state_t::type v);
 
     public:
-        static ATBUS_MACRO_API void iostream_on_listen_cb(channel::io_stream_channel *channel, channel::io_stream_connection *connection, int status,
-                                          void *buffer, size_t s);
-        static ATBUS_MACRO_API void iostream_on_connected_cb(channel::io_stream_channel *channel, channel::io_stream_connection *connection, int status,
-                                             void *buffer, size_t s);
+        static ATBUS_MACRO_API void iostream_on_listen_cb(channel::io_stream_channel *channel, channel::io_stream_connection *connection,
+                                                          int status, void *buffer, size_t s);
+        static ATBUS_MACRO_API void iostream_on_connected_cb(channel::io_stream_channel *channel, channel::io_stream_connection *connection,
+                                                             int status, void *buffer, size_t s);
 
-        static ATBUS_MACRO_API void iostream_on_recv_cb(channel::io_stream_channel *channel, channel::io_stream_connection *connection, int status,
-                                        void *buffer, size_t s);
-        static ATBUS_MACRO_API void iostream_on_accepted(channel::io_stream_channel *channel, channel::io_stream_connection *connection, int status,
-                                         void *buffer, size_t s);
-        static ATBUS_MACRO_API void iostream_on_connected(channel::io_stream_channel *channel, channel::io_stream_connection *connection, int status,
-                                          void *buffer, size_t s);
-        static ATBUS_MACRO_API void iostream_on_disconnected(channel::io_stream_channel *channel, channel::io_stream_connection *connection, int status,
-                                             void *buffer, size_t s);
-        static ATBUS_MACRO_API void iostream_on_written(channel::io_stream_channel *channel, channel::io_stream_connection *connection, int status,
-                                        void *buffer, size_t s);
+        static ATBUS_MACRO_API void iostream_on_recv_cb(channel::io_stream_channel *channel, channel::io_stream_connection *connection,
+                                                        int status, void *buffer, size_t s);
+        static ATBUS_MACRO_API void iostream_on_accepted(channel::io_stream_channel *channel, channel::io_stream_connection *connection,
+                                                         int status, void *buffer, size_t s);
+        static ATBUS_MACRO_API void iostream_on_connected(channel::io_stream_channel *channel, channel::io_stream_connection *connection,
+                                                          int status, void *buffer, size_t s);
+        static ATBUS_MACRO_API void iostream_on_disconnected(channel::io_stream_channel *channel, channel::io_stream_connection *connection,
+                                                             int status, void *buffer, size_t s);
+        static ATBUS_MACRO_API void iostream_on_written(channel::io_stream_channel *channel, channel::io_stream_connection *connection,
+                                                        int status, void *buffer, size_t s);
 
 #ifdef ATBUS_CHANNEL_SHM
         static ATBUS_MACRO_API int shm_proc_fn(node &n, connection &conn, time_t sec, time_t usec);
@@ -222,7 +226,8 @@ namespace atbus {
 
         static ATBUS_MACRO_API int ios_push_fn(connection &conn, const void *buffer, size_t s);
 
-        static ATBUS_MACRO_API bool unpack(connection &conn, ::atbus::protocol::msg *&m, ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena& arena, std::vector<unsigned char> &in);
+        static ATBUS_MACRO_API bool unpack(connection &conn, ::atbus::protocol::msg *&m, ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena &arena,
+                                           std::vector<unsigned char> &in);
 
     private:
         state_t::type state_;
@@ -245,7 +250,7 @@ namespace atbus {
         struct conn_data_shm {
             channel::shm_channel *channel;
             size_t len;
-        } ;
+        };
 #endif
 
         struct conn_data_ios {

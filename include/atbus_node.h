@@ -23,8 +23,8 @@
 #include <WinSock2.h>
 #endif
 
-#include <design_pattern/noncopyable.h>
 #include <design_pattern/nomovable.h>
+#include <design_pattern/noncopyable.h>
 
 #include "lock/seq_alloc.h"
 #include "random/random_generator.h"
@@ -45,8 +45,8 @@ namespace atbus {
     private:
         friend class endpoint;
 
-        static bool add_ping_timer(node& n, const endpoint::ptr_t &ep, timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator& out);
-        static void remove_ping_timer(node& n, timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator& inout);
+        static bool add_ping_timer(node &n, const endpoint::ptr_t &ep, timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator &out);
+        static void remove_ping_timer(node &n, timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator &inout);
     };
 
     class node UTIL_CONFIG_FINAL : public util::design_pattern::noncopyable {
@@ -68,24 +68,24 @@ namespace atbus {
 
         struct flag_t {
             enum type {
-                EN_FT_RESETTING,          /** 正在重置 **/
-                EN_FT_RESETTING_GC,       /** 正在重置且正准备GC或GC流程已完成 **/
-                EN_FT_ACTIVED,            /** 已激活 **/
-                EN_FT_PARENT_REG_DONE,    /** 已通过父节点注册 **/
-                EN_FT_SHUTDOWN,           /** 已完成关闭前的资源回收 **/
-                EN_FT_RECV_SELF_MSG,      /** 正在接收发给自己的信息 **/
-                EN_FT_IN_CALLBACK,        /** 在回调函数中 **/
-                EN_FT_IN_PROC,            /** 在Proc函数中 **/
-                EN_FT_IN_POLL,            /** 在Poll函数中 **/
-                EN_FT_IN_GC_ENDPOINTS,    /** 在清理endpoint过程中 **/
-                EN_FT_IN_GC_CONNECTIONS,  /** 在清理connection过程中 **/
-                EN_FT_MAX,                /** flag max **/
+                EN_FT_RESETTING,         /** 正在重置 **/
+                EN_FT_RESETTING_GC,      /** 正在重置且正准备GC或GC流程已完成 **/
+                EN_FT_ACTIVED,           /** 已激活 **/
+                EN_FT_PARENT_REG_DONE,   /** 已通过父节点注册 **/
+                EN_FT_SHUTDOWN,          /** 已完成关闭前的资源回收 **/
+                EN_FT_RECV_SELF_MSG,     /** 正在接收发给自己的信息 **/
+                EN_FT_IN_CALLBACK,       /** 在回调函数中 **/
+                EN_FT_IN_PROC,           /** 在Proc函数中 **/
+                EN_FT_IN_POLL,           /** 在Poll函数中 **/
+                EN_FT_IN_GC_ENDPOINTS,   /** 在清理endpoint过程中 **/
+                EN_FT_IN_GC_CONNECTIONS, /** 在清理connection过程中 **/
+                EN_FT_MAX,               /** flag max **/
             };
         };
 
         struct send_data_options_t {
             enum flag_type {
-                EN_SDOPT_NONE = 0,
+                EN_SDOPT_NONE             = 0,
                 EN_SDOPT_REQUIRE_RESPONSE = 0x01, // 是否强制需要回包（默认情况下如果发送成功是没有回包通知的）
             };
 
@@ -93,11 +93,11 @@ namespace atbus {
 
             ATBUS_MACRO_API send_data_options_t();
             ATBUS_MACRO_API ~send_data_options_t();
-            ATBUS_MACRO_API send_data_options_t(const send_data_options_t& other);
-            ATBUS_MACRO_API send_data_options_t& operator=(const send_data_options_t& other);
+            ATBUS_MACRO_API send_data_options_t(const send_data_options_t &other);
+            ATBUS_MACRO_API send_data_options_t &operator=(const send_data_options_t &other);
 #if defined(UTIL_CONFIG_COMPILER_CXX_RVALUE_REFERENCES) && UTIL_CONFIG_COMPILER_CXX_RVALUE_REFERENCES
-            ATBUS_MACRO_API send_data_options_t(send_data_options_t&& other);
-            ATBUS_MACRO_API send_data_options_t& operator=(send_data_options_t&& other);
+            ATBUS_MACRO_API send_data_options_t(send_data_options_t &&other);
+            ATBUS_MACRO_API send_data_options_t &operator=(send_data_options_t &&other);
 #endif
         };
 
@@ -127,9 +127,9 @@ namespace atbus {
             size_t send_buffer_number; /** 发送缓冲区静态Buffer数量限制，0则为动态缓冲区 **/
 
             ATBUS_MACRO_API conf_t();
-            ATBUS_MACRO_API conf_t(const conf_t& other);
+            ATBUS_MACRO_API conf_t(const conf_t &other);
             ATBUS_MACRO_API ~conf_t();
-            ATBUS_MACRO_API conf_t& operator=(const conf_t& other);
+            ATBUS_MACRO_API conf_t &operator=(const conf_t &other);
         };
 
         struct start_conf_t {
@@ -145,11 +145,13 @@ namespace atbus {
                                       size_t)>
                 on_recv_msg_fn_t;
             // 发送消息失败事件或成功通知回调 => 参数列表: 发起节点，来源对端，来源连接，消息体
-            // @note 除非发送时标记atbus::protocol::FORWARD_DATA_FLAG_REQUIRE_RSP为true(即需要通知)，否则成功发送消息默认不回发通知 
+            // @note 除非发送时标记atbus::protocol::FORWARD_DATA_FLAG_REQUIRE_RSP为true(即需要通知)，否则成功发送消息默认不回发通知
             typedef std::function<int(const node &, const endpoint *, const connection *, const ::atbus::protocol::msg *m)>
                 on_forward_response_fn_t;
             // 错误回调 => 参数列表: 发起节点，来源对端，来源连接，状态码（通常来自libuv），错误码
             typedef std::function<int(const node &, const endpoint *, const connection *, int, int)> on_error_fn_t;
+            // INFO日志回调 => 参数列表: 发起节点，来源对端，来源连接，Message
+            typedef std::function<int(const node &, const endpoint *, const connection *, const char *)> on_info_log_fn_t;
             // 新对端注册事件回调 => 参数列表: 发起节点，来源对端，来源连接，返回码（通常来自libuv）
             typedef std::function<int(const node &, const endpoint *, const connection *, int)> on_reg_fn_t;
             // 节点关闭事件回调 => 参数列表: 发起节点，下线原因
@@ -174,11 +176,13 @@ namespace atbus {
             // 对端离线事件回调 => 参数列表: 发起节点，新增的对端，错误码，通常是 EN_ATBUS_ERR_SUCCESS
             typedef std::function<int(const node &, endpoint *, int)> on_remove_endpoint_fn_t;
             // 对端ping/pong事件回调 => 参数列表: 发起节点，ping/pong的对端，消息体，ping_data
-            typedef std::function<int(const node &, const endpoint *, const ::atbus::protocol::msg &, const ::atbus::protocol::ping_data &)> on_ping_pong_endpoint_fn_t;
+            typedef std::function<int(const node &, const endpoint *, const ::atbus::protocol::msg &, const ::atbus::protocol::ping_data &)>
+                on_ping_pong_endpoint_fn_t;
 
             on_recv_msg_fn_t on_recv_msg;
             on_forward_response_fn_t on_forward_response;
             on_error_fn_t on_error;
+            on_info_log_fn_t on_info_log;
             on_reg_fn_t on_reg;
             on_node_down_fn_t on_node_down;
             on_node_up_fn_t on_node_up;
@@ -211,7 +215,7 @@ namespace atbus {
 
     private:
         node();
-        
+
         struct io_stream_channel_del {
             void operator()(channel::io_stream_channel *p) const;
         };
@@ -230,7 +234,7 @@ namespace atbus {
          * @brief 启动连接流程
          * @return 0或错误码
          */
-        ATBUS_MACRO_API int start(const start_conf_t& start_conf);
+        ATBUS_MACRO_API int start(const start_conf_t &start_conf);
 
         /**
          * @brief 启动连接流程
@@ -327,7 +331,7 @@ namespace atbus {
          * @note 接收端收到的数据很可能不是地址对齐的，所以这里不建议发送内存数据对象(struct/class)
          *       如果非要发送内存数据的话，接收端一定要memcpy，不能直接类型转换，除非手动设置了地址对齐规则
          */
-        ATBUS_MACRO_API int send_data(bus_id_t tid, int type, const void *buffer, size_t s, const send_data_options_t& options);
+        ATBUS_MACRO_API int send_data(bus_id_t tid, int type, const void *buffer, size_t s, const send_data_options_t &options);
 
         /**
          * @brief 发送数据
@@ -341,7 +345,8 @@ namespace atbus {
          * @note 接收端收到的数据很可能不是地址对齐的，所以这里不建议发送内存数据对象(struct/class)
          *       如果非要发送内存数据的话，接收端一定要memcpy，不能直接类型转换，除非手动设置了地址对齐规则
          */
-        ATBUS_MACRO_API int send_data(bus_id_t tid, int type, const void *buffer, size_t s, uint64_t *sequence, const send_data_options_t& options);
+        ATBUS_MACRO_API int send_data(bus_id_t tid, int type, const void *buffer, size_t s, uint64_t *sequence,
+                                      const send_data_options_t &options);
 
         /**
          * @brief 发送自定义命令消息
@@ -413,7 +418,8 @@ namespace atbus {
          */
         ATBUS_MACRO_API bool check_access_hash(const uint32_t salt, const uint64_t hashval1, const uint64_t hashval2) const;
 
-        ATBUS_MACRO_API const std::string& get_hash_code() const;
+        ATBUS_MACRO_API const std::string &get_hash_code() const;
+
     public:
         ATBUS_MACRO_API channel::io_stream_channel *get_iostream_channel();
 
@@ -430,8 +436,8 @@ namespace atbus {
         ATBUS_MACRO_API adapter::loop_t *get_evloop();
 
     private:
-        int remove_endpoint(bus_id_t tid, endpoint* expected);
-        
+        int remove_endpoint(bus_id_t tid, endpoint *expected);
+
         /**
          * @brief 发送数据消息
          * @param tid 发送目标ID
@@ -513,9 +519,9 @@ namespace atbus {
         ATBUS_MACRO_API bool add_proc_connection(connection::ptr_t conn);
         ATBUS_MACRO_API bool remove_proc_connection(const std::string &conn_key);
 
-        ATBUS_MACRO_API bool add_connection_timer(connection::ptr_t conn, timer_desc_ls<connection::ptr_t>::type::iterator& out);
+        ATBUS_MACRO_API bool add_connection_timer(connection::ptr_t conn, timer_desc_ls<connection::ptr_t>::type::iterator &out);
 
-        ATBUS_MACRO_API bool remove_connection_timer(timer_desc_ls<connection::ptr_t>::type::iterator& out);
+        ATBUS_MACRO_API bool remove_connection_timer(timer_desc_ls<connection::ptr_t>::type::iterator &out);
 
         ATBUS_MACRO_API size_t get_connection_timer_size() const;
 
@@ -525,11 +531,13 @@ namespace atbus {
 
         ATBUS_MACRO_API void on_recv(connection *conn, ::atbus::protocol::msg ATBUS_MACRO_RVALUE_REFERENCES m, int status, int errcode);
 
-        ATBUS_MACRO_API void on_recv_data(const endpoint *ep, connection *conn, const ::atbus::protocol::msg &m, const void *buffer, size_t s) const;
+        ATBUS_MACRO_API void on_recv_data(const endpoint *ep, connection *conn, const ::atbus::protocol::msg &m, const void *buffer,
+                                          size_t s) const;
 
         ATBUS_MACRO_API void on_recv_forward_response(const endpoint *, const connection *, const ::atbus::protocol::msg *m);
 
         ATBUS_MACRO_API int on_error(const char *file_path, size_t line, const endpoint *, const connection *, int, int);
+        ATBUS_MACRO_API void on_info_log(const char *file_path, size_t line, const endpoint *, const connection *, const char *);
         ATBUS_MACRO_API int on_disconnect(const connection *);
         ATBUS_MACRO_API int on_new_connection(connection *);
         ATBUS_MACRO_API int on_shutdown(int reason);
@@ -537,12 +545,12 @@ namespace atbus {
         ATBUS_MACRO_API int on_actived();
         ATBUS_MACRO_API int on_parent_reg_done();
         ATBUS_MACRO_API int on_custom_cmd(const endpoint *, const connection *, bus_id_t from,
-                          const std::vector<std::pair<const void *, size_t> > &cmd_args, std::list<std::string> &rsp);
+                                          const std::vector<std::pair<const void *, size_t> > &cmd_args, std::list<std::string> &rsp);
         ATBUS_MACRO_API int on_custom_rsp(const endpoint *, const connection *, bus_id_t from,
-                          const std::vector<std::pair<const void *, size_t> > &cmd_args, uint64_t seq);
+                                          const std::vector<std::pair<const void *, size_t> > &cmd_args, uint64_t seq);
 
-        ATBUS_MACRO_API int on_ping(const endpoint *ep, const ::atbus::protocol::msg &m, const ::atbus::protocol::ping_data & body);
-        ATBUS_MACRO_API int on_pong(const endpoint *ep, const ::atbus::protocol::msg &m, const ::atbus::protocol::ping_data & body);
+        ATBUS_MACRO_API int on_ping(const endpoint *ep, const ::atbus::protocol::msg &m, const ::atbus::protocol::ping_data &body);
+        ATBUS_MACRO_API int on_pong(const endpoint *ep, const ::atbus::protocol::msg &m, const ::atbus::protocol::ping_data &body);
 
         /**
          * @brief 关闭node
@@ -556,7 +564,8 @@ namespace atbus {
 
 
         /** do not use this directly **/
-        ATBUS_MACRO_API int fatal_shutdown(const char *file_path, size_t line, const endpoint *, const connection *, int status, int errcode);
+        ATBUS_MACRO_API int fatal_shutdown(const char *file_path, size_t line, const endpoint *, const connection *, int status,
+                                           int errcode);
 
         /** dispatch all self messages **/
         ATBUS_MACRO_API int dispatch_all_self_msgs();
@@ -589,6 +598,9 @@ namespace atbus {
 
         ATBUS_MACRO_API void set_on_error_handle(evt_msg_t::on_error_fn_t fn);
         ATBUS_MACRO_API const evt_msg_t::on_error_fn_t &get_on_error_handle() const;
+
+        ATBUS_MACRO_API void set_on_info_log_handle(evt_msg_t::on_info_log_fn_t fn);
+        ATBUS_MACRO_API const evt_msg_t::on_info_log_fn_t &get_on_info_log_handle() const;
 
         ATBUS_MACRO_API void set_on_register_handle(evt_msg_t::on_reg_fn_t fn);
         ATBUS_MACRO_API const evt_msg_t::on_reg_fn_t &get_on_register_handle() const;
@@ -628,14 +640,15 @@ namespace atbus {
         // inner API, please don't use it if you don't known what will happen
         ATBUS_MACRO_API void unref_object(void *);
 
-        static ATBUS_MACRO_API bool check_conflict(endpoint_collection_t &coll, const endpoint_subnet_range& conf);
-        static ATBUS_MACRO_API bool check_conflict(endpoint_collection_t &coll, const std::vector<endpoint_subnet_range>& confs);
+        static ATBUS_MACRO_API bool check_conflict(endpoint_collection_t &coll, const endpoint_subnet_range &conf);
+        static ATBUS_MACRO_API bool check_conflict(endpoint_collection_t &coll, const std::vector<endpoint_subnet_range> &confs);
+
     private:
         static endpoint *find_route(endpoint_collection_t &coll, bus_id_t id);
 
         bool insert_child(endpoint_collection_t &coll, endpoint::ptr_t ep);
 
-        bool remove_child(endpoint_collection_t &coll, bus_id_t id, endpoint* expected = NULL);
+        bool remove_child(endpoint_collection_t &coll, bus_id_t id, endpoint *expected = NULL);
 
         bool remove_collection(endpoint_collection_t &coll);
 
@@ -654,16 +667,17 @@ namespace atbus {
         /**
          * @brief 添加到ping timer列表
          */
-        bool add_ping_timer(const endpoint::ptr_t &ep, timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator& out);
+        bool add_ping_timer(const endpoint::ptr_t &ep, timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator &out);
 
         /**
          * @brief 从ping timer列表中移除
          */
-        void remove_ping_timer(timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator& inout);
+        void remove_ping_timer(timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator &inout);
 
         friend class node_access_controller;
 
         void init_hash_code();
+
     public:
         ATBUS_MACRO_API void stat_add_dispatch_times();
 
@@ -744,6 +758,7 @@ namespace atbus {
 
 
 #define ATBUS_FUNC_NODE_ERROR(n, ep, conn, status, errorcode) (n).on_error(__FILE__, __LINE__, (ep), (conn), (status), (errorcode))
+#define ATBUS_FUNC_NODE_INFO(n, ep, conn, msg) (n).on_info_log(__FILE__, __LINE__, (ep), (conn), (msg))
 #define ATBUS_FUNC_NODE_FATAL_SHUTDOWN(n, ep, conn, status, errorcode) \
     (n).fatal_shutdown(__FILE__, __LINE__, (ep), (conn), (status), (errorcode))
 

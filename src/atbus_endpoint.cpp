@@ -16,25 +16,25 @@
 #include "libatbus_protocol.h"
 
 namespace atbus {
-    ATBUS_MACRO_API endpoint_subnet_conf::endpoint_subnet_conf(): id_prefix(0), mask_bits(0) {}
-    ATBUS_MACRO_API endpoint_subnet_conf::endpoint_subnet_conf(ATBUS_MACRO_BUSID_TYPE a, uint32_t b): id_prefix(a), mask_bits(b) {}
+    ATBUS_MACRO_API endpoint_subnet_conf::endpoint_subnet_conf() : id_prefix(0), mask_bits(0) {}
+    ATBUS_MACRO_API endpoint_subnet_conf::endpoint_subnet_conf(ATBUS_MACRO_BUSID_TYPE a, uint32_t b) : id_prefix(a), mask_bits(b) {}
 
-    ATBUS_MACRO_API endpoint_subnet_range::endpoint_subnet_range(): id_prefix_(0), mask_bits_(0) {
+    ATBUS_MACRO_API endpoint_subnet_range::endpoint_subnet_range() : id_prefix_(0), mask_bits_(0) {
         max_id_ = 0;
         min_id_ = 0;
     }
 
-    ATBUS_MACRO_API endpoint_subnet_range::endpoint_subnet_range(ATBUS_MACRO_BUSID_TYPE a, uint32_t b): id_prefix_(a), mask_bits_(b) {
-        max_id_ = id_prefix_ | ((1<< mask_bits_) - 1);
-        min_id_ = max_id_ - ((1<< mask_bits_) - 1);
+    ATBUS_MACRO_API endpoint_subnet_range::endpoint_subnet_range(ATBUS_MACRO_BUSID_TYPE a, uint32_t b) : id_prefix_(a), mask_bits_(b) {
+        max_id_ = id_prefix_ | ((1 << mask_bits_) - 1);
+        min_id_ = max_id_ - ((1 << mask_bits_) - 1);
     }
 
-    ATBUS_MACRO_API bool endpoint_subnet_range::operator==(const endpoint_subnet_range& other) const {
+    ATBUS_MACRO_API bool endpoint_subnet_range::operator==(const endpoint_subnet_range &other) const {
         return max_id_ == other.max_id_ && min_id_ == other.min_id_;
     }
 
 #ifdef __cpp_impl_three_way_comparison
-    ATBUS_MACRO_API std::strong_ordering endpoint_subnet_range::operator<=>(const endpoint_subnet_range& other) const {
+    ATBUS_MACRO_API std::strong_ordering endpoint_subnet_range::operator<=>(const endpoint_subnet_range &other) const {
         if (max_id_ != other.max_id_) {
             if (max_id_ < other.max_id_) {
                 return std::strong_ordering::less;
@@ -55,7 +55,7 @@ namespace atbus {
     }
 #else
 
-    ATBUS_MACRO_API bool endpoint_subnet_range::operator<(const endpoint_subnet_range& other) const {
+    ATBUS_MACRO_API bool endpoint_subnet_range::operator<(const endpoint_subnet_range &other) const {
         if (max_id_ != other.max_id_) {
             return max_id_ < other.max_id_;
         }
@@ -63,7 +63,7 @@ namespace atbus {
         return min_id_ > other.min_id_;
     }
 
-    ATBUS_MACRO_API bool endpoint_subnet_range::operator<=(const endpoint_subnet_range& other) const {
+    ATBUS_MACRO_API bool endpoint_subnet_range::operator<=(const endpoint_subnet_range &other) const {
         if (max_id_ != other.max_id_) {
             return max_id_ < other.max_id_;
         }
@@ -71,7 +71,7 @@ namespace atbus {
         return min_id_ >= other.min_id_;
     }
 
-    ATBUS_MACRO_API bool endpoint_subnet_range::operator>(const endpoint_subnet_range& other) const {
+    ATBUS_MACRO_API bool endpoint_subnet_range::operator>(const endpoint_subnet_range &other) const {
         if (max_id_ != other.max_id_) {
             return max_id_ > other.max_id_;
         }
@@ -79,7 +79,7 @@ namespace atbus {
         return min_id_ < other.min_id_;
     }
 
-    ATBUS_MACRO_API bool endpoint_subnet_range::operator>=(const endpoint_subnet_range& other) const {
+    ATBUS_MACRO_API bool endpoint_subnet_range::operator>=(const endpoint_subnet_range &other) const {
         if (max_id_ != other.max_id_) {
             return max_id_ > other.max_id_;
         }
@@ -87,29 +87,37 @@ namespace atbus {
         return min_id_ <= other.min_id_;
     }
 
-    ATBUS_MACRO_API bool endpoint_subnet_range::operator!=(const endpoint_subnet_range& other) const {
+    ATBUS_MACRO_API bool endpoint_subnet_range::operator!=(const endpoint_subnet_range &other) const {
         return max_id_ != other.max_id_ || min_id_ != other.min_id_;
     }
 
 #endif
 
-    ATBUS_MACRO_API bool endpoint_subnet_range::contain(const endpoint_subnet_range& other) const {
+    ATBUS_MACRO_API bool endpoint_subnet_range::contain(const endpoint_subnet_range &other) const {
         return max_id_ >= other.max_id_ && min_id_ <= other.min_id_;
     }
 
     ATBUS_MACRO_API bool endpoint_subnet_range::contain(ATBUS_MACRO_BUSID_TYPE id) const {
+        if (0 == id) {
+            return false;
+        }
+
         return max_id_ >= id && min_id_ <= id;
     }
 
     ATBUS_MACRO_API bool endpoint_subnet_range::contain(ATBUS_MACRO_BUSID_TYPE id_prefix, uint32_t mask_bits, ATBUS_MACRO_BUSID_TYPE id) {
-        return (id_prefix | ((1<< mask_bits) - 1)) == (id | ((1<< mask_bits) - 1));
+        if (0 == id) {
+            return false;
+        }
+
+        return (id_prefix | ((1 << mask_bits) - 1)) == (id | ((1 << mask_bits) - 1));
     }
 
-    ATBUS_MACRO_API bool endpoint_subnet_range::contain(const endpoint_subnet_conf& conf, ATBUS_MACRO_BUSID_TYPE id) {
+    ATBUS_MACRO_API bool endpoint_subnet_range::contain(const endpoint_subnet_conf &conf, ATBUS_MACRO_BUSID_TYPE id) {
         return contain(conf.id_prefix, conf.mask_bits, id);
     }
 
-    ATBUS_MACRO_API bool endpoint_subnet_range::lower_bound_by_max_id(const endpoint_subnet_range& l, ATBUS_MACRO_BUSID_TYPE r) {
+    ATBUS_MACRO_API bool endpoint_subnet_range::lower_bound_by_max_id(const endpoint_subnet_range &l, ATBUS_MACRO_BUSID_TYPE r) {
         /**
          * max_id_相同时，范围大的>范围小的
          * 注意下面这种情况
@@ -122,7 +130,8 @@ namespace atbus {
         return l.get_id_max() < r;
     }
 
-    ATBUS_MACRO_API endpoint::ptr_t endpoint::create(node *owner, bus_id_t id, const std::vector<endpoint_subnet_conf>& subnets, int32_t pid, const std::string &hn) {
+    ATBUS_MACRO_API endpoint::ptr_t endpoint::create(node *owner, bus_id_t id, const std::vector<endpoint_subnet_conf> &subnets,
+                                                     int32_t pid, const std::string &hn) {
         if (NULL == owner) {
             return endpoint::ptr_t();
         }
@@ -132,19 +141,19 @@ namespace atbus {
             return ret;
         }
 
-        ret->id_            = id;
-        ret->pid_           = pid;
-        ret->hostname_      = hn;
+        ret->id_       = id;
+        ret->pid_      = pid;
+        ret->hostname_ = hn;
 
-        ret->owner_   = owner;
-        if(node_access_controller::add_ping_timer(*owner, ret, ret->ping_timer_)) {
+        ret->owner_ = owner;
+        if (node_access_controller::add_ping_timer(*owner, ret, ret->ping_timer_)) {
             ret->set_flag(flag_t::HAS_PING_TIMER, true);
         }
         ret->watcher_ = ret;
 
         ret->subnets_.reserve(subnets.size() + 1);
         bool auto_add_self_subnet = true;
-        for (size_t i = 0; i < subnets.size(); ++ i) {
+        for (size_t i = 0; i < subnets.size(); ++i) {
             if (subnets[i].id_prefix == 0) {
                 ret->subnets_.push_back(endpoint_subnet_range(id, subnets[i].mask_bits));
                 auto_add_self_subnet = false;
@@ -168,7 +177,7 @@ namespace atbus {
 
     ATBUS_MACRO_API endpoint::~endpoint() {
         if (NULL != owner_) {
-            ATBUS_FUNC_NODE_DEBUG(*owner_, this, NULL, NULL, "endpoint deallocated");
+            ATBUS_FUNC_NODE_INFO(*owner_, this, NULL, "endpoint deallocated");
         }
 
         flags_.set(flag_t::DESTRUCTING, true);
@@ -217,14 +226,12 @@ namespace atbus {
     }
 
     ATBUS_MACRO_API endpoint::bus_id_t endpoint::get_id() const { return id_; }
-    ATBUS_MACRO_API const std::vector<endpoint_subnet_range>& endpoint::get_subnets() const { return subnets_; }
+    ATBUS_MACRO_API const std::vector<endpoint_subnet_range> &endpoint::get_subnets() const { return subnets_; }
 
     ATBUS_MACRO_API int32_t endpoint::get_pid() const { return pid_; };
     ATBUS_MACRO_API const std::string &endpoint::get_hostname() const { return hostname_; };
-    ATBUS_MACRO_API const std::string &endpoint::get_hash_code() const {
-        return hash_code_;
-    }
-    ATBUS_MACRO_API void endpoint::update_hash_code(const std::string & in) {
+    ATBUS_MACRO_API const std::string &endpoint::get_hash_code() const { return hash_code_; }
+    ATBUS_MACRO_API void endpoint::update_hash_code(const std::string &in) {
         if (in.empty()) {
             return;
         }
@@ -238,7 +245,7 @@ namespace atbus {
             return false;
         }
 
-        for (size_t i = 0; i < subnets_.size(); ++ i) {
+        for (size_t i = 0; i < subnets_.size(); ++i) {
             if (subnets_[i].contain(id)) {
                 return true;
             }
@@ -257,7 +264,8 @@ namespace atbus {
         return children_prefix | maskv;
     }
 
-    ATBUS_MACRO_API bool endpoint::is_child_node(bus_id_t parent_id, bus_id_t parent_children_prefix, uint32_t parent_mask, bus_id_t checked_id) {
+    ATBUS_MACRO_API bool endpoint::is_child_node(bus_id_t parent_id, bus_id_t parent_children_prefix, uint32_t parent_mask,
+                                                 bus_id_t checked_id) {
         if (0 == parent_children_prefix) {
             parent_children_prefix = parent_id;
         }
@@ -412,7 +420,7 @@ namespace atbus {
             return;
         }
 
-        if(node_access_controller::add_ping_timer(*owner_, watch(), ping_timer_)) {
+        if (node_access_controller::add_ping_timer(*owner_, watch(), ping_timer_)) {
             set_flag(flag_t::HAS_PING_TIMER, true);
         }
     }
@@ -511,7 +519,8 @@ namespace atbus {
         }
     }
 
-    endpoint::stat_t::stat_t() : fault_count(0), unfinished_ping(0), ping_delay(0), last_pong_time(0), created_time_sec(0), created_time_usec(0) {}
+    endpoint::stat_t::stat_t()
+        : fault_count(0), unfinished_ping(0), ping_delay(0), last_pong_time(0), created_time_sec(0), created_time_usec(0) {}
 
     /** 增加错误计数 **/
     ATBUS_MACRO_API size_t endpoint::add_stat_fault() { return ++stat_.fault_count; }
@@ -657,7 +666,7 @@ namespace atbus {
             return stat_.created_time_sec;
         }
 
-        stat_.created_time_sec = owner_->get_timer_sec();
+        stat_.created_time_sec  = owner_->get_timer_sec();
         stat_.created_time_usec = owner_->get_timer_usec();
         return stat_.created_time_sec;
     }
@@ -667,24 +676,24 @@ namespace atbus {
             return stat_.created_time_usec;
         }
 
-        stat_.created_time_sec = owner_->get_timer_sec();
+        stat_.created_time_sec  = owner_->get_timer_sec();
         stat_.created_time_usec = owner_->get_timer_usec();
         return stat_.created_time_usec;
     }
 
     ATBUS_MACRO_API const node *endpoint::get_owner() const { return owner_; }
 
-    ATBUS_MACRO_API void endpoint::merge_subnets(std::vector<endpoint_subnet_range>& subnets) {
+    ATBUS_MACRO_API void endpoint::merge_subnets(std::vector<endpoint_subnet_range> &subnets) {
         if (subnets.size() <= 1) {
             return;
         }
 
         std::sort(subnets.begin(), subnets.end());
 
-        size_t new_size = 1;
+        size_t new_size  = 1;
         size_t old_index = 1;
 
-        for (;old_index < subnets.size(); ++ old_index) {
+        for (; old_index < subnets.size(); ++old_index) {
             assert(new_size >= 1);
             assert(old_index >= new_size);
 
@@ -706,7 +715,7 @@ namespace atbus {
                 if (new_size != old_index) {
                     subnets[new_size] = subnets[old_index];
                 }
-                ++ new_size;
+                ++new_size;
             }
 
             /**
@@ -718,14 +727,12 @@ namespace atbus {
             bool check_merge = true;
             while (check_merge && new_size > 1) {
                 check_merge = false;
-                if (subnets[new_size - 1].get_mask_bits() == subnets[new_size - 2].get_mask_bits() && 
+                if (subnets[new_size - 1].get_mask_bits() == subnets[new_size - 2].get_mask_bits() &&
                     subnets[new_size - 1].get_id_min() == subnets[new_size - 2].get_id_max() + 1) {
                     endpoint_subnet_range up(subnets[new_size - 2].get_id_min(), subnets[new_size - 2].get_mask_bits() + 1);
-                    if (up.get_id_max() == subnets[new_size - 1].get_id_max() &&
-                        up.get_id_min() == subnets[new_size - 2].get_id_min()
-                        ) {
+                    if (up.get_id_max() == subnets[new_size - 1].get_id_max() && up.get_id_min() == subnets[new_size - 2].get_id_min()) {
                         subnets[new_size - 2] = up;
-                        -- new_size;
+                        --new_size;
                         check_merge = true;
                     }
                 }
@@ -738,7 +745,8 @@ namespace atbus {
         }
     }
 
-    ATBUS_MACRO_API std::vector<endpoint_subnet_range>::const_iterator endpoint::search_subnet_for_id(const std::vector<endpoint_subnet_range>& subnets, bus_id_t id) {
+    ATBUS_MACRO_API std::vector<endpoint_subnet_range>::const_iterator
+    endpoint::search_subnet_for_id(const std::vector<endpoint_subnet_range> &subnets, bus_id_t id) {
         std::vector<endpoint_subnet_range>::const_iterator iter = subnets.begin();
         // 初始也可以用下面的二分查找，但是没什么意义。最终还是要while循环判到底,因为后面如果有范围更大的max_id然后覆盖到id的
         // iter = std::lower_bound(subnets.begin(), subnets.end(), id, endpoint_subnet_range::lower_bound_by_max_id);
@@ -754,14 +762,15 @@ namespace atbus {
         return iter;
     }
 
-    ATBUS_MACRO_API bool endpoint::contain(const std::vector<endpoint_subnet_range>& parent_subnets, const std::vector<endpoint_subnet_range>& child_subnets) {
+    ATBUS_MACRO_API bool endpoint::contain(const std::vector<endpoint_subnet_range> &parent_subnets,
+                                           const std::vector<endpoint_subnet_range> &child_subnets) {
         if (parent_subnets.empty() && !child_subnets.empty()) {
             return false;
         }
 
-        for (size_t i = 0; i < child_subnets.size(); ++ i) {
+        for (size_t i = 0; i < child_subnets.size(); ++i) {
             bool check_passed = false;
-            for (size_t j = 0; !check_passed && j < parent_subnets.size(); ++ j) {
+            for (size_t j = 0; !check_passed && j < parent_subnets.size(); ++j) {
                 if (parent_subnets[j].contain(child_subnets[i].get_id_min()) && parent_subnets[j].contain(child_subnets[i].get_id_max())) {
                     check_passed = true;
                 }
@@ -775,15 +784,17 @@ namespace atbus {
         return true;
     }
 
-    ATBUS_MACRO_API bool endpoint::contain(const std::vector<endpoint_subnet_range>& parent_subnets, const std::vector<endpoint_subnet_conf>& child_subnets) {
+    ATBUS_MACRO_API bool endpoint::contain(const std::vector<endpoint_subnet_range> &parent_subnets,
+                                           const std::vector<endpoint_subnet_conf> &child_subnets) {
         if (parent_subnets.empty() && !child_subnets.empty()) {
             return false;
         }
 
-        for (size_t i = 0; i < child_subnets.size(); ++ i) {
+        for (size_t i = 0; i < child_subnets.size(); ++i) {
             bool check_passed = false;
-            for (size_t j = 0; !check_passed && j < parent_subnets.size(); ++ j) {
-                if (parent_subnets[j].contain(child_subnets[i].id_prefix) && parent_subnets[j].get_mask_bits() >= child_subnets[i].mask_bits) {
+            for (size_t j = 0; !check_passed && j < parent_subnets.size(); ++j) {
+                if (parent_subnets[j].contain(child_subnets[i].id_prefix) &&
+                    parent_subnets[j].get_mask_bits() >= child_subnets[i].mask_bits) {
                     check_passed = true;
                 }
             }
@@ -796,12 +807,12 @@ namespace atbus {
         return true;
     }
 
-    ATBUS_MACRO_API bool endpoint::contain(const std::vector<endpoint_subnet_range>& parent_subnets, bus_id_t id) {
-        if (parent_subnets.empty()) {
+    ATBUS_MACRO_API bool endpoint::contain(const std::vector<endpoint_subnet_range> &parent_subnets, bus_id_t id) {
+        if (parent_subnets.empty() || 0 == id) {
             return false;
         }
 
-        for (size_t i = 0; i < parent_subnets.size(); ++ i) {
+        for (size_t i = 0; i < parent_subnets.size(); ++i) {
             if (parent_subnets[i].contain(id)) {
                 return true;
             }
@@ -810,12 +821,12 @@ namespace atbus {
         return false;
     }
 
-    ATBUS_MACRO_API bool endpoint::contain(const std::vector<endpoint_subnet_conf>& parent_subnets, bus_id_t id) {
-        if (parent_subnets.empty()) {
+    ATBUS_MACRO_API bool endpoint::contain(const std::vector<endpoint_subnet_conf> &parent_subnets, bus_id_t id) {
+        if (parent_subnets.empty() || 0 == id) {
             return false;
         }
 
-        for (size_t i = 0; i < parent_subnets.size(); ++ i) {
+        for (size_t i = 0; i < parent_subnets.size(); ++i) {
             if (endpoint_subnet_range::contain(parent_subnets[i], id)) {
                 return true;
             }

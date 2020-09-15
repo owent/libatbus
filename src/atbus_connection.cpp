@@ -90,7 +90,7 @@ namespace atbus {
         flags_.set(flag_t::DESTRUCTING, true);
 
         if (NULL != owner_) {
-            ATBUS_FUNC_NODE_DEBUG(*owner_, get_binding(), this, NULL, "connection deallocated");
+            ATBUS_FUNC_NODE_INFO(*owner_, get_binding(), this, "connection deallocated");
         }
 
         reset();
@@ -183,14 +183,14 @@ namespace atbus {
             flags_.set(flag_t::ACCESS_SHARE_ADDR, true);
             flags_.set(flag_t::ACCESS_SHARE_HOST, true);
             set_status(state_t::CONNECTED);
-            ATBUS_FUNC_NODE_DEBUG(*owner_, get_binding(), this, NULL, "channel connected(listen)");
+            ATBUS_FUNC_NODE_INFO(*owner_, get_binding(), this, "channel connected(listen)");
 
             owner_->on_new_connection(this);
             return res;
         } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("shm", address_.scheme.c_str(), 3)) {
 #ifdef ATBUS_CHANNEL_SHM
             channel::shm_channel *shm_chann = NULL;
-            int res = channel::shm_attach(address_.host.c_str(), conf.recv_buffer_size, &shm_chann, NULL);
+            int res                         = channel::shm_attach(address_.host.c_str(), conf.recv_buffer_size, &shm_chann, NULL);
             if (res < 0) {
                 res = channel::shm_init(address_.host.c_str(), conf.recv_buffer_size, &shm_chann, NULL);
             }
@@ -210,7 +210,7 @@ namespace atbus {
             flags_.set(flag_t::REG_PROC, true);
             flags_.set(flag_t::ACCESS_SHARE_HOST, true);
             set_status(state_t::CONNECTED);
-            ATBUS_FUNC_NODE_DEBUG(*owner_, get_binding(), this, NULL, "channel connected(listen)");
+            ATBUS_FUNC_NODE_INFO(*owner_, get_binding(), this, "channel connected(listen)");
 
             owner_->on_new_connection(this);
             return res;
@@ -301,10 +301,10 @@ namespace atbus {
 
             if (NULL == binding_) {
                 set_status(state_t::HANDSHAKING);
-                ATBUS_FUNC_NODE_DEBUG(*owner_, binding_, this, NULL, "channel handshaking(connect)");
+                ATBUS_FUNC_NODE_INFO(*owner_, binding_, this, "channel handshaking(connect)");
             } else {
                 set_status(state_t::CONNECTED);
-                ATBUS_FUNC_NODE_DEBUG(*owner_, binding_, this, NULL, "channel connected(connect)");
+                ATBUS_FUNC_NODE_INFO(*owner_, binding_, this, "channel connected(connect)");
             }
 
             owner_->on_new_connection(this);
@@ -312,7 +312,7 @@ namespace atbus {
         } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("shm", address_.scheme.c_str(), 3)) {
 #ifdef ATBUS_CHANNEL_SHM
             channel::shm_channel *shm_chann = NULL;
-            int res = channel::shm_attach(address_.host.c_str(), conf.recv_buffer_size, &shm_chann, NULL);
+            int res                         = channel::shm_attach(address_.host.c_str(), conf.recv_buffer_size, &shm_chann, NULL);
             if (res < 0) {
                 res = channel::shm_init(address_.host.c_str(), conf.recv_buffer_size, &shm_chann, NULL);
             }
@@ -337,10 +337,10 @@ namespace atbus {
 
             if (NULL == binding_) {
                 set_status(state_t::HANDSHAKING);
-                ATBUS_FUNC_NODE_DEBUG(*owner_, binding_, this, NULL, "channel handshaking(connect)");
+                ATBUS_FUNC_NODE_INFO(*owner_, binding_, this, "channel handshaking(connect)");
             } else {
                 set_status(state_t::CONNECTED);
-                ATBUS_FUNC_NODE_DEBUG(*owner_, binding_, this, NULL, "channel connected(connect)");
+                ATBUS_FUNC_NODE_INFO(*owner_, binding_, this, "channel connected(connect)");
             }
 
             owner_->on_new_connection(this);
@@ -451,6 +451,7 @@ namespace atbus {
 
     ATBUS_MACRO_API connection::state_t::type connection::get_status() const { return state_; }
     ATBUS_MACRO_API bool connection::check_flag(flag_t::type f) const { return flags_.test(f); }
+    ATBUS_MACRO_API void connection::set_temporary() { flags_.set(flag_t::TEMPORARY, true); }
 
     ATBUS_MACRO_API connection::ptr_t connection::watch() const {
         if (flags_.test(flag_t::DESTRUCTING) || watcher_.expired()) {
@@ -468,7 +469,7 @@ namespace atbus {
 
     ATBUS_MACRO_API const connection::stat_t &connection::get_statistic() const { return stat_; }
 
-    ATBUS_MACRO_API void connection::remove_owner_checker(const timer_desc_ls<ptr_t>::type::iterator& v) {
+    ATBUS_MACRO_API void connection::remove_owner_checker(const timer_desc_ls<ptr_t>::type::iterator &v) {
         if (owner_checker_ != v) {
             return;
         }
@@ -490,8 +491,8 @@ namespace atbus {
         }
     }
 
-    ATBUS_MACRO_API void connection::iostream_on_listen_cb(channel::io_stream_channel *channel, channel::io_stream_connection *connection, int status,
-                                           void *buffer, size_t) {
+    ATBUS_MACRO_API void connection::iostream_on_listen_cb(channel::io_stream_channel *channel, channel::io_stream_connection *connection,
+                                                           int status, void *buffer, size_t) {
         detail::connection_async_data *async_data = reinterpret_cast<detail::connection_async_data *>(buffer);
         assert(NULL != async_data);
         if (NULL == async_data) {
@@ -501,15 +502,15 @@ namespace atbus {
         if (status < 0) {
             ATBUS_FUNC_NODE_ERROR(*async_data->owner_node, async_data->conn->binding_, async_data->conn.get(), status, channel->error_code);
             async_data->conn->set_status(state_t::DISCONNECTED);
-            ATBUS_FUNC_NODE_DEBUG(*async_data->conn->owner_, async_data->conn->binding_, async_data->conn.get(), NULL,
-                                  "channel disconnected(listen callback)");
+            ATBUS_FUNC_NODE_INFO(*async_data->conn->owner_, async_data->conn->binding_, async_data->conn.get(),
+                                 "channel disconnected(listen failed)");
 
         } else {
             async_data->conn->flags_.set(flag_t::REG_FD, true);
             async_data->conn->flags_.set(flag_t::LISTEN_FD, true);
             async_data->conn->set_status(state_t::CONNECTED);
-            ATBUS_FUNC_NODE_DEBUG(*async_data->conn->owner_, async_data->conn->binding_, async_data->conn.get(), NULL,
-                                  "channel connected(listen callback)");
+            ATBUS_FUNC_NODE_INFO(*async_data->conn->owner_, async_data->conn->binding_, async_data->conn.get(),
+                                 "channel connected(listen callback)");
 
             async_data->conn->conn_data_.shared.ios_fd.channel = channel;
             async_data->conn->conn_data_.shared.ios_fd.conn    = connection;
@@ -522,8 +523,8 @@ namespace atbus {
         delete async_data;
     }
 
-    ATBUS_MACRO_API void connection::iostream_on_connected_cb(channel::io_stream_channel *channel, channel::io_stream_connection *connection, int status,
-                                              void *buffer, size_t) {
+    ATBUS_MACRO_API void connection::iostream_on_connected_cb(channel::io_stream_channel *channel,
+                                                              channel::io_stream_connection *connection, int status, void *buffer, size_t) {
         detail::connection_async_data *async_data = reinterpret_cast<detail::connection_async_data *>(buffer);
         assert(NULL != async_data);
         if (NULL == async_data) {
@@ -539,12 +540,12 @@ namespace atbus {
             async_data->conn->flags_.set(flag_t::REG_FD, true);
             if (NULL == async_data->conn->binding_) {
                 async_data->conn->set_status(state_t::HANDSHAKING);
-                ATBUS_FUNC_NODE_DEBUG(*async_data->conn->owner_, async_data->conn->binding_, async_data->conn.get(), NULL,
-                                      "channel handshaking(connect callback)");
+                ATBUS_FUNC_NODE_INFO(*async_data->conn->owner_, async_data->conn->binding_, async_data->conn.get(),
+                                     "channel handshaking(connect callback)");
             } else {
                 async_data->conn->set_status(state_t::CONNECTED);
-                ATBUS_FUNC_NODE_DEBUG(*async_data->conn->owner_, async_data->conn->binding_, async_data->conn.get(), NULL,
-                                      "channel connected(connect callback)");
+                ATBUS_FUNC_NODE_INFO(*async_data->conn->owner_, async_data->conn->binding_, async_data->conn.get(),
+                                     "channel connected(connect callback)");
             }
 
             async_data->conn->conn_data_.shared.ios_fd.channel = channel;
@@ -560,8 +561,8 @@ namespace atbus {
         delete async_data;
     }
 
-    ATBUS_MACRO_API void connection::iostream_on_recv_cb(channel::io_stream_channel *channel, channel::io_stream_connection *conn_ios, int status,
-                                         void *buffer, size_t s) {
+    ATBUS_MACRO_API void connection::iostream_on_recv_cb(channel::io_stream_channel *channel, channel::io_stream_connection *conn_ios,
+                                                         int status, void *buffer, size_t s) {
 
         assert(channel && channel->data);
         if (NULL == channel || NULL == channel->data) {
@@ -611,8 +612,8 @@ namespace atbus {
         }
     }
 
-    ATBUS_MACRO_API void connection::iostream_on_accepted(channel::io_stream_channel *channel, channel::io_stream_connection *conn_ios, int /*status*/,
-                                          void * /*buffer*/, size_t) {
+    ATBUS_MACRO_API void connection::iostream_on_accepted(channel::io_stream_channel *channel, channel::io_stream_connection *conn_ios,
+                                                          int /*status*/, void * /*buffer*/, size_t) {
         // 连接成功加入点对点传输池
         // 加入超时检测
         node *n = reinterpret_cast<node *>(channel->data);
@@ -628,7 +629,7 @@ namespace atbus {
             return;
         }
 
-        ptr_t conn   = create(n);
+        ptr_t conn = create(n);
         conn->set_status(state_t::HANDSHAKING);
         conn->flags_.set(flag_t::REG_FD, true);
 
@@ -643,15 +644,15 @@ namespace atbus {
         conn->address_ = conn_ios->addr;
 
 
-        ATBUS_FUNC_NODE_DEBUG(*n, NULL, conn.get(), NULL, "connection accepted");
+        ATBUS_FUNC_NODE_INFO(*n, NULL, conn.get(), "connection accepted");
         n->on_new_connection(conn.get());
     }
 
-    ATBUS_MACRO_API void connection::iostream_on_connected(channel::io_stream_channel *, channel::io_stream_connection *, int /*status*/, void * /*buffer*/,
-                                           size_t) {}
+    ATBUS_MACRO_API void connection::iostream_on_connected(channel::io_stream_channel *, channel::io_stream_connection *, int /*status*/,
+                                                           void * /*buffer*/, size_t) {}
 
-    ATBUS_MACRO_API void connection::iostream_on_disconnected(channel::io_stream_channel *, channel::io_stream_connection *conn_ios, int /*status*/,
-                                              void * /*buffer*/, size_t) {
+    ATBUS_MACRO_API void connection::iostream_on_disconnected(channel::io_stream_channel *, channel::io_stream_connection *conn_ios,
+                                                              int /*status*/, void * /*buffer*/, size_t) {
         connection *conn = reinterpret_cast<connection *>(conn_ios->data);
 
         // 主动关闭时会先释放connection，这时候connection已经被释放，不需要再重置
@@ -659,12 +660,12 @@ namespace atbus {
             return;
         }
 
-        ATBUS_FUNC_NODE_DEBUG(*conn->owner_, conn->get_binding(), conn, NULL, "connection reset by peer");
+        ATBUS_FUNC_NODE_INFO(*conn->owner_, conn->get_binding(), conn, "connection reset by peer");
         conn->reset();
     }
 
-    ATBUS_MACRO_API void connection::iostream_on_written(channel::io_stream_channel *channel, channel::io_stream_connection *conn_ios, int status,
-                                         void * /*buffer*/, size_t s) {
+    ATBUS_MACRO_API void connection::iostream_on_written(channel::io_stream_channel *channel, channel::io_stream_connection *conn_ios,
+                                                         int status, void * /*buffer*/, size_t s) {
         node *n = reinterpret_cast<node *>(channel->data);
         assert(NULL != n);
         if (NULL == n) {
@@ -842,7 +843,8 @@ namespace atbus {
         return ret;
     }
 
-    ATBUS_MACRO_API bool connection::unpack(connection &conn, ::atbus::msg_t *&m, ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena& arena, std::vector<unsigned char> &in) {
+    ATBUS_MACRO_API bool connection::unpack(connection &conn, ::atbus::msg_t *&m, ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena &arena,
+                                            std::vector<unsigned char> &in) {
         m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
         if (NULL == m) {
             ATBUS_FUNC_NODE_ERROR(*conn.owner_, conn.binding_, &conn, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC);
@@ -850,7 +852,7 @@ namespace atbus {
         }
 
         // unpack
-        if (false == m->ParseFromArray(reinterpret_cast<const void*>(&in[0]), static_cast<int>(in.size()))) {
+        if (false == m->ParseFromArray(reinterpret_cast<const void *>(&in[0]), static_cast<int>(in.size()))) {
             ATBUS_FUNC_NODE_DEBUG(*conn.owner_, conn.binding_, &conn, m, "%s", m->InitializationErrorString().c_str());
             ATBUS_FUNC_NODE_ERROR(*conn.owner_, conn.binding_, &conn, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_UNPACK);
             return false;

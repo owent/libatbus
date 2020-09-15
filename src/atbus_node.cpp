@@ -182,7 +182,7 @@ namespace atbus {
         }
 
         self_.reset();
-        ATBUS_FUNC_NODE_DEBUG(*this, NULL, NULL, NULL, "node destroyed");
+        ATBUS_FUNC_NODE_INFO(*this, NULL, NULL, "node destroyed");
     }
 
     ATBUS_MACRO_API int node::init(bus_id_t id, const conf_t *conf) {
@@ -242,7 +242,7 @@ namespace atbus {
         }
 
         // 连接父节点
-        if (!conf_.parent_address.empty()) {
+        if (0 != get_id() && !conf_.parent_address.empty()) {
             if (!node_parent_.node_) {
                 // 如果父节点被激活了，那么父节点操作时间必须更新到非0值，以启用这个功能
                 if (connect(conf_.parent_address.c_str()) >= 0) {
@@ -272,7 +272,7 @@ namespace atbus {
             return EN_ATBUS_ERR_SUCCESS;
         }
         flags_.set(flag_t::EN_FT_RESETTING, true);
-        ATBUS_FUNC_NODE_DEBUG(*this, NULL, NULL, NULL, "node reset");
+        ATBUS_FUNC_NODE_INFO(*this, NULL, NULL, "node reset");
 
         // dispatch all self msgs
         {
@@ -439,7 +439,9 @@ namespace atbus {
                 break;
             }
 
-            ATBUS_FUNC_NODE_ERROR(*this, NULL, iter->second.get(), EN_ATBUS_ERR_NODE_TIMEOUT, 0);
+            if (!iter->second->check_flag(connection::flag_t::TEMPORARY)) {
+                ATBUS_FUNC_NODE_ERROR(*this, NULL, iter->second.get(), EN_ATBUS_ERR_NODE_TIMEOUT, 0);
+            }
             iter->second->reset();
 
             // 保护性清理操作
@@ -453,7 +455,8 @@ namespace atbus {
         }
 
         // 父节点操作
-        if (!conf_.parent_address.empty() && 0 != event_timer_.parent_opr_time_point && event_timer_.parent_opr_time_point < sec) {
+        if (0 != get_id() && !conf_.parent_address.empty() && 0 != event_timer_.parent_opr_time_point &&
+            event_timer_.parent_opr_time_point < sec) {
             // 获取命令节点
             connection *ctl_conn = NULL;
             if (node_parent_.node_ && self_) {
@@ -579,7 +582,7 @@ namespace atbus {
                 if (*iter) {
                     if (false == (*iter)->is_available()) {
                         (*iter)->reset();
-                        ATBUS_FUNC_NODE_DEBUG(*this, (*iter).get(), NULL, NULL, "endpoint handshake timeout and reset");
+                        ATBUS_FUNC_NODE_INFO(*this, (*iter).get(), NULL, "endpoint gc timeout and reset");
                         remove_endpoint((*iter)->get_id(), (*iter).get());
                     }
                 }
@@ -1500,6 +1503,14 @@ namespace atbus {
         return status;
     }
 
+    ATBUS_MACRO_API void node::on_info_log(const char * /*file_path*/, size_t /*line*/, const endpoint *ep, const connection *conn,
+                                           const char *msg) {
+        if (event_msg_.on_info_log) {
+            flag_guard_t fgd(this, flag_t::EN_FT_IN_CALLBACK);
+            event_msg_.on_info_log(std::cref(*this), ep, conn, msg);
+        }
+    }
+
     ATBUS_MACRO_API int node::on_disconnect(const connection *conn) {
         if (NULL == conn) {
             return EN_ATBUS_ERR_PARAMS;
@@ -1533,7 +1544,7 @@ namespace atbus {
 
         // 如果ID有效，且是IO流连接，则发送注册协议
         // ID为0则是临时节点，不需要注册
-        if (get_id() && conn->check_flag(connection::flag_t::REG_FD) && false == conn->check_flag(connection::flag_t::LISTEN_FD)) {
+        if (conn->check_flag(connection::flag_t::REG_FD) && false == conn->check_flag(connection::flag_t::LISTEN_FD)) {
             int ret = msg_handler::send_reg(::atbus::protocol::msg::kNodeRegisterReq, *this, *conn, 0, alloc_msg_seq());
             if (ret < 0) {
                 ATBUS_FUNC_NODE_ERROR(*this, NULL, conn, ret, 0);
@@ -1849,6 +1860,9 @@ namespace atbus {
 
     ATBUS_MACRO_API void node::set_on_error_handle(node::evt_msg_t::on_error_fn_t fn) { event_msg_.on_error = fn; }
     ATBUS_MACRO_API const node::evt_msg_t::on_error_fn_t &node::get_on_error_handle() const { return event_msg_.on_error; }
+
+    ATBUS_MACRO_API void node::set_on_info_log_handle(evt_msg_t::on_info_log_fn_t fn) { event_msg_.on_info_log = fn; }
+    ATBUS_MACRO_API const node::evt_msg_t::on_info_log_fn_t &node::get_on_info_log_handle() const { return event_msg_.on_info_log; }
 
     ATBUS_MACRO_API void node::set_on_register_handle(node::evt_msg_t::on_reg_fn_t fn) { event_msg_.on_reg = fn; }
     ATBUS_MACRO_API const node::evt_msg_t::on_reg_fn_t &node::get_on_register_handle() const { return event_msg_.on_reg; }
