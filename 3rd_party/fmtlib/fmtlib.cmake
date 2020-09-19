@@ -12,7 +12,7 @@ if(NOT DEFINED __PROJECT_3RD_PARTY_FMTLIB_LOADED)
             set (3RD_PARTY_FMTLIB_LINK_NAME fmt::fmt-header-only)
             list(APPEND 3RD_PARTY_PUBLIC_LINK_NAMES ${3RD_PARTY_FMTLIB_LINK_NAME})
         elseif (TARGET fmt::fmt)
-            message(STATUS "fmtlib using target: uv")
+            message(STATUS "fmtlib using target: fmt::fmt")
             set (3RD_PARTY_FMTLIB_LINK_NAME fmt::fmt)
             list(APPEND 3RD_PARTY_PUBLIC_LINK_NAMES ${3RD_PARTY_FMTLIB_LINK_NAME})
         else()
@@ -33,7 +33,7 @@ if(NOT DEFINED __PROJECT_3RD_PARTY_FMTLIB_LOADED)
         int main() {
             std::cout<< std::format(\"The answer is {}.\", 42)<< std::endl;
             char buffer[64] = {0};
-            const auto result = std::format_to_n(buffer, std::size(buffer), \"{} {}: {}\", \"Hello\", \"World!\", 42);
+            const auto result = std::format_to_n(buffer, sizeof(buffer), \"{} {}: {}\", \"Hello\", \"World!\", 42);
             std::cout << \"Buffer: \" << buffer << \",Untruncated output size = \" << result.size << std::endl;
             return 0;
         }" 3RD_PARTY_TEST_STD_FORMAT)
@@ -41,39 +41,26 @@ if(NOT DEFINED __PROJECT_3RD_PARTY_FMTLIB_LOADED)
 
     # =========== 3rdparty fmtlib ==================
     if (NOT TARGET fmt::fmt-header-only AND NOT TARGET fmt::fmt AND NOT 3RD_PARTY_TEST_STD_FORMAT)
-        if (NOT 3RD_PARTY_FMTLIB_BASE_DIR)
-            set (3RD_PARTY_FMTLIB_BASE_DIR ${CMAKE_CURRENT_LIST_DIR})
-        endif()
-
-        set (3RD_PARTY_FMTLIB_PKG_DIR "${3RD_PARTY_FMTLIB_BASE_DIR}/pkg")
-
         set (3RD_PARTY_FMTLIB_DEFAULT_VERSION "7.0.3")
-        if (fmt_ROOT)
-            set (FMT_ROOT ${fmt_ROOT})
-        elseif (Fmt_ROOT)
-            set (FMT_ROOT ${Fmt_ROOT})
-        endif ()
-        if (FMT_ROOT)
-            set (3RD_PARTY_FMTLIB_ROOT_DIR ${FMT_ROOT})
-        else ()
-            set (3RD_PARTY_FMTLIB_ROOT_DIR "${CMAKE_CURRENT_LIST_DIR}/prebuilt/${PROJECT_PREBUILT_PLATFORM_NAME}")
-            set (fmt_ROOT ${3RD_PARTY_FMTLIB_ROOT_DIR})
-        endif ()
+        set (FMT_ROOT ${PROJECT_3RD_PARTY_INSTALL_DIR})
+        set (Fmt_ROOT ${PROJECT_3RD_PARTY_INSTALL_DIR})
+        set (fmt_ROOT ${PROJECT_3RD_PARTY_INSTALL_DIR})
 
-        if(NOT EXISTS ${3RD_PARTY_FMTLIB_PKG_DIR})
-            file(MAKE_DIRECTORY ${3RD_PARTY_FMTLIB_PKG_DIR})
+        if(NOT EXISTS ${PROJECT_3RD_PARTY_PACKAGE_DIR})
+            file(MAKE_DIRECTORY ${PROJECT_3RD_PARTY_PACKAGE_DIR})
         endif()
 
         set(3RD_PARTY_FMTLIB_BACKUP_FIND_ROOT ${CMAKE_FIND_ROOT_PATH})
-        list(APPEND CMAKE_FIND_ROOT_PATH ${3RD_PARTY_FMTLIB_ROOT_DIR})
+        list(APPEND CMAKE_FIND_ROOT_PATH ${PROJECT_3RD_PARTY_INSTALL_DIR})
         FindConfigurePackage(
             PACKAGE fmt
             BUILD_WITH_CMAKE CMAKE_INHIRT_BUILD_ENV
+            CMAKE_INHIRT_BUILD_ENV_DISABLE_C_FLAGS CMAKE_INHIRT_BUILD_ENV_DISABLE_ASM_FLAGS 
             CMAKE_FLAGS "-DCMAKE_POSITION_INDEPENDENT_CODE=YES" "-DBUILD_SHARED_LIBS=OFF" "-DFMT_DOC=OFF" "-DFMT_INSTALL=ON" 
                         "-DFMT_TEST=OFF" "-DFMT_FUZZ=OFF" "-DFMT_CUDA_TEST=OFF"
-            WORKING_DIRECTORY "${3RD_PARTY_FMTLIB_PKG_DIR}"
+            WORKING_DIRECTORY "${PROJECT_3RD_PARTY_PACKAGE_DIR}"
             BUILD_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/deps/fmt-${3RD_PARTY_FMTLIB_DEFAULT_VERSION}/build_jobs_${PROJECT_PREBUILT_PLATFORM_NAME}"
-            PREFIX_DIRECTORY ${3RD_PARTY_FMTLIB_ROOT_DIR}
+            PREFIX_DIRECTORY ${PROJECT_3RD_PARTY_INSTALL_DIR}
             SRC_DIRECTORY_NAME "fmt-${3RD_PARTY_FMTLIB_DEFAULT_VERSION}"
             GIT_BRANCH ${3RD_PARTY_FMTLIB_DEFAULT_VERSION}
             GIT_URL "https://github.com/fmtlib/fmt.git"
