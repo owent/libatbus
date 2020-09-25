@@ -66,7 +66,7 @@ if (("@MSVC@".ToLower() -eq "true") -or ("@MSVC@".ToLower() -eq "yes") -or ("@MS
     if ( $LastExitCode -ne 0 ) {
         & "@CMAKE_COMMAND@" --build . --target install --config Debug
     }
-    else {
+    if ( $LastExitCode -ne 0 ) {
         exit $LastExitCode
     }
 }
@@ -76,7 +76,7 @@ if (("@MSVC@".ToLower() -eq "true") -or ("@MSVC@".ToLower() -eq "yes") -or ("@MS
 if ( $LastExitCode -ne 0 ) {
     & "@CMAKE_COMMAND@" --build . --target install --config Release
 }
-else {
+if ( $LastExitCode -ne 0 ) {
     exit $LastExitCode
 }
 
