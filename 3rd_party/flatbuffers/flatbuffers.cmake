@@ -5,45 +5,49 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.10")
 endif()
 
 # =========== 3rdparty flatbuffer ==================
-macro(PROJECT_3RD_PARTY_FLATBUFFERS_IMPORT)
+macro(PROJECT_LIBATBUS_FLATBUFFERS_IMPORT)
     if (TARGET flatbuffers::flatc AND TARGET flatbuffers::flatbuffers)
         get_target_property(3RD_PARTY_FLATBUFFER_INC_DIR flatbuffers::flatbuffers INTERFACE_INCLUDE_DIRECTORIES)
-        list(APPEND 3RD_PARTY_PUBLIC_INCLUDE_DIRS ${3RD_PARTY_FLATBUFFER_INC_DIR})
+        list(APPEND PROJECT_LIBATBUS_PUBLIC_INCLUDE_DIRS ${3RD_PARTY_FLATBUFFER_INC_DIR})
 
         EchoWithColor(COLOR GREEN "-- Dependency: Flatbuffer found.(${3RD_PARTY_FLATBUFFER_INC_DIR})")
     endif()
 endmacro()
 
-if (VCPKG_TOOLCHAIN)
-    find_package(Flatbuffers)
-    PROJECT_3RD_PARTY_FLATBUFFERS_IMPORT()
-endif ()
-
 if (NOT TARGET flatbuffers::flatc OR NOT TARGET flatbuffers::flatbuffers)
-    set (3RD_PARTY_FLATBUFFER_VERSION 1.12.0)
-    if (NOT Flatbuffers_ROOT)
-        set (Flatbuffers_ROOT ${PROJECT_3RD_PARTY_INSTALL_DIR})
+    if (VCPKG_TOOLCHAIN)
+        find_package(Flatbuffers)
+        PROJECT_LIBATBUS_FLATBUFFERS_IMPORT()
     endif ()
 
-    set(3RD_PARTY_FLATBUFFER_BUILD_OPTIONS -DFLATBUFFERS_CODE_COVERAGE=OFF -DFLATBUFFERS_BUILD_TESTS=OFF -DFLATBUFFERS_INSTALL=ON -DFLATBUFFERS_BUILD_FLATLIB=ON -DFLATBUFFERS_BUILD_FLATC=ON -DFLATBUFFERS_BUILD_FLATHASH=ON -DFLATBUFFERS_BUILD_GRPCTEST=OFF -DFLATBUFFERS_BUILD_SHAREDLIB=OFF)
-    FindConfigurePackage(
-        PACKAGE Flatbuffers
-        BUILD_WITH_CMAKE CMAKE_INHIRT_BUILD_ENV
-        MSVC_CONFIGURE ${CMAKE_BUILD_TYPE}
-        CMAKE_FLAGS ${3RD_PARTY_FLATBUFFER_BUILD_OPTIONS}
-        WORKING_DIRECTORY ${PROJECT_3RD_PARTY_PACKAGE_DIR}
-        BUILD_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/deps/flatbuffers-${3RD_PARTY_FLATBUFFER_VERSION}/build_jobs_${PROJECT_PREBUILT_PLATFORM_NAME}"
-        PREFIX_DIRECTORY ${Flatbuffers_ROOT}
-        SRC_DIRECTORY_NAME "flatbuffers-${3RD_PARTY_FLATBUFFER_VERSION}"
-        TAR_URL "https://github.com/google/flatbuffers/archive/v${3RD_PARTY_FLATBUFFER_VERSION}.tar.gz"
-        ZIP_URL "https://github.com/google/flatbuffers/archive/v${3RD_PARTY_FLATBUFFER_VERSION}.zip"
-    )
-
-
     if (NOT TARGET flatbuffers::flatc OR NOT TARGET flatbuffers::flatbuffers)
-        EchoWithColor(COLOR RED "-- Dependency: Flatbuffer is required but not found")
-        message(FATAL_ERROR "Flatbuffer not found")
+        set (3RD_PARTY_FLATBUFFER_VERSION 1.12.0)
+        if (NOT Flatbuffers_ROOT)
+            set (Flatbuffers_ROOT ${PROJECT_3RD_PARTY_INSTALL_DIR})
+        endif ()
+
+        set(3RD_PARTY_FLATBUFFER_BUILD_OPTIONS -DFLATBUFFERS_CODE_COVERAGE=OFF -DFLATBUFFERS_BUILD_TESTS=OFF -DFLATBUFFERS_INSTALL=ON -DFLATBUFFERS_BUILD_FLATLIB=ON -DFLATBUFFERS_BUILD_FLATC=ON -DFLATBUFFERS_BUILD_FLATHASH=ON -DFLATBUFFERS_BUILD_GRPCTEST=OFF -DFLATBUFFERS_BUILD_SHAREDLIB=OFF)
+        FindConfigurePackage(
+            PACKAGE Flatbuffers
+            BUILD_WITH_CMAKE CMAKE_INHIRT_BUILD_ENV
+            MSVC_CONFIGURE ${CMAKE_BUILD_TYPE}
+            CMAKE_FLAGS ${3RD_PARTY_FLATBUFFER_BUILD_OPTIONS}
+            WORKING_DIRECTORY ${PROJECT_3RD_PARTY_PACKAGE_DIR}
+            BUILD_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/deps/flatbuffers-${3RD_PARTY_FLATBUFFER_VERSION}/build_jobs_${PROJECT_PREBUILT_PLATFORM_NAME}"
+            PREFIX_DIRECTORY ${Flatbuffers_ROOT}
+            SRC_DIRECTORY_NAME "flatbuffers-${3RD_PARTY_FLATBUFFER_VERSION}"
+            TAR_URL "https://github.com/google/flatbuffers/archive/v${3RD_PARTY_FLATBUFFER_VERSION}.tar.gz"
+            ZIP_URL "https://github.com/google/flatbuffers/archive/v${3RD_PARTY_FLATBUFFER_VERSION}.zip"
+        )
+
+
+        if (NOT TARGET flatbuffers::flatc OR NOT TARGET flatbuffers::flatbuffers)
+            EchoWithColor(COLOR RED "-- Dependency: Flatbuffer is required but not found")
+            message(FATAL_ERROR "Flatbuffer not found")
+        endif()
+        PROJECT_LIBATBUS_FLATBUFFERS_IMPORT()
     endif()
-    PROJECT_3RD_PARTY_FLATBUFFERS_IMPORT()
+else()
+    PROJECT_LIBATBUS_FLATBUFFERS_IMPORT()
 endif ()
 
