@@ -1711,7 +1711,8 @@ namespace atbus {
                     if (m->data_transform_req().flags() & atbus::protocol::FORWARD_DATA_FLAG_REQUIRE_RSP) {
                         // be careful, all mutable action here can not set any new element.
                         m->mutable_head()->set_ret(0);
-                        m->set_allocated_data_transform_rsp(const_cast< ::atbus::protocol::msg *>(m)->release_data_transform_req());
+                        // Same arena here and so we can use unsafe release and set_allocated
+                        m->unsafe_arena_set_allocated_data_transform_rsp(const_cast< ::atbus::protocol::msg *>(m)->unsafe_arena_release_data_transform_req());
                         on_recv_forward_response(get_self_endpoint(), NULL, m);
                     }
                 }

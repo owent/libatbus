@@ -251,8 +251,9 @@ namespace atbus {
         ::atbus::protocol::forward_data *fwd_data;
         if (m.msg_body_case() == ::atbus::protocol::msg::kDataTransformReq) {
             // move req to rsp
-            fwd_data = m.release_data_transform_req();
-            m.set_allocated_data_transform_rsp(fwd_data);
+            // Same arena here and so we can use unsafe release and set_allocated
+            fwd_data = m.unsafe_arena_release_data_transform_req();
+            m.unsafe_arena_set_allocated_data_transform_rsp(fwd_data);
         } else {
             fwd_data = m.mutable_data_transform_rsp();
         }
