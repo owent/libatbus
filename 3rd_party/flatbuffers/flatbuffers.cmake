@@ -16,12 +16,12 @@ endmacro()
 
 if (NOT TARGET flatbuffers::flatc OR NOT TARGET flatbuffers::flatbuffers)
     if (VCPKG_TOOLCHAIN)
-        find_package(Flatbuffers)
+        find_package(Flatbuffers QUIET)
         PROJECT_LIBATBUS_FLATBUFFERS_IMPORT()
     endif ()
 
     if (NOT TARGET flatbuffers::flatc OR NOT TARGET flatbuffers::flatbuffers)
-        set (3RD_PARTY_FLATBUFFER_VERSION 1.12.0)
+        set (3RD_PARTY_FLATBUFFER_VERSION "v1.12.0")
         if (NOT Flatbuffers_ROOT)
             set (Flatbuffers_ROOT ${PROJECT_3RD_PARTY_INSTALL_DIR})
         endif ()
@@ -36,8 +36,8 @@ if (NOT TARGET flatbuffers::flatc OR NOT TARGET flatbuffers::flatbuffers)
             BUILD_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/deps/flatbuffers-${3RD_PARTY_FLATBUFFER_VERSION}/build_jobs_${PROJECT_PREBUILT_PLATFORM_NAME}"
             PREFIX_DIRECTORY ${Flatbuffers_ROOT}
             SRC_DIRECTORY_NAME "flatbuffers-${3RD_PARTY_FLATBUFFER_VERSION}"
-            TAR_URL "https://github.com/google/flatbuffers/archive/v${3RD_PARTY_FLATBUFFER_VERSION}.tar.gz"
-            ZIP_URL "https://github.com/google/flatbuffers/archive/v${3RD_PARTY_FLATBUFFER_VERSION}.zip"
+            GIT_BRANCH "${3RD_PARTY_FLATBUFFER_VERSION}"
+            GIT_URL "https://github.com/google/flatbuffers.git"
         )
 
 
