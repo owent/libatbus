@@ -51,7 +51,7 @@ include("${CMAKE_CURRENT_LIST_DIR}/tools/tools.macro.cmake")
 
 ## 导入工程项目
 if(TARGET ${3RD_PARTY_ATFRAME_UTILS_LINK_NAME})
-    message(STATUS "${3RD_PARTY_ATFRAME_UTILS_LINK_NAME} already exist, use it directly.")
+    message(STATUS "${3RD_PARTY_ATFRAME_UTILS_LINK_NAME} already exist, use it for ${PROJECT_NAME} directly.")
 else()
     if (NOT EXISTS "${CMAKE_BINARY_DIR}/deps/${3RD_PARTY_ATFRAME_UTILS_LINK_NAME}")
         file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/deps/${3RD_PARTY_ATFRAME_UTILS_LINK_NAME}")

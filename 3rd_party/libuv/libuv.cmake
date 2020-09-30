@@ -44,7 +44,7 @@ if (NOT TARGET uv_a AND NOT TARGET uv AND NOT TARGET libuv AND NOT Libuv_FOUND A
     endif ()
 
     if (NOT TARGET uv_a AND NOT TARGET uv AND NOT TARGET libuv AND NOT Libuv_FOUND AND NOT LIBUV_FOUND)
-        set (3RD_PARTY_LIBUV_DEFAULT_VERSION "1.39.0")
+        set (3RD_PARTY_LIBUV_DEFAULT_VERSION "1.40.0")
 
         set(Libuv_ROOT ${PROJECT_3RD_PARTY_INSTALL_DIR})
         FindConfigurePackage(
