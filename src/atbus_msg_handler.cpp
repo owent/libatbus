@@ -876,8 +876,7 @@ namespace atbus {
                 if (NULL == self_ep) {
                     rsp_code = EN_ATBUS_ERR_NOT_INITED;
                     ATBUS_FUNC_NODE_DEBUG(n, ep, conn, &m, "node not initialized");
-                }
-                if (!endpoint::contain(new_ep->get_subnets(), self_ep->get_subnets())) {
+                } else if (!endpoint::contain(new_ep->get_subnets(), self_ep->get_subnets())) {
                     rsp_code = EN_ATBUS_ERR_ATNODE_MASK_CONFLICT;
                     ATBUS_FUNC_NODE_DEBUG(n, ep, conn, &m, "parent subnets do not include all self's subnets");
                 }

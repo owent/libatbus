@@ -2149,7 +2149,7 @@ namespace atbus {
         // hash address
         {
             const unsigned char *self = reinterpret_cast<const unsigned char *>(this);
-            sha256.update(reinterpret_cast<const unsigned char *>(&self), sizeof(self));
+            sha256.update(reinterpret_cast<const unsigned char *>(&self), sizeof(const unsigned char *));
         }
 
         // hash id
