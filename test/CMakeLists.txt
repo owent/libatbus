@@ -36,6 +36,7 @@ target_include_directories(atbus_unit_test
 
 if (MSVC)
     set_property(TARGET atbus_unit_test PROPERTY FOLDER "atframework/test")
+    add_target_properties(atbus_unit_test LINK_FLAGS /NODEFAULTLIB:library)
 endif ()
 
 add_test(test atbus_unit_test)
