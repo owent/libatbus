@@ -1,19 +1,26 @@
-BasedOnStyle: LLVM
+---
 Language: Cpp
-AccessModifierOffset: -4
-AlignEscapedNewlinesLeft: true
-AlignConsecutiveAssignments: true
-AlignConsecutiveDeclarations: false
-AllowAllParametersOfDeclarationOnNextLine: false
-AllowShortIfStatementsOnASingleLine: true
-AlwaysBreakTemplateDeclarations: true
-ColumnLimit: 140
-CommentPragmas: ''
-IndentWidth: 4
-MaxEmptyLinesToKeep: 2
-NamespaceIndentation: All
-ObjCSpaceAfterProperty: true
-ObjCSpaceBeforeProtocolList: true
-Standard: Cpp03
-TabWidth: 4
-UseTab: Never
+BasedOnStyle: Google
+ColumnLimit: 100
+DerivePointerAlignment: true
+PointerAlignment: Left
+
+# Only sort headers in each include block
+SortIncludes: false
+IncludeBlocks: Preserve
+
+# Ident #if/#else/#endif:
+#   #if defined(WIN)
+#   #  include <windows.h>
+#   #else
+#   #  include <curl.h>
+#   #endif
+IndentPPDirectives: AfterHash
+---
+
+---
+Language: Proto
+BasedOnStyle: Google
+ColumnLimit: 100
+---
+
