@@ -32,7 +32,7 @@ else
     CHECK_MSYS="";
 fi
 
-while getopts "ab:c:d:e:hlm:o:ptus-" OPTION; do
+while getopts "ab:c:d:e:hlm:o:pr:stu-" OPTION; do
     case $OPTION in
         a)
             echo "Ready to check ccc-analyzer and c++-analyzer, please do not use -c to change the compiler when using clang-analyzer.";
@@ -76,7 +76,7 @@ while getopts "ab:c:d:e:hlm:o:ptus-" OPTION; do
             CMAKE_BUILD_TYPE="$OPTARG";
         ;;
         c)
-            if [ $CMAKE_CLANG_ANALYZER -ne 0 ]; then
+            if [[ $CMAKE_CLANG_ANALYZER -ne 0 ]]; then
                 CCC_CC="$OPTARG";
                 CCC_CXX="${CCC_CC/%clang/clang++}";
                 CCC_CXX="${CCC_CXX/%gcc/g++}";
@@ -84,8 +84,8 @@ while getopts "ab:c:d:e:hlm:o:ptus-" OPTION; do
                 export CCC_CXX;
             else
                 CC="$OPTARG";
-                CXX="${CC/%clang/clang++}";
-                CXX="${CXX/%gcc/g++}";
+                CXX="$(echo "$CC" | sed 's/\(.*\)clang/\1clang++/')";
+                CXX="$(echo "$CXX" | sed 's/\(.*\)gcc/\1g++/')";
             fi
         ;;
         d)
@@ -111,6 +111,9 @@ while getopts "ab:c:d:e:hlm:o:ptus-" OPTION; do
             echo "-l                            enable tools.";
             exit 0;
         ;;
+        l)
+            CMAKE_OPTIONS="$CMAKE_OPTIONS -DPROJECT_ENABLE_TOOLS=YES";
+        ;;
         m)
             if [ ! -z "$OPTARG" ]; then
                 CMAKE_OPTIONS="$CMAKE_OPTIONS -DMBEDTLS_ROOT=$OPTARG";
@@ -125,20 +128,20 @@ while getopts "ab:c:d:e:hlm:o:ptus-" OPTION; do
                 CMAKE_OPTIONS="$CMAKE_OPTIONS -DOPENSSL_ROOT_DIR=c:/workspace/lib/crypt/prebuilt/openssl-1.0.2h-vs2015";
             fi
         ;;
-        t)
-            CMAKE_CLANG_TIDY="-D -checks=* --";
-        ;;
         p)
             CMAKE_OPTIONS="$CMAKE_OPTIONS -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=YES";
         ;;
-        u)
-            CMAKE_OPTIONS="$CMAKE_OPTIONS -DPROJECT_ENABLE_UNITTEST=YES";
+        r)
+            CUSTOM_BUILD_DIR="$OPTARG";
         ;;
         s)
             CMAKE_OPTIONS="$CMAKE_OPTIONS -DPROJECT_ENABLE_SAMPLE=YES";
         ;;
-        l)
-            CMAKE_OPTIONS="$CMAKE_OPTIONS -DPROJECT_ENABLE_TOOLS=YES";
+        t)
+            CMAKE_CLANG_TIDY="-D -checks=* --";
+        ;;
+        u)
+            CMAKE_OPTIONS="$CMAKE_OPTIONS -DPROJECT_ENABLE_UNITTEST=YES";
         ;;
         -)
             break;
@@ -152,6 +155,11 @@ done
 
 shift $(($OPTIND - 1));
 SCRIPT_DIR="$(cd $(dirname $0) && pwd)";
+
+if [[ "x$CUSTOM_BUILD_DIR" != "x" ]]; then
+    BUILD_DIR="$CUSTOM_BUILD_DIR";
+fi
+
 mkdir -p "$SCRIPT_DIR/$BUILD_DIR";
 cd "$SCRIPT_DIR/$BUILD_DIR";
 

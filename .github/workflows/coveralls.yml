@@ -3,34 +3,42 @@ on:
   push:
     branches:
       - dev
+      - master
+      - main
 jobs:
-  build:
-    name: Build And Publish
+  coverage:
+    name: Coverage
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        include:
+          - os: ubuntu-20.04
+            triplet: x64-linux
+            cc: gcc
+            gcov_flags: "--coverage -fprofile-arcs -ftest-coverage"
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
-        uses: actions/checkout@master
-      - name: Build
+        uses: actions/checkout@v2
+      - name: Generate coverage
         shell: bash
         env:
-          GCOV_FLAGS: "--coverage -fprofile-arcs -ftest-coverage"
+          USE_CC: ${{ matrix.cc }}
+          VCPKG_TARGET_TRIPLET: ${{ matrix.triplet }}
+          GCOV_FLAGS: "${{ matrix.gcov_flags }}"
         run: |
+          vcpkg install --triplet=$VCPKG_TARGET_TRIPLET openssl;
           mkdir -p "$GITHUB_WORKSPACE/build_jobs_dir_linux"
           cd "$GITHUB_WORKSPACE/build_jobs_dir_linux"
-          cmake .. -DCMAKE_BUILD_TYPE=Debug "-DCMAKE_C_FLAGS=$GCOV_FLAGS" "-DCMAKE_CXX_FLAGS=$GCOV_FLAGS" "-DCMAKE_EXE_LINKER_FLAGS=$GCOV_FLAGS" -DPROJECT_ENABLE_UNITTEST=ON -DPROJECT_ENABLE_SAMPLE=ON -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON -DPROJECT_GIT_CLONE_REMOTE_ORIGIN_DISABLE_SSH=ON
-          cmake --build . -j
-      - name: Upload To coveralls.io
-        env:
-          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
-        shell: bash
-        run: |
-          cd "$GITHUB_WORKSPACE/build_jobs_dir_linux"
+          bash cmake_dev.sh -lus -b Debug -r build_jobs_coverage -c $USE_CC -- $CRYPTO_OPTIONS "-DCMAKE_C_FLAGS=$GCOV_FLAGS" "-DCMAKE_CXX_FLAGS=$GCOV_FLAGS" "-DCMAKE_EXE_LINKER_FLAGS=$GCOV_FLAGS" -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON -DPROJECT_GIT_CLONE_REMOTE_ORIGIN_DISABLE_SSH=ON -DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=$VCPKG_TARGET_TRIPLET ;
+          cd build_jobs_coverage ;
+          cmake --build . -j ;
           ctest . -V
           timeout 5s ./tools/benchmark_shm_channel_recv 12345679 1024 4194304 > recv.log 2>&1 &
           timeout 6s ./tools/benchmark_shm_channel_send 12345679 1024 4194304 > send.log 2>&1 || true
           ./tools/show_shm_channel 12345679 1 16 > /dev/null || true
-          pip install --user cpp-coveralls
-          coveralls -r .. --gcov-options '\-lp' -e docs -e 3rd_party -e sample -e test -e tools -e build/CMakeFiles -e include/libatbus_protocol.pb.h -e src/libatbus_protocol.pb.cc
+      - name: Uploaded code coverage
+        uses: codecov/codecov-action@v1
+        with:
+          # token: ${{secrets.CODECOV_TOKEN}} # not required for public repos
+          fail_ci_if_error: true
+          gcov_args: '-lp'

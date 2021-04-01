@@ -3,23 +3,30 @@ libatbus
 
 用于搭建高性能、全异步(a)、树形结构(t)的BUS消息系统的跨平台框架库
 
-> Build & Run Unit Test in |  Linux+OSX(clang+gcc) | Windows+MinGW(vc+gcc) |
-> -------------------------|--------|---------|
-> Status |  [![Build Status](https://travis-ci.org/atframework/libatbus.svg?branch=master)](https://travis-ci.org/atframework/libatbus) | [![Build status](https://ci.appveyor.com/api/projects/status/v2ufe4xuwbc6gjlf/branch/master?svg=true)](https://ci.appveyor.com/project/owt5008137/libatbus-k408k/branch/master) |
-> Compilers | linux-gcc-4.8 <br /> linux-gcc-5.4 <br /> linux-gcc-9 <br /> osx-apple-clang-9.0 <br /> | MSVC 14(Visual Studio 2015) <br /> MSVC 15(Visual Studio 2017) <br /> MSVC 16(Visual Studio 2019) <br /> Mingw32-gcc<br /> Mingw64-gcc
+> Build & Run Unit Test in |  [Linux+OSX(clang+gcc)][linux-link] | [Windows+MinGW(vc+gcc)][windows-link] |
+> -------------------------|-------------------------------------|---------------------------------------|
+> Status                   |  ![linux-badge]                     | ![windows-badge]                      |
+> Compilers | linux-clang-10/11 <br /> linux-gcc-9 <br /> linux-gcc-10 <br /> ~~macOS-clang-12.0~~ <br /> | MSVC 14(Visual Studio 2015) <br /> MSVC 15(Visual Studio 2017) <br /> MSVC 16(Visual Studio 2019) <br /> Mingw32-gcc<br /> Mingw64-gcc
 >
 
-[![Coverage Status](https://coveralls.io/repos/github/atframework/libatbus/badge.svg?branch=master)](https://coveralls.io/github/atframework/libatbus?branch=master)
+[![codecov badge]][codecov status]
+
+[linux-badge]: https://github.com/atframework/libatbus/actions/workflows/linux-macos.yml/badge.svg "Github action build status"
+[linux-link]:  https://github.com/atframework/libatbus/actions/workflows/linux-macos.yml "Github action build status"
+[windows-badge]: https://ci.appveyor.com/api/projects/status/v2ufe4xuwbc6gjlf/branch/master?svg=true "AppVeyor build status"
+[windows-link]:  https://ci.appveyor.com/project/owt5008137/libatbus-k408k/branch/master "AppVeyor build status"
+[codecov badge]: https://codecov.io/gh/atframework/libatbus/branch/master/graph/badge.svg
+[codecov status]: https://codecov.io/gh/atframework/libatbus
 
 依赖
 ------
 
 + 支持c++0x或c++11的编译器(为了代码尽量简洁,特别是少做无意义的平台兼容，依赖部分 C11和C++11的功能，所以不支持过低版本的编译器)
 > + GCC: 4.4 及以上（建议gcc 4.8.1及以上）
-> + Clang: 3.0 及以上 （建议 clang 3.4及以上）
-> + VC: 10 及以上 （建议VC 12及以上）
+> + Clang: 3.4 及以上 （建议 clang 3.8及以上）
+> + VC: 12 及以上
 
-+ [cmake](https://cmake.org/download/) 3.7.0 以上
++ [cmake](https://cmake.org/download/) 3.16.0 以上
 + [protobuf](https://github.com/protocolbuffers/protobuf)
 + [libuv](http://libuv.org/)（用于网络通道）
 + [atframe_utils](https://github.com/atframework/atframe_utils)（基础公共代码）
