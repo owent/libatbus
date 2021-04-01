@@ -33,9 +33,9 @@ jobs:
           - os: ubuntu-20.04
             triplet: x64-linux
             cc: clang-11
-          - os: macos-latest
-            triplet: x64-osx
-            cc: clang     
+          # - os: macos-latest
+          #   triplet: x64-osx
+          #   cc: clang     
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
