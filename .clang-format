@@ -1,12 +1,12 @@
 ---
 Language: Cpp
 BasedOnStyle: Google
-ColumnLimit: 100
+ColumnLimit: 120
 DerivePointerAlignment: true
 PointerAlignment: Left
 
 # Only sort headers in each include block
-SortIncludes: false
+SortIncludes: true
 IncludeBlocks: Preserve
 
 # Ident #if/#else/#endif:
@@ -21,6 +21,6 @@ IndentPPDirectives: AfterHash
 ---
 Language: Proto
 BasedOnStyle: Google
-ColumnLimit: 100
+ColumnLimit: 120
 ---
 

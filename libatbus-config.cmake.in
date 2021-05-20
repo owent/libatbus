@@ -44,35 +44,34 @@ the above reference.)
 
 #]=======================================================================]
 
-set(Libatbus_VERSION "@LIBATBUS_VERSION@")
+set(${CMAKE_FIND_PACKAGE_NAME}_VERSION "@LIBATBUS_VERSION@")
 
 @PACKAGE_INIT@
 
-# ##################################################################################################
+# ######################################################################################################################
 # libatbus source dir
-set(Libatbus_SOURCE_DIR "@PROJECT_SOURCE_DIR@")
+set(${CMAKE_FIND_PACKAGE_NAME}_SOURCE_DIR "@PROJECT_SOURCE_DIR@")
 
-set_and_check(Libatbus_INCLUDE_DIRS "@PACKAGE_INCLUDE_INSTALL_DIR@")
-set_and_check(Libatbus_LIBRARY_DIRS "@PACKAGE_CMAKE_INSTALL_LIBDIR@")
-set_and_check(Libatbus_PROTOCOL_DIRS "@PACKAGE_INCLUDE_INSTALL_DIR@")
+set_and_check(${CMAKE_FIND_PACKAGE_NAME}_INCLUDE_DIRS "@PACKAGE_INCLUDE_INSTALL_DIR@")
+set_and_check(${CMAKE_FIND_PACKAGE_NAME}_LIBRARY_DIRS "@PACKAGE_CMAKE_INSTALL_LIBDIR@")
+set_and_check(${CMAKE_FIND_PACKAGE_NAME}_PROTOCOL_DIRS "@PACKAGE_INCLUDE_INSTALL_DIR@")
 
 include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_LIBATBUS_EXPORT_NAME@.cmake")
 if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/@PROJECT_LIBATBUS_EXPORT_NAME@.cmake")
   include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_LIBATBUS_EXPORT_NAME@.cmake")
 endif()
 # Normal search.
-set(Libatbus_LIBRARIES atframework::atbus)
+set(${CMAKE_FIND_PACKAGE_NAME}_LIBRARIES atframework::atbus)
 
-# handle the QUIETLY and REQUIRED arguments and set LIBATBUS_FOUND to TRUE if all listed variables
-# are TRUE
+# handle the QUIETLY and REQUIRED arguments and set LIBATBUS_FOUND to TRUE if all listed variables are TRUE
 include("FindPackageHandleStandardArgs")
 find_package_handle_standard_args(
-  Libatbus
-  FOUND_VAR Libatbus_FOUND
-  REQUIRED_VARS Libatbus_INCLUDE_DIRS Libatbus_LIBRARIES)
+  ${CMAKE_FIND_PACKAGE_NAME}
+  FOUND_VAR ${CMAKE_FIND_PACKAGE_NAME}_FOUND
+  REQUIRED_VARS ${CMAKE_FIND_PACKAGE_NAME}_INCLUDE_DIRS ${CMAKE_FIND_PACKAGE_NAME}_LIBRARIES)
 
-if(Libatbus_FOUND)
-  set(LIBATBUS_FOUND ${Libatbus_FOUND})
+if(${CMAKE_FIND_PACKAGE_NAME}_FOUND)
+  set(LIBATBUS_FOUND ${${CMAKE_FIND_PACKAGE_NAME}_FOUND})
 endif()
 
-# check_required_components(Libatbus)
+# check_required_components(${CMAKE_FIND_PACKAGE_NAME})

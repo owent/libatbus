@@ -1,0 +1,8 @@
+[submodule "atframework/atframe_utils"]
+	path = atframework/atframe_utils
+	url = https://github.com/atframework/atframe_utils.git
+	branch = main
+[submodule "atframework/cmake-toolset"]
+	path = atframework/cmake-toolset
+	url = https://github.com/atframework/cmake-toolset.git
+	branch = main

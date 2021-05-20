@@ -1,6 +1,10 @@
 ﻿# 默认配置选项
 #####################################################################
 
+include("${CMAKE_CURRENT_LIST_DIR}/FetchDependeny.cmake")
+include(IncludeDirectoryRecurse)
+include(EchoWithColor)
+
 # atbus 选项
 set(ATBUS_MACRO_BUSID_TYPE
     "uint64_t"
@@ -15,17 +19,14 @@ set(ATBUS_MACRO_DATA_MAX_PROTECT_SIZE
     16384
     CACHE STRING "max protected node size for mem/shm channel")
 
-# for now, other component in io_stream_connection cost 472 bytes, make_shared will also cost some
-# memory. we hope one connection will cost no more than 4KB, so 100K connections will cost no more
-# than 400MB memory so we use 3KB for small message buffer, and left about 500 Bytes in feture use.
-# This can be 512 or smaller (but not smaller than 32), but in most server environment, memory is
-# cheap and there are only few connections between server and server.
+# for now, other component in io_stream_connection cost 472 bytes, make_shared will also cost some memory. we hope one
+# connection will cost no more than 4KB, so 100K connections will cost no more than 400MB memory so we use 3KB for small
+# message buffer, and left about 500 Bytes in feture use. This can be 512 or smaller (but not smaller than 32), but in
+# most server environment, memory is cheap and there are only few connections between server and server.
 set(ATBUS_MACRO_DATA_SMALL_SIZE
     3072
-    CACHE
-      STRING
-      "small message buffer for io_stream channel(used to reduce memory copy when there are many small messages)"
-)
+    CACHE STRING
+          "small message buffer for io_stream channel(used to reduce memory copy when there are many small messages)")
 
 set(ATBUS_MACRO_HUGETLB_SIZE
     4194304
@@ -51,11 +52,9 @@ set(ATBUS_MACRO_IOS_SEND_BUFFER_LENGTH
 option(ATBUS_MACRO_ABORT_ON_PROTECTED_ERROR "abort when any inner error found." OFF)
 
 option(PROJECT_RESET_DENPEND_REPOSITORIES "Reset depended repositories if it's already exists." OFF)
-option(PROJECT_GIT_CLONE_REMOTE_ORIGIN_DISABLE_SSH
-       "Do not try to use ssh url when clone dependency." OFF)
-option(
-  PROJECT_FIND_CONFIGURE_PACKAGE_PARALLEL_BUILD
-  "Parallel building for FindConfigurePackage. It's usually useful for some CI with low memory." ON)
+option(PROJECT_GIT_CLONE_REMOTE_ORIGIN_DISABLE_SSH "Do not try to use ssh url when clone dependency." OFF)
+option(PROJECT_FIND_CONFIGURE_PACKAGE_PARALLEL_BUILD
+       "Parallel building for FindConfigurePackage. It's usually useful for some CI with low memory." ON)
 
 option(ATFRAMEWORK_USE_DYNAMIC_LIBRARY "Build and linking with dynamic libraries." OFF)
 

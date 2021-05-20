@@ -24,13 +24,6 @@
 build/*
 build_*
 
-# prebuilt directory
-/3rd_party/*/prebuilt
-/3rd_party/*/pkg
-/3rd_party/libuv/repo-*
-/3rd_party/c_cpp_utils/repo
-/3rd_party/atframe_utils/repo
-
 # project files
 /.idea
 /.vs
@@ -41,3 +34,10 @@ build_*
 /include/libatbus_protocol.pb.h
 /include/libatbus_protocol.pb
 /src/libatbus_protocol.pb.cc
+
+/atframework/cmake-toolset
+/atframework/atframe_utils
+
+# prebuilt directory
+/third_party/install
+/third_party/packages

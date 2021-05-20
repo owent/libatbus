@@ -157,7 +157,7 @@ cmake --build . --target install(或者make构建系统的make install) 仅会�
 
 ### 目录结构说明
 
-+ 3rd_party: 外部组件（不一定是依赖项）
++ third_party: 外部组件（不一定是依赖项）
 + docs: 文档目录
 + include: 导出lib的包含文件（注意不导出的内部接口后文件会直接在src目录里）
 + project: 工程工具和配置文件集
