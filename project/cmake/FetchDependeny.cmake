@@ -52,7 +52,7 @@ else()
     file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/_deps/${ATFRAMEWORK_ATFRAME_UTILS_LINK_NAME}")
   endif()
   atframework_atframe_utils_populate()
-  add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}
+  add_subdirectory("${ATFRAMEWORK_ATFRAME_UTILS_REPO_DIR}"
                    "${CMAKE_CURRENT_BINARY_DIR}/_deps/${ATFRAMEWORK_ATFRAME_UTILS_LINK_NAME}")
 endif()
 

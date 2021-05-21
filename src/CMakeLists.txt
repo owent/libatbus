@@ -41,7 +41,8 @@ set_target_properties(
              CXX_VISIBILITY_PRESET "default"
              WINDOWS_EXPORT_ALL_SYMBOLS TRUE
              VERSION ${LIBATBUS_VERSION})
-target_link_libraries("${PROJECT_LIBATBUS_LIB_LINK}-protocol" INTERFACE ${3RD_PARTY_PROTOBUF_LINK_NAME})
+target_link_libraries("${PROJECT_LIBATBUS_LIB_LINK}-protocol"
+                      PUBLIC ${ATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_PROTOBUF_LITE_LINK_NAME})
 target_include_directories(
   "${PROJECT_LIBATBUS_LIB_LINK}-protocol"
   PRIVATE "$<BUILD_INTERFACE:${PROJECT_LIBATBUS_ROOT_INC_DIR}>" # INTERFACE "$<BUILD_INTERFACE:>"

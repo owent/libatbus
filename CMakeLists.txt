@@ -27,7 +27,6 @@ unset(PROJECT_LIBATBUS_PRIVATE_COMPILE_OPTIONS)
 
 # ######################################################################################################################
 # 导入项目配置 导入所有 macro 定义
-include("${CMAKE_CURRENT_LIST_DIR}/3rd_party/3rd_party.macro.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/include/include.macro.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/src/libatbus.macro.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/tools/tools.macro.cmake")
