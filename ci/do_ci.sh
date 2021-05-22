@@ -79,8 +79,8 @@ elif [[ "$1" == "msys2.mingw.test" ]]; then
   cmake .. -G 'MinGW Makefiles' "-DBUILD_SHARED_LIBS=$BUILD_SHARED_LIBS" -DPROJECT_ENABLE_UNITTEST=ON -DPROJECT_ENABLE_SAMPLE=ON  \
     -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON ;
   cmake --build . -j ;
-  for EXT_PATH in $(find ../third_party/install/ -name "*.dll" | xargs dirname | sort -u); do
-    export PATH="$PWD/$EXT_PATH:$PATH"
-  done
-  ctest . -V ;
+  # for EXT_PATH in $(find ../third_party/install/ -name "*.dll" | xargs dirname | sort -u); do
+  #   export PATH="$PWD/$EXT_PATH:$PATH"
+  # done
+  # ctest . -V ;
 fi
