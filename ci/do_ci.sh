@@ -70,11 +70,14 @@ elif [[ "$1" == "clang.test" ]]; then
   cmake --build . -j ;
   ctest . -V ;
 elif [[ "$1" == "msys2.mingw.test" ]]; then
-  pacman -S --needed --noconfirm mingw-w64-x86_64-cmake git mingw-w64-x86_64-git-lfs m4 curl wget tar autoconf automake mingw-w64-x86_64-toolchain mingw-w64-x86_64-libtool python || true ;
+  pacman -S --needed --noconfirm mingw-w64-x86_64-cmake git m4 curl wget tar autoconf automake  \
+    mingw-w64-x86_64-git-lfs mingw-w64-x86_64-toolchain mingw-w64-x86_64-libtool                \
+    mingw-w64-x86_64-python mingw-w64-x86_64-python-pip mingw-w64-x86_64-python-setuptools || true ;
   git config --global http.sslBackend openssl ;
   mkdir -p build_jobs_ci ;
   cd build_jobs_ci ;
-  cmake .. -G 'MinGW Makefiles' "-DBUILD_SHARED_LIBS=$BUILD_SHARED_LIBS" -DPROJECT_ENABLE_UNITTEST=ON -DPROJECT_ENABLE_SAMPLE=ON -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON ;
+  cmake .. -G 'MinGW Makefiles' "-DBUILD_SHARED_LIBS=$BUILD_SHARED_LIBS" -DPROJECT_ENABLE_UNITTEST=ON -DPROJECT_ENABLE_SAMPLE=ON  \
+    -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON ;
   cmake --build . -j ;
   for EXT_PATH in $(find ../third_party/install/ -name "*.dll" | xargs dirname | sort -u); do
     export PATH="$PWD/$EXT_PATH:$PATH"

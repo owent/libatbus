@@ -82,14 +82,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Build & Test
-        shell: cmd
+        shell: pwsh
         env:
           CMAKE_GENERATOR: ${{ matrix.generator }}
           CMAKE_PLATFORM: ${{ matrix.platform }}
           BUILD_SHARED_LIBS: ${{ matrix.build_shared_libs }}
           CONFIGURATION: RelWithDebInfo
         run: |
-          "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          $vswhere = "${ENV:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
+          $vsInstallationPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          Import-Module "$vsInstallationPath/Common7/Tools/Microsoft.VisualStudio.DevShell.dll"
+          Enter-VsDevShell -VsInstallPath "$vsInstallationPath" -StartInPath $(Get-Location)
           pwsh ci/do_ci.ps1 msvc.2019.test ;
   vs2017_build: # job id, can be any string
     name: Visual Studio 2017 Build
@@ -104,13 +107,28 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Build & Test
-        shell: cmd
+        shell: pwsh
         env:
           CMAKE_GENERATOR: ${{ matrix.generator }}
           BUILD_SHARED_LIBS: ${{ matrix.build_shared_libs }}
           CONFIGURATION: RelWithDebInfo
         run: |
-          "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          function Invoke-Environment {
+            param
+            (
+              [Parameter(Mandatory = $true)]
+              [string] $Command
+            )
+            $Command = "`"" + $Command + "`""
+            cmd /c "$Command > nul 2>&1 && set" | . { process {
+                if ($_ -match '^([^=]+)=(.*)') {
+                  [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2])
+                }
+              } }
+          }
+          $vswhere = "${ENV:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
+          $vsInstallationPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          Invoke-Environment "call ""$vsInstallationPath/VC/Auxiliary/Build/vcvars64.bat"""
           pwsh ci/do_ci.ps1 msvc.2017.test ;
   mingw_build: # job id, can be any string
     name: MinGW Build

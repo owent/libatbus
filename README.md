@@ -2,7 +2,7 @@
 
 用于搭建高性能、全异步(a)、树形结构(t)的BUS消息系统的跨平台框架库
 
-[![ci-badge]][ci-link] [![codecov badge]][codecov status] [![lgtm-badge]][lgtm-link]
+[![ci-badge]][ci-link] [![codecov badge]][codecov status]
 
 [ci-badge]: https://github.com/atframework/libatbus/actions/workflows/main.yml/badge.svg "Github action build status"
 [ci-link]:  https://github.com/atframework/libatbus/actions/workflows/main.yml "Github action build status"
