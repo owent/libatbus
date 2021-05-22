@@ -6,6 +6,8 @@ on: # @see https://help.github.com/en/articles/events-that-trigger-workflows#web
       - master # Push events on master branch
       - dev
       - main
+  pull_request:
+    branches: [ main ]
 
 jobs:
   format:
@@ -51,6 +53,8 @@ jobs:
             sudo apt-get update ;
             sudo apt-get install --no-install-recommends --no-install-suggests -y g++-4.8 ;
             bash ci/do_ci.sh gcc.legacy.test ;
+          elif [[ "x$USE_CC" =~ xclang.* ]]; then
+            bash ci/do_ci.sh clang.test ;
           else
             bash ci/do_ci.sh ssl.openssl ;
           fi

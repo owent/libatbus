@@ -27,41 +27,45 @@ elif [[ "$1" == "coverage" ]]; then
   timeout 6s ./tools/benchmark_shm_channel_send 12345679 1024 4194304 > send.log 2>&1 || true
   ./tools/show_shm_channel 12345679 1 16 > /dev/null || true
 elif [[ "$1" == "ssl.openssl" ]]; then
-  if [[ "x$USE_CC" == "xclang" ]]; then
-    echo '#include <iostream>
-    int main() { std::cout<<"Hello"; }' > test-libc++.cpp
-    SELECT_CLANG_VERSION="";
-    SELECT_CLANG_HAS_LIBCXX=1;
-    clang -x c++ -stdlib=libc++ test-libc++.cpp -lc++ -lc++abi || SELECT_CLANG_HAS_LIBCXX=0;
-    if [[ $SELECT_CLANG_HAS_LIBCXX -eq 0 ]]; then
-      CURRENT_CLANG_VERSION=$(clang -x c /dev/null -dM -E | grep __clang_major__ | awk '{print $NF}');
-      for ((i=$CURRENT_CLANG_VERSION+3;$i>=$CURRENT_CLANG_VERSION-3;--i)); do
-        SELECT_CLANG_HAS_LIBCXX=1;
-        SELECT_CLANG_VERSION="-$i";
-        clang$SELECT_CLANG_VERSION -x c++ -stdlib=libc++ test-libc++.cpp -lc++ -lc++abi || SELECT_CLANG_HAS_LIBCXX=0;
-        if [[ $SELECT_CLANG_HAS_LIBCXX -eq 1 ]]; then
-          break;
-        fi
-      done
-    fi
-    SELECT_CLANGPP_BIN=clang++$SELECT_CLANG_VERSION;
-    LINK_CLANGPP_BIN=0;
-    which $SELECT_CLANGPP_BIN || LINK_CLANGPP_BIN=1;
-    if [[ $LINK_CLANGPP_BIN -eq 1 ]]; then
-      mkdir -p .local/bin ;
-      ln -s "$(which "clang$SELECT_CLANG_VERSION")" "$PWD/.local/bin/clang++$SELECT_CLANG_VERSION" ;
-      export PATH="$PWD/.local/bin:$PATH";
-    fi
-    export USE_CC=clang$SELECT_CLANG_VERSION;
-  fi
   CRYPTO_OPTIONS="-DATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_CRYPTO_USE_OPENSSL=ON" ;
   vcpkg install --triplet=$VCPKG_TARGET_TRIPLET fmt openssl protobuf libuv ;
-  bash cmake_dev.sh -lus -b Debug -r build_jobs_ci -c $USE_CC -- $CRYPTO_OPTIONS -DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=$VCPKG_TARGET_TRIPLET  -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON ;
+  bash cmake_dev.sh -lus -b Debug -r build_jobs_ci -c $USE_CC -- $CRYPTO_OPTIONS -DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=$VCPKG_TARGET_TRIPLET -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON ;
   cd build_jobs_ci ;
   cmake --build . -j ;
   ctest . -V ;
 elif [[ "$1" == "gcc.legacy.test" ]]; then
   bash cmake_dev.sh -lus -b Debug -r build_jobs_ci -c $USE_CC ;
+  cd build_jobs_ci ;
+  cmake --build . -j ;
+  ctest . -V ;
+elif [[ "$1" == "clang.test" ]]; then
+  echo '#include <iostream>
+  int main() { std::cout<<"Hello"; }' > test-libc++.cpp
+  SELECT_CLANG_VERSION="";
+  SELECT_CLANG_HAS_LIBCXX=1;
+  clang -x c++ -stdlib=libc++ test-libc++.cpp -lc++ -lc++abi || SELECT_CLANG_HAS_LIBCXX=0;
+  if [[ $SELECT_CLANG_HAS_LIBCXX -eq 0 ]]; then
+    CURRENT_CLANG_VERSION=$(clang -x c /dev/null -dM -E | grep __clang_major__ | awk '{print $NF}');
+    for ((i=$CURRENT_CLANG_VERSION+3;$i>=$CURRENT_CLANG_VERSION-3;--i)); do
+      SELECT_CLANG_HAS_LIBCXX=1;
+      SELECT_CLANG_VERSION="-$i";
+      clang$SELECT_CLANG_VERSION -x c++ -stdlib=libc++ test-libc++.cpp -lc++ -lc++abi || SELECT_CLANG_HAS_LIBCXX=0;
+      if [[ $SELECT_CLANG_HAS_LIBCXX -eq 1 ]]; then
+        break;
+      fi
+    done
+  fi
+  SELECT_CLANGPP_BIN=clang++$SELECT_CLANG_VERSION;
+  LINK_CLANGPP_BIN=0;
+  which $SELECT_CLANGPP_BIN || LINK_CLANGPP_BIN=1;
+  if [[ $LINK_CLANGPP_BIN -eq 1 ]]; then
+    mkdir -p .local/bin ;
+    ln -s "$(which "clang$SELECT_CLANG_VERSION")" "$PWD/.local/bin/clang++$SELECT_CLANG_VERSION" ;
+    export PATH="$PWD/.local/bin:$PATH";
+  fi
+  export USE_CC=clang$SELECT_CLANG_VERSION;
+  CRYPTO_OPTIONS="-DATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_CRYPTO_USE_OPENSSL=ON" ;
+  bash cmake_dev.sh -lus -b Debug -r build_jobs_ci -c $USE_CC -- $CRYPTO_OPTIONS -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON ;
   cd build_jobs_ci ;
   cmake --build . -j ;
   ctest . -V ;
