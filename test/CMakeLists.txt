@@ -22,17 +22,11 @@ if(NOT (WIN32 AND BUILD_SHARED_LIBS))
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/test")
 endif()
 
-add_compiler_define(_CRT_SECURE_NO_WARNINGS=1)
+atframe_add_test_executable(atbus_unit_test ${PROJECT_TEST_SRC_LIST})
 
-add_executable(atbus_unit_test ${PROJECT_TEST_SRC_LIST})
 target_compile_options(atbus_unit_test PRIVATE ${PROJECT_LIBATBUS_PRIVATE_COMPILE_OPTIONS})
 target_link_libraries(atbus_unit_test ${PROJECT_LIBATBUS_LIB_LINK})
 
 target_include_directories(atbus_unit_test PRIVATE "$<BUILD_INTERFACE:${PROJECT_LIBATBUS_ROOT_SRC_DIR}>")
 
-if(MSVC)
-  set_property(TARGET atbus_unit_test PROPERTY FOLDER "atframework/test")
-  add_target_properties(atbus_unit_test LINK_FLAGS /NODEFAULTLIB:library)
-endif()
-
-add_test(test atbus_unit_test)
+add_test(NAME test COMMAND atbus_unit_test)

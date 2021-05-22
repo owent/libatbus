@@ -4,6 +4,7 @@ ignore:
   - "**/tools/**"
   - "**/build_jobs_coverage/CMakeFiles/**"
   - "**/docs/**"
-  - "**/3rd_party/**"
   - "**/include/libatbus_protocol.pb.h"
   - "**/src/libatbus_protocol.pb.cc"
+  - "**/third_party/**"
+  - "**/atframework/**"
