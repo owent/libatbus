@@ -115,8 +115,6 @@ jobs:
         include:
           - os: windows-latest
             build_shared_libs: "ON"
-          - os: windows-latest
-            build_shared_libs: "OFF"
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
