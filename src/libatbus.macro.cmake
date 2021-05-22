@@ -1,4 +1,4 @@
-﻿# =========== libatbus/src ===========
+# =========== libatbus/src ===========
 set(PROJECT_LIBATBUS_ROOT_SRC_DIR ${CMAKE_CURRENT_LIST_DIR})
 
 set(PROJECT_LIBATBUS_LIB_LINK "atbus")

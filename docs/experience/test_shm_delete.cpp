@@ -8,13 +8,13 @@
 #include <cstring>
 
 int main() {
-    // glibc接口的shm_unlink不允许子目录
-    // int res = shm_unlink("/libatbus-test-shm.bus");
-    int res = unlink("/dev/shm/libatbus/test/shm.bus");
-    if (res < 0) {
-        printf("shm_unlink failed, err: %d, %s", errno, strerror(errno));
-        return 1;
-    }
+  // glibc接口的shm_unlink不允许子目录
+  // int res = shm_unlink("/libatbus-test-shm.bus");
+  int res = unlink("/dev/shm/libatbus/test/shm.bus");
+  if (res < 0) {
+    printf("shm_unlink failed, err: %d, %s", errno, strerror(errno));
+    return 1;
+  }
 
-    return 0;
+  return 0;
 }

@@ -1,4 +1,3 @@
-﻿
 echowithcolor(COLOR GREEN "-- Configure ${CMAKE_CURRENT_LIST_DIR}")
 
 include("${CMAKE_CURRENT_LIST_DIR}/sample.custom-macro.cmake")

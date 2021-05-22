@@ -1,4 +1,4 @@
-﻿echowithcolor(COLOR GREEN "-- Configure Unit Test ${CMAKE_CURRENT_LIST_DIR}")
+echowithcolor(COLOR GREEN "-- Configure Unit Test ${CMAKE_CURRENT_LIST_DIR}")
 
 include("${PROJECT_TEST_BAS_DIR}/test.build_bin.cmake")
 
@@ -28,8 +28,7 @@ add_executable(atbus_unit_test ${PROJECT_TEST_SRC_LIST})
 target_compile_options(atbus_unit_test PRIVATE ${PROJECT_LIBATBUS_PRIVATE_COMPILE_OPTIONS})
 target_link_libraries(atbus_unit_test ${PROJECT_LIBATBUS_LIB_LINK})
 
-target_include_directories(atbus_unit_test
-                           PRIVATE "$<BUILD_INTERFACE:${PROJECT_LIBATBUS_ROOT_SRC_DIR}>")
+target_include_directories(atbus_unit_test PRIVATE "$<BUILD_INTERFACE:${PROJECT_LIBATBUS_ROOT_SRC_DIR}>")
 
 if(MSVC)
   set_property(TARGET atbus_unit_test PROPERTY FOLDER "atframework/test")

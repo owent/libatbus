@@ -7,11 +7,11 @@
 #include "common/string_oprs.h"
 
 #ifdef max
-#undef max
+#  undef max
 #endif
 
 #ifdef min
-#undef min
+#  undef min
 #endif
 
 #include <atbus_node.h>
