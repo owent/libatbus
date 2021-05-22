@@ -1,0 +1,164 @@
+name: "main"
+
+on: # @see https://help.github.com/en/articles/events-that-trigger-workflows#webhook-events
+  push:
+    branches: # Array of patterns that match refs/heads
+      - master # Push events on master branch
+      - dev
+      - main
+
+jobs:
+  format:
+    name: Format
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: CI Job
+        shell: bash
+        run: |
+          bash ci/do_ci.sh format ;
+  unix_build: # job id, can be any string
+    name: Unix Build
+    # This job runs on Linux
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            triplet: x64-linux
+            cc: gcc
+          - os: ubuntu-18.04
+            triplet: x64-linux
+            cc: gcc-4.8
+          - os: ubuntu-latest
+            triplet: x64-linux
+            cc: clang
+          - os: macos-latest
+            triplet: x64-osx
+            cc: clang
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Build & Test
+        shell: bash
+        env:
+          USE_CC: ${{ matrix.cc }}
+          VCPKG_TARGET_TRIPLET: ${{ matrix.triplet }}
+          USE_SSL: ${{ matrix.ssl }}
+        run: |
+          if [[ "xgcc-4.8" == "x$USE_CC" ]]; then
+            sudo apt-get update ;
+            sudo apt-get install --no-install-recommends --no-install-suggests -y g++-4.8 ;
+            bash ci/do_ci.sh gcc.legacy.test ;
+          else
+            bash ci/do_ci.sh ssl.openssl ;
+          fi
+      - name: Cache packages
+        uses: actions/cache@v2
+        with:
+          path: |
+            /usr/local/share/vcpkg/installed
+          key: ${{ runner.os }}-${{ hashFiles('/usr/local/share/vcpkg/installed/**') }}
+  vs2019_build: # job id, can be any string
+    name: Visual Studio 2019 Build
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            generator: "Visual Studio 16 2019"
+            build_shared_libs: "ON"
+            platform: x64
+          - os: windows-latest
+            generator: "Visual Studio 16 2019"
+            build_shared_libs: "OFF"
+            platform: x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Build & Test
+        shell: cmd
+        env:
+          CMAKE_GENERATOR: ${{ matrix.generator }}
+          CMAKE_PLATFORM: ${{ matrix.platform }}
+          BUILD_SHARED_LIBS: ${{ matrix.build_shared_libs }}
+          CONFIGURATION: RelWithDebInfo
+        run: |
+          "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          pwsh ci/do_ci.ps1 msvc.2019.test ;
+  vs2017_build: # job id, can be any string
+    name: Visual Studio 2017 Build
+    strategy:
+      matrix:
+        include:
+          - os: windows-2016
+            generator: "Visual Studio 15 2017 Win64"
+            build_shared_libs: "OFF"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Build & Test
+        shell: cmd
+        env:
+          CMAKE_GENERATOR: ${{ matrix.generator }}
+          BUILD_SHARED_LIBS: ${{ matrix.build_shared_libs }}
+          CONFIGURATION: RelWithDebInfo
+        run: |
+          "C:\Program Files (x86)\Microsoft Visual Studio\2017\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          pwsh ci/do_ci.ps1 msvc.2017.test ;
+  mingw_build: # job id, can be any string
+    name: MinGW Build
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            build_shared_libs: "ON"
+          - os: windows-latest
+            build_shared_libs: "OFF"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Build & Test
+        shell: bash
+        env:
+          BUILD_SHARED_LIBS: ${{ matrix.build_shared_libs }}
+        run: |
+          C:/msys64/msys2_shell.cmd -mingw64 -defterm -no-start -here -lc "ci/do_ci.sh msys2.mingw.test"
+  coverage: # job id, can be any string
+    name: Coverage
+    # This job runs on Linux
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            triplet: x64-linux
+            cc: gcc
+            gcov_flags: "--coverage -fprofile-arcs -ftest-coverage"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Generate coverage
+        shell: bash
+        env:
+          USE_CC: ${{ matrix.cc }}
+          VCPKG_TARGET_TRIPLET: ${{ matrix.triplet }}
+          USE_SSL: ${{ matrix.ssl }}
+          GCOV_FLAGS: "${{ matrix.gcov_flags }}"
+        run: |
+          bash ci/do_ci.sh coverage ;
+      - name: Uploaded code coverage
+        uses: codecov/codecov-action@v1
+        with:
+          # token: ${{secrets.CODECOV_TOKEN}} # not required for public repos
+          fail_ci_if_error: true
+          gcov_args: '-lp'
+      - name: Cache packages
+        uses: actions/cache@v2
+        with:
+          path: |
+            /usr/local/share/vcpkg/installed
+          key: ${{ runner.os }}-${{ hashFiles('/usr/local/share/vcpkg/installed/**') }}
