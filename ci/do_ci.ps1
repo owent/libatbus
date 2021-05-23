@@ -10,39 +10,37 @@ if ($IsWindows) {
   New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
     -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
 
-  $ALL_DLL_FILES = Get-ChildItem -Path "../third_party/install/*.dll" -Recurse
-  $ALL_DLL_DIRS = $(foreach ($dll_file in $ALL_DLL_FILES) {
-      $dll_file.Directory.FullName
-    }) | Sort-Object | Get-Unique
-  $ENV:PATH = ($ALL_DLL_DIRS + $ENV:PATH) -Join [IO.Path]::PathSeparator
-
   function Invoke-Environment {
     param
     (
       [Parameter(Mandatory = $true)]
       [string] $Command
     )
-    $Command = "`"" + $Command + "`""
     cmd /c "$Command > nul 2>&1 && set" | . { process {
         if ($_ -match '^([^=]+)=(.*)') {
           [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2])
         }
       } }
   }
-  $vswhere = "${ENV:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
+  $vswhere = "${Env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
   $vsInstallationPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
   $winSDKDir = $(Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Microsoft SDKs\Windows\v10.0" -Name "InstallationFolder")
   if ([string]::IsNullOrEmpty($winSDKDir)) {
-    $winSDKDir = "${ENV:ProgramFiles(x86)}/Windows Kits/10/Include/"
+    $winSDKDir = "${Env:ProgramFiles(x86)}/Windows Kits/10/Include/"
   }
   else {
     $winSDKDir = "$winSDKDir/Include/"
   }
-  $lastWinSDKVersion = $(Get-ChildItem $winSDKDir | Sort-Object -Property Name | Select-Object -Last 1).Name
-  if (!(Test-Path Env:WindowsSDKVersion)) {
-    $Env:WindowsSDKVersion = $lastWinSDKVersion
+  foreach ($sdk in $(Get-ChildItem $winSDKDir | Sort-Object -Property Name)) {
+    if ($sdk.Name -match "[0-9]+\.[0-9]+\.[0-9\.]+") {
+      $selectWinSDKVersion = $sdk.Name
+    }
   }
-  Write-Output "Window SDKs:(Latest: $lastWinSDKVersion)"
+  if (!(Test-Path Env:WindowsSDKVersion)) {
+    $Env:WindowsSDKVersion = $selectWinSDKVersion
+  }
+  # Maybe using $selectWinSDKVersion = "10.0.18362.0" for better compatible
+  Write-Output "Window SDKs:(Latest: $selectWinSDKVersion)"
   foreach ($sdk in $(Get-ChildItem $winSDKDir | Sort-Object -Property Name)) {
     Write-Output "  - $sdk"
   }
@@ -55,12 +53,19 @@ if ( $RUN_MODE -eq "msvc.2019.test" ) {
   Invoke-Environment "call ""$vsInstallationPath/VC/Auxiliary/Build/vcvars64.bat"""
   New-Item -Path "build_jobs_ci" -ItemType "directory" -Force 
   Set-Location "build_jobs_ci"
-  & cmake ".." "-G" $Env:CMAKE_GENERATOR "-A" $Env:CMAKE_PLATFORM "-DBUILD_SHARED_LIBS=$ENV:BUILD_SHARED_LIBS"  `
+  & cmake ".." "-G" "$Env:CMAKE_GENERATOR" "-A" $Env:CMAKE_PLATFORM "-DBUILD_SHARED_LIBS=$ENV:BUILD_SHARED_LIBS"  `
     "-DPROJECT_ENABLE_UNITTEST=ON" "-DPROJECT_ENABLE_SAMPLE=ON" "-DPROJECT_ENABLE_TOOLS=ON"                     `
-    "-DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON" "-DCMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION=$lastWinSDKVersion"
+    "-DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON" "-DCMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION=$selectWinSDKVersion"
   if ( $LastExitCode -ne 0 ) {
     exit $LastExitCode
   }
+
+  $ALL_DLL_FILES = Get-ChildItem -Path "../third_party/install/*.dll" -Recurse
+  $ALL_DLL_DIRS = $(foreach ($dll_file in $ALL_DLL_FILES) {
+      $dll_file.Directory.FullName
+    }) | Sort-Object | Get-Unique
+  $Env:PATH = ($ALL_DLL_DIRS + $Env:PATH) -Join [IO.Path]::PathSeparator
+
   & cmake --build . --config $Env:CONFIGURATION
   if ( $LastExitCode -ne 0 ) {
     exit $LastExitCode
@@ -74,12 +79,19 @@ elseif ( $RUN_MODE -eq "msvc.2017.test" ) {
   Invoke-Environment "call ""$vsInstallationPath/VC/Auxiliary/Build/vcvars64.bat"""
   New-Item -Path "build_jobs_ci" -ItemType "directory" -Force 
   Set-Location "build_jobs_ci"
-  & cmake ".." "-G" $Env:CMAKE_GENERATOR "-DBUILD_SHARED_LIBS=$ENV:BUILD_SHARED_LIBS"       `
+  & cmake ".." "-G" "$Env:CMAKE_GENERATOR" "-DBUILD_SHARED_LIBS=$Env:BUILD_SHARED_LIBS"       `
     "-DPROJECT_ENABLE_UNITTEST=ON" "-DPROJECT_ENABLE_SAMPLE=ON" "-DPROJECT_ENABLE_TOOLS=ON" `
-    "-DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON" "-DCMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION=$lastWinSDKVersion"
+    "-DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON" "-DCMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION=$selectWinSDKVersion"
   if ( $LastExitCode -ne 0 ) {
     exit $LastExitCode
   }
+
+  $ALL_DLL_FILES = Get-ChildItem -Path "../third_party/install/*.dll" -Recurse
+  $ALL_DLL_DIRS = $(foreach ($dll_file in $ALL_DLL_FILES) {
+      $dll_file.Directory.FullName
+    }) | Sort-Object | Get-Unique
+  $Env:PATH = ($ALL_DLL_DIRS + $Env:PATH) -Join [IO.Path]::PathSeparator
+
   & cmake --build . --config $Env:CONFIGURATION
   if ( $LastExitCode -ne 0 ) {
     exit $LastExitCode
