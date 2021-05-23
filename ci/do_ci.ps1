@@ -15,28 +15,79 @@ if ($IsWindows) {
       $dll_file.Directory.FullName
     }) | Sort-Object | Get-Unique
   $ENV:PATH = ($ALL_DLL_DIRS + $ENV:PATH) -Join [IO.Path]::PathSeparator
+
+  function Invoke-Environment {
+    param
+    (
+      [Parameter(Mandatory = $true)]
+      [string] $Command
+    )
+    $Command = "`"" + $Command + "`""
+    cmd /c "$Command > nul 2>&1 && set" | . { process {
+        if ($_ -match '^([^=]+)=(.*)') {
+          [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2])
+        }
+      } }
+  }
+  $vswhere = "${ENV:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
+  $vsInstallationPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+  $winSDKDir = $(Get-ItemPropertyValue -Path "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Microsoft SDKs\Windows\v10.0" -Name "InstallationFolder")
+  if ([string]::IsNullOrEmpty($winSDKDir)) {
+    $winSDKDir = "${ENV:ProgramFiles(x86)}/Windows Kits/10/Include/"
+  }
+  else {
+    $winSDKDir = "$winSDKDir/Include/"
+  }
+  $lastWinSDKVersion = $(Get-ChildItem $winSDKDir | Sort-Object -Property Name | Select-Object -Last 1).Name
+  if (!(Test-Path Env:WindowsSDKVersion)) {
+    $Env:WindowsSDKVersion = $lastWinSDKVersion
+  }
+  Write-Output "Window SDKs:(Latest: $lastWinSDKVersion)"
+  foreach ($sdk in $(Get-ChildItem $winSDKDir | Sort-Object -Property Name)) {
+    Write-Output "  - $sdk"
+  }
 }
 
 Set-Location "$SCRIPT_DIR/.."
 $RUN_MODE = $args[0]
 
 if ( $RUN_MODE -eq "msvc.2019.test" ) {
+  Invoke-Environment "call ""$vsInstallationPath/VC/Auxiliary/Build/vcvars64.bat"""
   New-Item -Path "build_jobs_ci" -ItemType "directory" -Force 
   Set-Location "build_jobs_ci"
   & cmake ".." "-G" $Env:CMAKE_GENERATOR "-A" $Env:CMAKE_PLATFORM "-DBUILD_SHARED_LIBS=$ENV:BUILD_SHARED_LIBS"  `
     "-DPROJECT_ENABLE_UNITTEST=ON" "-DPROJECT_ENABLE_SAMPLE=ON" "-DPROJECT_ENABLE_TOOLS=ON"                     `
-    "-DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON"
+    "-DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON" "-DCMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION=$lastWinSDKVersion"
+  if ( $LastExitCode -ne 0 ) {
+    exit $LastExitCode
+  }
   & cmake --build . --config $Env:CONFIGURATION
+  if ( $LastExitCode -ne 0 ) {
+    exit $LastExitCode
+  }
   & ctest . -V -C $Env:CONFIGURATION
+  if ( $LastExitCode -ne 0 ) {
+    exit $LastExitCode
+  }
 }
 elseif ( $RUN_MODE -eq "msvc.2017.test" ) {
+  Invoke-Environment "call ""$vsInstallationPath/VC/Auxiliary/Build/vcvars64.bat"""
   New-Item -Path "build_jobs_ci" -ItemType "directory" -Force 
   Set-Location "build_jobs_ci"
   & cmake ".." "-G" $Env:CMAKE_GENERATOR "-DBUILD_SHARED_LIBS=$ENV:BUILD_SHARED_LIBS"       `
     "-DPROJECT_ENABLE_UNITTEST=ON" "-DPROJECT_ENABLE_SAMPLE=ON" "-DPROJECT_ENABLE_TOOLS=ON" `
-    "-DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON"
+    "-DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON" "-DCMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION=$lastWinSDKVersion"
+  if ( $LastExitCode -ne 0 ) {
+    exit $LastExitCode
+  }
   & cmake --build . --config $Env:CONFIGURATION
+  if ( $LastExitCode -ne 0 ) {
+    exit $LastExitCode
+  }
   & ctest . -V -C $Env:CONFIGURATION
+  if ( $LastExitCode -ne 0 ) {
+    exit $LastExitCode
+  }
 }
 
 Set-Location $WORK_DIR

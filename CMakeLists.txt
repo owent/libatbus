@@ -7,22 +7,22 @@ cmake_policy(SET CMP0091 NEW)
 
 enable_testing()
 
-project(libatbus C CXX)
+project(
+  libatbus
+  VERSION "2.1.0"
+  HOMEPAGE_URL "https://github.com/atframework/libatbus"
+  LANGUAGES C CXX)
 
-set(LIBATBUS_VERSION_MAJOR "2")
-set(LIBATBUS_VERSION_MINOR "1")
-set(LIBATBUS_VERSION_PATCH "0")
-set(LIBATBUS_VERSION "${LIBATBUS_VERSION_MAJOR}.${LIBATBUS_VERSION_MINOR}.${LIBATBUS_VERSION_PATCH}")
+set(LIBATBUS_VERSION_MAJOR "${PROJECT_VERSION_MAJOR}")
+set(LIBATBUS_VERSION_MINOR "${PROJECT_VERSION_MINOR}")
+set(LIBATBUS_VERSION_PATCH "${PROJECT_VERSION_PATCH}")
+set(LIBATBUS_VERSION "${PROJECT_VERSION}")
 
-# 准备下载依赖组件
-
-# ######################################################################################################################
-# CMake 模块 (递归包含模块, 带颜色输出模块, 平台检测模块)
 include("${CMAKE_CURRENT_LIST_DIR}/project/cmake/ProjectBuildOption.cmake")
-# ######################################################################################################################
-# 导入编译器和编译选项配置
-echowithcolor(COLOR GREEN "-- Build Type: ${CMAKE_BUILD_TYPE}")
+include("${CMAKE_CURRENT_LIST_DIR}/third_party/Repository.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/atframework/Repository.cmake")
 
+echowithcolor(COLOR GREEN "-- Build Type: ${CMAKE_BUILD_TYPE}")
 unset(PROJECT_LIBATBUS_PRIVATE_COMPILE_OPTIONS)
 
 # ######################################################################################################################

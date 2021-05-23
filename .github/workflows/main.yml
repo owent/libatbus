@@ -89,22 +89,6 @@ jobs:
           BUILD_SHARED_LIBS: ${{ matrix.build_shared_libs }}
           CONFIGURATION: RelWithDebInfo
         run: |
-          function Invoke-Environment {
-            param
-            (
-              [Parameter(Mandatory = $true)]
-              [string] $Command
-            )
-            $Command = "`"" + $Command + "`""
-            cmd /c "$Command > nul 2>&1 && set" | . { process {
-                if ($_ -match '^([^=]+)=(.*)') {
-                  [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2])
-                }
-              } }
-          }
-          $vswhere = "${ENV:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
-          $vsInstallationPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-          Invoke-Environment "call ""$vsInstallationPath/VC/Auxiliary/Build/vcvars64.bat"""
           pwsh ci/do_ci.ps1 msvc.2019.test ;
   vs2017_build: # job id, can be any string
     name: Visual Studio 2017 Build
@@ -125,22 +109,6 @@ jobs:
           BUILD_SHARED_LIBS: ${{ matrix.build_shared_libs }}
           CONFIGURATION: RelWithDebInfo
         run: |
-          function Invoke-Environment {
-            param
-            (
-              [Parameter(Mandatory = $true)]
-              [string] $Command
-            )
-            $Command = "`"" + $Command + "`""
-            cmd /c "$Command > nul 2>&1 && set" | . { process {
-                if ($_ -match '^([^=]+)=(.*)') {
-                  [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2])
-                }
-              } }
-          }
-          $vswhere = "${ENV:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
-          $vsInstallationPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-          Invoke-Environment "call ""$vsInstallationPath/VC/Auxiliary/Build/vcvars64.bat"""
           pwsh ci/do_ci.ps1 msvc.2017.test ;
   mingw_build: # job id, can be any string
     name: MinGW Build
