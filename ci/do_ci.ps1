@@ -53,9 +53,9 @@ if ( $RUN_MODE -eq "msvc.2019.test" ) {
   Invoke-Environment "call ""$vsInstallationPath/VC/Auxiliary/Build/vcvars64.bat"""
   New-Item -Path "build_jobs_ci" -ItemType "directory" -Force 
   Set-Location "build_jobs_ci"
-  & cmake ".." "-G" "$Env:CMAKE_GENERATOR" "-A" $Env:CMAKE_PLATFORM "-DBUILD_SHARED_LIBS=$ENV:BUILD_SHARED_LIBS"  `
-    "-DPROJECT_ENABLE_UNITTEST=ON" "-DPROJECT_ENABLE_SAMPLE=ON" "-DPROJECT_ENABLE_TOOLS=ON"                     `
-    "-DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON" "-DCMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION=$selectWinSDKVersion"
+  & cmake ".." "-G" "$Env:CMAKE_GENERATOR" "-A" $Env:CMAKE_PLATFORM "-DBUILD_SHARED_LIBS=$ENV:BUILD_SHARED_LIBS"                        `
+    "-DPROJECT_ENABLE_UNITTEST=ON" "-DPROJECT_ENABLE_SAMPLE=ON" "-DPROJECT_ENABLE_TOOLS=ON" "-DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON" `
+    "-DCMAKE_SYSTEM_VERSION=$selectWinSDKVersion" "-DATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_LOW_MEMORY_MODE=ON"
   if ( $LastExitCode -ne 0 ) {
     exit $LastExitCode
   }
@@ -79,9 +79,9 @@ elseif ( $RUN_MODE -eq "msvc.2017.test" ) {
   Invoke-Environment "call ""$vsInstallationPath/VC/Auxiliary/Build/vcvars64.bat"""
   New-Item -Path "build_jobs_ci" -ItemType "directory" -Force 
   Set-Location "build_jobs_ci"
-  & cmake ".." "-G" "$Env:CMAKE_GENERATOR" "-DBUILD_SHARED_LIBS=$Env:BUILD_SHARED_LIBS"       `
-    "-DPROJECT_ENABLE_UNITTEST=ON" "-DPROJECT_ENABLE_SAMPLE=ON" "-DPROJECT_ENABLE_TOOLS=ON" `
-    "-DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON" "-DCMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION=$selectWinSDKVersion"
+  & cmake ".." "-G" "$Env:CMAKE_GENERATOR" "-DBUILD_SHARED_LIBS=$Env:BUILD_SHARED_LIBS" "-DPROJECT_ENABLE_UNITTEST=ON"  `
+    "-DPROJECT_ENABLE_SAMPLE=ON" "-DPROJECT_ENABLE_TOOLS=ON" "-DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON"                `
+    "-DCMAKE_SYSTEM_VERSION=$selectWinSDKVersion" "-DATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_LOW_MEMORY_MODE=ON"
   if ( $LastExitCode -ne 0 ) {
     exit $LastExitCode
   }
