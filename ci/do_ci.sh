@@ -4,6 +4,49 @@ cd "$(cd "$(dirname $0)" && pwd)/..";
 
 set -ex ;
 
+if [[ "x$USE_CC" == "xclang-latest" ]]; then
+  echo '#include <iostream>
+  int main() { std::cout<<"Hello"; }' > test-libc++.cpp
+  SELECT_CLANG_VERSION="";
+  SELECT_CLANG_HAS_LIBCXX=1;
+  clang -x c++ -stdlib=libc++ test-libc++.cpp -lc++ -lc++abi || SELECT_CLANG_HAS_LIBCXX=0;
+  if [[ $SELECT_CLANG_HAS_LIBCXX -eq 0 ]]; then
+    CURRENT_CLANG_VERSION=$(clang -x c /dev/null -dM -E | grep __clang_major__ | awk '{print $NF}');
+    for ((i=$CURRENT_CLANG_VERSION+5;$i>=$CURRENT_CLANG_VERSION;--i)); do
+      SELECT_CLANG_HAS_LIBCXX=1;
+      SELECT_CLANG_VERSION="-$i";
+      clang$SELECT_CLANG_VERSION -x c++ -stdlib=libc++ test-libc++.cpp -lc++ -lc++abi || SELECT_CLANG_HAS_LIBCXX=0;
+      if [[ $SELECT_CLANG_HAS_LIBCXX -eq 1 ]]; then
+        break;
+      fi
+    done
+  fi
+  SELECT_CLANGPP_BIN=clang++$SELECT_CLANG_VERSION;
+  LINK_CLANGPP_BIN=0;
+  which $SELECT_CLANGPP_BIN || LINK_CLANGPP_BIN=1;
+  if [[ $LINK_CLANGPP_BIN -eq 1 ]]; then
+    mkdir -p .local/bin ;
+    ln -s "$(which "clang$SELECT_CLANG_VERSION")" "$PWD/.local/bin/clang++$SELECT_CLANG_VERSION" ;
+    export PATH="$PWD/.local/bin:$PATH";
+  fi
+  export USE_CC=clang$SELECT_CLANG_VERSION;
+elif [[ "x$USE_CC" == "xgcc-latest" ]]; then
+  CURRENT_GCC_VERSION=$(gcc -x c /dev/null -dM -E | grep __GNUC__ | awk '{print $NF}');
+  echo '#include <iostream>
+  int main() { std::cout<<"Hello"; }' > test-gcc-version.cpp ;
+  let LAST_GCC_VERSION=$CURRENT_GCC_VERSION+10 ;
+  for ((i=$CURRENT_GCC_VERSION;$i<=$LAST_GCC_VERSION;++i)); do
+    TEST_GCC_VERSION=1;
+    g++-$i -x c++ test-gcc-version.cpp || TEST_GCC_VERSION=0;
+    if [[ $TEST_GCC_VERSION -eq 0 ]]; then
+      break;
+    fi
+    CURRENT_GCC_VERSION=$i;
+  done
+  export USE_CC=gcc-$CURRENT_GCC_VERSION ;
+  echo "Using $USE_CC" ;
+fi
+
 if [[ "$1" == "format" ]]; then
   python3 -m pip install --user -r ./ci/requirements.txt ;
   export PATH="$HOME/.local/bin:$PATH"
@@ -43,31 +86,6 @@ elif [[ "$1" == "gcc.legacy.test" ]]; then
   cmake --build . -j ;
   ctest . -V ;
 elif [[ "$1" == "clang.test" ]]; then
-  echo '#include <iostream>
-  int main() { std::cout<<"Hello"; }' > test-libc++.cpp
-  SELECT_CLANG_VERSION="";
-  SELECT_CLANG_HAS_LIBCXX=1;
-  clang -x c++ -stdlib=libc++ test-libc++.cpp -lc++ -lc++abi || SELECT_CLANG_HAS_LIBCXX=0;
-  if [[ $SELECT_CLANG_HAS_LIBCXX -eq 0 ]]; then
-    CURRENT_CLANG_VERSION=$(clang -x c /dev/null -dM -E | grep __clang_major__ | awk '{print $NF}');
-    for ((i=$CURRENT_CLANG_VERSION+3;$i>=$CURRENT_CLANG_VERSION-3;--i)); do
-      SELECT_CLANG_HAS_LIBCXX=1;
-      SELECT_CLANG_VERSION="-$i";
-      clang$SELECT_CLANG_VERSION -x c++ -stdlib=libc++ test-libc++.cpp -lc++ -lc++abi || SELECT_CLANG_HAS_LIBCXX=0;
-      if [[ $SELECT_CLANG_HAS_LIBCXX -eq 1 ]]; then
-        break;
-      fi
-    done
-  fi
-  SELECT_CLANGPP_BIN=clang++$SELECT_CLANG_VERSION;
-  LINK_CLANGPP_BIN=0;
-  which $SELECT_CLANGPP_BIN || LINK_CLANGPP_BIN=1;
-  if [[ $LINK_CLANGPP_BIN -eq 1 ]]; then
-    mkdir -p .local/bin ;
-    ln -s "$(which "clang$SELECT_CLANG_VERSION")" "$PWD/.local/bin/clang++$SELECT_CLANG_VERSION" ;
-    export PATH="$PWD/.local/bin:$PATH";
-  fi
-  export USE_CC=clang$SELECT_CLANG_VERSION;
   CRYPTO_OPTIONS="-DATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_CRYPTO_USE_OPENSSL=ON" ;
   bash cmake_dev.sh -lus -b Debug -r build_jobs_ci -c $USE_CC -- $CRYPTO_OPTIONS -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON  \
     "-DATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_LOW_MEMORY_MODE=ON" ;

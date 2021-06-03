@@ -34,10 +34,10 @@ jobs:
             cc: gcc-4.8
           - os: ubuntu-latest
             triplet: x64-linux
-            cc: clang
+            cc: clang-latest
           - os: macos-latest
             triplet: x64-osx
-            cc: clang
+            cc: clang-latest
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout

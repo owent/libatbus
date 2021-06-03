@@ -51,10 +51,6 @@ set(ATBUS_MACRO_IOS_SEND_BUFFER_LENGTH
     CACHE STRING "send buffer size for iostream channel")
 option(ATBUS_MACRO_ABORT_ON_PROTECTED_ERROR "abort when any inner error found." OFF)
 
-option(PROJECT_RESET_DENPEND_REPOSITORIES "Reset depended repositories if it's already exists." OFF)
-option(PROJECT_FIND_CONFIGURE_PACKAGE_PARALLEL_BUILD
-       "Parallel building for FindConfigurePackage. It's usually useful for some CI with low memory." ON)
-
 option(ATFRAMEWORK_USE_DYNAMIC_LIBRARY "Build and linking with dynamic libraries." OFF)
 
 # libuv选项
