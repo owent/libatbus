@@ -286,7 +286,8 @@ CASE_TEST(atbus_node_msg, ping_pong) {
     CASE_EXPECT_GE(recv_msg_history.pong_count - old_pong_count, 40);
     CASE_EXPECT_GE(recv_msg_history.pong_count - old_pong_count, 4 * tick_sec_count - 8);
     CASE_EXPECT_LE(recv_msg_history.pong_count - old_pong_count, 4 * tick_sec_count + 8);
-    CASE_EXPECT_GE(recv_msg_history.pong_count - old_pong_count, recv_msg_history.ping_count - old_ping_count);
+    // The last ping may not dispatched yet
+    CASE_EXPECT_GE(recv_msg_history.pong_count - old_pong_count + 6, recv_msg_history.ping_count - old_ping_count);
     CASE_EXPECT_LE(recv_msg_history.pong_count - old_pong_count, recv_msg_history.ping_count - old_ping_count + 8);
 
     CASE_EXPECT_GT(node2->get_endpoint(node1->get_id())->get_stat_last_pong(), 0);
