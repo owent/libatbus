@@ -51,10 +51,10 @@ class node_access_controller {
 
 class node final : public util::design_pattern::noncopyable {
  public:
-  typedef std::shared_ptr<node> ptr_t;
-  typedef ::atbus::protocol::msg &msg_builder_ref_t;
+  using ptr_t = std::shared_ptr<node>;
+  using msg_builder_ref_t = ::atbus::protocol::msg &;
 
-  typedef ATBUS_MACRO_BUSID_TYPE bus_id_t;
+  using bus_id_t = ATBUS_MACRO_BUSID_TYPE;
   struct conf_flag_t {
     enum type {
       EN_CONF_MAX = 0,
@@ -95,10 +95,8 @@ class node final : public util::design_pattern::noncopyable {
     ATBUS_MACRO_API ~send_data_options_t();
     ATBUS_MACRO_API send_data_options_t(const send_data_options_t &other);
     ATBUS_MACRO_API send_data_options_t &operator=(const send_data_options_t &other);
-#if defined(UTIL_CONFIG_COMPILER_CXX_RVALUE_REFERENCES) && UTIL_CONFIG_COMPILER_CXX_RVALUE_REFERENCES
     ATBUS_MACRO_API send_data_options_t(send_data_options_t &&other);
     ATBUS_MACRO_API send_data_options_t &operator=(send_data_options_t &&other);
-#endif
   };
 
   struct conf_t {
@@ -137,49 +135,46 @@ class node final : public util::design_pattern::noncopyable {
     time_t timer_usec;
   };
 
-  typedef std::map<endpoint_subnet_range, endpoint::ptr_t> endpoint_collection_t;
+  using endpoint_collection_t = std::map<endpoint_subnet_range, endpoint::ptr_t>;
 
   struct evt_msg_t {
     // 接收消息事件回调 => 参数列表: 发起节点，来源对端，来源连接，消息体，数据地址，数据长度
-    typedef std::function<int(const node &, const endpoint *, const connection *, const ::atbus::protocol::msg &,
-                              const void *, size_t)>
-        on_recv_msg_fn_t;
+    using on_recv_msg_fn_t = std::function<int(const node &, const endpoint *, const connection *,
+                                               const ::atbus::protocol::msg &, const void *, size_t)>;
     // 发送消息失败事件或成功通知回调 => 参数列表: 发起节点，来源对端，来源连接，消息体
     // @note
     // 除非发送时标记atbus::protocol::FORWARD_DATA_FLAG_REQUIRE_RSP为true(即需要通知)，否则成功发送消息默认不回发通知
-    typedef std::function<int(const node &, const endpoint *, const connection *, const ::atbus::protocol::msg *m)>
-        on_forward_response_fn_t;
+    using on_forward_response_fn_t =
+        std::function<int(const node &, const endpoint *, const connection *, const ::atbus::protocol::msg *m)>;
     // 错误回调 => 参数列表: 发起节点，来源对端，来源连接，状态码（通常来自libuv），错误码
-    typedef std::function<int(const node &, const endpoint *, const connection *, int, int)> on_error_fn_t;
+    using on_error_fn_t = std::function<int(const node &, const endpoint *, const connection *, int, int)>;
     // INFO日志回调 => 参数列表: 发起节点，来源对端，来源连接，Message
-    typedef std::function<int(const node &, const endpoint *, const connection *, const char *)> on_info_log_fn_t;
+    using on_info_log_fn_t = std::function<int(const node &, const endpoint *, const connection *, const char *)>;
     // 新对端注册事件回调 => 参数列表: 发起节点，来源对端，来源连接，返回码（通常来自libuv）
-    typedef std::function<int(const node &, const endpoint *, const connection *, int)> on_reg_fn_t;
+    using on_reg_fn_t = std::function<int(const node &, const endpoint *, const connection *, int)>;
     // 节点关闭事件回调 => 参数列表: 发起节点，下线原因
-    typedef std::function<int(const node &, int)> on_node_down_fn_t;
+    using on_node_down_fn_t = std::function<int(const node &, int)>;
     // 节点开始服务事件回调 => 参数列表: 发起节点，错误码，通常是 EN_ATBUS_ERR_SUCCESS
-    typedef std::function<int(const node &, int)> on_node_up_fn_t;
+    using on_node_up_fn_t = std::function<int(const node &, int)>;
     // 失效连接事件回调 => 参数列表: 发起节点，来源连接，错误码，通常是 EN_ATBUS_ERR_NODE_TIMEOUT
-    typedef std::function<int(const node &, const connection *, int)> on_invalid_connection_fn_t;
-    typedef std::function<int(const node &, const connection *)> on_new_connection_fn_t;
+    using on_invalid_connection_fn_t = std::function<int(const node &, const connection *, int)>;
+    using on_new_connection_fn_t = std::function<int(const node &, const connection *)>;
     // 接收到命令消息事件回调 => 参数列表:
     //      发起节点，来源对端，来源连接，来源节点ID，命令参数列表，返回信息列表（跨节点的共享内存和内存通道的返回消息将被忽略）
-    typedef std::function<int(const node &, const endpoint *, const connection *, bus_id_t,
-                              const std::vector<std::pair<const void *, size_t> > &, std::list<std::string> &)>
-        on_custom_cmd_fn_t;
+    using on_custom_cmd_fn_t =
+        std::function<int(const node &, const endpoint *, const connection *, bus_id_t,
+                          const std::vector<std::pair<const void *, size_t> > &, std::list<std::string> &)>;
     // 接收到命令回包事件回调 => 参数列表: 发起节点，来源对端，来源连接，来源节点ID，回包数据列表，对应请求包的sequence
-    typedef std::function<int(const node &, const endpoint *, const connection *, bus_id_t,
-                              const std::vector<std::pair<const void *, size_t> > &, uint64_t)>
-        on_custom_rsp_fn_t;
+    using on_custom_rsp_fn_t = std::function<int(const node &, const endpoint *, const connection *, bus_id_t,
+                                                 const std::vector<std::pair<const void *, size_t> > &, uint64_t)>;
 
     // 对端上线事件回调 => 参数列表: 发起节点，新增的对端，错误码，通常是 EN_ATBUS_ERR_SUCCESS
-    typedef std::function<int(const node &, endpoint *, int)> on_add_endpoint_fn_t;
+    using on_add_endpoint_fn_t = std::function<int(const node &, endpoint *, int)>;
     // 对端离线事件回调 => 参数列表: 发起节点，新增的对端，错误码，通常是 EN_ATBUS_ERR_SUCCESS
-    typedef std::function<int(const node &, endpoint *, int)> on_remove_endpoint_fn_t;
+    using on_remove_endpoint_fn_t = std::function<int(const node &, endpoint *, int)>;
     // 对端ping/pong事件回调 => 参数列表: 发起节点，ping/pong的对端，消息体，ping_data
-    typedef std::function<int(const node &, const endpoint *, const ::atbus::protocol::msg &,
-                              const ::atbus::protocol::ping_data &)>
-        on_ping_pong_endpoint_fn_t;
+    using on_ping_pong_endpoint_fn_t = std::function<int(const node &, const endpoint *, const ::atbus::protocol::msg &,
+                                                         const ::atbus::protocol::ping_data &)>;
 
     on_recv_msg_fn_t on_recv_msg;
     on_forward_response_fn_t on_forward_response;
@@ -713,8 +708,8 @@ class node final : public util::design_pattern::noncopyable {
   std::unique_ptr<channel::io_stream_channel, io_stream_channel_del> iostream_channel_;
   std::unique_ptr<channel::io_stream_conf> iostream_conf_;
   evt_msg_t event_msg_;
-  typedef std::list<std::vector<unsigned char> > self_data_msgs_t;
-  typedef std::list<std::vector<unsigned char> > self_cmd_msgs_t;
+  using self_data_msgs_t = std::list<std::vector<unsigned char> >;
+  using self_cmd_msgs_t = std::list<std::vector<unsigned char> >;
   self_data_msgs_t self_data_msgs_;
   self_cmd_msgs_t self_cmd_msgs_;
 

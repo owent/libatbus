@@ -78,17 +78,17 @@ struct ATBUS_MACRO_API_HEAD_ONLY mem_stats_block_error {
 struct shm_channel;
 struct shm_conf;
 
-typedef mem_stats_block_error shm_stats_block_error;
+using shm_stats_block_error = mem_stats_block_error;
 #  endif
 
 // stream channel(tcp,pipe(unix socket) and etc. udp is not a stream)
 struct io_stream_connection;
 struct io_stream_channel;
-typedef void (*io_stream_callback_t)(io_stream_channel *channel,        // 事件触发的channel
-                                     io_stream_connection *connection,  // 事件触发的连接
-                                     int status,                        // libuv传入的转态码
-                                     void *,                            // 额外参数(不同事件不同含义)
-                                     size_t s                           // 额外参数长度
+using io_stream_callback_t = void (*)(io_stream_channel *channel,        // 事件触发的channel
+                                      io_stream_connection *connection,  // 事件触发的连接
+                                      int status,                        // libuv传入的转态码
+                                      void *,                            // 额外参数(不同事件不同含义)
+                                      size_t s                           // 额外参数长度
 );
 
 struct ATBUS_MACRO_API_HEAD_ONLY io_stream_callback_evt_t {
@@ -178,9 +178,9 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_channel {
 
   io_stream_conf conf;
 
-  typedef ATBUS_ADVANCE_TYPE_MAP(adapter::fd_t, std::shared_ptr<io_stream_connection>) conn_pool_t;
+  using conn_pool_t = ATBUS_ADVANCE_TYPE_MAP(adapter::fd_t, std::shared_ptr<io_stream_connection>);
   conn_pool_t conn_pool;
-  typedef ATBUS_ADVANCE_TYPE_MAP(uintptr_t, std::shared_ptr<io_stream_connection>) conn_gc_pool_t;
+  using conn_gc_pool_t = ATBUS_ADVANCE_TYPE_MAP(uintptr_t, std::shared_ptr<io_stream_connection>);
   conn_gc_pool_t conn_gc_pool;
 
   // 事件响应

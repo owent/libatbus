@@ -58,15 +58,15 @@ struct shm_channel {};
 
 struct shm_conf {};
 
-typedef union {
+union shm_channel_switcher {
   shm_channel *shm;
   mem_channel *mem;
-} shm_channel_switcher;
+};
 
-typedef union {
+union shm_conf_cswitcher {
   const shm_conf *shm;
   const mem_conf *mem;
-} shm_conf_cswitcher;
+};
 
 #  ifdef WIN32
 struct shm_mapped_handle_info {
@@ -88,7 +88,7 @@ struct shm_mapped_record_type {
   util::lock::atomic_int_type<size_t> reference_count;
 };
 
-typedef ATBUS_ADVANCE_TYPE_MAP(std::string, std::shared_ptr<shm_mapped_record_type>) shm_mapped_by_key_t;
+using shm_mapped_by_key_t = ATBUS_ADVANCE_TYPE_MAP(std::string, std::shared_ptr<shm_mapped_record_type>);
 static shm_mapped_by_key_t shm_mapped_by_key_records;
 static ::util::lock::spin_lock shm_mapped_records_lock;
 

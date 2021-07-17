@@ -103,13 +103,12 @@ ATBUS_MACRO_API node::send_data_options_t &node::send_data_options_t::operator=(
   flags = other.flags;
   return *this;
 }
-#if defined(UTIL_CONFIG_COMPILER_CXX_RVALUE_REFERENCES) && UTIL_CONFIG_COMPILER_CXX_RVALUE_REFERENCES
+
 ATBUS_MACRO_API node::send_data_options_t::send_data_options_t(send_data_options_t &&other) : flags(other.flags) {}
 ATBUS_MACRO_API node::send_data_options_t &node::send_data_options_t::operator=(send_data_options_t &&other) {
   flags = other.flags;
   return *this;
 }
-#endif
 
 node::node() : state_(state_t::CREATED), ev_loop_(nullptr), static_buffer_(nullptr), on_debug(nullptr) {
   event_timer_.sec = 0;
@@ -282,7 +281,7 @@ ATBUS_MACRO_API int node::reset() {
   }
 
   // first save all connection, and then reset it
-  typedef detail::auto_select_map<std::string, connection::ptr_t>::type auto_map_t;
+  using auto_map_t = detail::auto_select_map<std::string, connection::ptr_t>::type;
   {
     std::vector<auto_map_t::mapped_type> temp_vec;
     temp_vec.reserve(proc_connections_.size());
@@ -1693,7 +1692,7 @@ ATBUS_MACRO_API int node::dispatch_all_self_msgs() {
     loop_left = 10240;
   }
 
-  typedef std::vector<unsigned char> bin_data_block_t;
+  using bin_data_block_t = std::vector<unsigned char>;
   while (loop_left-- > 0 && !self_data_msgs_.empty()) {
     bin_data_block_t &bin_data = self_data_msgs_.front();
 
@@ -2301,7 +2300,7 @@ int node::send_msg(bus_id_t tid, msg_builder_ref_t mb, endpoint::get_connection_
            ::atbus::protocol::msg::kCustomCommandReq == mb.msg_body_case() ||
            ::atbus::protocol::msg::kCustomCommandRsp == mb.msg_body_case());
 
-    typedef std::vector<unsigned char> bin_data_block_t;
+    using bin_data_block_t = std::vector<unsigned char>;
     // self data msg
     if (::atbus::protocol::msg::kDataTransformReq == mb.msg_body_case() ||
         ::atbus::protocol::msg::kDataTransformRsp == mb.msg_body_case()) {

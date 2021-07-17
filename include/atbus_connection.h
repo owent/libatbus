@@ -43,13 +43,13 @@ class endpoint;
 
 template <typename TObj>
 struct timer_desc_ls {
-  typedef std::pair<time_t, TObj> pair_type;
-  typedef std::list<pair_type> type;
+  using pair_type = std::pair<time_t, TObj>;
+  using type = std::list<pair_type>;
 };
 
 class connection final : public util::design_pattern::noncopyable {
  public:
-  typedef std::shared_ptr<connection> ptr_t;
+  using ptr_t = std::shared_ptr<connection>;
 
   /** 并没有非常复杂的状态切换，所以没有引入状态机 **/
   struct state_t {
@@ -265,16 +265,16 @@ class connection final : public util::design_pattern::noncopyable {
   };
 
   struct connection_data_t {
-    typedef union {
+    union shared_t {
       conn_data_mem mem;
 #  ifdef ATBUS_CHANNEL_SHM
       conn_data_shm shm;
 #  endif
       conn_data_ios ios_fd;
-    } shared_t;
-    typedef int (*proc_fn_t)(node &n, connection &conn, time_t sec, time_t usec);
-    typedef int (*free_fn_t)(node &n, connection &conn);
-    typedef int (*push_fn_t)(connection &conn, const void *buffer, size_t s);
+    };
+    using proc_fn_t = int (*)(node &n, connection &conn, time_t sec, time_t usec);
+    using free_fn_t = int (*)(node &n, connection &conn);
+    using push_fn_t = int (*)(connection &conn, const void *buffer, size_t s);
 
     shared_t shared;
     proc_fn_t proc_fn;
