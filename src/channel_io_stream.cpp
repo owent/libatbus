@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <memory>
 #include <vector>
 
 #ifndef _MSC_VER
@@ -30,7 +31,6 @@
 #include "common/string_oprs.h"
 #include "config/atframe_utils_build_feature.h"
 #include "config/compiler_features.h"
-#include "std/smart_ptr.h"
 
 #include "algorithm/murmur_hash.h"
 
@@ -79,7 +79,7 @@ static pthread_key_t gt_io_stream_get_msg_buffer_tls_key;
 
 static void dtor_pthread_io_stream_get_msg_buffer_tls(void *p) {
   char *res = reinterpret_cast<char *>(p);
-  if (NULL != res) {
+  if (nullptr != res) {
     delete[] res;
   }
 }
@@ -91,7 +91,7 @@ static void init_pthread_io_stream_get_msg_buffer_tls() {
 static char *io_stream_get_msg_buffer() {
   (void)pthread_once(&gt_io_stream_get_msg_buffer_tls_once, init_pthread_io_stream_get_msg_buffer_tls);
   char *ret = reinterpret_cast<char *>(pthread_getspecific(gt_io_stream_get_msg_buffer_tls_key));
-  if (NULL == ret) {
+  if (nullptr == ret) {
     ret = new char[ATBUS_MACRO_TLS_MERGE_BUFFER_LEN];
     pthread_setspecific(gt_io_stream_get_msg_buffer_tls_key, ret);
   }
@@ -103,7 +103,7 @@ struct gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t {
   gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t() { buffer_ptr = io_stream_get_msg_buffer(); }
 
   ~gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t() {
-    pthread_setspecific(gt_io_stream_get_msg_buffer_tls_key, NULL);
+    pthread_setspecific(gt_io_stream_get_msg_buffer_tls_key, nullptr);
     dtor_pthread_io_stream_get_msg_buffer_tls(buffer_ptr);
   }
 };
@@ -164,15 +164,15 @@ static int io_stream_disconnect_inner(io_stream_channel *channel, io_stream_conn
 static inline void io_stream_channel_callback(io_stream_callback_evt_t::mem_fn_t fn, io_stream_channel *channel,
                                               io_stream_callback_t async_callback, io_stream_connection *connection,
                                               int status, int errcode, void *priv_data, size_t s) {
-  if (NULL != channel) {
+  if (nullptr != channel) {
     channel->error_code = status;
   }
 
-  if (NULL != channel && NULL != channel->evt.callbacks[fn]) {
+  if (nullptr != channel && nullptr != channel->evt.callbacks[fn]) {
     channel->evt.callbacks[fn](channel, connection, errcode, priv_data, s);
   }
 
-  if (NULL != async_callback) {
+  if (nullptr != async_callback) {
     async_callback(channel, connection, errcode, priv_data, s);
   }
 }
@@ -181,7 +181,7 @@ static inline void io_stream_channel_callback(io_stream_callback_evt_t::mem_fn_t
                                               io_stream_connection *conn_evt, io_stream_connection *connection,
                                               int status, int errcode, void *priv_data, size_t s) {
   io_stream_callback_t async_callback =
-      (NULL != conn_evt && NULL != conn_evt->evt.callbacks[fn]) ? conn_evt->evt.callbacks[fn] : NULL;
+      (nullptr != conn_evt && nullptr != conn_evt->evt.callbacks[fn]) ? conn_evt->evt.callbacks[fn] : nullptr;
   io_stream_channel_callback(fn, channel, async_callback, connection, status, errcode, priv_data, s);
 }
 
@@ -192,7 +192,7 @@ static inline void io_stream_channel_callback(io_stream_callback_evt_t::mem_fn_t
 }
 
 void io_stream_init_configure(io_stream_conf *conf) {
-  if (NULL == conf) {
+  if (nullptr == conf) {
     return;
   }
 
@@ -220,13 +220,13 @@ void io_stream_init_configure(io_stream_conf *conf) {
 }
 
 static adapter::loop_t *io_stream_get_loop(io_stream_channel *channel) {
-  if (NULL == channel) {
-    return NULL;
+  if (nullptr == channel) {
+    return nullptr;
   }
 
-  if (NULL == channel->ev_loop) {
+  if (nullptr == channel->ev_loop) {
     channel->ev_loop = reinterpret_cast<adapter::loop_t *>(malloc(sizeof(adapter::loop_t)));
-    if (NULL != channel->ev_loop) {
+    if (nullptr != channel->ev_loop) {
       uv_loop_init(channel->ev_loop);
       ATBUS_CHANNEL_IOS_SET_FLAG(channel->flags, io_stream_channel::EN_CF_IS_LOOP_OWNER);
     }
@@ -236,11 +236,11 @@ static adapter::loop_t *io_stream_get_loop(io_stream_channel *channel) {
 }
 
 int io_stream_init(io_stream_channel *channel, adapter::loop_t *ev_loop, const io_stream_conf *conf) {
-  if (NULL == channel) {
+  if (nullptr == channel) {
     return EN_ATBUS_ERR_PARAMS;
   }
 
-  if (NULL == conf) {
+  if (nullptr == conf) {
     io_stream_conf default_conf;
     io_stream_init_configure(&default_conf);
 
@@ -261,7 +261,7 @@ int io_stream_init(io_stream_channel *channel, adapter::loop_t *ev_loop, const i
 }
 
 int io_stream_close(io_stream_channel *channel) {
-  if (NULL == channel) {
+  if (nullptr == channel) {
     return EN_ATBUS_ERR_PARAMS;
   }
 
@@ -282,7 +282,7 @@ int io_stream_close(io_stream_channel *channel) {
     }
 
     for (size_t i = 0; i < pending_release.size(); ++i) {
-      io_stream_disconnect(channel, pending_release[i], NULL);
+      io_stream_disconnect(channel, pending_release[i], nullptr);
     }
   }
 
@@ -292,7 +292,7 @@ int io_stream_close(io_stream_channel *channel) {
   // 并且这会要求逻辑层设计相当完善，否则可能导致内存泄漏。所以为了简化逻辑层设计，还是block并销毁所有数据
 
   if (ATBUS_CHANNEL_IOS_CHECK_FLAG(channel->flags, io_stream_channel::EN_CF_IS_LOOP_OWNER) &&
-      NULL != channel->ev_loop) {
+      nullptr != channel->ev_loop) {
     // 先清理掉所有可以完成的事件
     while (uv_run(channel->ev_loop, UV_RUN_NOWAIT)) {
       uv_run(channel->ev_loop, UV_RUN_ONCE);
@@ -317,13 +317,13 @@ int io_stream_close(io_stream_channel *channel) {
     }
   }
 
-  channel->ev_loop = NULL;
+  channel->ev_loop = nullptr;
 
   return EN_ATBUS_ERR_SUCCESS;
 }
 
 int io_stream_run(io_stream_channel *channel, adapter::run_mode_t mode) {
-  if (NULL == channel) {
+  if (nullptr == channel) {
     return EN_ATBUS_ERR_PARAMS;
   }
 
@@ -337,12 +337,12 @@ int io_stream_run(io_stream_channel *channel, adapter::run_mode_t mode) {
 
 static void io_stream_on_recv_alloc_fn(uv_handle_t *handle, size_t /*suggested_size*/, uv_buf_t *buf) {
   assert(handle && handle->data);
-  if (NULL == handle || NULL == handle->data) {
+  if (nullptr == handle || nullptr == handle->data) {
     return;
   }
   io_stream_connection *conn_raw_ptr = reinterpret_cast<io_stream_connection *>(handle->data);
   assert(conn_raw_ptr && conn_raw_ptr->channel);
-  if (NULL == conn_raw_ptr->channel) {
+  if (nullptr == conn_raw_ptr->channel) {
     return;
   }
 
@@ -350,18 +350,18 @@ static void io_stream_on_recv_alloc_fn(uv_handle_t *handle, size_t /*suggested_s
 
   // 如果正处于关闭阶段，忽略所有数据
   if (io_stream_connection::EN_ST_CONNECTED != conn_raw_ptr->status) {
-    buf->base = NULL;
+    buf->base = nullptr;
     buf->len = 0;
     uv_read_stop(conn_raw_ptr->handle.get());
     return;
   }
 
-  void *data = NULL;
+  void *data = nullptr;
   size_t sread = 0, swrite = 0;
   conn_raw_ptr->read_buffers.back(data, sread, swrite);
 
   // 正在读取vint时，指定缓冲区为head内存块
-  if (NULL == data || 0 == swrite) {
+  if (nullptr == data || 0 == swrite) {
 #ifdef _MSC_VER
     buf->len = static_cast<decltype(buf->len)>(sizeof(conn_raw_ptr->read_head.buffer) - conn_raw_ptr->read_head.len);
 #else
@@ -373,7 +373,7 @@ static void io_stream_on_recv_alloc_fn(uv_handle_t *handle, size_t /*suggested_s
       // 如果msg超过限制大小并低于缓冲区大小，则会发出大小错误回调并会减少header的占用量，
       // 那么下一次这个回调函数调用时buf->len必然大于0
       // 如果msg超过缓冲区大小，则会出错回调并立即断开连接,不会再有下一次调用
-      buf->base = NULL;
+      buf->base = nullptr;
     } else {
       buf->base = &conn_raw_ptr->read_head.buffer[conn_raw_ptr->read_head.len];
     }
@@ -407,7 +407,7 @@ static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const 
     ++channel->read_net_eagain_count;
     if (channel->read_net_eagain_count > channel->conf.max_read_net_eagain_count) {
       // eagain for too many times, just close
-      io_stream_disconnect(channel, conn_raw_ptr, NULL);
+      io_stream_disconnect(channel, conn_raw_ptr, nullptr);
     }
     return;
   }
@@ -415,22 +415,22 @@ static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const 
   // 网络错误
   if (nread < 0) {
     io_stream_channel_callback(io_stream_callback_evt_t::EN_FN_RECVED, channel, conn_raw_ptr, static_cast<int>(nread),
-                               EN_ATBUS_ERR_READ_FAILED, NULL, 0);
+                               EN_ATBUS_ERR_READ_FAILED, nullptr, 0);
 
     // 任何非重试的错误则关闭
     // 注意libuv有个特殊的错误码 UV_ENOBUFS 表示缓冲区不足
     // 理论上除非配置错误，否则不应该会出现，并且可能会导致header数据无法缩减。所以也直接关闭连接
-    io_stream_disconnect_inner(channel, conn_raw_ptr, NULL, nread == UV_ECONNRESET);
+    io_stream_disconnect_inner(channel, conn_raw_ptr, nullptr, nread == UV_ECONNRESET);
     return;
   }
 
-  void *data = NULL;
+  void *data = nullptr;
   size_t sread = 0, swrite = 0;
   conn_raw_ptr->read_buffers.back(data, sread, swrite);
   bool is_free = false;
 
   // head 阶段
-  if (NULL == data || 0 == swrite) {
+  if (nullptr == data || 0 == swrite) {
     assert(static_cast<size_t>(nread) <= sizeof(conn_raw_ptr->read_head.buffer) - conn_raw_ptr->read_head.len);
     conn_raw_ptr->read_head.len += static_cast<size_t>(nread);  // 写数据计数
 
@@ -519,7 +519,7 @@ static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const 
 
   // 如果在大内存块缓冲区，判定回调
   conn_raw_ptr->read_buffers.front(data, sread, swrite);
-  if (NULL != data && 0 == swrite) {
+  if (nullptr != data && 0 == swrite) {
     channel->error_code = 0;
     data = ::atbus::detail::fn::buffer_prev(data, sread);
 
@@ -563,12 +563,12 @@ static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const 
     }
 
     // 强制中断
-    io_stream_disconnect(channel, conn_raw_ptr, NULL);
+    io_stream_disconnect(channel, conn_raw_ptr, nullptr);
   }
 }
 
 static void io_stream_stream_init(io_stream_channel *channel, io_stream_connection *conn, adapter::stream_t *handle) {
-  if (NULL == channel || NULL == handle) {
+  if (nullptr == channel || nullptr == handle) {
     return;
   }
 
@@ -576,7 +576,7 @@ static void io_stream_stream_init(io_stream_channel *channel, io_stream_connecti
 }
 
 static void io_stream_tcp_init(io_stream_channel *channel, io_stream_connection *conn, adapter::tcp_t *handle) {
-  if (NULL == channel || NULL == handle) {
+  if (nullptr == channel || nullptr == handle) {
     return;
   }
 
@@ -584,7 +584,7 @@ static void io_stream_tcp_init(io_stream_channel *channel, io_stream_connection 
 }
 
 static void io_stream_pipe_init(io_stream_channel *channel, io_stream_connection *conn, adapter::pipe_t *handle) {
-  if (NULL == channel || NULL == handle) {
+  if (nullptr == channel || nullptr == handle) {
     return;
   }
 
@@ -592,7 +592,7 @@ static void io_stream_pipe_init(io_stream_channel *channel, io_stream_connection
 }
 
 static void io_stream_stream_setup(io_stream_channel *channel, adapter::stream_t *handle) {
-  if (NULL == channel || NULL == handle) {
+  if (nullptr == channel || nullptr == handle) {
     return;
   }
 
@@ -600,7 +600,7 @@ static void io_stream_stream_setup(io_stream_channel *channel, adapter::stream_t
 }
 
 static void io_stream_tcp_setup(io_stream_channel *channel, adapter::tcp_t *handle) {
-  if (NULL == channel || NULL == handle) {
+  if (nullptr == channel || nullptr == handle) {
     return;
   }
 
@@ -615,7 +615,7 @@ static void io_stream_tcp_setup(io_stream_channel *channel, adapter::tcp_t *hand
 }
 
 static void io_stream_pipe_setup(io_stream_channel *channel, adapter::pipe_t *handle) {
-  if (NULL == channel || NULL == handle) {
+  if (nullptr == channel || nullptr == handle) {
     return;
   }
 
@@ -636,14 +636,14 @@ struct io_stream_connect_async_data {
 static void io_stream_connection_on_close(uv_handle_t *handle) {
   io_stream_connection *conn_raw_ptr = reinterpret_cast<io_stream_connection *>(handle->data);
   // connect not completed, directly exit
-  if (NULL == conn_raw_ptr) {
+  if (nullptr == conn_raw_ptr) {
     return;
   }
 
   io_stream_channel *channel = conn_raw_ptr->channel;
   assert(channel);
   // 被动断开也会触发回调，这里的流程不计数active的req
-  if (NULL == channel) {
+  if (nullptr == channel) {
     return;
   }
 
@@ -655,10 +655,10 @@ static void io_stream_connection_on_close(uv_handle_t *handle) {
 
   iter->second->status = io_stream_connection::EN_ST_DISCONNECTED;
   io_stream_channel_callback(io_stream_callback_evt_t::EN_FN_DISCONNECTED, channel, iter->second.get(), 0,
-                             EN_ATBUS_ERR_SUCCESS, NULL, 0);
+                             EN_ATBUS_ERR_SUCCESS, nullptr, 0);
 
-  if (NULL != conn_raw_ptr->act_disc_cbk) {
-    conn_raw_ptr->act_disc_cbk(channel, conn_raw_ptr, EN_ATBUS_ERR_SUCCESS, NULL, 0);
+  if (nullptr != conn_raw_ptr->act_disc_cbk) {
+    conn_raw_ptr->act_disc_cbk(channel, conn_raw_ptr, EN_ATBUS_ERR_SUCCESS, nullptr, 0);
   }
 
   channel->conn_gc_pool.erase(iter);
@@ -666,7 +666,7 @@ static void io_stream_connection_on_close(uv_handle_t *handle) {
 
 static void io_stream_async_data_on_close(uv_handle_t *handle) {
   assert(handle && handle->data);
-  if (NULL == handle || NULL == handle->data) {
+  if (nullptr == handle || nullptr == handle->data) {
     return;
   }
 
@@ -680,7 +680,7 @@ static void io_stream_async_data_on_close(uv_handle_t *handle) {
 
 static void io_stream_shared_ptr_on_close(uv_handle_t *handle) {
   assert(handle && handle->data);
-  if (NULL == handle || NULL == handle->data) {
+  if (nullptr == handle || nullptr == handle->data) {
     return;
   }
 
@@ -719,7 +719,7 @@ static int io_stream_shutdown_ev_handle(io_stream_connection *conn) {
 // 删除函数，stream绑定在io_stream_connect_async_data上
 static int io_stream_shutdown_ev_handle(io_stream_connect_async_data *async_data) {
   assert(async_data);
-  assert(async_data->stream->data == async_data || NULL == async_data->stream->data);
+  assert(async_data->stream->data == async_data || nullptr == async_data->stream->data);
   async_data->stream->data = async_data;
 
   // 这里channel可能已经无效了
@@ -729,7 +729,7 @@ static int io_stream_shutdown_ev_handle(io_stream_connect_async_data *async_data
 
 // 删除函数，stream绑定在shared_ptr上
 static int io_stream_shutdown_ev_handle(std::shared_ptr<adapter::stream_t> &stream) {
-  assert(NULL == stream->data);
+  assert(nullptr == stream->data);
   stream->data = new std::shared_ptr<adapter::stream_t>(stream);
 
   // 这里channel可能已经无效了
@@ -740,7 +740,7 @@ static int io_stream_shutdown_ev_handle(std::shared_ptr<adapter::stream_t> &stre
 static std::shared_ptr<io_stream_connection> io_stream_make_connection(io_stream_channel *channel,
                                                                        std::shared_ptr<adapter::stream_t> handle) {
   std::shared_ptr<io_stream_connection> ret;
-  if (NULL == channel) {
+  if (nullptr == channel) {
     return ret;
   }
 
@@ -755,12 +755,12 @@ static std::shared_ptr<io_stream_connection> io_stream_make_connection(io_stream
   }
 
   ret->handle = handle;
-  ret->data = NULL;
+  ret->data = nullptr;
   ATBUS_CHANNEL_IOS_CLEAR_FLAG(ret->flags);
   handle->data = ret.get();
 
   memset(ret->evt.callbacks, 0, sizeof(ret->evt.callbacks));
-  ret->act_disc_cbk = NULL;
+  ret->act_disc_cbk = nullptr;
   ret->status = io_stream_connection::EN_ST_CREATED;
 
   ret->read_buffers.set_limit(channel->conf.recv_buffer_max_size, 0);
@@ -801,7 +801,7 @@ static T *io_stream_make_stream_ptr(std::shared_ptr<adapter::stream_t> &res) {
   T *real_conn = new T();
   adapter::stream_t *stream_conn = reinterpret_cast<adapter::stream_t *>(real_conn);
   res = std::shared_ptr<adapter::stream_t>(stream_conn, io_stream_delete_stream_fn<T>);
-  stream_conn->data = NULL;
+  stream_conn->data = nullptr;
   return real_conn;
 }
 
@@ -815,28 +815,28 @@ static adapter::tcp_t *io_stream_tcp_connection_common(std::shared_ptr<io_stream
   assert(channel);
 
   if (0 != status) {
-    return NULL;
+    return nullptr;
   }
 
   adapter::tcp_t *tcp_conn = io_stream_make_stream_ptr<adapter::tcp_t>(recv_conn);
-  if (NULL == tcp_conn) {
-    return NULL;
+  if (nullptr == tcp_conn) {
+    return nullptr;
   }
 
   uv_tcp_init(req->loop, tcp_conn);
   if (0 != (channel->error_code = uv_accept(req, recv_conn.get()))) {
-    return NULL;
+    return nullptr;
   }
 
   // 正在关闭，新连接直接断开，要在accept后执行，以保证连接会被正确断开
   if (ATBUS_CHANNEL_IOS_CHECK_FLAG(channel->flags, io_stream_channel::EN_CF_CLOSING)) {
-    return NULL;
+    return nullptr;
   }
 
   conn = io_stream_make_connection(channel, recv_conn);
 
   if (!conn) {
-    return NULL;
+    return nullptr;
   }
 
   // 后面不会再失败了
@@ -861,7 +861,7 @@ static void io_stream_tcp_connection_cb(uv_stream_t *req, int status) {
 
   do {
     adapter::tcp_t *tcp_conn = io_stream_tcp_connection_common(conn, recv_conn, req, status);
-    if (NULL == tcp_conn || !conn) {
+    if (nullptr == tcp_conn || !conn) {
       if (ATBUS_CHANNEL_IOS_CHECK_FLAG(channel->flags, io_stream_channel::EN_CF_CLOSING)) {
         res = EN_ATBUS_ERR_CHANNEL_CLOSING;
       } else {
@@ -891,7 +891,7 @@ static void io_stream_tcp_connection_cb(uv_stream_t *req, int status) {
 
   // 回调函数，如果发起连接接口调用成功一定要调用回调函数
   io_stream_channel_callback(io_stream_callback_evt_t::EN_FN_ACCEPTED, channel, conn_raw_ptr, conn.get(),
-                             channel->error_code, res, NULL, 0);
+                             channel->error_code, res, nullptr, 0);
 
   if (!conn && recv_conn) {
     // 失败且已accept则关闭
@@ -920,13 +920,13 @@ static void io_stream_pipe_connection_cb(uv_stream_t *req, int status) {
   std::shared_ptr<adapter::stream_t> recv_conn;
 
   do {
-    if (0 != status || NULL == channel) {
+    if (0 != status || nullptr == channel) {
       res = EN_ATBUS_ERR_PIPE_CONNECT_FAILED;
       break;
     }
 
     adapter::pipe_t *pipe_conn = io_stream_make_stream_ptr<adapter::pipe_t>(recv_conn);
-    if (NULL == pipe_conn) {
+    if (nullptr == pipe_conn) {
       res = EN_ATBUS_ERR_PIPE_CONNECT_FAILED;
       break;
     }
@@ -969,7 +969,7 @@ static void io_stream_pipe_connection_cb(uv_stream_t *req, int status) {
 
   // 回调函数，如果发起连接接口调用成功一定要调用回调函数
   io_stream_channel_callback(io_stream_callback_evt_t::EN_FN_ACCEPTED, channel, conn_raw_ptr, conn.get(),
-                             channel->error_code, res, NULL, 0);
+                             channel->error_code, res, nullptr, 0);
 
   if (!conn && recv_conn) {
     // 没什么要做的，直接关闭吧
@@ -990,7 +990,7 @@ struct io_stream_dns_async_data {
 // listen 接口传入域名时的回调
 static void io_stream_dns_connection_cb(uv_getaddrinfo_t *req, int status, struct addrinfo *res) {
   assert(req && req->data);
-  if (NULL == req || NULL == req->data) {
+  if (nullptr == req || nullptr == req->data) {
     return;
   }
 
@@ -998,7 +998,7 @@ static void io_stream_dns_connection_cb(uv_getaddrinfo_t *req, int status, struc
   assert(async_data);
   assert(async_data->channel);
 
-  if (NULL == async_data->channel) {
+  if (nullptr == async_data->channel) {
     return;
   }
   ATBUS_CHANNEL_REQ_END(async_data->channel);
@@ -1013,12 +1013,12 @@ static void io_stream_dns_connection_cb(uv_getaddrinfo_t *req, int status, struc
       break;
     }
 
-    if (NULL == async_data) {
+    if (nullptr == async_data) {
       listen_res = -1;
       break;
     }
 
-    if (NULL == res) {
+    if (nullptr == res) {
       listen_res = -1;
       break;
     }
@@ -1045,22 +1045,22 @@ static void io_stream_dns_connection_cb(uv_getaddrinfo_t *req, int status, struc
   // 接口调用不成功则要调用回调函数
   if (0 != listen_res) {
     io_stream_channel_callback(io_stream_callback_evt_t::EN_FN_CONNECTED, async_data->channel, async_data->callback,
-                               NULL, listen_res, EN_ATBUS_ERR_DNS_GETADDR_FAILED, async_data->priv_data,
+                               nullptr, listen_res, EN_ATBUS_ERR_DNS_GETADDR_FAILED, async_data->priv_data,
                                async_data->priv_size);
   }
 
-  if (NULL != async_data) {
+  if (nullptr != async_data) {
     delete async_data;
   }
 
-  if (NULL != res) {
+  if (nullptr != res) {
     uv_freeaddrinfo(res);
   }
 }
 
 int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, io_stream_callback_t callback,
                      void *priv_data, size_t priv_size) {
-  if (NULL == channel) {
+  if (nullptr == channel) {
     return EN_ATBUS_ERR_PARAMS;
   }
 
@@ -1070,7 +1070,7 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
   }
 
   adapter::loop_t *ev_loop = io_stream_get_loop(channel);
-  if (NULL == ev_loop) {
+  if (nullptr == ev_loop) {
     return EN_ATBUS_ERR_MALLOC;
   }
 
@@ -1080,7 +1080,7 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
     std::shared_ptr<adapter::stream_t> listen_conn;
     std::shared_ptr<io_stream_connection> conn;
     adapter::tcp_t *handle = io_stream_make_stream_ptr<adapter::tcp_t>(listen_conn);
-    if (NULL == handle) {
+    if (nullptr == handle) {
       return EN_ATBUS_ERR_MALLOC;
     }
 
@@ -1198,7 +1198,7 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
     return ret;
   } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("dns", addr.scheme.c_str(), 3)) {
     io_stream_dns_async_data *async_data = new io_stream_dns_async_data();
-    if (NULL == async_data) {
+    if (nullptr == async_data) {
       return EN_ATBUS_ERR_MALLOC;
     }
     async_data->channel = channel;
@@ -1208,7 +1208,8 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
     async_data->priv_data = priv_data;
     async_data->priv_size = priv_size;
 
-    if (0 != uv_getaddrinfo(ev_loop, &async_data->req, io_stream_dns_connection_cb, addr.host.c_str(), NULL, NULL)) {
+    if (0 !=
+        uv_getaddrinfo(ev_loop, &async_data->req, io_stream_dns_connection_cb, addr.host.c_str(), nullptr, nullptr)) {
       delete async_data;
       return EN_ATBUS_ERR_DNS_GETADDR_FAILED;
     }
@@ -1305,12 +1306,12 @@ static void io_stream_dns_connect_cb(uv_getaddrinfo_t *req, int status, struct a
       break;
     }
 
-    if (NULL == async_data) {
+    if (nullptr == async_data) {
       listen_res = -1;
       break;
     }
 
-    if (NULL == res) {
+    if (nullptr == res) {
       listen_res = -1;
       break;
     }
@@ -1337,22 +1338,22 @@ static void io_stream_dns_connect_cb(uv_getaddrinfo_t *req, int status, struct a
   // 接口调用不成功则要调用回调函数
   if (0 != listen_res) {
     io_stream_channel_callback(io_stream_callback_evt_t::EN_FN_CONNECTED, async_data->channel, async_data->callback,
-                               NULL, listen_res, EN_ATBUS_ERR_DNS_GETADDR_FAILED, async_data->priv_data,
+                               nullptr, listen_res, EN_ATBUS_ERR_DNS_GETADDR_FAILED, async_data->priv_data,
                                async_data->priv_size);
   }
 
-  if (NULL != async_data) {
+  if (nullptr != async_data) {
     delete async_data;
   }
 
-  if (NULL != res) {
+  if (nullptr != res) {
     uv_freeaddrinfo(res);
   }
 }
 
 int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr, io_stream_callback_t callback,
                       void *priv_data, size_t priv_size) {
-  if (NULL == channel) {
+  if (nullptr == channel) {
     return EN_ATBUS_ERR_PARAMS;
   }
 
@@ -1362,7 +1363,7 @@ int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr,
   }
 
   adapter::loop_t *ev_loop = io_stream_get_loop(channel);
-  if (NULL == ev_loop) {
+  if (nullptr == ev_loop) {
     return EN_ATBUS_ERR_MALLOC;
   }
 
@@ -1371,17 +1372,17 @@ int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr,
       0 == UTIL_STRFUNC_STRNCASE_CMP("ipv6", addr.scheme.c_str(), 4)) {
     std::shared_ptr<adapter::stream_t> sock_conn;
     adapter::tcp_t *handle = io_stream_make_stream_ptr<adapter::tcp_t>(sock_conn);
-    if (NULL == handle) {
+    if (nullptr == handle) {
       return EN_ATBUS_ERR_MALLOC;
     }
 
     uv_tcp_init(ev_loop, handle);
 
     int ret = EN_ATBUS_ERR_SUCCESS;
-    io_stream_connect_async_data *async_data = NULL;
+    io_stream_connect_async_data *async_data = nullptr;
     do {
       async_data = new io_stream_connect_async_data();
-      if (NULL == async_data) {
+      if (nullptr == async_data) {
         ret = EN_ATBUS_ERR_MALLOC;
         break;
       }
@@ -1396,7 +1397,7 @@ int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr,
       async_data->priv_size = priv_size;
 
       io_stream_sockaddr_switcher sock_addr;
-      const sockaddr *sock_addr_ptr = NULL;
+      const sockaddr *sock_addr_ptr = nullptr;
 
       if ('4' == addr.scheme[3]) {
         uv_ip4_addr(addr.host.c_str(), addr.port, &sock_addr.ipv4);
@@ -1415,7 +1416,7 @@ int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr,
         break;
       }
 
-      // conn_req = NULL; // 防止异常情况会调用回调时，任然释放对象
+      // conn_req = nullptr; // 防止异常情况会调用回调时，任然释放对象
       return ret;
     } while (false);
 
@@ -1425,17 +1426,17 @@ int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr,
   } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix", addr.scheme.c_str(), 4)) {
     std::shared_ptr<adapter::stream_t> pipe_conn;
     adapter::pipe_t *handle = io_stream_make_stream_ptr<adapter::pipe_t>(pipe_conn);
-    if (NULL == handle) {
+    if (nullptr == handle) {
       return EN_ATBUS_ERR_MALLOC;
     }
 
     uv_pipe_init(ev_loop, handle, 1);
 
     int ret = EN_ATBUS_ERR_SUCCESS;
-    io_stream_connect_async_data *async_data = NULL;
+    io_stream_connect_async_data *async_data = nullptr;
     do {
       async_data = new io_stream_connect_async_data();
-      if (NULL == async_data) {
+      if (nullptr == async_data) {
         ret = EN_ATBUS_ERR_MALLOC;
         break;
       }
@@ -1463,7 +1464,7 @@ int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr,
 
   } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("dns", addr.scheme.c_str(), 3)) {
     io_stream_dns_async_data *async_data = new io_stream_dns_async_data();
-    if (NULL == async_data) {
+    if (nullptr == async_data) {
       return EN_ATBUS_ERR_MALLOC;
     }
     async_data->channel = channel;
@@ -1473,7 +1474,7 @@ int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr,
     async_data->priv_data = priv_data;
     async_data->priv_size = priv_size;
 
-    if (0 != uv_getaddrinfo(ev_loop, &async_data->req, io_stream_dns_connect_cb, addr.host.c_str(), NULL, NULL)) {
+    if (0 != uv_getaddrinfo(ev_loop, &async_data->req, io_stream_dns_connect_cb, addr.host.c_str(), nullptr, nullptr)) {
       delete async_data;
       return EN_ATBUS_ERR_DNS_GETADDR_FAILED;
     }
@@ -1486,7 +1487,7 @@ int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr,
 }
 
 static int io_stream_disconnect_run(io_stream_connection *connection) {
-  if (NULL == connection) {
+  if (nullptr == connection) {
     return EN_ATBUS_ERR_PARAMS;
   }
 
@@ -1504,7 +1505,7 @@ static int io_stream_disconnect_run(io_stream_connection *connection) {
 
 static int io_stream_disconnect_inner(io_stream_channel *channel, io_stream_connection *connection,
                                       io_stream_callback_t callback, bool force) {
-  if (NULL == channel || NULL == connection) {
+  if (nullptr == channel || nullptr == connection) {
     return EN_ATBUS_ERR_PARAMS;
   }
 
@@ -1529,7 +1530,7 @@ int io_stream_disconnect(io_stream_channel *channel, io_stream_connection *conne
 }
 
 int io_stream_disconnect_fd(io_stream_channel *channel, adapter::fd_t fd, io_stream_callback_t callback) {
-  if (NULL == channel) {
+  if (nullptr == channel) {
     return EN_ATBUS_ERR_PARAMS;
   }
 
@@ -1553,13 +1554,13 @@ static void io_stream_on_written_fn(uv_write_t *req, int status) {
 
   io_stream_flag_guard flag_guard(connection->channel->flags, io_stream_channel::EN_CF_IN_CALLBACK);
 
-  void *data = NULL;
+  void *data = nullptr;
   size_t nread, nwrite;
 
   // popup the lost callback
   while (true) {
     connection->write_buffers.front(data, nread, nwrite);
-    if (NULL == data) {
+    if (nullptr == data) {
       break;
     }
 
@@ -1621,7 +1622,7 @@ static void io_stream_on_written_fn(uv_write_t *req, int status) {
 }
 
 int io_stream_try_write(io_stream_connection *connection) {
-  if (NULL == connection) {
+  if (nullptr == connection) {
     return EN_ATBUS_ERR_PARAMS;
   }
 
@@ -1682,15 +1683,15 @@ int io_stream_try_write(io_stream_connection *connection) {
     char *buffer_start = ::atbus::channel::detail::io_stream_get_msg_buffer();
     char *free_buffer = buffer_start;
 
-    ::atbus::detail::buffer_block *preview_bb = NULL;
+    ::atbus::detail::buffer_block *preview_bb = nullptr;
     while (!connection->write_buffers.empty() && available_bytes > 0) {
       ::atbus::detail::buffer_block *bb = connection->write_buffers.front();
-      if (NULL == bb || bb->raw_size() > available_bytes) {
+      if (nullptr == bb || bb->raw_size() > available_bytes) {
         break;
       }
 
       // if connection->write_buffers is a static circle buffer, can not merge the bound blocks
-      if (connection->write_buffers.is_static_mode() && NULL != preview_bb && preview_bb > bb) {
+      if (connection->write_buffers.is_static_mode() && nullptr != preview_bb && preview_bb > bb) {
         break;
       }
       preview_bb = bb;
@@ -1704,7 +1705,7 @@ int io_stream_try_write(io_stream_connection *connection) {
       connection->write_buffers.pop_front(bb->raw_size(), true);
     }
 
-    void *data = NULL;
+    void *data = nullptr;
     connection->write_buffers.push_front(data, sizeof(uv_write_t) + (free_buffer - buffer_start));
 
     // already pop more data than sizeof(uv_write_t) + (free_buffer - buffer_start)
@@ -1722,7 +1723,7 @@ int io_stream_try_write(io_stream_connection *connection) {
   ::atbus::detail::buffer_block *writing_block = connection->write_buffers.front();
 
   // should always exist, empty will cause return before
-  if (NULL == writing_block) {
+  if (nullptr == writing_block) {
     assert(writing_block);
     return EN_ATBUS_ERR_NO_DATA;
   }
@@ -1757,7 +1758,7 @@ int io_stream_try_write(io_stream_connection *connection) {
 }
 
 int io_stream_send(io_stream_connection *connection, const void *buf, size_t len) {
-  if (NULL == connection) {
+  if (nullptr == connection) {
     return EN_ATBUS_ERR_PARAMS;
   }
 
@@ -1770,7 +1771,7 @@ int io_stream_send(io_stream_connection *connection, const void *buf, size_t len
   }
 
   // push back message
-  if (NULL != buf && len > 0) {
+  if (nullptr != buf && len > 0) {
     char vint[16];
     size_t vint_len = ::atbus::detail::fn::write_vint(len, vint, sizeof(vint));
     // 计算需要的内存块大小（uv_write_t的大小+32bits hash+vint的大小+len）
@@ -1811,7 +1812,7 @@ size_t io_stream_get_max_unix_socket_length() {
 }
 
 void io_stream_show_channel(io_stream_channel *channel, std::ostream &out) {
-  if (NULL == channel) {
+  if (nullptr == channel) {
     return;
   }
 

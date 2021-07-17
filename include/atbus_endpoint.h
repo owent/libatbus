@@ -13,6 +13,7 @@
 #  pragma once
 
 #  include <list>
+#  include <memory>
 #  include <vector>
 
 #  ifdef __cpp_impl_three_way_comparison
@@ -22,8 +23,6 @@
 #  ifdef _MSC_VER
 #    include <WinSock2.h>
 #  endif
-
-#  include "std/smart_ptr.h"
 
 #  include <design_pattern/nomovable.h>
 #  include <design_pattern/noncopyable.h>
@@ -94,7 +93,7 @@ class ATBUS_MACRO_API endpoint_subnet_range {
   ATBUS_MACRO_BUSID_TYPE max_id_;
 };
 
-class endpoint UTIL_CONFIG_FINAL : public util::design_pattern::noncopyable {
+class endpoint final : public util::design_pattern::noncopyable {
  public:
   typedef ATBUS_MACRO_BUSID_TYPE bus_id_t;
   typedef std::shared_ptr<endpoint> ptr_t;

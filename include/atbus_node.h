@@ -14,8 +14,10 @@
 #include <bitset>
 #include <cstddef>
 #include <ctime>
+#include <functional>
 #include <list>
 #include <map>
+#include <memory>
 #include <set>
 #include <vector>
 
@@ -28,8 +30,6 @@
 
 #include "lock/seq_alloc.h"
 #include "random/random_generator.h"
-#include "std/functional.h"
-#include "std/smart_ptr.h"
 
 #include "detail/libatbus_channel_export.h"
 #include "detail/libatbus_config.h"
@@ -49,7 +49,7 @@ class node_access_controller {
   static void remove_ping_timer(node &n, timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator &inout);
 };
 
-class node UTIL_CONFIG_FINAL : public util::design_pattern::noncopyable {
+class node final : public util::design_pattern::noncopyable {
  public:
   typedef std::shared_ptr<node> ptr_t;
   typedef ::atbus::protocol::msg &msg_builder_ref_t;
@@ -360,7 +360,7 @@ class node UTIL_CONFIG_FINAL : public util::design_pattern::noncopyable {
    * @return 0或错误码
    */
   ATBUS_MACRO_API int send_custom_cmd(bus_id_t tid, const void *arr_buf[], size_t arr_size[], size_t arr_count,
-                                      uint64_t *seq = NULL);
+                                      uint64_t *seq = nullptr);
 
   /**
    * @brief 获取远程发送目标信息
@@ -658,7 +658,7 @@ class node UTIL_CONFIG_FINAL : public util::design_pattern::noncopyable {
 
   bool insert_child(endpoint_collection_t &coll, endpoint::ptr_t ep);
 
-  bool remove_child(endpoint_collection_t &coll, bus_id_t id, endpoint *expected = NULL);
+  bool remove_child(endpoint_collection_t &coll, bus_id_t id, endpoint *expected = nullptr);
 
   bool remove_collection(endpoint_collection_t &coll);
 

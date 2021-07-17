@@ -15,6 +15,7 @@
 #  include <bitset>
 #  include <ctime>
 #  include <list>
+#  include <memory>
 #  include <vector>
 
 #  ifdef _MSC_VER
@@ -22,7 +23,6 @@
 #  endif
 
 #  include "std/explicit_declare.h"
-#  include "std/smart_ptr.h"
 
 #  include "detail/libatbus_channel_export.h"
 #  include "detail/libatbus_config.h"
@@ -47,7 +47,7 @@ struct timer_desc_ls {
   typedef std::list<pair_type> type;
 };
 
-class connection UTIL_CONFIG_FINAL : public util::design_pattern::noncopyable {
+class connection final : public util::design_pattern::noncopyable {
  public:
   typedef std::shared_ptr<connection> ptr_t;
 

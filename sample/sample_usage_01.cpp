@@ -56,15 +56,15 @@ int main() {
 
       // 定期执行proc函数，用于处理内部定时器
       // 第一个参数是Unix时间戳（秒），第二个参数是微秒
-      node1->proc(time(NULL), 0);
-      node2->proc(time(NULL), 0);
+      node1->proc(time(nullptr), 0);
+      node2->proc(time(nullptr), 0);
     }
 
     // 设置接收到消息后的回调函数
     bool recved = false;
     node2->set_on_recv_handle([&recved](const atbus::node &n, const atbus::endpoint *ep, const atbus::connection *conn,
                                         const atbus::msg_t &, const void *buffer, size_t len) {
-      if (NULL != ep && NULL != conn) {
+      if (nullptr != ep && nullptr != conn) {
         std::cout << "atbus node 0x" << std::ios::hex << n.get_id() << " receive data from 0x" << std::ios::hex
                   << ep->get_id() << "(connection: " << conn->get_address().address << "): ";
       }
@@ -84,8 +84,8 @@ int main() {
 
       // 定期执行proc函数，用于处理内部定时器
       // 第一个参数是Unix时间戳（秒），第二个参数是微秒
-      node1->proc(time(NULL), 0);
-      node2->proc(time(NULL), 0);
+      node1->proc(time(nullptr), 0);
+      node2->proc(time(nullptr), 0);
     }
 
     // 析构时会自动关闭所持有的资源

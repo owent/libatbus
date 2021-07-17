@@ -19,13 +19,13 @@
 #include "frame/test_macros.h"
 
 CASE_TEST(atbus_endpoint, connection_basic) {
-  atbus::connection::ptr_t p = atbus::connection::create(NULL);
+  atbus::connection::ptr_t p = atbus::connection::create(nullptr);
   CASE_EXPECT_TRUE(!p);
 }
 
 CASE_TEST(atbus_endpoint, endpoint_basic) {
   std::vector<atbus::endpoint_subnet_conf> subnets;
-  atbus::endpoint::ptr_t p = atbus::endpoint::create(NULL, 0, subnets, 0, "");
+  atbus::endpoint::ptr_t p = atbus::endpoint::create(nullptr, 0, subnets, 0, "");
   CASE_EXPECT_TRUE(!p);
 }
 
@@ -501,15 +501,15 @@ CASE_TEST(atbus_channel, address) {
   atbus::channel::channel_address_t addr;
   CASE_EXPECT_FALSE(atbus::channel::make_address("", addr));
 
-  CASE_EXPECT_FALSE(atbus::channel::is_duplex_address(NULL));
-  CASE_EXPECT_FALSE(atbus::channel::is_simplex_address(NULL));
+  CASE_EXPECT_FALSE(atbus::channel::is_duplex_address(nullptr));
+  CASE_EXPECT_FALSE(atbus::channel::is_simplex_address(nullptr));
 
   CASE_EXPECT_TRUE(atbus::channel::is_simplex_address("mem://0x1234"));
   CASE_EXPECT_TRUE(atbus::channel::is_simplex_address("shm://0x1234"));
 
-  CASE_EXPECT_FALSE(atbus::channel::is_local_host_address(NULL));
+  CASE_EXPECT_FALSE(atbus::channel::is_local_host_address(nullptr));
   CASE_EXPECT_TRUE(atbus::channel::is_local_host_address("unix:///tmp/abc.sock"));
 
-  CASE_EXPECT_FALSE(atbus::channel::is_local_process_address(NULL));
+  CASE_EXPECT_FALSE(atbus::channel::is_local_process_address(nullptr));
   CASE_EXPECT_TRUE(atbus::channel::is_local_process_address("mem://0x1234"));
 }

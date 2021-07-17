@@ -15,6 +15,7 @@
 #  include <stdint.h>
 #  include <cstddef>
 #  include <map>
+#  include <memory>
 #  include <ostream>
 #  include <string>
 #  include <utility>
@@ -22,7 +23,6 @@
 #  include "libatbus_adapter_libuv.h"
 
 #  include "lock/seq_alloc.h"
-#  include "std/smart_ptr.h"
 
 #  include "buffer.h"
 #  include "libatbus_config.h"

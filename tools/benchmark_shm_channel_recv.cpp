@@ -38,20 +38,20 @@ int main(int argc, char *argv[]) {
 
   using namespace atbus::channel;
   size_t max_n = 1024;
-  if (argc > 2) max_n = (size_t)strtol(argv[2], NULL, 10);
+  if (argc > 2) max_n = (size_t)strtol(argv[2], nullptr, 10);
 
   size_t buffer_len = 64 * 1024 * 1024;  // 64MB
-  if (argc > 3) buffer_len = (size_t)strtol(argv[3], NULL, 10);
+  if (argc > 3) buffer_len = (size_t)strtol(argv[3], nullptr, 10);
 
-  shm_channel *channel = NULL;
+  shm_channel *channel = nullptr;
 
-  int res = shm_init(argv[1], buffer_len, &channel, NULL);
+  int res = shm_init(argv[1], buffer_len, &channel, nullptr);
   if (res < 0) {
     fprintf(stderr, "shm_init failed, ret: %d\n", res);
     return res;
   }
 
-  srand(static_cast<uint32_t>(time(NULL)));
+  srand(static_cast<uint32_t>(time(nullptr)));
 
   size_t sum_recv_len = 0;
   size_t sum_recv_times = 0;

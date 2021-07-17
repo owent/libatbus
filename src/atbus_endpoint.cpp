@@ -137,7 +137,7 @@ ATBUS_MACRO_API bool endpoint_subnet_range::lower_bound_by_max_id(const endpoint
 ATBUS_MACRO_API endpoint::ptr_t endpoint::create(node *owner, bus_id_t id,
                                                  const std::vector<endpoint_subnet_conf> &subnets, int32_t pid,
                                                  const std::string &hn) {
-  if (NULL == owner) {
+  if (nullptr == owner) {
     return endpoint::ptr_t();
   }
 
@@ -178,11 +178,11 @@ ATBUS_MACRO_API endpoint::ptr_t endpoint::create(node *owner, bus_id_t id,
   return ret;
 }
 
-endpoint::endpoint() : id_(0), pid_(0), owner_(NULL) { flags_.reset(); }
+endpoint::endpoint() : id_(0), pid_(0), owner_(nullptr) { flags_.reset(); }
 
 ATBUS_MACRO_API endpoint::~endpoint() {
-  if (NULL != owner_) {
-    ATBUS_FUNC_NODE_INFO(*owner_, this, NULL, "endpoint deallocated");
+  if (nullptr != owner_) {
+    ATBUS_FUNC_NODE_INFO(*owner_, this, nullptr, "endpoint deallocated");
   }
 
   flags_.set(flag_t::DESTRUCTING, true);
@@ -202,7 +202,7 @@ ATBUS_MACRO_API void endpoint::reset() {
 
   // 释放连接
   if (ctrl_conn_) {
-    ctrl_conn_->binding_ = NULL;
+    ctrl_conn_->binding_ = nullptr;
     ctrl_conn_->reset();
     ctrl_conn_.reset();
   }
@@ -221,7 +221,7 @@ ATBUS_MACRO_API void endpoint::reset() {
   clear_ping_timer();
 
   // 所有的endpoint的reset行为都要加入到检测和释放列表
-  if (NULL != owner_) {
+  if (nullptr != owner_) {
     owner_->add_endpoint_gc_list(tmp_holder);
   }
 
@@ -297,7 +297,7 @@ ATBUS_MACRO_API bool endpoint::add_connection(connection *conn, bool force_data)
     return true;
   }
 
-  if (NULL != conn->binding_) {
+  if (nullptr != conn->binding_) {
     return false;
   }
 
@@ -325,7 +325,7 @@ ATBUS_MACRO_API bool endpoint::remove_connection(connection *conn) {
 
   // 重置流程会在reset里清理对象，不需要再进行一次查找
   if (flags_.test(flag_t::RESETTING)) {
-    conn->binding_ = NULL;
+    conn->binding_ = nullptr;
     return true;
   }
 
@@ -339,7 +339,7 @@ ATBUS_MACRO_API bool endpoint::remove_connection(connection *conn) {
   // 所以O(log(n))的复杂度并没有关系
   for (std::list<connection::ptr_t>::iterator iter = data_conn_.begin(); iter != data_conn_.end(); ++iter) {
     if ((*iter).get() == conn) {
-      conn->binding_ = NULL;
+      conn->binding_ = nullptr;
       data_conn_.erase(iter);
 
       // 数据节点全部离线也直接下线
@@ -416,7 +416,7 @@ ATBUS_MACRO_API void endpoint::add_listen(const std::string &addr) {
 }
 
 ATBUS_MACRO_API void endpoint::add_ping_timer() {
-  if (NULL == owner_) {
+  if (nullptr == owner_) {
     return;
   }
 
@@ -432,7 +432,7 @@ ATBUS_MACRO_API void endpoint::add_ping_timer() {
 }
 
 ATBUS_MACRO_API void endpoint::clear_ping_timer() {
-  if (NULL == owner_ || false == get_flag(flag_t::HAS_PING_TIMER)) {
+  if (nullptr == owner_ || false == get_flag(flag_t::HAS_PING_TIMER)) {
     return;
   }
 
@@ -460,30 +460,30 @@ bool endpoint::sort_connection_cmp_fn(const connection::ptr_t &left, const conne
 }
 
 ATBUS_MACRO_API connection *endpoint::get_ctrl_connection(endpoint *ep) const {
-  if (NULL == ep) {
-    return NULL;
+  if (nullptr == ep) {
+    return nullptr;
   }
 
   if (this == ep) {
-    return NULL;
+    return nullptr;
   }
 
   if (ep->ctrl_conn_ && connection::state_t::CONNECTED == ep->ctrl_conn_->get_status()) {
     return ep->ctrl_conn_.get();
   }
 
-  return NULL;
+  return nullptr;
 }
 
 ATBUS_MACRO_API connection *endpoint::get_data_connection(endpoint *ep) const { return get_data_connection(ep, true); }
 
 ATBUS_MACRO_API connection *endpoint::get_data_connection(endpoint *ep, bool enable_fallback_ctrl) const {
-  if (NULL == ep) {
-    return NULL;
+  if (nullptr == ep) {
+    return nullptr;
   }
 
   if (this == ep) {
-    return NULL;
+    return nullptr;
   }
 
   bool share_pid = false, share_host = false;
@@ -521,7 +521,7 @@ ATBUS_MACRO_API connection *endpoint::get_data_connection(endpoint *ep, bool ena
   if (enable_fallback_ctrl) {
     return get_ctrl_connection(ep);
   } else {
-    return NULL;
+    return nullptr;
   }
 }
 

@@ -9,7 +9,7 @@ enable_testing()
 
 project(
   libatbus
-  VERSION "2.1.2"
+  VERSION "2.2.0"
   HOMEPAGE_URL "https://github.com/atframework/libatbus"
   LANGUAGES C CXX)
 
@@ -22,7 +22,6 @@ include("${CMAKE_CURRENT_LIST_DIR}/project/cmake/ProjectBuildOption.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/third_party/Repository.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/atframework/Repository.cmake")
 
-echowithcolor(COLOR GREEN "-- Build Type: ${CMAKE_BUILD_TYPE}")
 unset(PROJECT_LIBATBUS_PRIVATE_COMPILE_OPTIONS)
 
 # ######################################################################################################################

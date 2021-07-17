@@ -14,7 +14,7 @@
 #include "detail/libatbus_channel_export.h"
 #include "frame/test_macros.h"
 
-static const size_t MAX_TEST_BUFFER_LEN = ATBUS_MACRO_MSG_LIMIT * 4;
+static constexpr const size_t MAX_TEST_BUFFER_LEN = ATBUS_MACRO_MSG_LIMIT * 4;
 static int g_check_flag = 0;
 static std::pair<size_t, size_t> g_recv_rec = std::make_pair(0, 0);
 static std::list<std::pair<size_t, size_t> > g_check_buff_sequence;
@@ -25,8 +25,8 @@ static void disconnected_callback_test_fn(atbus::channel::io_stream_channel *cha
                                           void *,  // 额外参数(不同事件不同含义)
                                           size_t   // 额外参数长度
 ) {
-  CASE_EXPECT_NE(NULL, channel);
-  CASE_EXPECT_NE(NULL, connection);
+  CASE_EXPECT_NE(nullptr, channel);
+  CASE_EXPECT_NE(nullptr, connection);
   CASE_EXPECT_EQ(0, status);
   CASE_EXPECT_EQ(0, channel->error_code);
 
@@ -45,8 +45,8 @@ static void accepted_callback_test_fn(atbus::channel::io_stream_channel *channel
                                       void *,  // 额外参数(不同事件不同含义)
                                       size_t   // 额外参数长度
 ) {
-  CASE_EXPECT_NE(NULL, channel);
-  CASE_EXPECT_NE(NULL, connection);
+  CASE_EXPECT_NE(nullptr, channel);
+  CASE_EXPECT_NE(nullptr, connection);
   CASE_EXPECT_EQ(0, status);
   CASE_EXPECT_EQ(0, channel->error_code);
 
@@ -65,8 +65,8 @@ static void listen_callback_test_fn(atbus::channel::io_stream_channel *channel, 
                                     void *,  // 额外参数(不同事件不同含义)
                                     size_t   // 额外参数长度
 ) {
-  CASE_EXPECT_NE(NULL, channel);
-  CASE_EXPECT_NE(NULL, connection);
+  CASE_EXPECT_NE(nullptr, channel);
+  CASE_EXPECT_NE(nullptr, connection);
   CASE_EXPECT_EQ(0, status);
   CASE_EXPECT_EQ(0, channel->error_code);
 
@@ -82,8 +82,8 @@ static void connected_callback_test_fn(atbus::channel::io_stream_channel *channe
                                        void *,  // 额外参数(不同事件不同含义)
                                        size_t   // 额外参数长度
 ) {
-  CASE_EXPECT_NE(NULL, channel);
-  CASE_EXPECT_NE(NULL, connection);
+  CASE_EXPECT_NE(nullptr, channel);
+  CASE_EXPECT_NE(nullptr, connection);
   CASE_EXPECT_EQ(0, status);
   CASE_EXPECT_EQ(0, channel->error_code);
 
@@ -100,12 +100,12 @@ static int setup_channel(atbus::channel::io_stream_channel &channel, const char 
   atbus::channel::channel_address_t addr;
 
   int res = 0;
-  if (NULL != listen) {
+  if (nullptr != listen) {
     atbus::channel::make_address(listen, addr);
-    res = atbus::channel::io_stream_listen(&channel, addr, listen_callback_test_fn, NULL, 0);
+    res = atbus::channel::io_stream_listen(&channel, addr, listen_callback_test_fn, nullptr, 0);
   } else {
     atbus::channel::make_address(conn, addr);
-    res = atbus::channel::io_stream_connect(&channel, addr, connected_callback_test_fn, NULL, 0);
+    res = atbus::channel::io_stream_connect(&channel, addr, connected_callback_test_fn, nullptr, 0);
   }
 
   if (0 != res) {
@@ -135,18 +135,18 @@ static void recv_callback_check_fn(atbus::channel::io_stream_channel *channel,  
                                    void *input,  // 额外参数(不同事件不同含义)
                                    size_t s      // 额外参数长度
 ) {
-  CASE_EXPECT_NE(NULL, channel);
-  CASE_EXPECT_NE(NULL, connection);
+  CASE_EXPECT_NE(nullptr, channel);
+  CASE_EXPECT_NE(nullptr, connection);
 
   if (status < 0) {
-    CASE_EXPECT_EQ(NULL, input);
+    CASE_EXPECT_EQ(nullptr, input);
     CASE_EXPECT_EQ(0, s);
 
     CASE_EXPECT_TRUE(UV_EOF == channel->error_code || UV_ECONNRESET == channel->error_code);
     return;
   }
 
-  CASE_EXPECT_NE(NULL, input);
+  CASE_EXPECT_NE(nullptr, input);
   CASE_EXPECT_EQ(0, status);
   CASE_EXPECT_EQ(0, channel->error_code);
 
@@ -177,17 +177,17 @@ CASE_TEST(channel, io_stream_tcp_basic) {
   uv_loop_init(&loop);
 
   atbus::channel::io_stream_channel svr, cli;
-  atbus::channel::io_stream_init(&svr, &loop, NULL);
-  atbus::channel::io_stream_init(&cli, &loop, NULL);
+  atbus::channel::io_stream_init(&svr, &loop, nullptr);
+  atbus::channel::io_stream_init(&cli, &loop, nullptr);
   CASE_EXPECT_EQ(&loop, svr.ev_loop);
   CASE_EXPECT_EQ(&loop, cli.ev_loop);
 
   g_check_flag = 0;
 
   int inited_fds = 0;
-  inited_fds += setup_channel(svr, "ipv6://:::16387", NULL);
+  inited_fds += setup_channel(svr, "ipv6://:::16387", nullptr);
   CASE_EXPECT_EQ(1, g_check_flag);
-  CASE_EXPECT_NE(NULL, svr.ev_loop);
+  CASE_EXPECT_NE(nullptr, svr.ev_loop);
 
   if (0 == inited_fds) {
     uv_loop_close(&loop);
@@ -195,9 +195,9 @@ CASE_TEST(channel, io_stream_tcp_basic) {
   }
 
   inited_fds = 0;
-  inited_fds += setup_channel(cli, NULL, "ipv4://127.0.0.1:16387");
-  inited_fds += setup_channel(cli, NULL, "dns://localhost:16387");
-  inited_fds += setup_channel(cli, NULL, "ipv6://::1:16387");
+  inited_fds += setup_channel(cli, nullptr, "ipv4://127.0.0.1:16387");
+  inited_fds += setup_channel(cli, nullptr, "dns://localhost:16387");
+  inited_fds += setup_channel(cli, nullptr, "ipv6://::1:16387");
 
   int check_flag = g_check_flag;
   while (g_check_flag - check_flag < 2 * inited_fds) {
@@ -256,7 +256,7 @@ CASE_TEST(channel, io_stream_tcp_basic) {
   }
 
   std::stringstream ssout;
-  atbus::channel::io_stream_show_channel(NULL, ssout);
+  atbus::channel::io_stream_show_channel(nullptr, ssout);
   atbus::channel::io_stream_show_channel(&svr, ssout);
 
   atbus::channel::io_stream_close(&svr);
@@ -270,25 +270,25 @@ CASE_TEST(channel, io_stream_tcp_basic) {
 // reset by peer(client)
 CASE_TEST(channel, io_stream_tcp_reset_by_client) {
   atbus::channel::io_stream_channel svr, cli;
-  atbus::channel::io_stream_init(&svr, NULL, NULL);
-  atbus::channel::io_stream_init(&cli, NULL, NULL);
+  atbus::channel::io_stream_init(&svr, nullptr, nullptr);
+  atbus::channel::io_stream_init(&cli, nullptr, nullptr);
 
   svr.evt.callbacks[atbus::channel::io_stream_callback_evt_t::EN_FN_DISCONNECTED] = disconnected_callback_test_fn;
 
   int check_flag = g_check_flag = 0;
 
   int inited_fds = 0;
-  inited_fds += setup_channel(svr, "ipv6://:::16387", NULL);
+  inited_fds += setup_channel(svr, "ipv6://:::16387", nullptr);
   CASE_EXPECT_EQ(1, g_check_flag);
-  CASE_EXPECT_NE(NULL, svr.ev_loop);
+  CASE_EXPECT_NE(nullptr, svr.ev_loop);
   if (0 == inited_fds) {
     return;
   }
 
   inited_fds = 0;
-  inited_fds += setup_channel(cli, NULL, "ipv4://127.0.0.1:16387");
-  inited_fds += setup_channel(cli, NULL, "dns://localhost:16387");
-  inited_fds += setup_channel(cli, NULL, "ipv6://::1:16387");
+  inited_fds += setup_channel(cli, nullptr, "ipv4://127.0.0.1:16387");
+  inited_fds += setup_channel(cli, nullptr, "dns://localhost:16387");
+  inited_fds += setup_channel(cli, nullptr, "ipv6://::1:16387");
 
   while (g_check_flag - check_flag < 2 * inited_fds + 1) {
     atbus::channel::io_stream_run(&svr, atbus::adapter::RUN_NOWAIT);
@@ -314,25 +314,25 @@ CASE_TEST(channel, io_stream_tcp_reset_by_client) {
 // reset by peer(server)
 CASE_TEST(channel, io_stream_tcp_reset_by_server) {
   atbus::channel::io_stream_channel svr, cli;
-  atbus::channel::io_stream_init(&svr, NULL, NULL);
-  atbus::channel::io_stream_init(&cli, NULL, NULL);
+  atbus::channel::io_stream_init(&svr, nullptr, nullptr);
+  atbus::channel::io_stream_init(&cli, nullptr, nullptr);
 
   cli.evt.callbacks[atbus::channel::io_stream_callback_evt_t::EN_FN_DISCONNECTED] = disconnected_callback_test_fn;
 
   int check_flag = g_check_flag = 0;
 
   int inited_fds = 0;
-  inited_fds += setup_channel(svr, "ipv6://:::16387", NULL);
+  inited_fds += setup_channel(svr, "ipv6://:::16387", nullptr);
   CASE_EXPECT_EQ(1, g_check_flag);
-  CASE_EXPECT_NE(NULL, svr.ev_loop);
+  CASE_EXPECT_NE(nullptr, svr.ev_loop);
   if (0 == inited_fds) {
     return;
   }
 
   inited_fds = 0;
-  inited_fds += setup_channel(cli, NULL, "ipv4://127.0.0.1:16387");
-  inited_fds += setup_channel(cli, NULL, "dns://localhost:16387");
-  inited_fds += setup_channel(cli, NULL, "ipv6://::1:16387");
+  inited_fds += setup_channel(cli, nullptr, "ipv4://127.0.0.1:16387");
+  inited_fds += setup_channel(cli, nullptr, "dns://localhost:16387");
+  inited_fds += setup_channel(cli, nullptr, "ipv6://::1:16387");
 
   while (g_check_flag - check_flag < 2 * inited_fds + 1) {
     atbus::channel::io_stream_run(&svr, atbus::adapter::RUN_NOWAIT);
@@ -360,16 +360,16 @@ static void recv_size_err_callback_check_fn(atbus::channel::io_stream_channel *c
                                             void *input,  // 额外参数(不同事件不同含义)
                                             size_t        // 额外参数长度
 ) {
-  CASE_EXPECT_NE(NULL, channel);
-  CASE_EXPECT_NE(NULL, connection);
+  CASE_EXPECT_NE(nullptr, channel);
+  CASE_EXPECT_NE(nullptr, connection);
 
   if (EN_ATBUS_ERR_INVALID_SIZE == status) {
-    CASE_EXPECT_NE(NULL, input);
+    CASE_EXPECT_NE(nullptr, input);
     CASE_EXPECT_EQ(EN_ATBUS_ERR_INVALID_SIZE, status);
     CASE_EXPECT_EQ(0, channel->error_code);
 
   } else if (EN_ATBUS_ERR_READ_FAILED == status) {
-    CASE_EXPECT_EQ(NULL, input);
+    CASE_EXPECT_EQ(nullptr, input);
     CASE_EXPECT_EQ(EN_ATBUS_ERR_READ_FAILED, status);
     CASE_EXPECT_TRUE(UV_ECONNRESET == channel->error_code || UV_EOF == channel->error_code);
   } else {
@@ -386,8 +386,8 @@ CASE_TEST(channel, io_stream_tcp_size_extended) {
   atbus::channel::io_stream_init_configure(&conf);
   conf.send_buffer_limit_size = conf.recv_buffer_max_size + 1;
 
-  atbus::channel::io_stream_init(&svr, NULL, &conf);
-  atbus::channel::io_stream_init(&cli, NULL, &conf);
+  atbus::channel::io_stream_init(&svr, nullptr, &conf);
+  atbus::channel::io_stream_init(&cli, nullptr, &conf);
 
   svr.evt.callbacks[atbus::channel::io_stream_callback_evt_t::EN_FN_RECVED] = recv_size_err_callback_check_fn;
   cli.evt.callbacks[atbus::channel::io_stream_callback_evt_t::EN_FN_RECVED] = recv_size_err_callback_check_fn;
@@ -396,12 +396,12 @@ CASE_TEST(channel, io_stream_tcp_size_extended) {
 
   int check_flag = g_check_flag = 0;
 
-  setup_channel(svr, "ipv6://:::16387", NULL);
+  setup_channel(svr, "ipv6://:::16387", nullptr);
   CASE_EXPECT_EQ(1, g_check_flag);
-  CASE_EXPECT_NE(NULL, svr.ev_loop);
+  CASE_EXPECT_NE(nullptr, svr.ev_loop);
 
   int inited_fds = 0;
-  inited_fds += setup_channel(cli, NULL, "ipv4://127.0.0.1:16387");
+  inited_fds += setup_channel(cli, nullptr, "ipv4://127.0.0.1:16387");
 
   while (g_check_flag - check_flag < 2 * inited_fds) {
     atbus::channel::io_stream_run(&svr, atbus::adapter::RUN_NOWAIT);
@@ -452,8 +452,8 @@ static void connect_failed_callback_test_fn(atbus::channel::io_stream_channel *c
                                             void *,      // 额外参数(不同事件不同含义)
                                             size_t       // 额外参数长度
 ) {
-  CASE_EXPECT_NE(NULL, channel);
-  CASE_EXPECT_EQ(NULL, connection);
+  CASE_EXPECT_NE(nullptr, channel);
+  CASE_EXPECT_EQ(nullptr, connection);
 
   CASE_EXPECT_TRUE(EN_ATBUS_ERR_SOCK_CONNECT_FAILED == status || EN_ATBUS_ERR_DNS_GETADDR_FAILED == status);
 
@@ -473,7 +473,7 @@ static void connect_failed_callback_test_fn(atbus::channel::io_stream_channel *c
 // connect failed
 CASE_TEST(channel, io_stream_tcp_connect_failed) {
   atbus::channel::io_stream_channel cli;
-  atbus::channel::io_stream_init(&cli, NULL, NULL);
+  atbus::channel::io_stream_init(&cli, nullptr, nullptr);
 
   int check_flag = g_check_flag = 0;
 
@@ -483,21 +483,21 @@ CASE_TEST(channel, io_stream_tcp_connect_failed) {
 
   // assume port 16388 is unreachable
   atbus::channel::make_address("ipv4://127.0.0.1:16388", addr);
-  int res = atbus::channel::io_stream_connect(&cli, addr, connect_failed_callback_test_fn, NULL, 0);
+  int res = atbus::channel::io_stream_connect(&cli, addr, connect_failed_callback_test_fn, nullptr, 0);
   CASE_EXPECT_EQ(0, res);
   if (0 == res) {
     ++inited_fds;
   }
 
   atbus::channel::make_address("dns://localhost:16388", addr);
-  res = atbus::channel::io_stream_connect(&cli, addr, connect_failed_callback_test_fn, NULL, 0);
+  res = atbus::channel::io_stream_connect(&cli, addr, connect_failed_callback_test_fn, nullptr, 0);
   // CASE_EXPECT_EQ(0, res); // travis ci dns error
   if (0 == res) {
     ++inited_fds;
   }
 
   atbus::channel::make_address("dns://localhost_invalid:16388", addr);
-  res = atbus::channel::io_stream_connect(&cli, addr, connect_failed_callback_test_fn, NULL, 0);
+  res = atbus::channel::io_stream_connect(&cli, addr, connect_failed_callback_test_fn, nullptr, 0);
   // CASE_EXPECT_EQ(0, res); // travis ci dns error
   if (0 == res) {
     ++inited_fds;

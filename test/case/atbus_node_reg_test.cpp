@@ -41,9 +41,9 @@ struct node_reg_test_recv_msg_record_t {
   int dealloc_connection_count;
 
   node_reg_test_recv_msg_record_t()
-      : n(NULL),
-        ep(NULL),
-        conn(NULL),
+      : n(nullptr),
+        ep(nullptr),
+        conn(nullptr),
         status(0),
         count(0),
         add_endpoint_count(0),
@@ -73,8 +73,8 @@ static void node_reg_test_on_debug(const char *file_path, size_t line, const atb
   std::streamsize w = std::cout.width();
   CASE_MSG_INFO() << "[Log Debug][" << std::setw(24) << file_path << ":" << std::setw(4) << line << "] node=0x"
                   << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x" << std::setw(8)
-                  << (NULL == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ') << std::setw(w) << std::dec
-                  << "\t";
+                  << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ') << std::setw(w)
+                  << std::dec << "\t";
 
   char log_content[2048] = {0};
   va_list ap;
@@ -98,7 +98,7 @@ static void node_reg_test_on_debug(const char *file_path, size_t line, const atb
   // static char *CI       = getenv("CI");
 
   // appveyor ci open msg content
-  // if (APPVEYOR && APPVEYOR[0] && CI && CI[0] && NULL != m) {
+  // if (APPVEYOR && APPVEYOR[0] && CI && CI[0] && nullptr != m) {
   //     std::cout << *m << std::endl;
   // }
 #endif
@@ -118,7 +118,7 @@ static int node_reg_test_on_error(const atbus::node &n, const atbus::endpoint *e
 
   std::streamsize w = std::cout.width();
   CASE_MSG_INFO() << "[Log Error] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
-                  << std::setw(8) << (NULL == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
+                  << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
                   << std::setw(w) << std::dec << "=> status: " << status << ", errcode: " << errcode << std::endl;
   return 0;
 }
@@ -127,10 +127,10 @@ static int node_reg_test_on_info_log(const atbus::node &n, const atbus::endpoint
                                      const char *msg) {
   std::streamsize w = std::cout.width();
   CASE_MSG_INFO() << "[Log Info] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
-                  << std::setw(8) << (NULL == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
-                  << std::setw(w) << std::dec << "=> message: " << (NULL == msg ? "" : msg) << std::endl;
+                  << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
+                  << std::setw(w) << std::dec << "=> message: " << (nullptr == msg ? "" : msg) << std::endl;
 
-  if (NULL != msg) {
+  if (nullptr != msg) {
     std::string content = msg;
     if (std::string::npos != content.find("connection deallocated")) {
       ++recv_msg_history.dealloc_connection_count;
@@ -150,7 +150,7 @@ static int node_reg_test_recv_msg_test_record_fn(const atbus::node &n, const atb
   recv_msg_history.status = m.head().ret();
   ++recv_msg_history.count;
 
-  if (NULL != buffer && len > 0) {
+  if (nullptr != buffer && len > 0) {
     recv_msg_history.data.assign(reinterpret_cast<const char *>(buffer), len);
   } else {
     recv_msg_history.data.clear();
@@ -162,7 +162,7 @@ static int node_reg_test_recv_msg_test_record_fn(const atbus::node &n, const atb
 static int node_reg_test_add_endpoint_fn(const atbus::node &n, atbus::endpoint *ep, int) {
   ++recv_msg_history.add_endpoint_count;
 
-  CASE_EXPECT_NE(NULL, ep);
+  CASE_EXPECT_NE(nullptr, ep);
   CASE_EXPECT_NE(n.get_self_endpoint(), ep);
   return 0;
 }
@@ -170,7 +170,7 @@ static int node_reg_test_add_endpoint_fn(const atbus::node &n, atbus::endpoint *
 static int node_reg_test_remove_endpoint_fn(const atbus::node &n, atbus::endpoint *ep, int) {
   ++recv_msg_history.remove_endpoint_count;
 
-  CASE_EXPECT_NE(NULL, ep);
+  CASE_EXPECT_NE(nullptr, ep);
   CASE_EXPECT_NE(n.get_self_endpoint(), ep);
   return 0;
 }
@@ -237,7 +237,7 @@ CASE_TEST(atbus_node_reg, reset_and_send_tcp) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
 
-    time_t proc_t = time(NULL);
+    time_t proc_t = time(nullptr);
     node1->poll();
     node2->poll();
     node1->proc(proc_t + 1, 0);
@@ -279,7 +279,7 @@ CASE_TEST(atbus_node_reg, reset_and_send_tcp) {
 
     // check add endpoint callback
     CASE_EXPECT_EQ(send_data, recv_msg_history.data);
-    // CASE_EXPECT_NE(NULL, node1->get_iostream_conf());
+    // CASE_EXPECT_NE(nullptr, node1->get_iostream_conf());
 
     check_ep_count = recv_msg_history.remove_endpoint_count;
 
@@ -287,9 +287,9 @@ CASE_TEST(atbus_node_reg, reset_and_send_tcp) {
     CASE_EXPECT_EQ(0, node1->shutdown(0));  // shutdown - test, next proc() will call reset()
     CASE_EXPECT_EQ(0, node1->shutdown(0));  // shutdown - again
 
-    UNITTEST_WAIT_UNTIL(conf.ev_loop,
-                        NULL == node1->get_endpoint(node2->get_id()) && NULL == node2->get_endpoint(node1->get_id()),
-                        8000, 64) {
+    UNITTEST_WAIT_UNTIL(
+        conf.ev_loop,
+        nullptr == node1->get_endpoint(node2->get_id()) && nullptr == node2->get_endpoint(node1->get_id()), 8000, 64) {
       ++proc_t;
 
       node1->proc(proc_t, 0);
@@ -311,8 +311,8 @@ CASE_TEST(atbus_node_reg, reset_and_send_tcp) {
     // in windows CI, connection will be closed sometimes, it will lead to add one endpoint more than one times
     CASE_EXPECT_LE(check_ep_count + 2, recv_msg_history.remove_endpoint_count);
 
-    CASE_EXPECT_EQ(NULL, node2->get_endpoint(node1->get_id()));
-    CASE_EXPECT_EQ(NULL, node1->get_endpoint(node2->get_id()));
+    CASE_EXPECT_EQ(nullptr, node2->get_endpoint(node1->get_id()));
+    CASE_EXPECT_EQ(nullptr, node1->get_endpoint(node2->get_id()));
   }
 
   unit_test_setup_exit(&ev_loop);
@@ -352,7 +352,7 @@ CASE_TEST(atbus_node_reg, timeout) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
 
-    time_t proc_t = time(NULL);
+    time_t proc_t = time(nullptr);
     node1->poll();
     node2->poll();
     node1->proc(proc_t + 1, 0);
@@ -386,7 +386,7 @@ CASE_TEST(atbus_node_reg, timeout) {
       return;
     }
 
-    proc_t = time(NULL) + 2;
+    proc_t = time(nullptr) + 2;
     node1->proc(proc_t + conf.first_idle_timeout + 2, 0);
     node2->proc(proc_t + conf.first_idle_timeout + 2, 0);
 
@@ -444,7 +444,7 @@ CASE_TEST(atbus_node_reg, message_size_limit) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
 
-    time_t proc_t = time(NULL);
+    time_t proc_t = time(nullptr);
     node1->poll();
     node2->poll();
     node1->proc(proc_t + 1, 0);
@@ -497,9 +497,9 @@ CASE_TEST(atbus_node_reg, message_size_limit) {
     CASE_EXPECT_EQ(0, node1->shutdown(0));  // shutdown - test, next proc() will call reset()
     CASE_EXPECT_EQ(0, node1->shutdown(0));  // shutdown - again
 
-    UNITTEST_WAIT_UNTIL(conf.ev_loop,
-                        NULL == node1->get_endpoint(node2->get_id()) && NULL == node2->get_endpoint(node1->get_id()),
-                        8000, 64) {
+    UNITTEST_WAIT_UNTIL(
+        conf.ev_loop,
+        nullptr == node1->get_endpoint(node2->get_id()) && nullptr == node2->get_endpoint(node1->get_id()), 8000, 64) {
       ++proc_t;
 
       node1->proc(proc_t, 0);
@@ -508,8 +508,8 @@ CASE_TEST(atbus_node_reg, message_size_limit) {
 
     node2->reset();
 
-    CASE_EXPECT_EQ(NULL, node2->get_endpoint(node1->get_id()));
-    CASE_EXPECT_EQ(NULL, node1->get_endpoint(node2->get_id()));
+    CASE_EXPECT_EQ(nullptr, node2->get_endpoint(node1->get_id()));
+    CASE_EXPECT_EQ(nullptr, node1->get_endpoint(node2->get_id()));
   }
 
   unit_test_setup_exit(&ev_loop);
@@ -562,7 +562,7 @@ CASE_TEST(atbus_node_reg, reg_failed_with_mismatch_access_token) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
 
-    time_t proc_t = time(NULL);
+    time_t proc_t = time(nullptr);
     recv_msg_history.status = 0;
     node1->poll();
     node2->poll();
@@ -584,8 +584,8 @@ CASE_TEST(atbus_node_reg, reg_failed_with_mismatch_access_token) {
     // in windows CI, connection will be closed sometimes, it will lead to add one endpoint more than one times
     CASE_EXPECT_LE(check_ep_count + 2, recv_msg_history.register_failed_count);
 
-    CASE_EXPECT_EQ(NULL, node2->get_endpoint(node1->get_id()));
-    CASE_EXPECT_EQ(NULL, node1->get_endpoint(node2->get_id()));
+    CASE_EXPECT_EQ(nullptr, node2->get_endpoint(node1->get_id()));
+    CASE_EXPECT_EQ(nullptr, node1->get_endpoint(node2->get_id()));
 
     CASE_EXPECT_EQ(EN_ATBUS_ERR_ACCESS_DENY, recv_msg_history.status);
   }
@@ -633,7 +633,7 @@ CASE_TEST(atbus_node_reg, reg_failed_with_missing_access_token) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
 
-    time_t proc_t = time(NULL);
+    time_t proc_t = time(nullptr);
     recv_msg_history.status = 0;
     node1->poll();
     node2->poll();
@@ -655,8 +655,8 @@ CASE_TEST(atbus_node_reg, reg_failed_with_missing_access_token) {
     // in windows CI, connection will be closed sometimes, it will lead to add one endpoint more than one times
     CASE_EXPECT_LE(check_ep_count + 2, recv_msg_history.register_failed_count);
 
-    CASE_EXPECT_EQ(NULL, node2->get_endpoint(node1->get_id()));
-    CASE_EXPECT_EQ(NULL, node1->get_endpoint(node2->get_id()));
+    CASE_EXPECT_EQ(nullptr, node2->get_endpoint(node1->get_id()));
+    CASE_EXPECT_EQ(nullptr, node1->get_endpoint(node2->get_id()));
 
     CASE_EXPECT_EQ(EN_ATBUS_ERR_ACCESS_DENY, recv_msg_history.status);
   }
@@ -706,7 +706,7 @@ CASE_TEST(atbus_node_reg, reg_failed_with_unsupported) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
 
-    time_t proc_t = time(NULL);
+    time_t proc_t = time(nullptr);
     recv_msg_history.status = 0;
     node1->poll();
     node2->poll();
@@ -728,8 +728,8 @@ CASE_TEST(atbus_node_reg, reg_failed_with_unsupported) {
     // in windows CI, connection will be closed sometimes, it will lead to add one endpoint more than one times
     CASE_EXPECT_LE(check_ep_count + 1, recv_msg_history.register_failed_count);
 
-    CASE_EXPECT_EQ(NULL, node2->get_endpoint(node1->get_id()));
-    CASE_EXPECT_NE(NULL, node1->get_endpoint(node2->get_id()));
+    CASE_EXPECT_EQ(nullptr, node2->get_endpoint(node1->get_id()));
+    CASE_EXPECT_NE(nullptr, node1->get_endpoint(node2->get_id()));
 
     CASE_EXPECT_EQ(EN_ATBUS_ERR_UNSUPPORTED_VERSION, recv_msg_history.status);
   }
@@ -759,7 +759,7 @@ CASE_TEST(atbus_node_reg, destruct) {
 
     CASE_EXPECT_EQ(EN_ATBUS_ERR_NOT_INITED, node1->listen("ipv4://127.0.0.1:16387"));
     CASE_EXPECT_EQ(EN_ATBUS_ERR_NOT_INITED, node1->connect("ipv4://127.0.0.1:16388"));
-    CASE_EXPECT_EQ(EN_ATBUS_ERR_NOT_INITED, node1->send_data(0x12345678, 213, NULL, 0, true));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_NOT_INITED, node1->send_data(0x12345678, 213, nullptr, 0, true));
 
     node1->init(0x12345678, &conf);
     node2->init(0x12356789, &conf);
@@ -770,7 +770,7 @@ CASE_TEST(atbus_node_reg, destruct) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
 
-    time_t proc_t = time(NULL);
+    time_t proc_t = time(nullptr);
     node1->poll();
     node2->poll();
     node1->proc(proc_t + 1, 0);
@@ -793,13 +793,13 @@ CASE_TEST(atbus_node_reg, destruct) {
     node1.reset();
 
     ++proc_t;
-    UNITTEST_WAIT_UNTIL(conf.ev_loop, NULL == node2->get_endpoint(0x12345678), 8000, 64) {
+    UNITTEST_WAIT_UNTIL(conf.ev_loop, nullptr == node2->get_endpoint(0x12345678), 8000, 64) {
       ++proc_t;
 
       node2->proc(proc_t, 0);
     }
 
-    CASE_EXPECT_EQ(NULL, node2->get_endpoint(0x12345678));
+    CASE_EXPECT_EQ(nullptr, node2->get_endpoint(0x12345678));
   }
 
   unit_test_setup_exit(&ev_loop);
@@ -861,7 +861,7 @@ CASE_TEST(atbus_node_reg, reg_pc_success) {
     node_child->set_on_add_endpoint_handle(node_reg_test_add_endpoint_fn);
     node_child->set_on_remove_endpoint_handle(node_reg_test_remove_endpoint_fn);
 
-    time_t proc_t_start_sec = time(NULL);
+    time_t proc_t_start_sec = time(nullptr);
     time_t proc_t_sec = proc_t_start_sec;
     time_t proc_t_usec = 0;
     node_parent->poll();
@@ -892,13 +892,13 @@ CASE_TEST(atbus_node_reg, reg_pc_success) {
 
     // API - test
     {
-      atbus::endpoint *test_ep = NULL;
-      atbus::connection *test_conn = NULL;
+      atbus::endpoint *test_ep = nullptr;
+      atbus::connection *test_conn = nullptr;
       node_parent->get_remote_channel(node_child->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
                                       &test_conn);
-      CASE_EXPECT_NE(NULL, test_ep);
-      CASE_EXPECT_NE(NULL, test_conn);
-      if (NULL != test_ep) {
+      CASE_EXPECT_NE(nullptr, test_ep);
+      CASE_EXPECT_NE(nullptr, test_conn);
+      if (nullptr != test_ep) {
         CASE_EXPECT_GE(test_ep->get_stat_created_time_sec(), proc_t_start_sec);
         CASE_EXPECT_GE(test_ep->get_stat_created_time_usec(), 0);
         CASE_EXPECT_LE(test_ep->get_stat_created_time_usec(), 1000000);
@@ -911,13 +911,13 @@ CASE_TEST(atbus_node_reg, reg_pc_success) {
 
     // API - test
     {
-      atbus::endpoint *test_ep = NULL;
-      atbus::connection *test_conn = NULL;
+      atbus::endpoint *test_ep = nullptr;
+      atbus::connection *test_conn = nullptr;
       node_child->get_remote_channel(node_parent->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
                                      &test_conn);
-      CASE_EXPECT_NE(NULL, test_ep);
-      CASE_EXPECT_NE(NULL, test_conn);
-      if (NULL != test_ep) {
+      CASE_EXPECT_NE(nullptr, test_ep);
+      CASE_EXPECT_NE(nullptr, test_conn);
+      if (nullptr != test_ep) {
         CASE_EXPECT_GE(test_ep->get_stat_created_time_sec(), proc_t_start_sec);
         CASE_EXPECT_GE(test_ep->get_stat_created_time_usec(), 0);
         CASE_EXPECT_LE(test_ep->get_stat_created_time_usec(), 1000000);
@@ -996,7 +996,7 @@ CASE_TEST(atbus_node_reg, reg_pc_success_cross_subnet) {
     node_child->set_on_add_endpoint_handle(node_reg_test_add_endpoint_fn);
     node_child->set_on_remove_endpoint_handle(node_reg_test_remove_endpoint_fn);
 
-    time_t proc_t = time(NULL);
+    time_t proc_t = time(nullptr);
     node_parent->poll();
     node_child->poll();
     node_parent->proc(proc_t + 1, 0);
@@ -1015,22 +1015,22 @@ CASE_TEST(atbus_node_reg, reg_pc_success_cross_subnet) {
 
     // API - test
     {
-      atbus::endpoint *test_ep = NULL;
-      atbus::connection *test_conn = NULL;
+      atbus::endpoint *test_ep = nullptr;
+      atbus::connection *test_conn = nullptr;
       node_parent->get_remote_channel(node_child->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
                                       &test_conn);
-      CASE_EXPECT_NE(NULL, test_ep);
-      CASE_EXPECT_NE(NULL, test_conn);
+      CASE_EXPECT_NE(nullptr, test_ep);
+      CASE_EXPECT_NE(nullptr, test_conn);
     }
 
     // API - test
     {
-      atbus::endpoint *test_ep = NULL;
-      atbus::connection *test_conn = NULL;
+      atbus::endpoint *test_ep = nullptr;
+      atbus::connection *test_conn = nullptr;
       node_child->get_remote_channel(node_parent->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
                                      &test_conn);
-      CASE_EXPECT_NE(NULL, test_ep);
-      CASE_EXPECT_NE(NULL, test_conn);
+      CASE_EXPECT_NE(nullptr, test_ep);
+      CASE_EXPECT_NE(nullptr, test_conn);
     }
 
     // disconnect - parent and child
@@ -1102,7 +1102,7 @@ CASE_TEST(atbus_node_reg, reg_pc_failed_with_subnet_mismatch) {
     node_child->set_on_add_endpoint_handle(node_reg_test_add_endpoint_fn);
     node_child->set_on_remove_endpoint_handle(node_reg_test_remove_endpoint_fn);
 
-    time_t proc_t = time(NULL);
+    time_t proc_t = time(nullptr);
     node_parent->poll();
     node_child->poll();
     ++proc_t;
@@ -1135,22 +1135,22 @@ CASE_TEST(atbus_node_reg, reg_pc_failed_with_subnet_mismatch) {
 
     // API - test
     {
-      atbus::endpoint *test_ep = NULL;
-      atbus::connection *test_conn = NULL;
+      atbus::endpoint *test_ep = nullptr;
+      atbus::connection *test_conn = nullptr;
       node_parent->get_remote_channel(node_child->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
                                       &test_conn);
-      CASE_EXPECT_EQ(NULL, test_ep);
-      CASE_EXPECT_EQ(NULL, test_conn);
+      CASE_EXPECT_EQ(nullptr, test_ep);
+      CASE_EXPECT_EQ(nullptr, test_conn);
     }
 
     // API - test
     {
-      atbus::endpoint *test_ep = NULL;
-      atbus::connection *test_conn = NULL;
+      atbus::endpoint *test_ep = nullptr;
+      atbus::connection *test_conn = nullptr;
       node_child->get_remote_channel(node_parent->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
                                      &test_conn);
-      CASE_EXPECT_EQ(NULL, test_ep);
-      CASE_EXPECT_EQ(NULL, test_conn);
+      CASE_EXPECT_EQ(nullptr, test_ep);
+      CASE_EXPECT_EQ(nullptr, test_conn);
     }
 
     CASE_MSG_INFO() << "atbus_node_reg.reg_pc_failed_with_subnet_mismatch done." << std::endl;
@@ -1205,7 +1205,7 @@ CASE_TEST(atbus_node_reg, reg_bro_success) {
     node_2->set_on_add_endpoint_handle(node_reg_test_add_endpoint_fn);
     node_2->set_on_remove_endpoint_handle(node_reg_test_remove_endpoint_fn);
 
-    time_t proc_t = time(NULL);
+    time_t proc_t = time(nullptr);
     node_1->poll();
     node_2->poll();
     node_1->proc(proc_t + 1, 0);
@@ -1225,20 +1225,20 @@ CASE_TEST(atbus_node_reg, reg_bro_success) {
 
     // API - test
     {
-      atbus::endpoint *test_ep = NULL;
-      atbus::connection *test_conn = NULL;
+      atbus::endpoint *test_ep = nullptr;
+      atbus::connection *test_conn = nullptr;
       node_1->get_remote_channel(node_2->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
-      CASE_EXPECT_NE(NULL, test_ep);
-      CASE_EXPECT_NE(NULL, test_conn);
+      CASE_EXPECT_NE(nullptr, test_ep);
+      CASE_EXPECT_NE(nullptr, test_conn);
     }
 
     // API - test
     {
-      atbus::endpoint *test_ep = NULL;
-      atbus::connection *test_conn = NULL;
+      atbus::endpoint *test_ep = nullptr;
+      atbus::connection *test_conn = nullptr;
       node_2->get_remote_channel(node_1->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
-      CASE_EXPECT_NE(NULL, test_ep);
-      CASE_EXPECT_NE(NULL, test_conn);
+      CASE_EXPECT_NE(nullptr, test_ep);
+      CASE_EXPECT_NE(nullptr, test_conn);
     }
 
     // disconnect - parent and child
@@ -1311,7 +1311,7 @@ CASE_TEST(atbus_node_reg, conflict) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_child->start());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_child_fail->start());
 
-    time_t proc_t = time(NULL) + 1;
+    time_t proc_t = time(nullptr) + 1;
     // 必然有一个失败的
     UNITTEST_WAIT_UNTIL(conf.ev_loop,
                         atbus::node::state_t::CREATED != node_child->get_state() &&
@@ -1376,7 +1376,7 @@ CASE_TEST(atbus_node_reg, reconnect_parent_failed) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_parent->start());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_child->start());
 
-    time_t proc_t = time(NULL) + 1;
+    time_t proc_t = time(nullptr) + 1;
     // 先等连接成功
     UNITTEST_WAIT_UNTIL(conf.ev_loop, atbus::node::state_t::RUNNING == node_child->get_state(), 8000, 64) {
       node_parent->proc(proc_t, 0);
@@ -1421,7 +1421,7 @@ CASE_TEST(atbus_node_reg, reconnect_parent_failed) {
 
     UNITTEST_WAIT_IF(conf.ev_loop,
                      atbus::node::state_t::RUNNING != node_child->get_state() ||
-                         NULL == node_parent->get_endpoint(node_child->get_id()),
+                         nullptr == node_parent->get_endpoint(node_child->get_id()),
                      8000, 64) {
       proc_t += conf.retry_interval;
       node_parent->proc(proc_t, 0);
@@ -1432,8 +1432,8 @@ CASE_TEST(atbus_node_reg, reconnect_parent_failed) {
       atbus::endpoint *ep1 = node_child->get_endpoint(node_parent->get_id());
       atbus::endpoint *ep2 = node_parent->get_endpoint(node_child->get_id());
 
-      CASE_EXPECT_NE(NULL, ep1);
-      CASE_EXPECT_NE(NULL, ep2);
+      CASE_EXPECT_NE(nullptr, ep1);
+      CASE_EXPECT_NE(nullptr, ep2);
       CASE_EXPECT_EQ(atbus::node::state_t::RUNNING, node_child->get_state());
     }
 
@@ -1492,7 +1492,7 @@ CASE_TEST(atbus_node_reg, mem_and_send) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
 
-    time_t proc_t = time(NULL);
+    time_t proc_t = time(nullptr);
     node1->poll();
     node2->poll();
     node1->proc(proc_t + 1, 0);
@@ -1527,13 +1527,13 @@ CASE_TEST(atbus_node_reg, mem_and_send) {
 
     // API - test - 数据通道优先应该是内存通道
     {
-      atbus::endpoint *test_ep = NULL;
-      atbus::connection *test_conn = NULL;
+      atbus::endpoint *test_ep = nullptr;
+      atbus::connection *test_conn = nullptr;
       node1->get_remote_channel(node2->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
-      CASE_EXPECT_NE(NULL, test_ep);
-      CASE_EXPECT_NE(NULL, test_conn);
+      CASE_EXPECT_NE(nullptr, test_ep);
+      CASE_EXPECT_NE(nullptr, test_conn);
 
-      if (NULL != test_conn) {
+      if (nullptr != test_conn) {
         CASE_EXPECT_TRUE(test_conn->is_connected());
         // connect的节点是不注册REG_PROC的
         CASE_EXPECT_FALSE(test_conn->check_flag(atbus::connection::flag_t::REG_PROC));
@@ -1577,7 +1577,7 @@ CASE_TEST(atbus_node_reg, mem_and_send) {
 
     // check add endpoint callback
     CASE_EXPECT_EQ(send_data, recv_msg_history.data);
-    // CASE_EXPECT_NE(NULL, node1->get_iostream_conf());
+    // CASE_EXPECT_NE(nullptr, node1->get_iostream_conf());
 
     check_ep_count = recv_msg_history.remove_endpoint_count;
 
@@ -1585,9 +1585,9 @@ CASE_TEST(atbus_node_reg, mem_and_send) {
     CASE_EXPECT_EQ(0, node1->shutdown(0));  // shutdown - test, next proc() will call reset()
     CASE_EXPECT_EQ(0, node1->shutdown(0));  // shutdown - again
 
-    UNITTEST_WAIT_UNTIL(conf.ev_loop,
-                        NULL == node1->get_endpoint(node2->get_id()) && NULL == node2->get_endpoint(node1->get_id()),
-                        8000, 64) {
+    UNITTEST_WAIT_UNTIL(
+        conf.ev_loop,
+        nullptr == node1->get_endpoint(node2->get_id()) && nullptr == node2->get_endpoint(node1->get_id()), 8000, 64) {
       ++proc_t;
 
       node1->proc(proc_t, 0);
@@ -1600,8 +1600,8 @@ CASE_TEST(atbus_node_reg, mem_and_send) {
     // in windows CI, connection will be closed sometimes, it will lead to add one endpoint more than one times
     CASE_EXPECT_LE(check_ep_count + 2, recv_msg_history.remove_endpoint_count);
 
-    CASE_EXPECT_EQ(NULL, node2->get_endpoint(node1->get_id()));
-    CASE_EXPECT_EQ(NULL, node1->get_endpoint(node2->get_id()));
+    CASE_EXPECT_EQ(nullptr, node2->get_endpoint(node1->get_id()));
+    CASE_EXPECT_EQ(nullptr, node1->get_endpoint(node2->get_id()));
   }
 
   unit_test_setup_exit(&ev_loop);
@@ -1660,7 +1660,7 @@ CASE_TEST(atbus_node_reg, shm_and_send) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
 
-    time_t proc_t = time(NULL);
+    time_t proc_t = time(nullptr);
     node1->poll();
     node2->poll();
     node1->proc(proc_t + 1, 0);
@@ -1695,13 +1695,13 @@ CASE_TEST(atbus_node_reg, shm_and_send) {
 
     // API - test - 数据通道优先应该是共享内存通道
     {
-      atbus::endpoint *test_ep = NULL;
-      atbus::connection *test_conn = NULL;
+      atbus::endpoint *test_ep = nullptr;
+      atbus::connection *test_conn = nullptr;
       node1->get_remote_channel(node2->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
-      CASE_EXPECT_NE(NULL, test_ep);
-      CASE_EXPECT_NE(NULL, test_conn);
+      CASE_EXPECT_NE(nullptr, test_ep);
+      CASE_EXPECT_NE(nullptr, test_conn);
 
-      if (NULL != test_conn) {
+      if (nullptr != test_conn) {
         CASE_EXPECT_TRUE(test_conn->is_connected());
         // connect的节点是不注册REG_PROC的
         CASE_EXPECT_FALSE(test_conn->check_flag(atbus::connection::flag_t::REG_PROC));
@@ -1745,7 +1745,7 @@ CASE_TEST(atbus_node_reg, shm_and_send) {
 
     // check add endpoint callback
     CASE_EXPECT_EQ(send_data, recv_msg_history.data);
-    // CASE_EXPECT_NE(NULL, node1->get_iostream_conf());
+    // CASE_EXPECT_NE(nullptr, node1->get_iostream_conf());
 
     check_ep_count = recv_msg_history.remove_endpoint_count;
 
@@ -1753,9 +1753,9 @@ CASE_TEST(atbus_node_reg, shm_and_send) {
     CASE_EXPECT_EQ(0, node1->shutdown(0));  // shutdown - test, next proc() will call reset()
     CASE_EXPECT_EQ(0, node1->shutdown(0));  // shutdown - again
 
-    UNITTEST_WAIT_UNTIL(conf.ev_loop,
-                        NULL == node1->get_endpoint(node2->get_id()) && NULL == node2->get_endpoint(node1->get_id()),
-                        8000, 64) {
+    UNITTEST_WAIT_UNTIL(
+        conf.ev_loop,
+        nullptr == node1->get_endpoint(node2->get_id()) && nullptr == node2->get_endpoint(node1->get_id()), 8000, 64) {
       ++proc_t;
 
       node1->proc(proc_t, 0);
@@ -1768,8 +1768,8 @@ CASE_TEST(atbus_node_reg, shm_and_send) {
     // in windows CI, connection will be closed sometimes, it will lead to add one endpoint more than one times
     CASE_EXPECT_LE(check_ep_count + 2, recv_msg_history.remove_endpoint_count);
 
-    CASE_EXPECT_EQ(NULL, node2->get_endpoint(node1->get_id()));
-    CASE_EXPECT_EQ(NULL, node1->get_endpoint(node2->get_id()));
+    CASE_EXPECT_EQ(nullptr, node2->get_endpoint(node1->get_id()));
+    CASE_EXPECT_EQ(nullptr, node1->get_endpoint(node2->get_id()));
   }
 
   unit_test_setup_exit(&ev_loop);

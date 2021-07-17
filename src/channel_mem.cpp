@@ -173,7 +173,7 @@ namespace detail {
  */
 static size_t last_action_channel_end_node_index = 0;
 static size_t last_action_channel_begin_node_index = 0;
-static mem_channel *last_action_channel_ptr = NULL;
+static mem_channel *last_action_channel_ptr = nullptr;
 }  // namespace detail
 
 /**
@@ -239,7 +239,7 @@ static inline uint32_t set_flag(uint32_t flag, MEM_FLAG checked) { return flag |
  */
 static void mem_default_conf(mem_channel *channel) {
   assert(channel);
-  if (NULL == channel) {
+  if (nullptr == channel) {
     return;
   }
 
@@ -417,39 +417,39 @@ static_assert(0 == (mem_block::node_data_size & (mem_block::node_data_size - ATB
               "node size must be [data align size] * 2^N");
 
 ATBUS_MACRO_API int mem_configure_set_write_timeout(mem_channel *channel, uint64_t ms) {
-  if (NULL == channel) return EN_ATBUS_ERR_PARAMS;
+  if (nullptr == channel) return EN_ATBUS_ERR_PARAMS;
   channel->conf.conf_send_timeout_ms = ms;
   return EN_ATBUS_ERR_SUCCESS;
 }
 
 ATBUS_MACRO_API uint64_t mem_configure_get_write_timeout(mem_channel *channel) {
-  if (NULL == channel) return 0;
+  if (nullptr == channel) return 0;
   return channel->conf.conf_send_timeout_ms;
 }
 
 ATBUS_MACRO_API int mem_configure_set_write_retry_times(mem_channel *channel, size_t v) {
-  if (NULL == channel) return EN_ATBUS_ERR_PARAMS;
+  if (nullptr == channel) return EN_ATBUS_ERR_PARAMS;
   channel->conf.write_retry_times = v;
   return EN_ATBUS_ERR_SUCCESS;
 }
 
 ATBUS_MACRO_API size_t mem_configure_get_write_retry_times(mem_channel *channel) {
-  if (NULL == channel) return 0;
+  if (nullptr == channel) return 0;
   return channel->conf.write_retry_times;
 }
 
 ATBUS_MACRO_API uint16_t mem_info_get_version(mem_channel *channel) {
-  if (NULL == channel) return 0;
+  if (nullptr == channel) return 0;
   return channel->channel_version;
 }
 
 ATBUS_MACRO_API uint16_t mem_info_get_align_size(mem_channel *channel) {
-  if (NULL == channel) return 0;
+  if (nullptr == channel) return 0;
   return channel->channel_align_size;
 }
 
 ATBUS_MACRO_API uint16_t mem_info_get_host_size(mem_channel *channel) {
-  if (NULL == channel) return 0;
+  if (nullptr == channel) return 0;
   return channel->channel_host_size;
 }
 
@@ -510,7 +510,7 @@ ATBUS_MACRO_API int mem_init(void *buf, size_t len, mem_channel **channel, const
   head->channel.area_end_offset = head->channel.area_data_offset + head->channel.node_count * head->channel.node_size;
 
   // 配置初始化
-  if (NULL != conf) {
+  if (nullptr != conf) {
     mem_copy_conf(head->channel.conf, *conf);
   } else {
     mem_default_conf(&head->channel);
@@ -534,7 +534,7 @@ ATBUS_MACRO_API int mem_init(void *buf, size_t len, mem_channel **channel, const
 }
 
 static int mem_send_real(mem_channel *channel, const void *buf, size_t len) {
-  if (NULL == channel) return EN_ATBUS_ERR_PARAMS;
+  if (nullptr == channel) return EN_ATBUS_ERR_PARAMS;
 
   if (0 == len) return EN_ATBUS_ERR_SUCCESS;
 
@@ -582,7 +582,7 @@ static int mem_send_real(mem_channel *channel, const void *buf, size_t len) {
   detail::last_action_channel_ptr = channel;
 
   // 数据缓冲区操作 - 初始化
-  void *buffer_start = NULL;
+  void *buffer_start = nullptr;
   size_t buffer_len = 0;
   mem_block_head *block_head = mem_get_block_head(channel, write_cur, &buffer_start, &buffer_len);
   memset(block_head, 0x00, sizeof(mem_block_head));
@@ -591,12 +591,12 @@ static int mem_send_real(mem_channel *channel, const void *buf, size_t len) {
   {
     block_head->buffer_size = 0;
 
-    volatile mem_node_head *first_node_head = mem_get_node_head(channel, write_cur, NULL, NULL);
+    volatile mem_node_head *first_node_head = mem_get_node_head(channel, write_cur, nullptr, nullptr);
     first_node_head->flag = set_flag(0, MF_START_NODE);
     first_node_head->operation_seq = opr_seq;
 
     for (size_t i = mem_next_index(channel, write_cur, 1); i != new_write_cur; i = mem_next_index(channel, i, 1)) {
-      volatile mem_node_head *this_node_head = mem_get_node_head(channel, i, NULL, NULL);
+      volatile mem_node_head *this_node_head = mem_get_node_head(channel, i, nullptr, nullptr);
       assert((char *)this_node_head < (char *)channel + channel->area_data_offset);
 
       // 写数据node出现冲突
@@ -619,7 +619,7 @@ static int mem_send_real(mem_channel *channel, const void *buf, size_t len) {
     memcpy(buffer_start, buf, copy_len);
 
     // 回绕nodes
-    mem_get_node_head(channel, 0, &buffer_start, NULL);
+    mem_get_node_head(channel, 0, &buffer_start, nullptr);
     memcpy(buffer_start, (const char *)buf + copy_len, len - copy_len);
   } else {
     memcpy(buffer_start, buf, len);
@@ -631,7 +631,7 @@ static int mem_send_real(mem_channel *channel, const void *buf, size_t len) {
     // 设置屏障，先保证数据区和head区内存已被刷入
     UTIL_LOCK_ATOMIC_THREAD_FENCE(util::lock::memory_order_acq_rel);
 
-    volatile mem_node_head *first_node_head = mem_get_node_head(channel, write_cur, NULL, NULL);
+    volatile mem_node_head *first_node_head = mem_get_node_head(channel, write_cur, nullptr, nullptr);
     first_node_head->flag = set_flag(first_node_head->flag, MF_WRITEN);
 
     // 设置屏障，保证head内存同步，然后复查操作序号，writen标记延迟同步没关系
@@ -647,7 +647,7 @@ static int mem_send_real(mem_channel *channel, const void *buf, size_t len) {
 }
 
 ATBUS_MACRO_API int mem_send(mem_channel *channel, const void *buf, size_t len) {
-  if (NULL == channel) return EN_ATBUS_ERR_PARAMS;
+  if (nullptr == channel) return EN_ATBUS_ERR_PARAMS;
 
   int ret = 0;
   size_t left_try_times = channel->conf.write_retry_times;
@@ -667,13 +667,13 @@ ATBUS_MACRO_API int mem_send(mem_channel *channel, const void *buf, size_t len) 
 }
 
 ATBUS_MACRO_API int mem_recv(mem_channel *channel, void *buf, size_t len, size_t *recv_size) {
-  if (NULL == channel) return EN_ATBUS_ERR_PARAMS;
+  if (nullptr == channel) return EN_ATBUS_ERR_PARAMS;
 
   int ret = EN_ATBUS_ERR_SUCCESS;
 
-  void *buffer_start = NULL;
+  void *buffer_start = nullptr;
   size_t buffer_len = 0;
-  mem_block_head *block_head = NULL;
+  mem_block_head *block_head = nullptr;
   size_t read_begin_cur = channel->atomic_read_cur.load();
   const size_t ori_read_cur = read_begin_cur;
   size_t read_end_cur;
@@ -690,7 +690,7 @@ ATBUS_MACRO_API int mem_recv(mem_channel *channel, void *buf, size_t len, size_t
       break;
     }
 
-    volatile mem_node_head *node_head = mem_get_node_head(channel, read_begin_cur, NULL, NULL);
+    volatile mem_node_head *node_head = mem_get_node_head(channel, read_begin_cur, nullptr, nullptr);
 
     /**
      * 这个时候，可能写出端处于移动了atomic_write_cur，但是还没有写出 MF_START_NODE 的情况。所以情况列举如下:
@@ -794,7 +794,7 @@ ATBUS_MACRO_API int mem_recv(mem_channel *channel, void *buf, size_t len, size_t
     uint32_t check_opr_seq = node_head->operation_seq;
     for (read_end_cur = read_begin_cur; read_end_cur != write_cur;
          read_end_cur = mem_next_index(channel, read_end_cur, 1)) {
-      volatile mem_node_head *this_node_head = mem_get_node_head(channel, read_end_cur, NULL, NULL);
+      volatile mem_node_head *this_node_head = mem_get_node_head(channel, read_end_cur, nullptr, nullptr);
       if (this_node_head->operation_seq != check_opr_seq) {
         break;
       }
@@ -846,7 +846,7 @@ ATBUS_MACRO_API int mem_recv(mem_channel *channel, void *buf, size_t len, size_t
       memcpy(buf, buffer_start, buffer_len);
 
       // 回绕nodes
-      mem_get_node_head(channel, 0, &buffer_start, NULL);
+      mem_get_node_head(channel, 0, &buffer_start, nullptr);
       memcpy((char *)buf + buffer_len, buffer_start, block_head->buffer_size - buffer_len);
     }
     uint64_t fast_check = mem_fast_check(buf, block_head->buffer_size);
@@ -880,7 +880,7 @@ ATBUS_MACRO_API std::pair<size_t, size_t> mem_last_action() {
 
 ATBUS_MACRO_API void mem_show_channel(mem_channel *channel, std::ostream &out, bool need_node_status,
                                       size_t need_node_data) {
-  if (NULL == channel) {
+  if (nullptr == channel) {
     return;
   }
 
@@ -938,11 +938,11 @@ ATBUS_MACRO_API void mem_show_channel(mem_channel *channel, std::ostream &out, b
     out << std::endl << "Node head list:" << std::endl;
     for (size_t i = 0; i < channel->node_count; ++i) {
       void *data_ptr = 0;
-      volatile mem_node_head *node_head = mem_get_node_head(channel, i, &data_ptr, NULL);
+      volatile mem_node_head *node_head = mem_get_node_head(channel, i, &data_ptr, nullptr);
       bool start_node = check_flag(node_head->flag, MF_START_NODE);
 
       if (start_node) {
-        mem_block_head *block_head = mem_get_block_head(channel, i, NULL, NULL);
+        mem_block_head *block_head = mem_get_block_head(channel, i, nullptr, nullptr);
         out << "Node index: " << std::setw(10) << i << " => seq=" << node_head->operation_seq << ", is start node=Yes"
             << ", Data Length=" << block_head->buffer_size << ", Hash=" << block_head->fast_check
             << ", is written=" << (check_flag(node_head->flag, MF_WRITEN) ? "Yes" : "No") << ", data(Hex): ";
@@ -970,7 +970,7 @@ ATBUS_MACRO_API void mem_show_channel(mem_channel *channel, std::ostream &out, b
 
 ATBUS_MACRO_API void mem_stats_get_error(mem_channel *channel, mem_stats_block_error &out) {
   memset(&out, 0, sizeof(out));
-  if (NULL == channel) {
+  if (nullptr == channel) {
     return;
   }
 

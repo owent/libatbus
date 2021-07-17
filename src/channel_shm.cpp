@@ -13,9 +13,8 @@
 #include <cstring>
 #include <ctime>
 #include <map>
+#include <memory>
 #include <string>
-
-#include <std/smart_ptr.h>
 
 #include "detail/libatbus_adapter_libuv.h"
 
@@ -97,7 +96,7 @@ static std::pair<std::string, int64_t> shm_normalize_path(const char *in) {
   std::pair<std::string, int64_t> ret;
   ret.second = 0;
 
-  if (NULL == in || 0 == *in) {
+  if (nullptr == in || 0 == *in) {
     return ret;
   }
 
@@ -233,12 +232,12 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
                                               FALSE,                        // do not inherit the name
                                               ATBUS_VC_TEXT(shm_file_name)  // name of mapping object
   );
-  if (NULL != shm_record->handle.handle) {
+  if (nullptr != shm_record->handle.handle) {
     shm_record->handle.buffer = (LPTSTR)MapViewOfFile(shm_record->handle.handle,  // handle to map object
                                                       FILE_MAP_ALL_ACCESS,        // read/write permission
                                                       0, 0, len);
 
-    if (NULL == shm_record->handle.buffer) {
+    if (nullptr == shm_record->handle.buffer) {
       CloseHandle(shm_record->handle.handle);
       return EN_ATBUS_ERR_SHM_GET_FAILED;
     }
@@ -256,20 +255,20 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
   if (!create) return EN_ATBUS_ERR_SHM_GET_FAILED;
 
   shm_record->handle.handle = CreateFileMapping(INVALID_HANDLE_VALUE,         // use paging file
-                                                NULL,                         // default security
+                                                nullptr,                      // default security
                                                 PAGE_READWRITE,               // read/write access
                                                 0,                            // maximum object size (high-order DWORD)
                                                 static_cast<DWORD>(len),      // maximum object size (low-order DWORD)
                                                 ATBUS_VC_TEXT(shm_file_name)  // name of mapping object
   );
 
-  if (NULL == shm_record->handle.handle) return EN_ATBUS_ERR_SHM_GET_FAILED;
+  if (nullptr == shm_record->handle.handle) return EN_ATBUS_ERR_SHM_GET_FAILED;
 
   shm_record->handle.buffer = (LPTSTR)MapViewOfFile(shm_record->handle.handle,  // handle to map object
                                                     FILE_MAP_ALL_ACCESS,        // read/write permission
                                                     0, 0, len);
 
-  if (NULL == shm_record->handle.buffer) return EN_ATBUS_ERR_SHM_GET_FAILED;
+  if (nullptr == shm_record->handle.buffer) return EN_ATBUS_ERR_SHM_GET_FAILED;
 
   shm_record->handle.size = len;
   shm_record->reference_count.store(1);
@@ -343,7 +342,7 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
     shm_map_flag |= MAP_NORESERVE;
 #    endif
     shm_record->handle.buffer =
-        mmap(NULL, shm_record->handle.size, PROT_READ | PROT_WRITE, shm_map_flag, shm_record->handle.shm_fd, 0);
+        mmap(nullptr, shm_record->handle.size, PROT_READ | PROT_WRITE, shm_map_flag, shm_record->handle.shm_fd, 0);
     if (MAP_FAILED == shm_record->handle.buffer) {
       shm_unlink(shm_path.first.c_str());
       return EN_ATBUS_ERR_SHM_MAP_FAILED;
@@ -363,7 +362,7 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
     }
 
     // 获取地址
-    shm_record->handle.buffer = shmat(shm_record->handle.shm_id, NULL, 0);
+    shm_record->handle.buffer = shmat(shm_record->handle.shm_id, nullptr, 0);
     shm_record->reference_count.store(1);
   }
 
