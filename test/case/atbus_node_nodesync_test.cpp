@@ -34,7 +34,7 @@ static void node_nodesync_test_on_debug(const char* file_path, size_t line, cons
     std::streamsize w = std::cout.width();
     CASE_MSG_INFO() << "[Log Debug][" << std::setw(24) << file_path << ":" << std::setw(4) << line << "] node=0x" << 
         std::setfill('0')<< std::hex<< std::setw(8)<< n.get_id() <<
-        ", ep=0x" << std::setw(8)<< (NULL == ep ? 0 : ep->get_id()) <<
+        ", ep=0x" << std::setw(8)<< (nullptr == ep ? 0 : ep->get_id()) <<
         ", c=" << conn<< std::setfill(' ')<< std::setw(w)<<  std::dec<<
         "\t";
 
@@ -56,7 +56,7 @@ struct node_nodesync_test_recv_msg_record_t {
     int status;
     int count;
 
-    node_nodesync_test_recv_msg_record_t(): n(NULL), ep(NULL), conn(NULL), status(0), count(0) {}
+    node_nodesync_test_recv_msg_record_t(): n(nullptr), ep(nullptr), conn(nullptr), status(0), count(0) {}
 };
 
 static node_nodesync_test_recv_msg_record_t recv_msg_history;
@@ -69,7 +69,7 @@ static int node_nodesync_test_recv_msg_test_record_fn(const atbus::node& n, cons
     recv_msg_history.status = status;
     ++recv_msg_history.count;
 
-    if (NULL != buffer && len > 0) {
+    if (nullptr != buffer && len > 0) {
         recv_msg_history.data.assign(reinterpret_cast<const char*>(buffer), len);
     } else {
         recv_msg_history.data.clear();

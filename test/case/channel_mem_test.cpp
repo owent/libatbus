@@ -23,12 +23,12 @@ CASE_TEST(channel, mem_attach_with_invalid_magic) {
   const size_t buffer_len = 2 * 1024 * 1024;  // 2MB
   unsigned char *buffer = new unsigned char[buffer_len];
 
-  mem_channel *channel = NULL;
-  CASE_EXPECT_EQ(0, mem_init(buffer, buffer_len, &channel, NULL));
-  CASE_EXPECT_NE(NULL, channel);
+  mem_channel *channel = nullptr;
+  CASE_EXPECT_EQ(0, mem_init(buffer, buffer_len, &channel, nullptr));
+  CASE_EXPECT_NE(nullptr, channel);
 
   memset(buffer + 4, 0, 4);
-  CASE_EXPECT_EQ(EN_ATBUS_ERR_CHANNEL_BUFFER_INVALID, mem_attach(buffer, buffer_len, &channel, NULL));
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_CHANNEL_BUFFER_INVALID, mem_attach(buffer, buffer_len, &channel, nullptr));
 
   delete[] buffer;
 }
@@ -38,15 +38,15 @@ CASE_TEST(channel, mem_attach_with_invalid_version) {
   const size_t buffer_len = 2 * 1024 * 1024;  // 2MB
   unsigned char *buffer = new unsigned char[buffer_len];
 
-  mem_channel *channel = NULL;
-  CASE_EXPECT_EQ(0, mem_init(buffer, buffer_len, &channel, NULL));
-  CASE_EXPECT_NE(NULL, channel);
+  mem_channel *channel = nullptr;
+  CASE_EXPECT_EQ(0, mem_init(buffer, buffer_len, &channel, nullptr));
+  CASE_EXPECT_NE(nullptr, channel);
 
   CASE_EXPECT_EQ(2, mem_info_get_version(channel));
-  CASE_EXPECT_EQ(0, mem_info_get_version(NULL));
+  CASE_EXPECT_EQ(0, mem_info_get_version(nullptr));
 
   (*reinterpret_cast<uint16_t *>(buffer + 16)) = 1;
-  CASE_EXPECT_EQ(EN_ATBUS_ERR_CHANNEL_UNSUPPORTED_VERSION, mem_attach(buffer, buffer_len, &channel, NULL));
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_CHANNEL_UNSUPPORTED_VERSION, mem_attach(buffer, buffer_len, &channel, nullptr));
 
   delete[] buffer;
 }
@@ -56,15 +56,15 @@ CASE_TEST(channel, mem_attach_with_invalid_align_size) {
   const size_t buffer_len = 2 * 1024 * 1024;  // 2MB
   unsigned char *buffer = new unsigned char[buffer_len];
 
-  mem_channel *channel = NULL;
-  CASE_EXPECT_EQ(0, mem_init(buffer, buffer_len, &channel, NULL));
-  CASE_EXPECT_NE(NULL, channel);
+  mem_channel *channel = nullptr;
+  CASE_EXPECT_EQ(0, mem_init(buffer, buffer_len, &channel, nullptr));
+  CASE_EXPECT_NE(nullptr, channel);
 
   CASE_EXPECT_EQ(ATBUS_MACRO_DATA_ALIGN_SIZE, mem_info_get_align_size(channel));
-  CASE_EXPECT_EQ(0, mem_info_get_align_size(NULL));
+  CASE_EXPECT_EQ(0, mem_info_get_align_size(nullptr));
 
   (*reinterpret_cast<uint16_t *>(buffer + 18)) = ATBUS_MACRO_DATA_ALIGN_SIZE / 2;
-  CASE_EXPECT_EQ(EN_ATBUS_ERR_CHANNEL_ALIGN_SIZE_MISMATCH, mem_attach(buffer, buffer_len, &channel, NULL));
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_CHANNEL_ALIGN_SIZE_MISMATCH, mem_attach(buffer, buffer_len, &channel, nullptr));
 
   delete[] buffer;
 }
@@ -74,15 +74,15 @@ CASE_TEST(channel, mem_attach_with_invalid_host_size) {
   const size_t buffer_len = 2 * 1024 * 1024;  // 2MB
   unsigned char *buffer = new unsigned char[buffer_len];
 
-  mem_channel *channel = NULL;
-  CASE_EXPECT_EQ(0, mem_init(buffer, buffer_len, &channel, NULL));
-  CASE_EXPECT_NE(NULL, channel);
+  mem_channel *channel = nullptr;
+  CASE_EXPECT_EQ(0, mem_init(buffer, buffer_len, &channel, nullptr));
+  CASE_EXPECT_NE(nullptr, channel);
 
   CASE_EXPECT_EQ(sizeof(size_t), mem_info_get_host_size(channel));
-  CASE_EXPECT_EQ(0, mem_info_get_host_size(NULL));
+  CASE_EXPECT_EQ(0, mem_info_get_host_size(nullptr));
 
   (*reinterpret_cast<uint16_t *>(buffer + 20)) = sizeof(size_t) / 2;
-  CASE_EXPECT_EQ(EN_ATBUS_ERR_CHANNEL_ARCH_SIZE_T_MISMATCH, mem_attach(buffer, buffer_len, &channel, NULL));
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_CHANNEL_ARCH_SIZE_T_MISMATCH, mem_attach(buffer, buffer_len, &channel, nullptr));
 
   delete[] buffer;
 }
@@ -92,9 +92,9 @@ CASE_TEST(channel, mem_show_channel) {
   const size_t buffer_len = 16 * 1024;  // 16KB
   unsigned char *buffer = new unsigned char[buffer_len];
 
-  mem_channel *channel = NULL;
-  CASE_EXPECT_EQ(0, mem_init(buffer, buffer_len, &channel, NULL));
-  CASE_EXPECT_NE(NULL, channel);
+  mem_channel *channel = nullptr;
+  CASE_EXPECT_EQ(0, mem_init(buffer, buffer_len, &channel, nullptr));
+  CASE_EXPECT_NE(nullptr, channel);
   mem_show_channel(channel, CASE_MSG_INFO(), true, 8);
 
   delete[] buffer;
@@ -105,10 +105,10 @@ CASE_TEST(channel, mem_siso) {
   const size_t buffer_len = 512 * 1024 * 1024;  // 512MB
   char *buffer = new char[buffer_len];
 
-  mem_channel *channel = NULL;
+  mem_channel *channel = nullptr;
 
-  CASE_EXPECT_EQ(0, mem_init(buffer, buffer_len, &channel, NULL));
-  CASE_EXPECT_NE(NULL, channel);
+  CASE_EXPECT_EQ(0, mem_init(buffer, buffer_len, &channel, nullptr));
+  CASE_EXPECT_NE(nullptr, channel);
   // 4KB header
 
   // 数据初始化
@@ -132,7 +132,7 @@ CASE_TEST(channel, mem_siso) {
 
   size_t send_sum_len;
   size_t try_left = 3;
-  srand(static_cast<unsigned>(time(NULL)));
+  srand(static_cast<unsigned>(time(nullptr)));
   size_t first_break = (size_t)rand() % (512 * 1024);
 
   while (try_left-- > 0) {
@@ -211,12 +211,12 @@ CASE_TEST(channel, mem_miso) {
   const size_t buffer_len = 8 * 1024 * 1024;  // 8MB
   char *buffer = new char[buffer_len];
 
-  mem_channel *channel = NULL;
+  mem_channel *channel = nullptr;
 
-  CASE_EXPECT_EQ(EN_ATBUS_ERR_CHANNEL_SIZE_TOO_SMALL, mem_attach(buffer, 4096, &channel, NULL));
-  CASE_EXPECT_EQ(EN_ATBUS_ERR_CHANNEL_SIZE_TOO_SMALL, mem_init(buffer, 4096, &channel, NULL));
-  CASE_EXPECT_EQ(0, mem_init(buffer, buffer_len, &channel, NULL));
-  CASE_EXPECT_NE(NULL, channel);
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_CHANNEL_SIZE_TOO_SMALL, mem_attach(buffer, 4096, &channel, nullptr));
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_CHANNEL_SIZE_TOO_SMALL, mem_init(buffer, 4096, &channel, nullptr));
+  CASE_EXPECT_EQ(0, mem_init(buffer, buffer_len, &channel, nullptr));
+  CASE_EXPECT_NE(nullptr, channel);
   // 4KB header
 
   // set longer timeout when in unit test(appveyor ci timeout sometimes)
@@ -224,10 +224,10 @@ CASE_TEST(channel, mem_miso) {
   CASE_EXPECT_EQ(256, mem_configure_get_write_timeout(channel));
   CASE_EXPECT_EQ(0, mem_configure_set_write_retry_times(channel, 3));
   CASE_EXPECT_EQ(3, mem_configure_get_write_retry_times(channel));
-  srand(static_cast<unsigned>(time(NULL)));
+  srand(static_cast<unsigned>(time(nullptr)));
 
-  CASE_EXPECT_EQ(EN_ATBUS_ERR_PARAMS, mem_send(NULL, NULL, 0));
-  CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, mem_send(channel, NULL, 0));
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_PARAMS, mem_send(nullptr, nullptr, 0));
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, mem_send(channel, nullptr, 0));
   CASE_EXPECT_EQ(EN_ATBUS_ERR_BUFF_LIMIT, mem_send(channel, buffer, buffer_len));
 
   int left_sec = 16;

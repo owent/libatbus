@@ -23,19 +23,19 @@ int main(int argc, char *argv[]) {
   }
 
   using namespace atbus::channel;
-  shm_channel *channel = NULL;
+  shm_channel *channel = nullptr;
   long need_node_info = 0;
   size_t need_node_data = 0;
 
   if (argc > 2) {
-    need_node_info = strtol(argv[2], NULL, 10);
+    need_node_info = strtol(argv[2], nullptr, 10);
   }
 
   if (argc > 3) {
-    need_node_data = (size_t)strtol(argv[3], NULL, 10);
+    need_node_data = (size_t)strtol(argv[3], nullptr, 10);
   }
 
-  int res = shm_attach(argv[1], 0, &channel, NULL);
+  int res = shm_attach(argv[1], 0, &channel, nullptr);
   if (res < 0) {
     fprintf(stderr, "shm_attach for %s failed, ret: %d\n", argv[1], res);
     return res;

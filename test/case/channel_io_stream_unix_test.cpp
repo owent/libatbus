@@ -86,8 +86,8 @@ static void disconnected_callback_test_fn(atbus::channel::io_stream_channel *cha
                                           void *,  // 额外参数(不同事件不同含义)
                                           size_t   // 额外参数长度
 ) {
-  CASE_EXPECT_NE(NULL, channel);
-  CASE_EXPECT_NE(NULL, connection);
+  CASE_EXPECT_NE(nullptr, channel);
+  CASE_EXPECT_NE(nullptr, connection);
   CASE_EXPECT_EQ(0, status);
   CASE_EXPECT_EQ(0, channel->error_code);
 
@@ -106,8 +106,8 @@ static void accepted_callback_test_fn(atbus::channel::io_stream_channel *channel
                                       void *,  // 额外参数(不同事件不同含义)
                                       size_t   // 额外参数长度
 ) {
-  CASE_EXPECT_NE(NULL, channel);
-  CASE_EXPECT_NE(NULL, connection);
+  CASE_EXPECT_NE(nullptr, channel);
+  CASE_EXPECT_NE(nullptr, connection);
   CASE_EXPECT_EQ(0, status);
   CASE_EXPECT_EQ(0, channel->error_code);
 
@@ -126,8 +126,8 @@ static void listen_callback_test_fn(atbus::channel::io_stream_channel *channel, 
                                     void *,  // 额外参数(不同事件不同含义)
                                     size_t   // 额外参数长度
 ) {
-  CASE_EXPECT_NE(NULL, channel);
-  CASE_EXPECT_NE(NULL, connection);
+  CASE_EXPECT_NE(nullptr, channel);
+  CASE_EXPECT_NE(nullptr, connection);
   CASE_EXPECT_EQ(0, status);
   CASE_EXPECT_EQ(0, channel->error_code);
 
@@ -143,8 +143,8 @@ static void connected_callback_test_fn(atbus::channel::io_stream_channel *channe
                                        void *,  // 额外参数(不同事件不同含义)
                                        size_t   // 额外参数长度
 ) {
-  CASE_EXPECT_NE(NULL, channel);
-  CASE_EXPECT_NE(NULL, connection);
+  CASE_EXPECT_NE(nullptr, channel);
+  CASE_EXPECT_NE(nullptr, connection);
   CASE_EXPECT_EQ(0, status);
   CASE_EXPECT_EQ(0, channel->error_code);
 
@@ -161,12 +161,12 @@ static void setup_channel(atbus::channel::io_stream_channel &channel, const char
   atbus::channel::channel_address_t addr;
 
   int res = 0;
-  if (NULL != listen) {
+  if (nullptr != listen) {
     atbus::channel::make_address(listen, addr);
-    res = atbus::channel::io_stream_listen(&channel, addr, listen_callback_test_fn, NULL, 0);
+    res = atbus::channel::io_stream_listen(&channel, addr, listen_callback_test_fn, nullptr, 0);
   } else {
     atbus::channel::make_address(conn, addr);
-    res = atbus::channel::io_stream_connect(&channel, addr, connected_callback_test_fn, NULL, 0);
+    res = atbus::channel::io_stream_connect(&channel, addr, connected_callback_test_fn, nullptr, 0);
   }
 
   if (0 != res) {
@@ -193,18 +193,18 @@ static void recv_callback_check_fn(atbus::channel::io_stream_channel *channel,  
                                    void *input,  // 额外参数(不同事件不同含义)
                                    size_t s      // 额外参数长度
 ) {
-  CASE_EXPECT_NE(NULL, channel);
-  CASE_EXPECT_NE(NULL, connection);
+  CASE_EXPECT_NE(nullptr, channel);
+  CASE_EXPECT_NE(nullptr, connection);
 
   if (status < 0) {
-    CASE_EXPECT_EQ(NULL, input);
+    CASE_EXPECT_EQ(nullptr, input);
     CASE_EXPECT_EQ(0, s);
 
     CASE_EXPECT_TRUE(UV_EOF == channel->error_code || UV_ECONNRESET == channel->error_code);
     return;
   }
 
-  CASE_EXPECT_NE(NULL, input);
+  CASE_EXPECT_NE(nullptr, input);
   CASE_EXPECT_EQ(0, status);
   CASE_EXPECT_EQ(0, channel->error_code);
 
@@ -235,20 +235,20 @@ CASE_TEST(channel, io_stream_unix_basic) {
   uv_loop_init(&loop);
 
   atbus::channel::io_stream_channel svr, cli;
-  atbus::channel::io_stream_init(&svr, &loop, NULL);
-  atbus::channel::io_stream_init(&cli, &loop, NULL);
+  atbus::channel::io_stream_init(&svr, &loop, nullptr);
+  atbus::channel::io_stream_init(&cli, &loop, nullptr);
   CASE_EXPECT_EQ(&loop, svr.ev_loop);
   CASE_EXPECT_EQ(&loop, cli.ev_loop);
 
   g_check_flag = 0;
 
-  setup_channel(svr, g_channel_ios_unix_test_path.file_path.c_str(), NULL);
+  setup_channel(svr, g_channel_ios_unix_test_path.file_path.c_str(), nullptr);
   CASE_EXPECT_EQ(1, g_check_flag);
-  CASE_EXPECT_NE(NULL, svr.ev_loop);
+  CASE_EXPECT_NE(nullptr, svr.ev_loop);
 
-  setup_channel(cli, NULL, g_channel_ios_unix_test_path.file_path.c_str());
-  setup_channel(cli, NULL, g_channel_ios_unix_test_path.file_path.c_str());
-  setup_channel(cli, NULL, g_channel_ios_unix_test_path.file_path.c_str());
+  setup_channel(cli, nullptr, g_channel_ios_unix_test_path.file_path.c_str());
+  setup_channel(cli, nullptr, g_channel_ios_unix_test_path.file_path.c_str());
+  setup_channel(cli, nullptr, g_channel_ios_unix_test_path.file_path.c_str());
 
   int check_flag = g_check_flag;
   while (g_check_flag - check_flag < 6) {
@@ -317,20 +317,20 @@ CASE_TEST(channel, io_stream_unix_basic) {
 // reset by peer(client)
 CASE_TEST(channel, io_stream_unix_reset_by_client) {
   atbus::channel::io_stream_channel svr, cli;
-  atbus::channel::io_stream_init(&svr, NULL, NULL);
-  atbus::channel::io_stream_init(&cli, NULL, NULL);
+  atbus::channel::io_stream_init(&svr, nullptr, nullptr);
+  atbus::channel::io_stream_init(&cli, nullptr, nullptr);
 
   svr.evt.callbacks[atbus::channel::io_stream_callback_evt_t::EN_FN_DISCONNECTED] = disconnected_callback_test_fn;
 
   int check_flag = g_check_flag = 0;
 
-  setup_channel(svr, g_channel_ios_unix_test_path.file_path.c_str(), NULL);
+  setup_channel(svr, g_channel_ios_unix_test_path.file_path.c_str(), nullptr);
   CASE_EXPECT_EQ(1, g_check_flag);
-  CASE_EXPECT_NE(NULL, svr.ev_loop);
+  CASE_EXPECT_NE(nullptr, svr.ev_loop);
 
-  setup_channel(cli, NULL, g_channel_ios_unix_test_path.file_path.c_str());
-  setup_channel(cli, NULL, g_channel_ios_unix_test_path.file_path.c_str());
-  setup_channel(cli, NULL, g_channel_ios_unix_test_path.file_path.c_str());
+  setup_channel(cli, nullptr, g_channel_ios_unix_test_path.file_path.c_str());
+  setup_channel(cli, nullptr, g_channel_ios_unix_test_path.file_path.c_str());
+  setup_channel(cli, nullptr, g_channel_ios_unix_test_path.file_path.c_str());
 
   while (g_check_flag - check_flag < 7) {
     atbus::channel::io_stream_run(&svr, atbus::adapter::RUN_NOWAIT);
@@ -356,20 +356,20 @@ CASE_TEST(channel, io_stream_unix_reset_by_client) {
 // reset by peer(server)
 CASE_TEST(channel, io_stream_unix_reset_by_server) {
   atbus::channel::io_stream_channel svr, cli;
-  atbus::channel::io_stream_init(&svr, NULL, NULL);
-  atbus::channel::io_stream_init(&cli, NULL, NULL);
+  atbus::channel::io_stream_init(&svr, nullptr, nullptr);
+  atbus::channel::io_stream_init(&cli, nullptr, nullptr);
 
   cli.evt.callbacks[atbus::channel::io_stream_callback_evt_t::EN_FN_DISCONNECTED] = disconnected_callback_test_fn;
 
   int check_flag = g_check_flag = 0;
 
-  setup_channel(svr, g_channel_ios_unix_test_path.file_path.c_str(), NULL);
+  setup_channel(svr, g_channel_ios_unix_test_path.file_path.c_str(), nullptr);
   CASE_EXPECT_EQ(1, g_check_flag);
-  CASE_EXPECT_NE(NULL, svr.ev_loop);
+  CASE_EXPECT_NE(nullptr, svr.ev_loop);
 
-  setup_channel(cli, NULL, g_channel_ios_unix_test_path.file_path.c_str());
-  setup_channel(cli, NULL, g_channel_ios_unix_test_path.file_path.c_str());
-  setup_channel(cli, NULL, g_channel_ios_unix_test_path.file_path.c_str());
+  setup_channel(cli, nullptr, g_channel_ios_unix_test_path.file_path.c_str());
+  setup_channel(cli, nullptr, g_channel_ios_unix_test_path.file_path.c_str());
+  setup_channel(cli, nullptr, g_channel_ios_unix_test_path.file_path.c_str());
 
   while (g_check_flag - check_flag < 7) {
     atbus::channel::io_stream_run(&svr, atbus::adapter::RUN_NOWAIT);
@@ -397,16 +397,16 @@ static void recv_size_err_callback_check_fn(atbus::channel::io_stream_channel *c
                                             void *input,  // 额外参数(不同事件不同含义)
                                             size_t        // 额外参数长度
 ) {
-  CASE_EXPECT_NE(NULL, channel);
-  CASE_EXPECT_NE(NULL, connection);
+  CASE_EXPECT_NE(nullptr, channel);
+  CASE_EXPECT_NE(nullptr, connection);
 
   if (EN_ATBUS_ERR_INVALID_SIZE == status) {
-    CASE_EXPECT_NE(NULL, input);
+    CASE_EXPECT_NE(nullptr, input);
     CASE_EXPECT_EQ(EN_ATBUS_ERR_INVALID_SIZE, status);
     CASE_EXPECT_EQ(0, channel->error_code);
 
   } else if (EN_ATBUS_ERR_READ_FAILED == status) {
-    CASE_EXPECT_EQ(NULL, input);
+    CASE_EXPECT_EQ(nullptr, input);
     CASE_EXPECT_EQ(EN_ATBUS_ERR_READ_FAILED, status);
     CASE_EXPECT_TRUE(UV_EOF == channel->error_code || UV_ECONNRESET == channel->error_code);
   } else {
@@ -423,8 +423,8 @@ CASE_TEST(channel, io_stream_unix_size_extended) {
   atbus::channel::io_stream_init_configure(&conf);
   conf.send_buffer_limit_size = conf.recv_buffer_max_size + 1;
 
-  atbus::channel::io_stream_init(&svr, NULL, &conf);
-  atbus::channel::io_stream_init(&cli, NULL, &conf);
+  atbus::channel::io_stream_init(&svr, nullptr, &conf);
+  atbus::channel::io_stream_init(&cli, nullptr, &conf);
 
   svr.evt.callbacks[atbus::channel::io_stream_callback_evt_t::EN_FN_RECVED] = recv_size_err_callback_check_fn;
   cli.evt.callbacks[atbus::channel::io_stream_callback_evt_t::EN_FN_RECVED] = recv_size_err_callback_check_fn;
@@ -433,11 +433,11 @@ CASE_TEST(channel, io_stream_unix_size_extended) {
 
   int check_flag = g_check_flag = 0;
 
-  setup_channel(svr, g_channel_ios_unix_test_path.file_path.c_str(), NULL);
+  setup_channel(svr, g_channel_ios_unix_test_path.file_path.c_str(), nullptr);
   CASE_EXPECT_EQ(1, g_check_flag);
-  CASE_EXPECT_NE(NULL, svr.ev_loop);
+  CASE_EXPECT_NE(nullptr, svr.ev_loop);
 
-  setup_channel(cli, NULL, g_channel_ios_unix_test_path.file_path.c_str());
+  setup_channel(cli, nullptr, g_channel_ios_unix_test_path.file_path.c_str());
 
   while (g_check_flag - check_flag < 3) {
     atbus::channel::io_stream_run(&svr, atbus::adapter::RUN_NOWAIT);
@@ -488,8 +488,8 @@ static void connect_failed_callback_test_fn(atbus::channel::io_stream_channel *c
                                             void *,      // 额外参数(不同事件不同含义)
                                             size_t       // 额外参数长度
 ) {
-  CASE_EXPECT_NE(NULL, channel);
-  CASE_EXPECT_EQ(NULL, connection);
+  CASE_EXPECT_NE(nullptr, channel);
+  CASE_EXPECT_EQ(nullptr, connection);
 
   CASE_EXPECT_TRUE(EN_ATBUS_ERR_PIPE_CONNECT_FAILED == status);
   CASE_EXPECT_EQ(-ENOENT, channel->error_code);
@@ -504,7 +504,7 @@ static void connect_failed_callback_test_fn(atbus::channel::io_stream_channel *c
 // connect failed
 CASE_TEST(channel, io_stream_unix_connect_failed) {
   atbus::channel::io_stream_channel cli;
-  atbus::channel::io_stream_init(&cli, NULL, NULL);
+  atbus::channel::io_stream_init(&cli, nullptr, nullptr);
 
   int check_flag = g_check_flag = 0;
 
@@ -512,7 +512,7 @@ CASE_TEST(channel, io_stream_unix_connect_failed) {
 
   // assume port 16388 is unreachable
   atbus::channel::make_address(UNIT_TEST_INVALID_ADDR, addr);
-  int res = atbus::channel::io_stream_connect(&cli, addr, connect_failed_callback_test_fn, NULL, 0);
+  int res = atbus::channel::io_stream_connect(&cli, addr, connect_failed_callback_test_fn, nullptr, 0);
   CASE_EXPECT_EQ(0, res);
 
   while (g_check_flag - check_flag < 1) {

@@ -81,7 +81,7 @@ int main() {
 #  endif
 
   puts("================================ mmap ================================");
-  void* access_data = mmap(NULL, statbuf.st_size, PROT_READ | PROT_WRITE, shmflag, test_fd, 0);
+  void* access_data = mmap(nullptr, statbuf.st_size, PROT_READ | PROT_WRITE, shmflag, test_fd, 0);
   if (MAP_FAILED == access_data) {
     printf("mmap failed, err: %d, %s\n", errno, strerror(errno));
     close(test_fd);

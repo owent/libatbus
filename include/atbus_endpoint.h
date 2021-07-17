@@ -13,6 +13,7 @@
 #  pragma once
 
 #  include <list>
+#  include <memory>
 #  include <vector>
 
 #  ifdef __cpp_impl_three_way_comparison
@@ -22,8 +23,6 @@
 #  ifdef _MSC_VER
 #    include <WinSock2.h>
 #  endif
-
-#  include "std/smart_ptr.h"
 
 #  include <design_pattern/nomovable.h>
 #  include <design_pattern/noncopyable.h>
@@ -38,12 +37,12 @@ namespace atbus {
 namespace detail {
 template <typename TKey, typename TVal>
 struct auto_select_map {
-  typedef ATBUS_ADVANCE_TYPE_MAP(TKey, TVal) type;
+  using type = ATBUS_ADVANCE_TYPE_MAP(TKey, TVal);
 };
 
 template <typename TVal>
 struct auto_select_set {
-  typedef ATBUS_ADVANCE_TYPE_SET(TVal) type;
+  using type = ATBUS_ADVANCE_TYPE_SET(TVal);
 };
 }  // namespace detail
 
@@ -94,10 +93,10 @@ class ATBUS_MACRO_API endpoint_subnet_range {
   ATBUS_MACRO_BUSID_TYPE max_id_;
 };
 
-class endpoint UTIL_CONFIG_FINAL : public util::design_pattern::noncopyable {
+class endpoint final : public util::design_pattern::noncopyable {
  public:
-  typedef ATBUS_MACRO_BUSID_TYPE bus_id_t;
-  typedef std::shared_ptr<endpoint> ptr_t;
+  using bus_id_t = ATBUS_MACRO_BUSID_TYPE;
+  using ptr_t = std::shared_ptr<endpoint>;
 
   struct flag_t {
     enum type {
@@ -113,7 +112,7 @@ class endpoint UTIL_CONFIG_FINAL : public util::design_pattern::noncopyable {
     };
   };
 
-  typedef connection *(endpoint::*get_connection_fn_t)(endpoint *ep) const;
+  using get_connection_fn_t = connection *(endpoint::*)(endpoint *ep) const;
 
   UTIL_DESIGN_PATTERN_NOCOPYABLE(endpoint)
   UTIL_DESIGN_PATTERN_NOMOVABLE(endpoint)

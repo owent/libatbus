@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
   using namespace atbus::channel;
 
   if (argc > 2)
-    conf.max_n = (size_t)strtol(argv[2], NULL, 10);
+    conf.max_n = (size_t)strtol(argv[2], nullptr, 10);
   else
     conf.max_n = 1024;
 
@@ -122,16 +122,16 @@ int main(int argc, char *argv[]) {
   assert(conf.buff_pool);
 
   if (argc > 3)
-    conf.limit_size = (size_t)strtol(argv[3], NULL, 10);
+    conf.limit_size = (size_t)strtol(argv[3], nullptr, 10);
   else
     conf.limit_size = 64 * 1024;  // 64KB
 
   if (argc > 4)
-    conf.limit_static_num = (size_t)strtol(argv[4], NULL, 10);
+    conf.limit_static_num = (size_t)strtol(argv[4], nullptr, 10);
   else
     conf.limit_static_num = 0;  // dynamic
 
-  srand(static_cast<unsigned>(time(NULL)));
+  srand(static_cast<unsigned>(time(nullptr)));
   conf.pending_send = 0;
   conf.sum_send_len = 0;
   conf.sum_send_times = 0;
@@ -152,7 +152,7 @@ int main(int argc, char *argv[]) {
   channel_address_t addr;
   make_address(argv[1], addr);
 
-  if (io_stream_connect(&channel, addr, connect_callback, NULL, 0) < 0) {
+  if (io_stream_connect(&channel, addr, connect_callback, nullptr, 0) < 0) {
     std::cerr << "connect to " << argv[1] << " failed." << uv_err_name(channel.error_code) << ":"
               << uv_strerror(channel.error_code) << std::endl;
     io_stream_close(&channel);

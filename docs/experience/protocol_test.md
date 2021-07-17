@@ -120,7 +120,7 @@ struct forward_data {
 
     forward_data() : from(0), to(0), flags(0) {
         content.size = 0;
-        content.ptr  = NULL;
+        content.ptr  = nullptr;
     }
     MSGPACK_DEFINE(from, to, router, content, flags);
 };
@@ -130,9 +130,9 @@ public:
     forward_data *forward;
     // ...
 
-    msg_body() : forward(NULL) {}
+    msg_body() : forward(nullptr) {}
     ~msg_body() {
-        if (NULL != forward) {
+        if (nullptr != forward) {
             delete forward;
         }
         // ... 

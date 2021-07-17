@@ -8,11 +8,11 @@ void unit_test_timeout_handle(uv_timer_t *handle) {
   uv_stop(handle->loop);
 
   unit_test_libuv_wait_manager *mgr = reinterpret_cast<unit_test_libuv_wait_manager *>(handle->data);
-  if (NULL == mgr || mgr->print_error_) {
+  if (nullptr == mgr || mgr->print_error_) {
     CASE_MSG_ERROR() << CASE_MSG_FCOLOR(RED) << "wait timeout." << std::endl;
   }
 
-  if (NULL != mgr) {
+  if (nullptr != mgr) {
     mgr->is_timeout_ = true;
   }
 }
@@ -33,7 +33,7 @@ void unit_test_setup_exit(uv_loop_t *ev, uint64_t timeout_ms) {
 }
 
 static void unit_test_timer_close_handle(uv_handle_t *handle) {
-  handle->data = NULL;
+  handle->data = nullptr;
   uv_stop(handle->loop);
 }
 
@@ -51,12 +51,12 @@ unit_test_libuv_wait_manager::unit_test_libuv_wait_manager(uv_loop_t *ev, uint64
   timeout_timer_.data = this;
 
   if (0 != uv_timer_start(&timeout_timer_, unit_test_timeout_handle, timeout_ms, 0)) {
-    timeout_timer_.data = NULL;
+    timeout_timer_.data = nullptr;
   }
 
   if (tick_enabled_) {
     if (0 != uv_timer_start(&tick_timer_, unit_test_tick_handle, tick_ms, tick_ms)) {
-      timeout_timer_.data = NULL;
+      timeout_timer_.data = nullptr;
       tick_enabled_ = false;
     }
   }
@@ -72,10 +72,10 @@ unit_test_libuv_wait_manager::~unit_test_libuv_wait_manager() {
     uv_timer_stop(&tick_timer_);
     uv_close(reinterpret_cast<uv_handle_t *>(&tick_timer_), unit_test_timer_close_handle);
   } else {
-    tick_timer_.data = NULL;
+    tick_timer_.data = nullptr;
   }
 
-  while (NULL != timeout_timer_.data || NULL != tick_timer_.data) {
+  while (nullptr != timeout_timer_.data || nullptr != tick_timer_.data) {
     uv_run(ev, UV_RUN_DEFAULT);
   }
 }

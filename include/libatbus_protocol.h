@@ -21,7 +21,7 @@
 #  include <config/compiler/protobuf_suffix.h>
 
 namespace atbus {
-typedef ::atbus::protocol::msg msg_t;
+using msg_t = ::atbus::protocol::msg;
 }  // namespace atbus
 
 #  define ATBUS_MACRO_RESERVED_SIZE 1024

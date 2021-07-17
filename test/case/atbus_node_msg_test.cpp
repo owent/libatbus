@@ -38,8 +38,8 @@ static void node_msg_test_on_debug(const char *file_path, size_t line, const atb
   std::streamsize w = std::cout.width();
   CASE_MSG_INFO() << "[Log Debug][" << std::setw(24) << file_path << ":" << std::setw(4) << line << "] node=0x"
                   << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x" << std::setw(8)
-                  << (NULL == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ') << std::setw(w) << std::dec
-                  << "\t";
+                  << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ') << std::setw(w)
+                  << std::dec << "\t";
 
   va_list ap;
   va_start(ap, fmt);
@@ -59,7 +59,7 @@ static int node_msg_test_on_error(const atbus::node &n, const atbus::endpoint *e
 
   std::streamsize w = std::cout.width();
   CASE_MSG_INFO() << "[Log Error] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
-                  << std::setw(8) << (NULL == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
+                  << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
                   << std::setw(w) << std::dec << "=> status: " << status << ", errcode: " << errcode << std::endl;
   return 0;
 }
@@ -68,8 +68,8 @@ static int node_msg_test_on_info_log(const atbus::node &n, const atbus::endpoint
                                      const char *msg) {
   std::streamsize w = std::cout.width();
   CASE_MSG_INFO() << "[Log Info] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
-                  << std::setw(8) << (NULL == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
-                  << std::setw(w) << std::dec << "=> message: " << (NULL == msg ? "" : msg) << std::endl;
+                  << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
+                  << std::setw(w) << std::dec << "=> message: " << (nullptr == msg ? "" : msg) << std::endl;
   return 0;
 }
 
@@ -90,9 +90,9 @@ struct node_msg_test_recv_msg_record_t {
   uint64_t expect_cmd_rsp_from;
 
   node_msg_test_recv_msg_record_t()
-      : n(NULL),
-        ep(NULL),
-        conn(NULL),
+      : n(nullptr),
+        ep(nullptr),
+        conn(nullptr),
         status(0),
         count(0),
         failed_count(0),
@@ -115,24 +115,24 @@ static int node_msg_test_recv_msg_test_record_fn(const atbus::node &n, const atb
   recv_msg_history.status = m.head().ret();
   ++recv_msg_history.count;
 
-  const ::atbus::protocol::forward_data *fwd_data = NULL;
+  const ::atbus::protocol::forward_data *fwd_data = nullptr;
   if (m.msg_body_case() == ::atbus::protocol::msg::kDataTransformReq) {
     fwd_data = &m.data_transform_req();
   } else if (m.msg_body_case() == ::atbus::protocol::msg::kDataTransformRsp) {
     fwd_data = &m.data_transform_rsp();
   }
 
-  if (NULL != fwd_data) {
+  if (nullptr != fwd_data) {
     recv_msg_history.last_msg_router.assign(fwd_data->router().begin(), fwd_data->router().end());
   } else {
     recv_msg_history.last_msg_router.clear();
   }
 
   std::streamsize w = std::cout.width();
-  if (NULL != buffer && len > 0) {
+  if (nullptr != buffer && len > 0) {
     recv_msg_history.data.assign(reinterpret_cast<const char *>(buffer), len);
     CASE_MSG_INFO() << "[Log Debug] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
-                    << std::setw(8) << (NULL == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
+                    << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
                     << std::setw(w) << std::dec << "\t"
                     << "recv message: ";
     std::cout.write(reinterpret_cast<const char *>(buffer), len);
@@ -140,7 +140,7 @@ static int node_msg_test_recv_msg_test_record_fn(const atbus::node &n, const atb
   } else {
     recv_msg_history.data.clear();
     CASE_MSG_INFO() << "[Log Debug] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
-                    << std::setw(8) << (NULL == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
+                    << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
                     << std::setw(w) << std::dec << "\t"
                     << "recv message: [NOTHING]" << std::endl;
   }
@@ -153,11 +153,11 @@ static int node_msg_test_send_data_forward_response_fn(const atbus::node &n, con
   recv_msg_history.n = &n;
   recv_msg_history.ep = ep;
   recv_msg_history.conn = conn;
-  recv_msg_history.status = NULL == m ? 0 : m->head().ret();
+  recv_msg_history.status = nullptr == m ? 0 : m->head().ret();
   ++recv_msg_history.failed_count;
 
-  const ::atbus::protocol::forward_data *fwd_data = NULL;
-  if (NULL != m) {
+  const ::atbus::protocol::forward_data *fwd_data = nullptr;
+  if (nullptr != m) {
     if (m->msg_body_case() == ::atbus::protocol::msg::kDataTransformReq) {
       fwd_data = &m->data_transform_req();
     } else if (m->msg_body_case() == ::atbus::protocol::msg::kDataTransformRsp) {
@@ -165,13 +165,13 @@ static int node_msg_test_send_data_forward_response_fn(const atbus::node &n, con
     }
   }
 
-  if (NULL != fwd_data) {
+  if (nullptr != fwd_data) {
     recv_msg_history.last_msg_router.assign(fwd_data->router().begin(), fwd_data->router().end());
   } else {
     recv_msg_history.last_msg_router.clear();
   }
 
-  if (NULL != m && NULL != fwd_data && fwd_data->content().size() > 0) {
+  if (nullptr != m && nullptr != fwd_data && fwd_data->content().size() > 0) {
     recv_msg_history.data.assign(fwd_data->content().data(), fwd_data->content().size());
   } else {
     recv_msg_history.data.clear();
@@ -189,7 +189,7 @@ static int node_msg_test_on_ping(const atbus::node &n, const atbus::endpoint *ep
                                  const ::atbus::protocol::ping_data &ping_data) {
   std::streamsize w = std::cout.width();
   CASE_MSG_INFO() << "[Ping] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
-                  << std::setw(8) << (NULL == ep ? 0 : ep->get_id()) << ", time point=" << ping_data.time_point()
+                  << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", time point=" << ping_data.time_point()
                   << std::setfill(' ') << std::setw(w) << std::dec << std::endl;
 
   ++recv_msg_history.ping_count;
@@ -200,7 +200,7 @@ static int node_msg_test_on_pong(const atbus::node &n, const atbus::endpoint *ep
                                  const ::atbus::protocol::ping_data &ping_data) {
   std::streamsize w = std::cout.width();
   CASE_MSG_INFO() << "[Pong] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
-                  << std::setw(8) << (NULL == ep ? 0 : ep->get_id()) << ", time point=" << ping_data.time_point()
+                  << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", time point=" << ping_data.time_point()
                   << std::setfill(' ') << std::setw(w) << std::dec << std::endl;
 
   ++recv_msg_history.pong_count;
@@ -241,9 +241,9 @@ CASE_TEST(atbus_node_msg, ping_pong) {
     parent->set_on_ping_endpoint_handle(node_msg_test_on_ping);
     parent->set_on_pong_endpoint_handle(node_msg_test_on_pong);
 
-    CASE_EXPECT_EQ(NULL, node1->get_self_endpoint());
-    CASE_EXPECT_EQ(NULL, node2->get_self_endpoint());
-    CASE_EXPECT_EQ(NULL, parent->get_self_endpoint());
+    CASE_EXPECT_EQ(nullptr, node1->get_self_endpoint());
+    CASE_EXPECT_EQ(nullptr, node2->get_self_endpoint());
+    CASE_EXPECT_EQ(nullptr, parent->get_self_endpoint());
 
     conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
     parent->init(0x12346789, &conf);
@@ -258,7 +258,7 @@ CASE_TEST(atbus_node_msg, ping_pong) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->listen("ipv4://127.0.0.1:16388"));
 
     atbus::node::start_conf_t start_conf;
-    start_conf.timer_sec = time(NULL);
+    start_conf.timer_sec = time(nullptr);
     start_conf.timer_usec = 0;
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, parent->start(start_conf));
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start(start_conf));
@@ -368,7 +368,7 @@ CASE_TEST(atbus_node_msg, custom_cmd) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
 
-    time_t proc_t = time(NULL) + 1;
+    time_t proc_t = time(nullptr) + 1;
     node1->poll();
     node2->poll();
     node1->proc(proc_t, 0);
@@ -440,7 +440,7 @@ CASE_TEST(atbus_node_msg, custom_cmd_by_temp_node) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
 
-    time_t proc_t = time(NULL) + 1;
+    time_t proc_t = time(nullptr) + 1;
     node1->poll();
     node2->poll();
     node1->proc(proc_t, 0);
@@ -510,7 +510,7 @@ CASE_TEST(atbus_node_msg, send_cmd_to_self) {
 
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
 
-    time_t proc_tm = time(NULL) + 1;
+    time_t proc_tm = time(nullptr) + 1;
     node1->poll();
     node1->proc(proc_tm, 0);
 
@@ -562,7 +562,7 @@ CASE_TEST(atbus_node_msg, reset_and_send) {
 
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
 
-    time_t proc_t = time(NULL) + 1;
+    time_t proc_t = time(nullptr) + 1;
     node1->poll();
     node1->proc(proc_t, 0);
 
@@ -585,7 +585,7 @@ CASE_TEST(atbus_node_msg, reset_and_send) {
 static int node_msg_test_recv_on_forward_response_error_fn(const atbus::node &, const atbus::endpoint *,
                                                            const atbus::connection *, const atbus::protocol::msg *m) {
   ++recv_msg_history.count;
-  if (NULL != m) {
+  if (nullptr != m) {
     recv_msg_history.status = m->head().ret();
     recv_msg_history.data = m->data_transform_rsp().content();
 
@@ -624,7 +624,7 @@ CASE_TEST(atbus_node_msg, send_loopback_error) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
 
-    time_t proc_t = time(NULL) + 1;
+    time_t proc_t = time(nullptr) + 1;
     node1->poll();
     node2->poll();
     node1->proc(proc_t, 0);
@@ -648,13 +648,13 @@ CASE_TEST(atbus_node_msg, send_loopback_error) {
     recv_msg_history.data.clear();
 
     do {
-      atbus::endpoint *target = NULL;
-      atbus::connection *target_conn = NULL;
+      atbus::endpoint *target = nullptr;
+      atbus::connection *target_conn = nullptr;
       CASE_EXPECT_EQ(
           0, node1->get_remote_channel(node2->get_id(), &atbus::endpoint::get_data_connection, &target, &target_conn));
-      CASE_EXPECT_NE(NULL, target);
-      CASE_EXPECT_NE(NULL, target_conn);
-      if (NULL == target_conn) {
+      CASE_EXPECT_NE(nullptr, target);
+      CASE_EXPECT_NE(nullptr, target_conn);
+      if (nullptr == target_conn) {
         break;
       }
 
@@ -700,10 +700,10 @@ static int node_msg_test_recv_and_send_msg_fn(const atbus::node &n, const atbus:
   ++recv_msg_history.count;
 
   std::streamsize w = std::cout.width();
-  if (NULL != buffer && len > 0) {
+  if (nullptr != buffer && len > 0) {
     recv_msg_history.data.assign(reinterpret_cast<const char *>(buffer), len);
     CASE_MSG_INFO() << "[Log Debug] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
-                    << std::setw(8) << (NULL == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
+                    << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
                     << std::setw(w) << std::dec << "\t"
                     << "recv message: ";
     std::cout.write(reinterpret_cast<const char *>(buffer), len);
@@ -711,7 +711,7 @@ static int node_msg_test_recv_and_send_msg_fn(const atbus::node &n, const atbus:
   } else {
     recv_msg_history.data.clear();
     CASE_MSG_INFO() << "[Log Debug] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
-                    << std::setw(8) << (NULL == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
+                    << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
                     << std::setw(w) << std::dec << "\t"
                     << "recv message: [NOTHING]" << std::endl;
   }
@@ -750,7 +750,7 @@ CASE_TEST(atbus_node_msg, send_msg_to_self_and_need_rsp) {
 
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
 
-    time_t proc_t = time(NULL) + 1;
+    time_t proc_t = time(nullptr) + 1;
     node1->poll();
     node1->proc(proc_t, 0);
 
@@ -802,7 +802,7 @@ CASE_TEST(atbus_node_msg, parent_and_child) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_parent->start());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_child->start());
 
-    time_t proc_t = time(NULL) + 1;
+    time_t proc_t = time(nullptr) + 1;
 
     UNITTEST_WAIT_UNTIL(conf.ev_loop,
                         node_child->is_endpoint_available(node_parent->get_id()) &&
@@ -855,8 +855,8 @@ CASE_TEST(atbus_node_msg, parent_and_child) {
 
     do {
       atbus::endpoint *child_ep = node_parent->get_endpoint(node_child->get_id());
-      CASE_EXPECT_NE(NULL, child_ep);
-      if (NULL == child_ep) {
+      CASE_EXPECT_NE(nullptr, child_ep);
+      if (nullptr == child_ep) {
         break;
       }
       CASE_EXPECT_GT(child_ep->get_stat_last_pong(), 0);
@@ -917,7 +917,7 @@ CASE_TEST(atbus_node_msg, transfer_and_connect) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_child_1->start());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_child_2->start());
 
-    time_t proc_t = time(NULL) + 1;
+    time_t proc_t = time(nullptr) + 1;
     node_child_1->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
     node_child_2->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
 
@@ -949,7 +949,7 @@ CASE_TEST(atbus_node_msg, transfer_and_connect) {
     // 自动直连测试
     UNITTEST_WAIT_UNTIL(conf.ev_loop, node_child_1->is_endpoint_available(node_child_2->get_id()), 8000, 0) {}
     atbus::endpoint *ep1 = node_child_1->get_endpoint(node_child_2->get_id());
-    CASE_EXPECT_NE(NULL, ep1);
+    CASE_EXPECT_NE(nullptr, ep1);
   }
 
   unit_test_setup_exit(&ev_loop);
@@ -1004,7 +1004,7 @@ CASE_TEST(atbus_node_msg, transfer_only) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_child_1->start());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_child_2->start());
 
-    time_t proc_t = time(NULL) + 1;
+    time_t proc_t = time(nullptr) + 1;
     node_child_1->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
     node_child_2->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
     node_parent_1->connect("ipv4://127.0.0.1:16388");
@@ -1043,7 +1043,7 @@ CASE_TEST(atbus_node_msg, transfer_only) {
 
     // 非直接子节点互相不建立直连
     atbus::endpoint *ep1 = node_child_1->get_endpoint(node_child_2->get_id());
-    CASE_EXPECT_EQ(NULL, ep1);
+    CASE_EXPECT_EQ(nullptr, ep1);
   }
 
   unit_test_setup_exit(&ev_loop);
@@ -1120,7 +1120,7 @@ CASE_TEST(atbus_node_msg, transfer_failed) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_parent->start());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_child_1->start());
 
-    time_t proc_t = time(NULL) + 1;
+    time_t proc_t = time(nullptr) + 1;
     node_child_1->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
     node_child_1->set_on_forward_response_handle(node_msg_test_send_data_forward_response_fn);
     CASE_EXPECT_TRUE(!!node_child_1->get_on_forward_response_handle());
@@ -1202,7 +1202,7 @@ CASE_TEST(atbus_node_msg, transfer_failed_cross_parents) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_parent_2->start());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_child_1->start());
 
-    time_t proc_t = time(NULL) + 1;
+    time_t proc_t = time(nullptr) + 1;
     node_child_1->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
     node_child_1->set_on_forward_response_handle(node_msg_test_send_data_forward_response_fn);
     node_child_1->set_on_remove_endpoint_handle(node_msg_test_remove_endpoint_fn);

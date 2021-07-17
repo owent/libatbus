@@ -28,8 +28,8 @@ class endpoint;
 class connection;
 
 struct msg_handler {
-  typedef int (*handler_fn_t)(node &n, connection *conn, ::atbus::protocol::msg ATBUS_MACRO_RVALUE_REFERENCES,
-                              int status, int errcode);
+  using handler_fn_t = int (*)(node &n, connection *conn, ::atbus::protocol::msg ATBUS_MACRO_RVALUE_REFERENCES,
+                               int status, int errcode);
 
   static ATBUS_MACRO_API int dispatch_msg(node &n, connection *conn,
                                           ::atbus::protocol::msg ATBUS_MACRO_RVALUE_REFERENCES, int status,

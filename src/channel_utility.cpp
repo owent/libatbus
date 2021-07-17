@@ -51,7 +51,7 @@ ATBUS_MACRO_API void make_address(const char *scheme, const char *host, int port
 }
 
 ATBUS_MACRO_API bool is_duplex_address(const char *in) {
-  if (NULL == in || !(*in)) {
+  if (nullptr == in || !(*in)) {
     return false;
   }
 
@@ -59,7 +59,7 @@ ATBUS_MACRO_API bool is_duplex_address(const char *in) {
 }
 
 ATBUS_MACRO_API bool is_simplex_address(const char *in) {
-  if (NULL == in || !(*in)) {
+  if (nullptr == in || !(*in)) {
     return false;
   }
 
@@ -75,7 +75,7 @@ ATBUS_MACRO_API bool is_simplex_address(const char *in) {
 }
 
 ATBUS_MACRO_API bool is_local_host_address(const char *in) {
-  if (NULL == in || !(*in)) {
+  if (nullptr == in || !(*in)) {
     return false;
   }
 
@@ -95,7 +95,7 @@ ATBUS_MACRO_API bool is_local_host_address(const char *in) {
 }
 
 ATBUS_MACRO_API bool is_local_process_address(const char *in) {
-  if (NULL == in || !(*in)) {
+  if (nullptr == in || !(*in)) {
     return false;
   }
 

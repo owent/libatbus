@@ -1,15 +1,20 @@
 cmake_minimum_required(VERSION 3.16.0)
-cmake_policy(SET CMP0054 NEW)
 cmake_policy(SET CMP0022 NEW)
+cmake_policy(SET CMP0048 NEW)
+cmake_policy(SET CMP0054 NEW)
 cmake_policy(SET CMP0067 NEW)
 cmake_policy(SET CMP0074 NEW)
+cmake_policy(SET CMP0077 NEW)
 cmake_policy(SET CMP0091 NEW)
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.19.0")
+  cmake_policy(SET CMP0111 NEW)
+endif()
 
 enable_testing()
 
 project(
   libatbus
-  VERSION "2.1.2"
+  VERSION "2.2.0"
   HOMEPAGE_URL "https://github.com/atframework/libatbus"
   LANGUAGES C CXX)
 
@@ -22,7 +27,6 @@ include("${CMAKE_CURRENT_LIST_DIR}/project/cmake/ProjectBuildOption.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/third_party/Repository.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/atframework/Repository.cmake")
 
-echowithcolor(COLOR GREEN "-- Build Type: ${CMAKE_BUILD_TYPE}")
 unset(PROJECT_LIBATBUS_PRIVATE_COMPILE_OPTIONS)
 
 # ######################################################################################################################
@@ -55,7 +59,7 @@ if(PROJECT_ENABLE_SAMPLE)
   add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/sample")
 endif()
 
-if(PROJECT_ENABLE_UNITTEST)
+if(PROJECT_ENABLE_UNITTEST OR BUILD_TESTING)
   atframework_atframe_utils_populate()
   include("${ATFRAMEWORK_ATFRAME_UTILS_REPO_DIR}/test/test.utils-macro.cmake")
   add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/test")
