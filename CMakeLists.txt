@@ -14,7 +14,7 @@ enable_testing()
 
 project(
   libatbus
-  VERSION "2.2.0"
+  VERSION "2.2.1"
   HOMEPAGE_URL "https://github.com/atframework/libatbus"
   LANGUAGES C CXX)
 
