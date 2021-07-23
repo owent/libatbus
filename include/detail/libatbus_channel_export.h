@@ -1,4 +1,4 @@
-﻿/**
+/**
  * libatbus_channel_export.h
  *
  *  Created on: 2014年8月13日

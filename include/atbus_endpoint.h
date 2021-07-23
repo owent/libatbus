@@ -1,4 +1,4 @@
-﻿/**
+/**
  * atbus_endpoint.h
  *
  *  Created on: 2015年11月20日

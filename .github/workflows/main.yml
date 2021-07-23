@@ -63,7 +63,8 @@ jobs:
         with:
           path: |
             /usr/local/share/vcpkg/installed
-          key: ${{ runner.os }}-${{ hashFiles('/usr/local/share/vcpkg/installed/**') }}
+            third_party/install
+          key: ${{ runner.os }}-${ hashFiles('.github/.cache-key') }-${{ hashFiles('/usr/local/share/vcpkg/installed/**') }}
   vs2019_build: # job id, can be any string
     name: Visual Studio 2019 Build
     strategy:
@@ -90,6 +91,12 @@ jobs:
           CONFIGURATION: RelWithDebInfo
         run: |
           pwsh ci/do_ci.ps1 msvc.2019.test ;
+      - name: Cache packages
+        uses: actions/cache@v2
+        with:
+          path: |
+            third_party/install
+          key: ${{ runner.os }}-${ hashFiles('.github/.cache-key') }
   vs2017_build: # job id, can be any string
     name: Visual Studio 2017 Build
     strategy:
@@ -110,6 +117,12 @@ jobs:
           CONFIGURATION: RelWithDebInfo
         run: |
           pwsh ci/do_ci.ps1 msvc.2017.test ;
+      - name: Cache packages
+        uses: actions/cache@v2
+        with:
+          path: |
+            third_party/install
+          key: ${{ runner.os }}-${ hashFiles('.github/.cache-key') }
   mingw_build: # job id, can be any string
     name: MinGW Build
     strategy:
@@ -127,6 +140,12 @@ jobs:
           BUILD_SHARED_LIBS: ${{ matrix.build_shared_libs }}
         run: |
           C:/msys64/msys2_shell.cmd -mingw64 -defterm -no-start -here -lc "ci/do_ci.sh msys2.mingw.test"
+      - name: Cache packages
+        uses: actions/cache@v2
+        with:
+          path: |
+            third_party/install
+          key: ${{ runner.os }}-${ hashFiles('.github/.cache-key') }
   coverage: # job id, can be any string
     name: Coverage
     # This job runs on Linux
@@ -161,4 +180,5 @@ jobs:
         with:
           path: |
             /usr/local/share/vcpkg/installed
-          key: ${{ runner.os }}-${{ hashFiles('/usr/local/share/vcpkg/installed/**') }}
+            third_party/install
+          key: ${{ runner.os }}-${ hashFiles('.github/.cache-key') }-${{ hashFiles('/usr/local/share/vcpkg/installed/**') }}

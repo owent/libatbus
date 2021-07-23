@@ -1,4 +1,4 @@
-﻿/**
+/**
  * libatbus.h
  *
  *  Created on: 2014年8月11日
