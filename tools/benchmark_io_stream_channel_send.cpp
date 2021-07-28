@@ -1,4 +1,4 @@
-﻿#include <assert.h>
+#include <assert.h>
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
