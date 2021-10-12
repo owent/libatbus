@@ -10,6 +10,12 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.19.0")
   cmake_policy(SET CMP0111 NEW)
 endif()
 
+# MSVC RTTI flag /GR should not be not added to CMAKE_CXX_FLAGS by default. @see
+# https://cmake.org/cmake/help/latest/policy/CMP0117.html
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.20.0")
+  cmake_policy(SET CMP0117 NEW)
+endif()
+
 enable_testing()
 
 project(
@@ -17,6 +23,16 @@ project(
   VERSION "2.2.1"
   HOMEPAGE_URL "https://github.com/atframework/libatbus"
   LANGUAGES C CXX)
+
+if(NOT CMAKE_PARENT_LIST_FILE OR CMAKE_PARENT_LIST_FILE STREQUAL CMAKE_CURRENT_LIST_FILE)
+  if(MSVC)
+    string(REGEX REPLACE "/EHsc" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    string(REGEX REPLACE "/GR-?" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  else()
+    string(REGEX REPLACE "-f(no-)?exceptions" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    string(REGEX REPLACE "-f(no-)?rtti" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  endif()
+endif()
 
 set(LIBATBUS_VERSION_MAJOR "${PROJECT_VERSION_MAJOR}")
 set(LIBATBUS_VERSION_MINOR "${PROJECT_VERSION_MINOR}")
