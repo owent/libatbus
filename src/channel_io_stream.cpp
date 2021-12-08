@@ -118,9 +118,10 @@ namespace atbus {
 namespace channel {
 
 #ifdef ATBUS_MACRO_ENABLE_STATIC_ASSERT
-#  if ((defined(_MSVC_LANG) && _MSVC_LANG >= 201402L)) || \
-      (defined(__cplusplus) && __cplusplus >= 201402L &&  \
-       !(defined(__GNUC_MAJOR__) && defined(__GNUC_MINOR__) && __GNUC_MAJOR__ * 100 + __GNUC_MINOR__ <= 409))
+#  if ((defined(_MSVC_LANG) && _MSVC_LANG >= 201402L)) ||                       \
+      (defined(__cplusplus) && __cplusplus >= 201402L &&                        \
+       !(!defined(__clang__) && defined(__GNUC__) && defined(__GNUC_MINOR__) && \
+         __GNUC__ * 100 + __GNUC_MINOR__ <= 409))
 static_assert(std::is_trivially_copyable<io_stream_conf>::value, "io_stream_conf should be trivially copyable");
 #  elif (defined(__cplusplus) && __cplusplus >= 201103L) || ((defined(_MSVC_LANG) && _MSVC_LANG >= 201103L))
 static_assert(std::is_trivial<io_stream_conf>::value, "io_stream_conf should be trivially");

@@ -12,9 +12,10 @@
 
 #if (defined(__cplusplus) && __cplusplus >= 201103L) || (defined(_MSC_VER) && _MSC_VER >= 1900)
 #  include <type_traits>
-#  if ((defined(_MSVC_LANG) && _MSVC_LANG >= 201402L)) || \
-      (defined(__cplusplus) && __cplusplus >= 201402L &&  \
-       !(defined(__GNUC_MAJOR__) && defined(__GNUC_MINOR__) && __GNUC_MAJOR__ * 100 + __GNUC_MINOR__ <= 409))
+#  if ((defined(_MSVC_LANG) && _MSVC_LANG >= 201402L)) ||                       \
+      (defined(__cplusplus) && __cplusplus >= 201402L &&                        \
+       !(!defined(__clang__) && defined(__GNUC__) && defined(__GNUC_MINOR__) && \
+         __GNUC__ * 100 + __GNUC_MINOR__ <= 409))
 static_assert(std::is_trivially_copyable<atbus::detail::buffer_block>::value,
               "buffer_block must be trivially copyable");
 #  elif (defined(__cplusplus) && __cplusplus >= 201103L) || ((defined(_MSVC_LANG) && _MSVC_LANG >= 201103L))
