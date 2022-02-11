@@ -1266,3 +1266,15 @@ CASE_TEST(atbus_node_msg, msg_handler_get_body_name) {
       atbus::protocol::msg::descriptor()->FindFieldByNumber(atbus::protocol::msg::kDataTransformReq)->full_name(),
       std::string(atbus::msg_handler::get_body_name(atbus::protocol::msg::kDataTransformReq)));
 }
+
+CASE_TEST_EVENT_ON_EXIT(unit_test_event_on_exit_shutdown_protobuf) {
+  ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ShutdownProtobufLibrary();
+}
+
+CASE_TEST_EVENT_ON_EXIT(unit_test_event_on_exit_close_libuv) {
+  int finish_event = 2048;
+  while (0 != uv_loop_alive(uv_default_loop()) && finish_event-- > 0) {
+    uv_run(uv_default_loop(), UV_RUN_NOWAIT);
+  }
+  uv_loop_close(uv_default_loop());
+}
