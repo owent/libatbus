@@ -2144,7 +2144,7 @@ void node::init_hash_code() {
     std::vector<std::string> all_outter_inters;
     uv_interface_address_t *interface_addrs = nullptr;
     int interface_sz = 0;
-    size_t total_size = 0;
+    // size_t total_size = 0;
     uv_interface_addresses(&interface_addrs, &interface_sz);
     for (int i = 0; i < interface_sz; ++i) {
       uv_interface_address_t *inter_addr = interface_addrs + i;
@@ -2165,7 +2165,7 @@ void node::init_hash_code() {
 
       if (!one_addr.empty()) {
         all_outter_inters.push_back(one_addr);
-        total_size += one_addr.size();
+        // total_size += one_addr.size();
       }
     }
 
