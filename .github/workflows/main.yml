@@ -65,16 +65,20 @@ jobs:
             /usr/local/share/vcpkg/installed
             third_party/install
           key: ${{ runner.os }}-${ hashFiles('.github/.cache-key') }-${{ hashFiles('/usr/local/share/vcpkg/installed/**') }}
-  vs2019_build: # job id, can be any string
-    name: Visual Studio 2019 Build
+  vs2019_2022_build: # job id, can be any string
+    name: "Visual Studio 2019/2022 Build"
     strategy:
       matrix:
         include:
           - os: windows-latest
-            generator: "Visual Studio 16 2019"
+            generator: "Visual Studio 17 2022"
             build_shared_libs: "ON"
             platform: x64
           - os: windows-latest
+            generator: "Visual Studio 17 2022"
+            build_shared_libs: "OFF"
+            platform: x64
+          - os: windows-2019
             generator: "Visual Studio 16 2019"
             build_shared_libs: "OFF"
             platform: x64
@@ -90,7 +94,7 @@ jobs:
           BUILD_SHARED_LIBS: ${{ matrix.build_shared_libs }}
           CONFIGURATION: RelWithDebInfo
         run: |
-          pwsh ci/do_ci.ps1 msvc.2019.test ;
+          pwsh ci/do_ci.ps1 "msvc.2019+.test" ;
       - name: Cache packages
         uses: actions/cache@v2
         with:
