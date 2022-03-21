@@ -16,13 +16,6 @@
 
 #include <stdarg.h>
 
-struct node_reg_test_destory_protobuf_meta {
-  ~node_reg_test_destory_protobuf_meta() { ::google::protobuf::ShutdownProtobufLibrary(); }
-
-  operator bool() const { return true; }
-};
-node_reg_test_destory_protobuf_meta g_protobuf_shutdown_helper;
-
 struct node_reg_test_recv_msg_record_t {
   const atbus::node *n;
   const atbus::endpoint *ep;
@@ -202,8 +195,6 @@ static int node_reg_test_invalid_fn(const atbus::node &, const atbus::connection
 // 主动reset流程测试
 // 正常首发数据测试
 CASE_TEST(atbus_node_reg, reset_and_send_tcp) {
-  CASE_EXPECT_TRUE(g_protobuf_shutdown_helper);
-
   atbus::node::conf_t conf;
   atbus::node::default_conf(&conf);
   conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));

@@ -48,7 +48,7 @@ struct channel_ios_unix_addr_holder {
 
     util::file_system::generate_tmp_file_name(prefix);
     if (prefix.empty()) {
-      file_path = "unix:///tmp/atbut-unit-test-ios-unix.sock";
+      file_path = "unix:///tmp/atbus-unit-test-ios-unix.sock";
     } else {
       file_path = "unix://" + prefix;
     }

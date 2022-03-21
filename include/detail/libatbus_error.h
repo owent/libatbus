@@ -64,6 +64,7 @@ enum ATBUS_ERROR_TYPE {
   EN_ATBUS_ERR_PIPE_CONNECT_FAILED = -503,  // 连接失败
   EN_ATBUS_ERR_PIPE_ADDR_TOO_LONG = -504,  // 地址路径过长，绝对路径长度要小于 sizeof(sockaddr_un.sun_path) - 1
   EN_ATBUS_ERR_PIPE_REMOVE_FAILED = -505,  // 删除老socket失败
+  EN_ATBUS_ERR_PIPE_PATH_EXISTS = -506,    // 该地址已被占用
 
   EN_ATBUS_ERR_DNS_GETADDR_FAILED = -601,    // DNS解析失败
   EN_ATBUS_ERR_CONNECTION_NOT_FOUND = -602,  // 找不到连接

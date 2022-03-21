@@ -73,6 +73,7 @@ ATBUS_MACRO_API node::conf_t &node::conf_t::operator=(const conf_t &other) {
   backlog = other.backlog;
   access_token_max_number = other.access_token_max_number;
   access_tokens = other.access_tokens;
+  overwrite_listen_path = other.overwrite_listen_path;
 
   msg_size = other.msg_size;
   recv_buffer_size = other.recv_buffer_size;
@@ -146,6 +147,7 @@ ATBUS_MACRO_API void node::default_conf(conf_t *conf) {
   conf->backlog = ATBUS_MACRO_CONNECTION_BACKLOG;
   conf->access_token_max_number = 5;
   conf->access_tokens.clear();
+  conf->overwrite_listen_path = false;
 
   conf->msg_size = ATBUS_MACRO_MSG_LIMIT;
 

@@ -228,11 +228,17 @@ ATBUS_MACRO_API int connection::listen(const char *addr_str) {
       }
 
       flags_.set(flag_t::ACCESS_SHARE_HOST, true);
-    }
 
-    if (util::file_system::is_exist(address_.host.c_str())) {
-      if (false == util::file_system::remove(address_.host.c_str())) {
-        ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_PIPE_REMOVE_FAILED, 0);
+      if (util::file_system::is_exist(address_.host.c_str())) {
+        if (!owner_->get_conf().overwrite_listen_path) {
+          ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_PIPE_PATH_EXISTS, 0);
+          return EN_ATBUS_ERR_PIPE_PATH_EXISTS;
+        }
+
+        if (false == util::file_system::remove(address_.host.c_str())) {
+          ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_PIPE_REMOVE_FAILED, 0);
+          return EN_ATBUS_ERR_PIPE_REMOVE_FAILED;
+        }
       }
     }
 

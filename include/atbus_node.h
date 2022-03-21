@@ -117,6 +117,7 @@ class node final : public util::design_pattern::noncopyable {
     size_t fault_tolerant;     /** 容错次数，次 **/
     size_t access_token_max_number; /** 最大access token数量，请不要设置的太大，验证次数最大可能是N^2 **/
     std::vector<std::vector<unsigned char> > access_tokens; /** access token列表 **/
+    bool overwrite_listen_path;                             /** 是否覆盖已存在的listen path(unix socket) **/
 
     // ===== 缓冲区配置 =====
     size_t msg_size;           /** max message size **/
