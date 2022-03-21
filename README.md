@@ -20,7 +20,6 @@
 | Windows       | Visual Studio 2022 | Static linking        |
 | Windows       | Visual Studio 2022 | Dynamic linking       |
 | Windows       | Visual Studio 2019 | Static linking        |
-| Windows       | Visual Studio 2017 | Legacy,Static linking |
 | macOS         | AppleClang         | With libc++           |
 
 ## 依赖
