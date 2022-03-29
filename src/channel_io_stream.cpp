@@ -44,17 +44,6 @@
 
 #endif
 
-#ifndef MAX_PATH
-#  ifdef _MAX_PATH
-#    define MAX_PATH _MAX_PATH
-#  elif defined(PATH_MAX)
-#    define MAX_PATH PATH_MAX
-#  else
-// 默认取Windows内定义的值，因为Unix like系统一般定得都比较大
-#    define MAX_PATH 260
-#  endif
-#endif
-
 #define ATBUS_MACRO_TLS_MERGE_BUFFER_LEN (ATBUS_MACRO_MSG_LIMIT - ATBUS_MACRO_DATA_ALIGN_SIZE - sizeof(uv_write_t))
 
 #if !(defined(THREAD_TLS_USE_PTHREAD) && THREAD_TLS_USE_PTHREAD) && defined(UTIL_CONFIG_THREAD_LOCAL)
@@ -960,11 +949,17 @@ static void io_stream_pipe_connection_cb(uv_stream_t *req, int status) {
     io_stream_pipe_setup(channel, pipe_conn);
     io_stream_pipe_init(channel, conn.get(), pipe_conn);
 
-    char pipe_path[MAX_PATH] = {0};
+    char pipe_path[util::file_system::MAX_PATH_LEN];
     size_t path_len = sizeof(pipe_path);
     uv_pipe_getpeername(pipe_conn, pipe_path, &path_len);
     if (0 == path_len || 0 == pipe_path[0]) {
+      path_len = sizeof(pipe_path);
       uv_pipe_getsockname(pipe_conn, pipe_path, &path_len);
+    }
+    if (path_len < sizeof(pipe_path)) {
+      pipe_path[path_len] = 0;
+    } else {
+      pipe_path[sizeof(pipe_path) - 1] = 0;
     }
     make_address("unix", pipe_path, 0, conn->addr);
 
