@@ -1,37 +1,29 @@
-/**
- * atbus_connection.h
- *
- *  Created on: 2015年11月20日
- *      Author: owent
- */
+// Copyright 2022 atframework
+// Created by owent on on 2015-11-20
 
 #pragma once
 
-#ifndef LIBATBUS_CONNECTION_H
-#  define LIBATBUS_CONNECTION_H
+#ifdef _MSC_VER
+#  include <WinSock2.h>
+#endif
 
-#  pragma once
+#include <design_pattern/nomovable.h>
+#include <design_pattern/noncopyable.h>
 
-#  include <bitset>
-#  include <ctime>
-#  include <list>
-#  include <memory>
-#  include <vector>
+#include <bitset>
+#include <ctime>
+#include <list>
+#include <memory>
+#include <unordered_set>
+#include <vector>
 
-#  ifdef _MSC_VER
-#    include <WinSock2.h>
-#  endif
+#include "std/explicit_declare.h"
 
-#  include "std/explicit_declare.h"
+#include "detail/libatbus_channel_export.h"
+#include "detail/libatbus_config.h"
+#include "detail/libatbus_error.h"
 
-#  include "detail/libatbus_channel_export.h"
-#  include "detail/libatbus_config.h"
-#  include "detail/libatbus_error.h"
-
-#  include <design_pattern/nomovable.h>
-#  include <design_pattern/noncopyable.h>
-
-#  include "libatbus_protocol.h"
+#include "libatbus_protocol.h"
 
 namespace atbus {
 namespace protocol {
@@ -189,6 +181,9 @@ class connection final : public util::design_pattern::noncopyable {
 
  private:
   ATBUS_MACRO_API void set_status(state_t::type v);
+#if !defined(_WIN32)
+  ATBUS_MACRO_API void unlock_address() noexcept;
+#endif
 
  public:
   static ATBUS_MACRO_API void iostream_on_listen_cb(channel::io_stream_channel *channel,
@@ -214,13 +209,13 @@ class connection final : public util::design_pattern::noncopyable {
                                                   channel::io_stream_connection *connection, int status, void *buffer,
                                                   size_t s);
 
-#  ifdef ATBUS_CHANNEL_SHM
+#ifdef ATBUS_CHANNEL_SHM
   static ATBUS_MACRO_API int shm_proc_fn(node &n, connection &conn, time_t sec, time_t usec);
 
   static ATBUS_MACRO_API int shm_free_fn(node &n, connection &conn);
 
   static ATBUS_MACRO_API int shm_push_fn(connection &conn, const void *buffer, size_t s);
-#  endif
+#endif
 
   static ATBUS_MACRO_API int mem_proc_fn(node &n, connection &conn, time_t sec, time_t usec);
 
@@ -238,6 +233,9 @@ class connection final : public util::design_pattern::noncopyable {
  private:
   state_t::type state_;
   channel::channel_address_t address_;
+#if !defined(_WIN32)
+  int address_lock_;
+#endif
   std::bitset<flag_t::MAX> flags_;
 
   // 这里不用智能指针是为了该值在上层对象（node或者endpoint）析构时仍然可用
@@ -252,12 +250,12 @@ class connection final : public util::design_pattern::noncopyable {
     size_t len;
   };
 
-#  ifdef ATBUS_CHANNEL_SHM
+#ifdef ATBUS_CHANNEL_SHM
   struct conn_data_shm {
     channel::shm_channel *channel;
     size_t len;
   };
-#  endif
+#endif
 
   struct conn_data_ios {
     channel::io_stream_channel *channel;
@@ -267,9 +265,9 @@ class connection final : public util::design_pattern::noncopyable {
   struct connection_data_t {
     union shared_t {
       conn_data_mem mem;
-#  ifdef ATBUS_CHANNEL_SHM
+#ifdef ATBUS_CHANNEL_SHM
       conn_data_shm shm;
-#  endif
+#endif
       conn_data_ios ios_fd;
     };
     using proc_fn_t = int (*)(node &n, connection &conn, time_t sec, time_t usec);
@@ -287,5 +285,3 @@ class connection final : public util::design_pattern::noncopyable {
   friend class endpoint;
 };
 }  // namespace atbus
-
-#endif /* LIBATBUS_CONNECTION_H_ */

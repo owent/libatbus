@@ -1,3 +1,16 @@
+// Copyright 2022 atframework
+// Created by owent on on 2015-11-20
+
+#include "atbus_connection.h"
+
+#include <common/file_system.h>
+#include <common/string_oprs.h>
+
+#if !defined(_WIN32)
+#  include <fcntl.h>
+#  include <sys/file.h>
+#endif
+
 #include <assert.h>
 #include <stdint.h>
 #include <cstddef>
@@ -6,13 +19,8 @@
 #include <cstring>
 #include <ctime>
 
-#include <common/file_system.h>
-#include <common/string_oprs.h>
-
-#include "detail/buffer.h"
-
-#include "atbus_connection.h"
 #include "atbus_node.h"
+#include "detail/buffer.h"
 
 #include "libatbus_protocol.h"
 
@@ -61,7 +69,13 @@ struct connection_async_data {
 };
 }  // namespace detail
 
-connection::connection() : state_(state_t::DISCONNECTED), owner_(nullptr), binding_(nullptr) {
+connection::connection()
+    : state_(state_t::DISCONNECTED),
+#if !defined(_WIN32)
+      address_lock_(0),
+#endif
+      owner_(nullptr),
+      binding_(nullptr) {
   flags_.reset();
   memset(&conn_data_, 0, sizeof(conn_data_));
   memset(&stat_, 0, sizeof(stat_));
@@ -100,6 +114,10 @@ ATBUS_MACRO_API void connection::reset() {
     return;
   }
   flags_.set(flag_t::RESETTING, true);
+
+#if !defined(_WIN32)
+  unlock_address();
+#endif
 
   // 需要临时给自身加引用计数，否则后续移除的过程中可能导致数据被提前释放
   ptr_t tmp_holder = watch();
@@ -229,12 +247,28 @@ ATBUS_MACRO_API int connection::listen(const char *addr_str) {
 
       flags_.set(flag_t::ACCESS_SHARE_HOST, true);
 
-      if (util::file_system::is_exist(address_.host.c_str())) {
-        if (!owner_->get_conf().overwrite_listen_path) {
-          ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_PIPE_PATH_EXISTS, 0);
-          return EN_ATBUS_ERR_PIPE_PATH_EXISTS;
+      // We use file lock to check and reuse unix domain socket
+#if !defined(_WIN32)
+      if (!owner_->get_conf().overwrite_listen_path) {
+        unlock_address();
+        std::string lock_path = address_.host + ".lock";
+        int lock_fd = open(lock_path.c_str(), O_RDONLY | O_CREAT, 0600);
+        if (lock_fd < 0) {
+          ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED, 0);
+          return EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED;
         }
 
+        if (flock(lock_fd, LOCK_EX | LOCK_NB) < 0) {
+          close(lock_fd);
+          ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED, 0);
+          return EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED;
+        }
+
+        address_lock_ = lock_fd;
+      }
+#endif
+
+      if (util::file_system::is_exist(address_.host.c_str())) {
         if (false == util::file_system::remove(address_.host.c_str())) {
           ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_PIPE_REMOVE_FAILED, 0);
           return EN_ATBUS_ERR_PIPE_REMOVE_FAILED;
@@ -494,6 +528,18 @@ ATBUS_MACRO_API void connection::set_status(state_t::type v) {
     owner_->remove_connection_timer(owner_checker_);
   }
 }
+
+#if !defined(_WIN32)
+ATBUS_MACRO_API void connection::unlock_address() noexcept {
+  if (0 == address_lock_) {
+    return;
+  }
+
+  flock(address_lock_, LOCK_UN);
+  close(address_lock_);
+  address_lock_ = 0;
+}
+#endif
 
 ATBUS_MACRO_API void connection::iostream_on_listen_cb(channel::io_stream_channel *channel,
                                                        channel::io_stream_connection *connection, int status,

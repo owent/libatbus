@@ -1083,6 +1083,16 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
     }
 
     uv_tcp_init(ev_loop, handle);
+#ifndef _WIN32
+    {
+      uv_os_fd_t raw_fd;
+      if (0 == uv_fileno(reinterpret_cast<uv_handle_t *>(handle), &raw_fd)) {
+        /* Allow reuse of the port and address. */
+        int value = 1;
+        setsockopt(raw_fd, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const void *>(&value), sizeof(value));
+      }
+    }
+#endif
     int ret = EN_ATBUS_ERR_SUCCESS;
     do {
       io_stream_tcp_setup(channel, handle);
@@ -1161,7 +1171,11 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
     int ret = EN_ATBUS_ERR_SUCCESS;
     do {
       if (0 != (channel->error_code = uv_pipe_bind(handle, addr.host.c_str()))) {
-        ret = EN_ATBUS_ERR_PIPE_BIND_FAILED;
+        if (channel->error_code == UV_EADDRINUSE) {
+          ret = EN_ATBUS_ERR_PIPE_PATH_EXISTS;
+        } else {
+          ret = EN_ATBUS_ERR_PIPE_BIND_FAILED;
+        }
         break;
       }
 
