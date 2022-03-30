@@ -85,7 +85,8 @@ CASE_TEST(atbus_node_setup, override_listen_path) {
     node3->init(0x12367890, &conf);
 
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->listen("unix:///tmp/atbus-unit-test-overwrite-unix.sock"));
-    CASE_EXPECT_EQ(EN_ATBUS_ERR_PIPE_PATH_EXISTS, node2->listen("unix:///tmp/atbus-unit-test-overwrite-unix.sock"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED,
+                   node2->listen("unix:///tmp/atbus-unit-test-overwrite-unix.sock"));
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node3->listen("unix:///tmp/atbus-unit-test-overwrite-unix.sock"));
   }
 
