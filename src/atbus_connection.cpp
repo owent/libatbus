@@ -264,6 +264,7 @@ ATBUS_MACRO_API int connection::listen(const char *addr_str) {
           return EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED;
         }
 
+        address_lock_path_.swap(lock_path);
         address_lock_ = lock_fd;
       }
 #endif
@@ -538,6 +539,10 @@ ATBUS_MACRO_API void connection::unlock_address() noexcept {
   flock(address_lock_, LOCK_UN);
   close(address_lock_);
   address_lock_ = 0;
+
+  // Remove lock file
+  unlink(address_lock_path_.c_str());
+  address_lock_path_.clear();
 }
 #endif
 

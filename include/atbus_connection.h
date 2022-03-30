@@ -235,6 +235,7 @@ class connection final : public util::design_pattern::noncopyable {
   channel::channel_address_t address_;
 #if !defined(_WIN32)
   int address_lock_;
+  std::string address_lock_path_;
 #endif
   std::bitset<flag_t::MAX> flags_;
 
