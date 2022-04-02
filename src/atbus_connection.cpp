@@ -7,6 +7,7 @@
 #include <common/string_oprs.h>
 
 #if !defined(_WIN32)
+#  include <errno.h>
 #  include <fcntl.h>
 #  include <sys/file.h>
 #endif
@@ -254,18 +255,19 @@ ATBUS_MACRO_API int connection::listen(const char *addr_str) {
         std::string lock_path = address_.host + ".lock";
         int lock_fd = open(lock_path.c_str(), O_RDONLY | O_CREAT, 0600);
         if (lock_fd < 0) {
-          ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED, 0);
+          ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED, errno);
           return EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED;
         }
 
         if (flock(lock_fd, LOCK_EX | LOCK_NB) < 0) {
           close(lock_fd);
-          ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED, 0);
+          // Some overlay fs in docker/k8s do not support flock well, we just ignore if we can not lock file.
+          ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED, errno);
           return EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED;
+        } else {
+          address_lock_path_.swap(lock_path);
+          address_lock_ = lock_fd;
         }
-
-        address_lock_path_.swap(lock_path);
-        address_lock_ = lock_fd;
       }
 #endif
 
