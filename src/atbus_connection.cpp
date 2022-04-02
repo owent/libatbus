@@ -29,7 +29,6 @@ namespace atbus {
 namespace detail {
 
 #if !defined(_WIN32)
-namespace {
 static int try_flock_file(const std::string &lock_path) {
   // mkdir if dir not exists
   std::string dirname;
@@ -52,7 +51,6 @@ static int try_flock_file(const std::string &lock_path) {
 
   return lock_fd;
 }
-}  // namespace
 #endif
 
 struct connection_async_data {
@@ -282,7 +280,7 @@ ATBUS_MACRO_API int connection::listen(const char *addr_str) {
         unlock_address();
 
         std::string lock_path = address_.host + ".lock";
-        int lock_fd = try_flock_file(lock_path);
+        int lock_fd = detail::try_flock_file(lock_path);
         if (lock_fd < 0) {
           ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED, errno);
           return EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED;
