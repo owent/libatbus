@@ -27,6 +27,34 @@
 
 namespace atbus {
 namespace detail {
+
+#if !defined(_WIN32)
+namespace {
+static int try_flock_file(const std::string &lock_path) {
+  // mkdir if dir not exists
+  std::string dirname;
+  if (util::file_system::dirname(lock_path.c_str(), lock_path.size(), dirname)) {
+    if (!util::file_system::is_exist(dirname.c_str())) {
+      util::file_system::mkdir(dirname.c_str(), true);
+    }
+  }
+
+  int lock_fd = open(lock_path.c_str(), O_RDONLY | O_CREAT, 0600);
+  if (lock_fd < 0) {
+    return lock_fd;
+  }
+
+  int res = flock(lock_fd, LOCK_EX | LOCK_NB);
+  if (res < 0) {
+    close(lock_fd);
+    return res;
+  }
+
+  return lock_fd;
+}
+}  // namespace
+#endif
+
 struct connection_async_data {
   node *owner_node;
   connection::ptr_t conn;
@@ -252,22 +280,16 @@ ATBUS_MACRO_API int connection::listen(const char *addr_str) {
 #if !defined(_WIN32)
       if (!owner_->get_conf().overwrite_listen_path) {
         unlock_address();
+
         std::string lock_path = address_.host + ".lock";
-        int lock_fd = open(lock_path.c_str(), O_RDONLY | O_CREAT, 0600);
+        int lock_fd = try_flock_file(lock_path);
         if (lock_fd < 0) {
           ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED, errno);
           return EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED;
         }
 
-        if (flock(lock_fd, LOCK_EX | LOCK_NB) < 0) {
-          close(lock_fd);
-          // Some overlay fs in docker/k8s do not support flock well, we just ignore if we can not lock file.
-          ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED, errno);
-          return EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED;
-        } else {
-          address_lock_path_.swap(lock_path);
-          address_lock_ = lock_fd;
-        }
+        address_lock_path_.swap(lock_path);
+        address_lock_ = lock_fd;
       }
 #endif
 
