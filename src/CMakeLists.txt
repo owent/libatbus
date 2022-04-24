@@ -34,7 +34,12 @@ list(REMOVE_DUPLICATES PROJECT_LIB_SRC_LIST)
 source_group_by_dir(PROJECT_LIB_SRC_LIST)
 
 # ============ libatbus - src ============
-add_library("${PROJECT_LIBATBUS_LIB_LINK}-protocol" STATIC ${PROJECT_LIB_PROTOCOL_SRC_LIST})
+if(NOT CMAKE_SYSTEM_NAME MATCHES "Windows|MinGW|WindowsStore" AND (BUILD_SHARED_LIBS OR ATFRAMEWORK_USE_DYNAMIC_LIBRARY
+                                                                  ))
+  add_library("${PROJECT_LIBATBUS_LIB_LINK}-protocol" SHARED ${PROJECT_LIB_PROTOCOL_SRC_LIST})
+else()
+  add_library("${PROJECT_LIBATBUS_LIB_LINK}-protocol" STATIC ${PROJECT_LIB_PROTOCOL_SRC_LIST})
+endif()
 set_target_properties(
   "${PROJECT_LIBATBUS_LIB_LINK}-protocol"
   PROPERTIES C_VISIBILITY_PRESET "default"
