@@ -1364,7 +1364,7 @@ ATBUS_MACRO_API int32_t node::get_protocol_version() const { return conf_.protoc
 ATBUS_MACRO_API int32_t node::get_protocol_minimal_version() const { return conf_.protocol_minimal_version; }
 
 ATBUS_MACRO_API const std::list<std::string> &node::get_listen_list() const {
-  if (likely(self_)) {
+  UTIL_LIKELY_IF(self_) {
     return self_->get_listen();
   }
 

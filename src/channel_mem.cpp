@@ -570,7 +570,7 @@ static int mem_send_real(mem_channel *channel, const void *buf, size_t len) {
     // CAS, 使用compare_exchange_weak在MIPS、ARM等架构上可能低概率出现可以成功但是走了失败流程，这里会自动重试
     bool f = channel->atomic_write_cur.compare_exchange_weak(write_cur, new_write_cur);
 
-    if (likely(f)) break;
+    UTIL_LIKELY_IF(f) break;
 
     // 发现冲突原子操作失败则重试
     // 增加补偿策略(bkoff)，防止高竞争时多个进程/线程之间频繁冲突
@@ -708,9 +708,9 @@ ATBUS_MACRO_API int mem_recv(mem_channel *channel, void *buf, size_t len, size_t
      *   我们的数据通道不可能使用这么大的内存，所以加上operation_seq后能尽可能地消除空数据快的超时影响
      */
     // 容错处理 -- 未写入完成
-    if (likely(check_flag(node_head->flag, MF_WRITEN))) {
+    UTIL_LIKELY_IF(check_flag(node_head->flag, MF_WRITEN)) {
       // 容错处理 -- 不是起始节点
-      if (unlikely(!check_flag(node_head->flag, MF_START_NODE))) {
+      UTIL_UNLIKELY_IF(!check_flag(node_head->flag, MF_START_NODE)) {
         read_begin_cur = mem_next_index(channel, read_begin_cur, 1);
         node_head->flag = 0;
 
@@ -720,16 +720,14 @@ ATBUS_MACRO_API int mem_recv(mem_channel *channel, void *buf, size_t len, size_t
 
       // 容错处理 -- 如果前面已经发现错误，这里就不能再消耗 MF_START_NODE了
       // 防止后面把block弹出却没有读出数据并返回错误码
-      if (unlikely(ret)) {
-        break;
-      }
-
-    } else {
+      UTIL_UNLIKELY_IF(ret) { break; }
+    }
+    else {
       uint64_t cnow = (uint64_t)(clock() / (CLOCKS_PER_SEC / 1000));  // 转换到毫秒
 
       // 上面提到的快速跳过流程
-      if (unlikely(timeout_operation_seq && timeout_operation_seq == node_head->operation_seq &&
-                   !check_flag(node_head->flag, MF_START_NODE))) {
+      UTIL_UNLIKELY_IF(timeout_operation_seq && timeout_operation_seq == node_head->operation_seq &&
+                       !check_flag(node_head->flag, MF_START_NODE)) {
         read_begin_cur = mem_next_index(channel, read_begin_cur, 1);
         node_head->flag = 0;
 

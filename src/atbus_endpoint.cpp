@@ -668,9 +668,7 @@ ATBUS_MACRO_API size_t endpoint::get_stat_pull_size() const {
 }
 
 ATBUS_MACRO_API time_t endpoint::get_stat_created_time_sec() {
-  if (likely(stat_.created_time_sec > 0)) {
-    return stat_.created_time_sec;
-  }
+  UTIL_LIKELY_IF(stat_.created_time_sec > 0) { return stat_.created_time_sec; }
 
   stat_.created_time_sec = owner_->get_timer_sec();
   stat_.created_time_usec = owner_->get_timer_usec();
@@ -678,9 +676,7 @@ ATBUS_MACRO_API time_t endpoint::get_stat_created_time_sec() {
 }
 
 ATBUS_MACRO_API time_t endpoint::get_stat_created_time_usec() {
-  if (likely(stat_.created_time_sec > 0)) {
-    return stat_.created_time_usec;
-  }
+  UTIL_LIKELY_IF(stat_.created_time_sec > 0) { return stat_.created_time_usec; }
 
   stat_.created_time_sec = owner_->get_timer_sec();
   stat_.created_time_usec = owner_->get_timer_usec();
