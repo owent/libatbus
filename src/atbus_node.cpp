@@ -26,6 +26,9 @@
 #include <ctime>
 #include <functional>
 #include <sstream>
+#if !(defined(THREAD_TLS_USE_PTHREAD) && THREAD_TLS_USE_PTHREAD) && __cplusplus >= 201103L
+#  include <mutex>
+#endif
 
 #include <algorithm/murmur_hash.h>
 #include <algorithm/sha.h>
@@ -40,6 +43,29 @@
 #include "libatbus_protocol.h"
 
 namespace atbus {
+
+#if defined(THREAD_TLS_USE_PTHREAD) && THREAD_TLS_USE_PTHREAD
+namespace detail {
+static pthread_once_t gt_atbus_node_global_init_once = PTHREAD_ONCE_INIT;
+static void atbus_node_global_init_once() {
+  uv_loop_t loop;
+  // Call uv_loop_init() to initialize the global data.
+  uv_loop_init(&loop);
+  uv_loop_close(&loop);
+}
+}  // namespace detail
+#elif __cplusplus >= 201103L
+namespace detail {
+static std::once_flag gt_atbus_node_global_init_once;
+static void atbus_node_global_init_once() {
+  uv_loop_t loop;
+  // Call uv_loop_init() to initialize the global data.
+  uv_loop_init(&loop);
+  uv_loop_close(&loop);
+}
+}  // namespace detail
+#endif
+
 bool node_access_controller::add_ping_timer(node &n, const endpoint::ptr_t &ep,
                                             timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator &out) {
   return n.add_ping_timer(ep, out);
@@ -119,6 +145,13 @@ node::node() : state_(state_t::CREATED), ev_loop_(nullptr), static_buffer_(nullp
   random_engine_.init_seed(static_cast<uint64_t>(time(nullptr)));
 
   flags_.reset();
+
+#if defined(THREAD_TLS_USE_PTHREAD) && THREAD_TLS_USE_PTHREAD
+  (void)pthread_once(&detail::gt_atbus_node_global_init_once, detail::atbus_node_global_init_once);
+}  // namespace detail
+#elif __cplusplus >= 201103L
+  std::call_once(detail::gt_atbus_node_global_init_once, detail::atbus_node_global_init_once);
+#endif
 }
 
 void node::io_stream_channel_del::operator()(channel::io_stream_channel *p) const {
@@ -1364,9 +1397,7 @@ ATBUS_MACRO_API int32_t node::get_protocol_version() const { return conf_.protoc
 ATBUS_MACRO_API int32_t node::get_protocol_minimal_version() const { return conf_.protocol_minimal_version; }
 
 ATBUS_MACRO_API const std::list<std::string> &node::get_listen_list() const {
-  UTIL_LIKELY_IF(self_) {
-    return self_->get_listen();
-  }
+  UTIL_LIKELY_IF(self_) { return self_->get_listen(); }
 
   static std::list<std::string> empty;
   return empty;

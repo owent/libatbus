@@ -603,7 +603,9 @@ static void io_stream_tcp_setup(io_stream_channel *channel, adapter::tcp_t *hand
   }
 
   uv_tcp_nodelay(handle, channel->conf.is_nodelay ? 1 : 0);
+#ifndef _WIN32
   io_stream_stream_setup(channel, reinterpret_cast<adapter::stream_t *>(handle));
+#endif
 }
 
 static void io_stream_pipe_setup(io_stream_channel *channel, adapter::pipe_t *handle) {
