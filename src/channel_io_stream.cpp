@@ -800,7 +800,7 @@ static T *io_stream_make_stream_ptr(std::shared_ptr<adapter::stream_t> &res) {
 // tcp 收到连接通用逻辑
 static adapter::tcp_t *io_stream_tcp_connection_common(std::shared_ptr<io_stream_connection> &conn,
                                                        std::shared_ptr<adapter::stream_t> &recv_conn, uv_stream_t *req,
-                                                       int status) {
+                                                       int &status) {
   io_stream_connection *conn_raw_ptr = reinterpret_cast<io_stream_connection *>(req->data);
   assert(conn_raw_ptr);
   io_stream_channel *channel = conn_raw_ptr->channel;
@@ -817,6 +817,7 @@ static adapter::tcp_t *io_stream_tcp_connection_common(std::shared_ptr<io_stream
 
   uv_tcp_init(req->loop, tcp_conn);
   if (0 != (channel->error_code = uv_accept(req, recv_conn.get()))) {
+    status = channel->error_code;
     return nullptr;
   }
 
@@ -859,6 +860,7 @@ static void io_stream_tcp_connection_cb(uv_stream_t *req, int status) {
       } else {
         res = EN_ATBUS_ERR_SOCK_CONNECT_FAILED;
       }
+      channel->error_code = status;
       break;
     }
 
