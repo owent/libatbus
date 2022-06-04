@@ -148,7 +148,6 @@ node::node() : state_(state_t::CREATED), ev_loop_(nullptr), static_buffer_(nullp
 
 #if defined(THREAD_TLS_USE_PTHREAD) && THREAD_TLS_USE_PTHREAD
   (void)pthread_once(&detail::gt_atbus_node_global_init_once, detail::atbus_node_global_init_once);
-}  // namespace detail
 #elif __cplusplus >= 201103L
   std::call_once(detail::gt_atbus_node_global_init_once, detail::atbus_node_global_init_once);
 #endif
