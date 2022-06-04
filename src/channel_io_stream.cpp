@@ -1423,7 +1423,9 @@ int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr,
 
       io_stream_tcp_setup(channel, handle);
       ATBUS_CHANNEL_REQ_START(async_data->channel);
-      if (0 != uv_tcp_connect(&async_data->req, handle, sock_addr_ptr, io_stream_all_connected_cb)) {
+      async_data->channel->error_code =
+          uv_tcp_connect(&async_data->req, handle, sock_addr_ptr, io_stream_all_connected_cb);
+      if (0 != async_data->channel->error_code) {
         ATBUS_CHANNEL_REQ_END(async_data->channel);
 
         ret = EN_ATBUS_ERR_SOCK_CONNECT_FAILED;

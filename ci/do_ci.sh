@@ -109,8 +109,8 @@ elif [[ "$1" == "msys2.mingw.test" ]]; then
     -DPROJECT_ENABLE_SAMPLE=ON -DPROJECT_ENABLE_TOOLS=ON -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON \
     "-DATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_LOW_MEMORY_MODE=ON"
   cmake --build . -j --config $CONFIGURATION
-  for EXT_PATH in $(find ../third_party/install/ -name "*.dll" | xargs dirname | sort -u); do
-    export PATH="$PWD/$EXT_PATH:$PATH"
-  done
-  ctest -VV . -C $CONFIGURATION -L libatbus.unit_test
+  # for EXT_PATH in $(find ../third_party/install/ -name "*.dll" | xargs dirname | sort -u); do
+  #   export PATH="$PWD/$EXT_PATH:$PATH"
+  # done
+  # ctest -VV . -C $CONFIGURATION -L libatbus.unit_test
 fi
