@@ -29,4 +29,5 @@ target_link_libraries(atbus_unit_test ${PROJECT_LIBATBUS_LIB_LINK})
 
 target_include_directories(atbus_unit_test PRIVATE "$<BUILD_INTERFACE:${PROJECT_LIBATBUS_ROOT_SRC_DIR}>")
 
-add_test(NAME test COMMAND atbus_unit_test)
+add_test(NAME "libatbus.unit_test" COMMAND "$<TARGET_FILE:atbus_unit_test>")
+set_tests_properties("libatbus.unit_test" PROPERTIES LABELS "libatbus;libatbus.unit_test")

@@ -603,7 +603,9 @@ static void io_stream_tcp_setup(io_stream_channel *channel, adapter::tcp_t *hand
   }
 
   uv_tcp_nodelay(handle, channel->conf.is_nodelay ? 1 : 0);
+#ifndef _WIN32
   io_stream_stream_setup(channel, reinterpret_cast<adapter::stream_t *>(handle));
+#endif
 }
 
 static void io_stream_pipe_setup(io_stream_channel *channel, adapter::pipe_t *handle) {
@@ -800,7 +802,7 @@ static T *io_stream_make_stream_ptr(std::shared_ptr<adapter::stream_t> &res) {
 // tcp 收到连接通用逻辑
 static adapter::tcp_t *io_stream_tcp_connection_common(std::shared_ptr<io_stream_connection> &conn,
                                                        std::shared_ptr<adapter::stream_t> &recv_conn, uv_stream_t *req,
-                                                       int status) {
+                                                       int &status) {
   io_stream_connection *conn_raw_ptr = reinterpret_cast<io_stream_connection *>(req->data);
   assert(conn_raw_ptr);
   io_stream_channel *channel = conn_raw_ptr->channel;
@@ -817,6 +819,7 @@ static adapter::tcp_t *io_stream_tcp_connection_common(std::shared_ptr<io_stream
 
   uv_tcp_init(req->loop, tcp_conn);
   if (0 != (channel->error_code = uv_accept(req, recv_conn.get()))) {
+    status = channel->error_code;
     return nullptr;
   }
 
@@ -859,6 +862,7 @@ static void io_stream_tcp_connection_cb(uv_stream_t *req, int status) {
       } else {
         res = EN_ATBUS_ERR_SOCK_CONNECT_FAILED;
       }
+      channel->error_code = status;
       break;
     }
 
@@ -1421,7 +1425,9 @@ int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr,
 
       io_stream_tcp_setup(channel, handle);
       ATBUS_CHANNEL_REQ_START(async_data->channel);
-      if (0 != uv_tcp_connect(&async_data->req, handle, sock_addr_ptr, io_stream_all_connected_cb)) {
+      async_data->channel->error_code =
+          uv_tcp_connect(&async_data->req, handle, sock_addr_ptr, io_stream_all_connected_cb);
+      if (0 != async_data->channel->error_code) {
         ATBUS_CHANNEL_REQ_END(async_data->channel);
 
         ret = EN_ATBUS_ERR_SOCK_CONNECT_FAILED;

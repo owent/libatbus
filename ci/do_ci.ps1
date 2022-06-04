@@ -64,16 +64,17 @@ if ( $RUN_MODE -eq "msvc.2019+.test" ) {
   $ALL_DLL_DIRS = $(foreach ($dll_file in $ALL_DLL_FILES) {
       $dll_file.Directory.FullName
     }) | Sort-Object | Get-Unique
-  $Env:PATH = ($ALL_DLL_DIRS + $Env:PATH) -Join [IO.Path]::PathSeparator
+  $Env:PATH = ($ALL_DLL_DIRS -Join [IO.Path]::PathSeparator) + [IO.Path]::PathSeparator + $Env:PATH
+  Write-Output "PATH=$Env:PATH"
 
   & cmake --build . --config $Env:CONFIGURATION
   if ( $LastExitCode -ne 0 ) {
     exit $LastExitCode
   }
-  # & ctest . -V -C $Env:CONFIGURATION
-  # if ( $LastExitCode -ne 0 ) {
-  #   exit $LastExitCode
-  # }
+  & ctest . -V -C $Env:CONFIGURATION -L libatbus.unit_test
+  if ( $LastExitCode -ne 0 ) {
+    exit $LastExitCode
+  }
 }
 elseif ( $RUN_MODE -eq "msvc.2017.test" ) {
   Invoke-Environment "call ""$vsInstallationPath/VC/Auxiliary/Build/vcvars64.bat"""
@@ -90,16 +91,17 @@ elseif ( $RUN_MODE -eq "msvc.2017.test" ) {
   $ALL_DLL_DIRS = $(foreach ($dll_file in $ALL_DLL_FILES) {
       $dll_file.Directory.FullName
     }) | Sort-Object | Get-Unique
-  $Env:PATH = ($ALL_DLL_DIRS + $Env:PATH) -Join [IO.Path]::PathSeparator
+  $Env:PATH = ($ALL_DLL_DIRS -Join [IO.Path]::PathSeparator) + [IO.Path]::PathSeparator + $Env:PATH
+  Write-Output "PATH=$Env:PATH"
 
   & cmake --build . --config $Env:CONFIGURATION
   if ( $LastExitCode -ne 0 ) {
     exit $LastExitCode
   }
-  # & ctest . -V -C $Env:CONFIGURATION
-  # if ( $LastExitCode -ne 0 ) {
-  #   exit $LastExitCode
-  # }
+  & ctest . -V -C $Env:CONFIGURATION -L libatbus.unit_test
+  if ( $LastExitCode -ne 0 ) {
+    exit $LastExitCode
+  }
 }
 
 Set-Location $WORK_DIR
