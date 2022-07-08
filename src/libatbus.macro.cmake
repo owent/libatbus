@@ -18,6 +18,7 @@ add_custom_command(
           "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/libatbus_protocol.pb.cc"
   COMMAND ${CMAKE_COMMAND} -E remove -f "${PROJECT_LIBATBUS_ROOT_INC_DIR}/libatbus_protocol.pb.cc"
   DEPENDS "${PROJECT_LIBATBUS_ROOT_INC_DIR}/libatbus_protocol.proto"
+          "${ATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_PROTOBUF_BIN_PROTOC}"
   COMMENT
     "Generate ${PROJECT_LIBATBUS_ROOT_INC_DIR}/libatbus_protocol.pb.h, ${PROJECT_LIBATBUS_ROOT_SRC_DIR}/libatbus_protocol.pb.cc and ${PROJECT_LIBATBUS_ROOT_INC_DIR}/libatbus_protocol.pb"
 )
