@@ -265,8 +265,8 @@ CASE_TEST(channel, mem_miso) {
             if (0 == n) n = 1;         /** 去除0字节包，保证顺序 **/
 
             size_t seq = seq_body | seq_head;
-            for (size_t i = 0; i < n; ++i) {
-              buf_pool[i] = seq;
+            for (size_t j = 0; j < n; ++j) {
+              buf_pool[j] = seq;
             }
 
             // CASE_THREAD_SLEEP_MS(800)
