@@ -6,7 +6,7 @@ on: # @see https://help.github.com/en/articles/events-that-trigger-workflows#web
       - master # Push events on master branch
       - main
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   format:
@@ -41,6 +41,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Generate cache key
+        shell: bash
+        run: git submodule > '.github/.cache-key'
+      - name: Cache packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            /usr/local/share/vcpkg/installed
+            third_party/install
+          key: ${{ runner.os }}-${ hashFiles('.github/.cache-key') }-${{ hashFiles('/usr/local/share/vcpkg/installed/**') }}
       - name: Build & Test
         shell: bash
         env:
@@ -57,13 +67,6 @@ jobs:
           else
             bash ci/do_ci.sh ssl.openssl ;
           fi
-      - name: Cache packages
-        uses: actions/cache@v2
-        with:
-          path: |
-            /usr/local/share/vcpkg/installed
-            third_party/install
-          key: ${{ runner.os }}-${ hashFiles('.github/.cache-key') }-${{ hashFiles('/usr/local/share/vcpkg/installed/**') }}
   vs2019_2022_build: # job id, can be any string
     name: "Visual Studio 2019/2022 Build"
     strategy:
@@ -85,6 +88,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Generate cache key
+        shell: bash
+        run: git submodule > '.github/.cache-key'
+      - name: Cache packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            third_party/install
+          key: ${{ runner.os }}-${ hashFiles('.github/.cache-key') }
       - name: Build & Test
         shell: pwsh
         env:
@@ -94,12 +106,6 @@ jobs:
           CONFIGURATION: RelWithDebInfo
         run: |
           pwsh ci/do_ci.ps1 "msvc.2019+.test" ;
-      - name: Cache packages
-        uses: actions/cache@v2
-        with:
-          path: |
-            third_party/install
-          key: ${{ runner.os }}-${ hashFiles('.github/.cache-key') }
   mingw_build: # job id, can be any string
     name: MinGW Build
     strategy:
@@ -111,20 +117,23 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Build & Test
+      - name: Generate cache key
         shell: bash
-        env:
-          BUILD_SHARED_LIBS: ${{ matrix.build_shared_libs }}
-        run: |
-          C:/msys64/msys2_shell.cmd -mingw64 -defterm -no-start -here -lc "ci/do_ci.sh msys2.mingw.test"
+        run: git submodule > '.github/.cache-key'
       - name: Cache packages
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             third_party/install
             C:/msys64/var/cache/pacman/pkg
             C:/msys64/var/lib/pacman
           key: ${{ runner.os }}-${ hashFiles('.github/.cache-key') }
+      - name: Build & Test
+        shell: bash
+        env:
+          BUILD_SHARED_LIBS: ${{ matrix.build_shared_libs }}
+        run: |
+          C:/msys64/msys2_shell.cmd -mingw64 -defterm -no-start -here -lc "ci/do_ci.sh msys2.mingw.test"
   coverage: # job id, can be any string
     name: Coverage
     # This job runs on Linux
@@ -139,6 +148,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Generate cache key
+        shell: bash
+        run: git submodule > '.github/.cache-key'
+      - name: Cache packages
+        uses: actions/cache@v3
+        with:
+          path: |
+            /usr/local/share/vcpkg/installed
+            third_party/install
+          key: ${{ runner.os }}-${ hashFiles('.github/.cache-key') }-${{ hashFiles('/usr/local/share/vcpkg/installed/**') }}
       - name: Generate coverage
         shell: bash
         env:
@@ -153,11 +172,4 @@ jobs:
         with:
           # token: ${{secrets.CODECOV_TOKEN}} # not required for public repos
           fail_ci_if_error: true
-          gcov_args: '-lp'
-      - name: Cache packages
-        uses: actions/cache@v2
-        with:
-          path: |
-            /usr/local/share/vcpkg/installed
-            third_party/install
-          key: ${{ runner.os }}-${ hashFiles('.github/.cache-key') }-${{ hashFiles('/usr/local/share/vcpkg/installed/**') }}
+          gcov_args: "-lp"
