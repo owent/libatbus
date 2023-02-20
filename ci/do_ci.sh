@@ -65,7 +65,7 @@ if [[ "$1" == "format" ]]; then
   exit 0
 elif [[ "$1" == "coverage" ]]; then
   CONFIGURATION=Debug
-  vcpkg install --triplet=$VCPKG_TARGET_TRIPLET fmt openssl protobuf libuv
+  vcpkg install --triplet=$VCPKG_TARGET_TRIPLET fmt openssl libuv
   CRYPTO_OPTIONS="-DATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_CRYPTO_USE_OPENSSL=ON"
   bash cmake_dev.sh -lus -b $CONFIGURATION -r build_jobs_coverage -c $USE_CC -- $CRYPTO_OPTIONS "-DCMAKE_C_FLAGS=$GCOV_FLAGS" "-DCMAKE_CXX_FLAGS=$GCOV_FLAGS" \
     "-DCMAKE_EXE_LINKER_FLAGS=$GCOV_FLAGS" -DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake \
@@ -78,7 +78,7 @@ elif [[ "$1" == "coverage" ]]; then
   ./tools/show_shm_channel 12345679 1 16 >/dev/null || true
 elif [[ "$1" == "ssl.openssl" ]]; then
   CRYPTO_OPTIONS="-DATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_CRYPTO_USE_OPENSSL=ON"
-  vcpkg install --triplet=$VCPKG_TARGET_TRIPLET fmt openssl protobuf libuv
+  vcpkg install --triplet=$VCPKG_TARGET_TRIPLET fmt openssl libuv
   bash cmake_dev.sh -lus -b $CONFIGURATION -r build_jobs_ci -c $USE_CC -- $CRYPTO_OPTIONS -DVCPKG_TARGET_TRIPLET=$VCPKG_TARGET_TRIPLET \
     -DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON \
     "-DATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_LOW_MEMORY_MODE=ON"
@@ -101,7 +101,8 @@ elif [[ "$1" == "msys2.mingw.test" ]]; then
   pacman -S --needed --noconfirm mingw-w64-x86_64-cmake git m4 curl wget tar autoconf automake \
     mingw-w64-x86_64-git-lfs mingw-w64-x86_64-toolchain mingw-w64-x86_64-libtool \
     mingw-w64-x86_64-python mingw-w64-x86_64-python-pip mingw-w64-x86_64-python-setuptools || true
-  git config --global http.sslBackend openssl
+  echo "PATH=$PATH"
+  git config --global http.sslBackend openssl || true
   # pacman -S --needed --noconfirm mingw-w64-x86_64-protobuf
   mkdir -p build_jobs_ci
   cd build_jobs_ci
