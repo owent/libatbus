@@ -98,11 +98,12 @@ elif [[ "$1" == "clang.test" ]]; then
   cmake --build . -j --config $CONFIGURATION || cmake --build . --config $CONFIGURATION
   ctest -VV . -C $CONFIGURATION -L libatbus.unit_test
 elif [[ "$1" == "msys2.mingw.test" ]]; then
-  pacman -S --needed --noconfirm mingw-w64-x86_64-cmake git m4 curl wget tar autoconf automake \
+  pacman -S --needed --noconfirm mingw-w64-x86_64-cmake mingw-w64-x86_64-make \
+    mingw-w64-x86_64-curl mingw-w64-x86_64-wget mingw-w64-x86_64-perl \
     mingw-w64-x86_64-git-lfs mingw-w64-x86_64-toolchain mingw-w64-x86_64-libtool \
     mingw-w64-x86_64-python mingw-w64-x86_64-python-pip mingw-w64-x86_64-python-setuptools || true
   echo "PATH=$PATH"
-  git config --global http.sslBackend openssl || true
+  # git config --global http.sslBackend openssl || true
   # pacman -S --needed --noconfirm mingw-w64-x86_64-protobuf
   mkdir -p build_jobs_ci
   cd build_jobs_ci
