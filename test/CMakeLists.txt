@@ -17,7 +17,7 @@ file(
 source_group_by_dir(PROJECT_TEST_SRC_LIST)
 
 # ============ test - coroutine test frame ============
-set(CMAKE_BUILD_RPATH "$ORIGIN/../lib" "$ORIGIN/../lib64")
+set(CMAKE_BUILD_RPATH "${CMAKE_INSTALL_RPATH}")
 if(NOT (WIN32 AND BUILD_SHARED_LIBS))
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/test")
 endif()
@@ -25,7 +25,7 @@ endif()
 atframe_add_test_executable(atbus_unit_test ${PROJECT_TEST_SRC_LIST})
 
 target_compile_options(atbus_unit_test PRIVATE ${PROJECT_LIBATBUS_PRIVATE_COMPILE_OPTIONS})
-target_link_libraries(atbus_unit_test ${PROJECT_LIBATBUS_LIB_LINK})
+target_link_libraries(atbus_unit_test atframework::atbus)
 
 target_include_directories(atbus_unit_test PRIVATE "$<BUILD_INTERFACE:${PROJECT_LIBATBUS_ROOT_SRC_DIR}>")
 
