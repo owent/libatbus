@@ -27,8 +27,8 @@ ATBUS_MACRO_API endpoint_subnet_range::endpoint_subnet_range() : id_prefix_(0), 
 
 ATBUS_MACRO_API endpoint_subnet_range::endpoint_subnet_range(ATBUS_MACRO_BUSID_TYPE a, uint32_t b)
     : id_prefix_(a), mask_bits_(b) {
-  max_id_ = id_prefix_ | (static_cast<uint64_t>(1 << mask_bits_) - 1);
-  min_id_ = max_id_ - (static_cast<uint64_t>(1 << mask_bits_) - 1);
+  max_id_ = id_prefix_ | ((static_cast<uint64_t>(1) << mask_bits_) - 1);
+  min_id_ = max_id_ - ((static_cast<uint64_t>(1) << mask_bits_) - 1);
 }
 
 ATBUS_MACRO_API bool endpoint_subnet_range::operator==(const endpoint_subnet_range &other) const {
@@ -113,8 +113,8 @@ ATBUS_MACRO_API bool endpoint_subnet_range::contain(ATBUS_MACRO_BUSID_TYPE id_pr
     return false;
   }
 
-  return (id_prefix | (static_cast<uint64_t>(1 << mask_bits) - 1)) ==
-         (id | (static_cast<uint64_t>(1 << mask_bits) - 1));
+  return (id_prefix | ((static_cast<uint64_t>(1) << mask_bits) - 1)) ==
+         (id | ((static_cast<uint64_t>(1) << mask_bits) - 1));
 }
 
 ATBUS_MACRO_API bool endpoint_subnet_range::contain(const endpoint_subnet_conf &conf, ATBUS_MACRO_BUSID_TYPE id) {
