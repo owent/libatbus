@@ -261,8 +261,8 @@ CASE_TEST(channel, mem_miso) {
           size_t seq_body = 0;
 
           while (left_sec > 0) {
-            size_t n = rand() % 1024;  // 最大 4K-8K的包
-            if (0 == n) n = 1;         /** 去除0字节包，保证顺序 **/
+            size_t n = static_cast<size_t>(rand() % 1024);  // 最大 4K-8K的包
+            if (0 == n) n = 1;                              /** 去除0字节包，保证顺序 **/
 
             size_t seq = seq_body | seq_head;
             for (size_t j = 0; j < n; ++j) {

@@ -223,7 +223,7 @@ static void mem_copy_conf(mem_conf &dst, const mem_conf &src) {
  * @param checked 检查项
  * @return 检查结果flag
  */
-static inline bool check_flag(uint32_t flag, MEM_FLAG checked) { return !!(flag & checked); }
+static inline bool check_flag(uint32_t flag, MEM_FLAG checked) { return !!(flag & static_cast<uint32_t>(checked)); }
 
 /**
  * @brief 设置标记位
@@ -231,7 +231,7 @@ static inline bool check_flag(uint32_t flag, MEM_FLAG checked) { return !!(flag 
  * @param checked 设置项flag
  * @return 设置结果flag
  */
-static inline uint32_t set_flag(uint32_t flag, MEM_FLAG checked) { return flag | checked; }
+static inline uint32_t set_flag(uint32_t flag, MEM_FLAG checked) { return flag | static_cast<uint32_t>(checked); }
 
 /**
  * @brief 生存默认配置
@@ -292,9 +292,14 @@ static inline volatile mem_node_head *mem_get_node_head(mem_channel *channel, si
     char *data_ = (char *)channel + channel->area_data_offset - channel->area_channel_offset;
     data_ += index * mem_block::node_data_size;
 
-    if (data) (*data) = (void *)data_;
+    if (data) {
+      (*data) = (void *)data_;
+    }
 
-    if (data_len) (*data_len) = channel->area_end_offset - channel->area_channel_offset + (char *)channel - data_;
+    if (data_len) {
+      (*data_len) =
+          channel->area_end_offset - channel->area_channel_offset + static_cast<size_t>((char *)channel - data_);
+    }
   }
 
   return (volatile mem_node_head *)(void *)buf;
@@ -316,8 +321,8 @@ static inline mem_block_head *mem_get_block_head(mem_channel *channel, size_t in
   if (data) (*data) = (void *)(buf + mem_block::block_head_size);
 
   if (data_len)
-    (*data_len) =
-        channel->area_end_offset - channel->area_channel_offset + (char *)channel - buf - mem_block::block_head_size;
+    (*data_len) = channel->area_end_offset - channel->area_channel_offset +
+                  static_cast<size_t>((char *)channel - buf - mem_block::block_head_size);
 
   return (mem_block_head *)(void *)buf;
 }
@@ -503,7 +508,7 @@ ATBUS_MACRO_API int mem_init(void *buf, size_t len, mem_channel **channel, const
       (len - mem_block::channel_head_size) / (head->channel.node_size + mem_block::node_head_size);
 
   // 偏移位置计算
-  head->channel.area_channel_offset = (char *)&head->channel - (char *)buf;
+  head->channel.area_channel_offset = static_cast<size_t>((char *)&head->channel - (char *)buf);
   head->channel.area_head_offset = sizeof(mem_channel_head_align);
   head->channel.area_data_offset =
       head->channel.area_head_offset + head->channel.node_count * mem_block::node_head_size;

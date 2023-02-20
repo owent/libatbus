@@ -135,7 +135,7 @@ static int node_msg_test_recv_msg_test_record_fn(const atbus::node &n, const atb
                     << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
                     << std::setw(w) << std::dec << "\t"
                     << "recv message: ";
-    std::cout.write(reinterpret_cast<const char *>(buffer), len);
+    std::cout.write(reinterpret_cast<const char *>(buffer), static_cast<std::streamsize>(len));
     std::cout << std::endl;
   } else {
     recv_msg_history.data.clear();
@@ -706,7 +706,7 @@ static int node_msg_test_recv_and_send_msg_fn(const atbus::node &n, const atbus:
                     << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
                     << std::setw(w) << std::dec << "\t"
                     << "recv message: ";
-    std::cout.write(reinterpret_cast<const char *>(buffer), len);
+    std::cout.write(reinterpret_cast<const char *>(buffer), static_cast<std::streamsize>(len));
     std::cout << std::endl;
   } else {
     recv_msg_history.data.clear();
@@ -1167,7 +1167,7 @@ CASE_TEST(atbus_node_msg, transfer_failed_cross_parents) {
 
   conf.ev_loop = &ev_loop;
   conf.fault_tolerant = 2;  // 容错设为2次。
-  size_t try_times = 5;     //我们尝试5次发失败
+  size_t try_times = 5;     // 我们尝试5次发失败
 
   // 只有发生冲突才会注册不成功，否则会无限重试注册父节点，直到其上线
   {
