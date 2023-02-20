@@ -1724,7 +1724,7 @@ int io_stream_try_write(io_stream_connection *connection) {
     }
 
     void *data = nullptr;
-    connection->write_buffers.push_front(data, sizeof(uv_write_t) + (free_buffer - buffer_start));
+    connection->write_buffers.push_front(data, sizeof(uv_write_t) + static_cast<size_t>(free_buffer - buffer_start));
 
     // already pop more data than sizeof(uv_write_t) + (free_buffer - buffer_start)
     // so this push_front should always success
@@ -1735,7 +1735,7 @@ int io_stream_try_write(io_stream_connection *connection) {
 
     data = ::atbus::detail::fn::buffer_next(data, sizeof(uv_write_t));
     // copy back merged data
-    memcpy(data, buffer_start, free_buffer - buffer_start);
+    memcpy(data, buffer_start, static_cast<size_t>(free_buffer - buffer_start));
   }
 
   ::atbus::detail::buffer_block *writing_block = connection->write_buffers.front();

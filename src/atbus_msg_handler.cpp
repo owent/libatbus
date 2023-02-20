@@ -477,7 +477,7 @@ ATBUS_MACRO_API int msg_handler::on_recv_data_transfer_req(node &n, connection *
     return EN_ATBUS_ERR_SUCCESS;
   }
 
-  size_t router_size = fwd_data->router().size();
+  size_t router_size = static_cast<size_t>(fwd_data->router().size());
   if (router_size >= static_cast<size_t>(n.get_conf().ttl)) {
     return send_transfer_rsp(n, ATBUS_MACRO_MOVE(m), EN_ATBUS_ERR_ATNODE_TTL);
   }
@@ -839,7 +839,7 @@ ATBUS_MACRO_API int msg_handler::on_recv_node_reg_req(node &n, connection *conn,
     // 创建新端点时需要判定全局路由表权限
     std::bitset<endpoint::flag_t::MAX> reg_flags(reg_data->flags());
     std::vector<endpoint_subnet_conf> ep_subnets;
-    ep_subnets.reserve(reg_data->subnets_size() + 1);
+    ep_subnets.reserve(static_cast<size_t>(reg_data->subnets_size() + 1));
     {
       bool contains_self = false;
       for (int i = 0; i < reg_data->subnets_size(); ++i) {

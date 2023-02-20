@@ -44,7 +44,7 @@ ATBUS_MACRO_API const void *buffer_prev(const void *pointer, size_t step) {
 ATBUS_MACRO_API size_t buffer_offset(const void *l, const void *r) {
   const char *lc = reinterpret_cast<const char *>(l);
   const char *rc = reinterpret_cast<const char *>(r);
-  return lc < rc ? (rc - lc) : (lc - rc);
+  return static_cast<size_t>(lc < rc ? (rc - lc) : (lc - rc));
 }
 
 ATBUS_MACRO_API size_t read_vint(uint64_t &out, const void *pointer, size_t s) {

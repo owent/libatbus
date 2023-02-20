@@ -279,7 +279,7 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
 
 #  else
   // len 长度对齐到分页大小
-  size_t page_size = ::sysconf(_SC_PAGESIZE);
+  size_t page_size = static_cast<size_t>(::sysconf(_SC_PAGESIZE));
   len = (len + page_size - 1) & (~(page_size - 1));
 
   int shmflag = 0666;
@@ -294,13 +294,13 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
   // -- Hugepagesize: 大页表的分页大小，如果ATBUS_MACRO_HUGETLB_SIZE小于这个值，要对齐到这个值
   // -- HugePages_Total: 大页表总大小
   // -- HugePages_Free: 大页表可用大小，如果可用值小于需要分配的空间，也不能用大页表
-  //#ifdef ATBUS_MACRO_HUGETLB_SIZE
+  // #ifdef ATBUS_MACRO_HUGETLB_SIZE
   //            // 如果大于4倍的大页表，则对齐到大页表并使用大页表
   //            if (len > (4 * ATBUS_MACRO_HUGETLB_SIZE)) {
   //                len = (len + (ATBUS_MACRO_HUGETLB_SIZE)-1) & (~((ATBUS_MACRO_HUGETLB_SIZE)-1));
   //                shmflag |= SHM_HUGETLB;
   //            }
-  //#endif
+  // #endif
 
 #    endif
   // create record with shmget/shmat/shmdt mode

@@ -68,7 +68,7 @@ int main() {
         std::cout << "atbus node 0x" << std::ios::hex << n.get_id() << " receive data from 0x" << std::ios::hex
                   << ep->get_id() << "(connection: " << conn->get_address().address << "): ";
       }
-      std::cout.write(reinterpret_cast<const char *>(buffer), len);
+      std::cout.write(reinterpret_cast<const char *>(buffer), static_cast<std::streamsize>(len));
       std::cout << std::endl;
       recved = true;
       return 0;

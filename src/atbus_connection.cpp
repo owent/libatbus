@@ -784,7 +784,7 @@ ATBUS_MACRO_API void connection::iostream_on_written(channel::io_stream_channel 
 #ifdef ATBUS_CHANNEL_SHM
 ATBUS_MACRO_API int connection::shm_proc_fn(node &n, connection &conn, time_t /*sec*/, time_t /*usec*/) {
   int ret = 0;
-  size_t left_times = n.get_conf().loop_times;
+  size_t left_times = static_cast<size_t>(n.get_conf().loop_times);
   detail::buffer_block *static_buffer = n.get_temp_static_buffer();
   if (nullptr == static_buffer) {
     return ATBUS_FUNC_NODE_ERROR(n, nullptr, &conn, EN_ATBUS_ERR_NOT_INITED, 0);
@@ -852,7 +852,7 @@ ATBUS_MACRO_API int connection::shm_push_fn(connection &conn, const void *buffer
 
 ATBUS_MACRO_API int connection::mem_proc_fn(node &n, connection &conn, time_t /*sec*/, time_t /*usec*/) {
   int ret = 0;
-  size_t left_times = n.get_conf().loop_times;
+  size_t left_times = static_cast<size_t>(n.get_conf().loop_times);
   detail::buffer_block *static_buffer = n.get_temp_static_buffer();
   if (nullptr == static_buffer) {
     return ATBUS_FUNC_NODE_ERROR(n, nullptr, &conn, EN_ATBUS_ERR_NOT_INITED, 0);
