@@ -85,7 +85,7 @@ ATBUS_MACRO_API size_t write_vint(uint64_t in, void *pointer, size_t s) {
     ++used;
     ++d;
 
-    *d = 0x80 | (in & 0x7F);
+    *d = static_cast<char>(0x80 | (in & 0x7F));
     in >>= 7;
   }
 
