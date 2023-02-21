@@ -49,7 +49,7 @@ jobs:
         with:
           path: |
             third_party/install
-          key: ${{ runner.os }}-${ hashFiles('.github/.cache-key') } }}
+          key: ${{ runner.os }}-${{ matrix.cc }}-${ hashFiles('.github/.cache-key') } }}
       - name: Build & Test
         shell: bash
         env:
@@ -94,7 +94,7 @@ jobs:
         with:
           path: |
             third_party/install
-          key: ${{ runner.os }}-${ hashFiles('.github/.cache-key') }
+          key: ${{ runner.os }}-shared-${{ matrix.build_shared_libs }}-${ hashFiles('.github/.cache-key') }
       - name: Build & Test
         shell: pwsh
         env:
@@ -124,7 +124,7 @@ jobs:
           path: |
             third_party/install
             C:/msys64/var/cache/pacman/pkg
-          key: ${{ runner.os }}-${ hashFiles('.github/.cache-key') }
+          key: ${{ runner.os }}-mingw-shared-${{ matrix.build_shared_libs }}-${ hashFiles('.github/.cache-key') }
       - name: Build & Test
         shell: bash
         env:
@@ -153,7 +153,7 @@ jobs:
         with:
           path: |
             third_party/install
-          key: ${{ runner.os }}-${ hashFiles('.github/.cache-key') } }}
+          key: ${{ runner.os }}-coverage-${ hashFiles('.github/.cache-key') } }}
       - name: Generate coverage
         shell: bash
         env:
