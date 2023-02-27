@@ -41,12 +41,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Generate cache key
+        shell: bash
+        run: git submodule > '.github/.cache-key'
       - name: Cache packages
         uses: actions/cache@v3
         with:
           path: |
             third_party/install
-          key: ${{ matrix.os }}-${{ matrix.cc }}-${{ hashFiles('.git/modules/atframework/cmake-toolset/HEAD') }}
+          key: ${{ matrix.os }}-${{ matrix.cc }}-${{ hashFiles('.github/.cache-key') }}
       - name: Build & Test
         shell: bash
         env:
@@ -83,12 +86,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Generate cache key
+        shell: bash
+        run: git submodule > '.github/.cache-key'
       - name: Cache packages
         uses: actions/cache@v3
         with:
           path: |
             third_party/install
-          key: ${{ matrix.os }}-shared-${{ matrix.build_shared_libs }}-${{ hashFiles('.git/modules/atframework/cmake-toolset/HEAD') }}
+          key: ${{ matrix.os }}-shared-${{ matrix.build_shared_libs }}-${{ hashFiles('.github/.cache-key') }}
       - name: Build & Test
         shell: pwsh
         env:
@@ -109,13 +115,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Generate cache key
+        shell: bash
+        run: git submodule > '.github/.cache-key'
       - name: Cache packages
         uses: actions/cache@v3
         with:
           path: |
             third_party/install
             C:/msys64/var/cache/pacman/pkg
-          key: ${{ matrix.os }}-mingw-shared-${{ matrix.build_shared_libs }}-${{ hashFiles('.git/modules/atframework/cmake-toolset/HEAD') }}
+          key: ${{ matrix.os }}-mingw-shared-${{ matrix.build_shared_libs }}-${{ hashFiles('.github/.cache-key') }}
       - name: Build & Test
         shell: bash
         env:
@@ -136,12 +145,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Generate cache key
+        shell: bash
+        run: git submodule > '.github/.cache-key'
       - name: Cache packages
         uses: actions/cache@v3
         with:
           path: |
             third_party/install
-          key: ${{ matrix.os }}-coverage-${{ hashFiles('.git/modules/atframework/cmake-toolset/HEAD') }}
+          key: ${{ matrix.os }}-coverage-${{ hashFiles('.github/.cache-key') }}
       - name: Generate coverage
         shell: bash
         env:
