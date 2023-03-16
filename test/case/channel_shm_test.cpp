@@ -117,7 +117,8 @@ CASE_TEST(channel, shm_attach_with_invalid_host_size) {
   CASE_EXPECT_EQ(sizeof(size_t), shm_info_get_host_size(channel));
   CASE_EXPECT_EQ(0, shm_info_get_host_size(nullptr));
 
-  (*reinterpret_cast<uint16_t *>(reinterpret_cast<unsigned char *>(channel) + 20)) = sizeof(size_t) / 2;
+  (*reinterpret_cast<uint16_t *>(reinterpret_cast<unsigned char *>(channel) + 20)) =
+      static_cast<uint16_t>(sizeof(size_t) / 2);
   CASE_EXPECT_EQ(EN_ATBUS_ERR_CHANNEL_ARCH_SIZE_T_MISMATCH, shm_attach(shm_path, buffer_len, &channel, nullptr));
 }
 
