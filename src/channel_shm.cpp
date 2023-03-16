@@ -348,7 +348,7 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
       return EN_ATBUS_ERR_SHM_MAP_FAILED;
     }
   } else {
-    shm_record->handle.shm_id = shmget(shm_path.second, len, shmflag);
+    shm_record->handle.shm_id = shmget(static_cast<key_t>(shm_path.second), len, shmflag);
     shm_record->handle.shm_fd = 0;
     shm_record->handle.shm_path.clear();
     if (-1 == shm_record->handle.shm_id) return EN_ATBUS_ERR_SHM_GET_FAILED;

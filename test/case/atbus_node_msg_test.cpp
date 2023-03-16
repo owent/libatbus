@@ -38,8 +38,8 @@ static void node_msg_test_on_debug(const char *file_path, size_t line, const atb
   std::streamsize w = std::cout.width();
   CASE_MSG_INFO() << "[Log Debug][" << std::setw(24) << file_path << ":" << std::setw(4) << line << "] node=0x"
                   << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x" << std::setw(8)
-                  << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ') << std::setw(w)
-                  << std::dec << "\t";
+                  << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
+                  << std::setw(static_cast<int>(w)) << std::dec << "\t";
 
   va_list ap;
   va_start(ap, fmt);
@@ -60,7 +60,8 @@ static int node_msg_test_on_error(const atbus::node &n, const atbus::endpoint *e
   std::streamsize w = std::cout.width();
   CASE_MSG_INFO() << "[Log Error] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
                   << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
-                  << std::setw(w) << std::dec << "=> status: " << status << ", errcode: " << errcode << std::endl;
+                  << std::setw(static_cast<int>(w)) << std::dec << "=> status: " << status << ", errcode: " << errcode
+                  << std::endl;
   return 0;
 }
 
@@ -69,7 +70,8 @@ static int node_msg_test_on_info_log(const atbus::node &n, const atbus::endpoint
   std::streamsize w = std::cout.width();
   CASE_MSG_INFO() << "[Log Info] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
                   << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
-                  << std::setw(w) << std::dec << "=> message: " << (nullptr == msg ? "" : msg) << std::endl;
+                  << std::setw(static_cast<int>(w)) << std::dec << "=> message: " << (nullptr == msg ? "" : msg)
+                  << std::endl;
   return 0;
 }
 
@@ -133,7 +135,7 @@ static int node_msg_test_recv_msg_test_record_fn(const atbus::node &n, const atb
     recv_msg_history.data.assign(reinterpret_cast<const char *>(buffer), len);
     CASE_MSG_INFO() << "[Log Debug] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
                     << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
-                    << std::setw(w) << std::dec << "\t"
+                    << std::setw(static_cast<int>(w)) << std::dec << "\t"
                     << "recv message: ";
     std::cout.write(reinterpret_cast<const char *>(buffer), static_cast<std::streamsize>(len));
     std::cout << std::endl;
@@ -141,7 +143,7 @@ static int node_msg_test_recv_msg_test_record_fn(const atbus::node &n, const atb
     recv_msg_history.data.clear();
     CASE_MSG_INFO() << "[Log Debug] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
                     << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
-                    << std::setw(w) << std::dec << "\t"
+                    << std::setw(static_cast<int>(w)) << std::dec << "\t"
                     << "recv message: [NOTHING]" << std::endl;
   }
 
@@ -190,7 +192,7 @@ static int node_msg_test_on_ping(const atbus::node &n, const atbus::endpoint *ep
   std::streamsize w = std::cout.width();
   CASE_MSG_INFO() << "[Ping] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
                   << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", time point=" << ping_data.time_point()
-                  << std::setfill(' ') << std::setw(w) << std::dec << std::endl;
+                  << std::setfill(' ') << std::setw(static_cast<int>(w)) << std::dec << std::endl;
 
   ++recv_msg_history.ping_count;
   return 0;
@@ -201,7 +203,7 @@ static int node_msg_test_on_pong(const atbus::node &n, const atbus::endpoint *ep
   std::streamsize w = std::cout.width();
   CASE_MSG_INFO() << "[Pong] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
                   << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", time point=" << ping_data.time_point()
-                  << std::setfill(' ') << std::setw(w) << std::dec << std::endl;
+                  << std::setfill(' ') << std::setw(static_cast<int>(w)) << std::dec << std::endl;
 
   ++recv_msg_history.pong_count;
   return 0;
@@ -704,7 +706,7 @@ static int node_msg_test_recv_and_send_msg_fn(const atbus::node &n, const atbus:
     recv_msg_history.data.assign(reinterpret_cast<const char *>(buffer), len);
     CASE_MSG_INFO() << "[Log Debug] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
                     << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
-                    << std::setw(w) << std::dec << "\t"
+                    << std::setw(static_cast<int>(w)) << std::dec << "\t"
                     << "recv message: ";
     std::cout.write(reinterpret_cast<const char *>(buffer), static_cast<std::streamsize>(len));
     std::cout << std::endl;
@@ -712,7 +714,7 @@ static int node_msg_test_recv_and_send_msg_fn(const atbus::node &n, const atbus:
     recv_msg_history.data.clear();
     CASE_MSG_INFO() << "[Log Debug] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
                     << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
-                    << std::setw(w) << std::dec << "\t"
+                    << std::setw(static_cast<int>(w)) << std::dec << "\t"
                     << "recv message: [NOTHING]" << std::endl;
   }
 
