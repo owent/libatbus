@@ -181,7 +181,7 @@ static char *get_test_buffer() {
   }
 
   for (size_t i = 0; i < MAX_TEST_BUFFER_LEN - 1; ++i) {
-    ret[i] = 'A' + rand() % 26;
+    ret[i] = static_cast<char>('A' + rand() % 26);
   }
 
   return ret;

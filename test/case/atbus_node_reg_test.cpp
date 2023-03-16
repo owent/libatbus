@@ -66,8 +66,8 @@ static void node_reg_test_on_debug(const char *file_path, size_t line, const atb
   std::streamsize w = std::cout.width();
   CASE_MSG_INFO() << "[Log Debug][" << std::setw(24) << file_path << ":" << std::setw(4) << line << "] node=0x"
                   << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x" << std::setw(8)
-                  << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ') << std::setw(w)
-                  << std::dec << "\t";
+                  << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
+                  << std::setw(static_cast<int>(w)) << std::dec << "\t";
 
   char log_content[2048] = {0};
   va_list ap;
@@ -112,7 +112,8 @@ static int node_reg_test_on_error(const atbus::node &n, const atbus::endpoint *e
   std::streamsize w = std::cout.width();
   CASE_MSG_INFO() << "[Log Error] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
                   << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
-                  << std::setw(w) << std::dec << "=> status: " << status << ", errcode: " << errcode << std::endl;
+                  << std::setw(static_cast<int>(w)) << std::dec << "=> status: " << status << ", errcode: " << errcode
+                  << std::endl;
   return 0;
 }
 
@@ -121,7 +122,8 @@ static int node_reg_test_on_info_log(const atbus::node &n, const atbus::endpoint
   std::streamsize w = std::cout.width();
   CASE_MSG_INFO() << "[Log Info] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
                   << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
-                  << std::setw(w) << std::dec << "=> message: " << (nullptr == msg ? "" : msg) << std::endl;
+                  << std::setw(static_cast<int>(w)) << std::dec << "=> message: " << (nullptr == msg ? "" : msg)
+                  << std::endl;
 
   if (nullptr != msg) {
     std::string content = msg;
