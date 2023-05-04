@@ -335,7 +335,7 @@ CASE_TEST(channel, mem_miso) {
               if (data_seq[rdh] != rdd) {
                 mem_show_channel(channel,
                                  CASE_MSG_INFO() << "rdh=" << rdh << ", data_seq[rdh]=" << data_seq[rdh]
-                                                 << ", rdd=" << rdd << std::endl,
+                                                 << ", rdd=" << rdd << ", receive[0]=" << buff_recv[0] << std::endl,
                                  true, 16);
               }
 
