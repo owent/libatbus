@@ -12,10 +12,10 @@
 #include <list>
 #include <vector>
 
-#include "libatbus_config.h"
+#include "detail/libatbus_config.h"
 
-#include <design_pattern/nomovable.h>
-#include <design_pattern/noncopyable.h>
+#include "design_pattern/nomovable.h"
+#include "design_pattern/noncopyable.h"
 
 namespace atbus {
 namespace detail {

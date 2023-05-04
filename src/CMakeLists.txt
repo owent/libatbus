@@ -3,11 +3,11 @@ echowithcolor(COLOR GREEN "-- Configure ${CMAKE_CURRENT_LIST_DIR}")
 file(RELATIVE_PATH PROJECT_ROOT_RELINC_DIR ${CMAKE_CURRENT_LIST_DIR} ${PROJECT_LIBATBUS_ROOT_INC_DIR})
 
 set(PROJECT_LIB_SRC_LIST
+    "${PROJECT_LIBATBUS_GENERATED_DIR}/include/detail/libatbus_config.h"
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/detail/buffer.h"
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/detail/libatbus_adapter_libuv.h"
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/detail/libatbus_channel_export.h"
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/detail/libatbus_channel_types.h"
-    "${PROJECT_LIBATBUS_ROOT_INC_DIR}/detail/libatbus_config.h"
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/detail/libatbus_error.h"
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/atbus_connection.h"
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/atbus_endpoint.h"
@@ -24,14 +24,13 @@ set(PROJECT_LIB_SRC_LIST
     "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/channel_mem.cpp"
     "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/channel_shm.cpp"
     "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/channel_utility.cpp")
-
-set(PROJECT_LIB_PROTOCOL_SRC_LIST "${PROJECT_LIBATBUS_ROOT_INC_DIR}/libatbus_protocol.pb.h"
-                                  "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/libatbus_protocol.pb.cc")
-
-set_source_files_properties("${PROJECT_LIBATBUS_ROOT_INC_DIR}/libatbus_protocol.pb.h"
-                            "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/libatbus_protocol.pb.cc" PROPERTIES GENERATED TRUE)
-list(REMOVE_DUPLICATES PROJECT_LIB_SRC_LIST)
 source_group_by_dir(PROJECT_LIB_SRC_LIST)
+
+set(PROJECT_LIB_PROTOCOL_SRC_LIST "${PROJECT_LIBATBUS_GENERATED_DIR}/include/libatbus_protocol.pb.h"
+                                  "${PROJECT_LIBATBUS_GENERATED_DIR}/src/libatbus_protocol.pb.cc")
+
+set_source_files_properties("${PROJECT_LIBATBUS_GENERATED_DIR}/include/libatbus_protocol.pb.h"
+                            "${PROJECT_LIBATBUS_GENERATED_DIR}/src/libatbus_protocol.pb.cc" PROPERTIES GENERATED TRUE)
 
 # ============ libatbus - src ============
 if(NOT CMAKE_SYSTEM_NAME MATCHES "Windows|MinGW|WindowsStore" AND (BUILD_SHARED_LIBS OR ATFRAMEWORK_USE_DYNAMIC_LIBRARY
@@ -48,8 +47,9 @@ set_target_properties(
              VERSION ${LIBATBUS_VERSION})
 target_link_libraries("${PROJECT_LIBATBUS_LIB_LINK}-protocol"
                       PUBLIC ${ATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_PROTOBUF_LINK_NAME})
-target_include_directories("${PROJECT_LIBATBUS_LIB_LINK}-protocol"
-                           PRIVATE "$<BUILD_INTERFACE:${PROJECT_LIBATBUS_ROOT_INC_DIR}>")
+target_include_directories(
+  "${PROJECT_LIBATBUS_LIB_LINK}-protocol" PRIVATE "$<BUILD_INTERFACE:${PROJECT_LIBATBUS_ROOT_INC_DIR}>"
+                                                  "${PROJECT_LIBATBUS_GENERATED_DIR}/include")
 
 set(PROJECT_LIBATBUS_PROTOCOL_SOURCE_COMPILE_OPTIONS ${PROJECT_COMMON_PRIVATE_COMPILE_OPTIONS}
                                                      ${PROJECT_BUILD_TOOLS_PATCH_PROTOBUF_SOURCES_OPTIONS})
@@ -93,7 +93,8 @@ add_dependencies(${PROJECT_LIBATBUS_LIB_LINK} "atbus-generate-protocol")
 
 target_include_directories(
   ${PROJECT_LIBATBUS_LIB_LINK}
-  PUBLIC "$<BUILD_INTERFACE:${PROJECT_LIBATBUS_ROOT_INC_DIR}>" "$<INSTALL_INTERFACE:include>"
+  PUBLIC "$<BUILD_INTERFACE:${PROJECT_LIBATBUS_ROOT_INC_DIR}>"
+         "$<BUILD_INTERFACE:${PROJECT_LIBATBUS_GENERATED_DIR}/include>" "$<INSTALL_INTERFACE:include>"
   PRIVATE "$<BUILD_INTERFACE:${PROJECT_LIBATBUS_ROOT_SRC_DIR}>")
 
 target_compile_definitions(${PROJECT_LIBATBUS_LIB_LINK} PRIVATE ATBUS_MACRO_BUILD_API=1)
@@ -101,8 +102,8 @@ target_compile_options(${PROJECT_LIBATBUS_LIB_LINK} PRIVATE ${PROJECT_LIBATBUS_P
 target_link_libraries(${PROJECT_LIBATBUS_LIB_LINK} PUBLIC ${PROJECT_LIBATBUS_PUBLIC_LINK_NAMES})
 
 if(MSVC)
-  set_property(TARGET ${PROJECT_LIBATBUS_LIB_LINK} PROPERTY FOLDER "atframework")
-  set_property(TARGET "${PROJECT_LIBATBUS_LIB_LINK}-protocol" PROPERTY FOLDER "atframework")
+  set_property(TARGET ${PROJECT_LIBATBUS_LIB_LINK} PROPERTY FOLDER "atframework/atbus")
+  set_property(TARGET "${PROJECT_LIBATBUS_LIB_LINK}-protocol" PROPERTY FOLDER "atframework/atbus")
 endif()
 
 set(PROJECT_LIBATBUS_EXPORT_TARGETS "${PROJECT_LIBATBUS_LIB_LINK}" "${PROJECT_LIBATBUS_LIB_LINK}-protocol")
@@ -123,3 +124,9 @@ install(
   REGEX ".+\\.h(pp)?$"
   PATTERN ".svn" EXCLUDE
   PATTERN ".git" EXCLUDE)
+
+install(FILES "${PROJECT_LIBATBUS_GENERATED_DIR}/include/detail/libatbus_config.h"
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/detail/")
+
+install(FILES "${PROJECT_LIBATBUS_GENERATED_DIR}/include/libatbus_protocol.pb.h"
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")

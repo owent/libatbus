@@ -20,12 +20,12 @@
 #  include <string>
 #  include <utility>
 
-#  include "libatbus_adapter_libuv.h"
-
 #  include "lock/seq_alloc.h"
 
+#  include "detail/libatbus_config.h"
+
 #  include "buffer.h"
-#  include "libatbus_config.h"
+#  include "detail/libatbus_adapter_libuv.h"
 
 #  if defined(__ANDROID__)
 #  elif defined(__APPLE__)
