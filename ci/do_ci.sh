@@ -76,6 +76,21 @@ elif [[ "$1" == "coverage" ]]; then
   timeout 5s ./tools/benchmark_shm_channel_recv 12345679 1024 4194304 >recv.log 2>&1 &
   timeout 6s ./tools/benchmark_shm_channel_send 12345679 1024 4194304 >send.log 2>&1 || true
   ./tools/show_shm_channel 12345679 1 16 >/dev/null || true
+elif [[ "$1" == "codeql.configure" ]]; then
+  CONFIGURATION=Debug
+  vcpkg install --triplet=$VCPKG_TARGET_TRIPLET fmt openssl libuv
+  CRYPTO_OPTIONS="-DATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_CRYPTO_USE_OPENSSL=ON"
+  bash cmake_dev.sh -lus -b $CONFIGURATION -r build_jobs_coverage -c $USE_CC -- $CRYPTO_OPTIONS "-DCMAKE_C_FLAGS=$GCOV_FLAGS" "-DCMAKE_CXX_FLAGS=$GCOV_FLAGS" \
+    "-DCMAKE_EXE_LINKER_FLAGS=$GCOV_FLAGS" -DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake \
+    -DVCPKG_TARGET_TRIPLET=$VCPKG_TARGET_TRIPLET -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON "-DATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_LOW_MEMORY_MODE=ON"
+elif [[ "$1" == "codeql.build" ]]; then
+  CONFIGURATION=Debug
+  cd build_jobs_coverage
+  cmake --build . -j --config $CONFIGURATION || cmake --build . --config $CONFIGURATION
+  ctest -VV . -C $CONFIGURATION -L libatbus.unit_test
+  timeout 5s ./tools/benchmark_shm_channel_recv 12345679 1024 4194304 >recv.log 2>&1 &
+  timeout 6s ./tools/benchmark_shm_channel_send 12345679 1024 4194304 >send.log 2>&1 || true
+  ./tools/show_shm_channel 12345679 1 16 >/dev/null || true
 elif [[ "$1" == "ssl.openssl" ]]; then
   CRYPTO_OPTIONS="-DATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_CRYPTO_USE_OPENSSL=ON"
   vcpkg install --triplet=$VCPKG_TARGET_TRIPLET fmt openssl libuv
