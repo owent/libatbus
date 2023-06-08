@@ -12,7 +12,8 @@ add_custom_command(
          "${PROJECT_LIBATBUS_GENERATED_DIR}/libatbus_protocol.pb"
   COMMAND
     ${ATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_PROTOBUF_BIN_PROTOC} --proto_path ${PROJECT_LIBATBUS_ROOT_INC_DIR} -o
-    "${PROJECT_LIBATBUS_GENERATED_DIR}/temp/libatbus_protocol.pb" "--cpp_out=${PROJECT_LIBATBUS_GENERATED_DIR}/temp/"
+    "${PROJECT_LIBATBUS_GENERATED_DIR}/temp/libatbus_protocol.pb"
+    "--cpp_out=dllexport_decl=ATBUS_MACRO_PROTOCOL_API:${PROJECT_LIBATBUS_GENERATED_DIR}/temp/"
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/libatbus_protocol.proto"
   COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${PROJECT_LIBATBUS_GENERATED_DIR}/temp/libatbus_protocol.pb.cc"
           "${PROJECT_LIBATBUS_GENERATED_DIR}/src/libatbus_protocol.pb.cc"

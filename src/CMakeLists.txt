@@ -33,17 +33,22 @@ set_source_files_properties("${PROJECT_LIBATBUS_GENERATED_DIR}/include/libatbus_
                             "${PROJECT_LIBATBUS_GENERATED_DIR}/src/libatbus_protocol.pb.cc" PROPERTIES GENERATED TRUE)
 
 # ============ libatbus - src ============
-if(NOT CMAKE_SYSTEM_NAME MATCHES "Windows|MinGW|WindowsStore" AND (BUILD_SHARED_LIBS OR ATFRAMEWORK_USE_DYNAMIC_LIBRARY
-                                                                  ))
+if(BUILD_SHARED_LIBS OR ATFRAMEWORK_USE_DYNAMIC_LIBRARY)
   add_library("${PROJECT_LIBATBUS_LIB_LINK}-protocol" SHARED ${PROJECT_LIB_PROTOCOL_SRC_LIST})
+  project_build_tools_set_shared_library_declaration(ATBUS_MACRO_PROTOCOL_API "${PROJECT_LIBATBUS_LIB_LINK}-protocol")
 else()
   add_library("${PROJECT_LIBATBUS_LIB_LINK}-protocol" STATIC ${PROJECT_LIB_PROTOCOL_SRC_LIST})
+  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang|Intel|XL|XLClang")
+    target_compile_definitions("${PROJECT_LIBATBUS_LIB_LINK}-protocol"
+                               PUBLIC "ATBUS_MACRO_PROTOCOL_API=__attribute__((visibility(\"default\")))")
+  else()
+    target_compile_definitions("${PROJECT_LIBATBUS_LIB_LINK}-protocol" PUBLIC "ATBUS_MACRO_PROTOCOL_API=")
+  endif()
 endif()
 set_target_properties(
   "${PROJECT_LIBATBUS_LIB_LINK}-protocol"
-  PROPERTIES C_VISIBILITY_PRESET "default"
-             CXX_VISIBILITY_PRESET "default"
-             WINDOWS_EXPORT_ALL_SYMBOLS TRUE
+  PROPERTIES C_VISIBILITY_PRESET "hidden"
+             CXX_VISIBILITY_PRESET "hidden"
              VERSION ${LIBATBUS_VERSION})
 target_link_libraries("${PROJECT_LIBATBUS_LIB_LINK}-protocol"
                       PUBLIC ${ATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_PROTOBUF_LINK_NAME})

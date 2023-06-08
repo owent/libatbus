@@ -7,27 +7,28 @@
 
 #pragma once
 
-#ifndef LIBATBUS_PROTOCOL_H
-#  define LIBATBUS_PROTOCOL_H
+#pragma once
 
-#  pragma once
+#include "detail/libatbus_config.h"
 
-#  include <config/compiler/protobuf_prefix.h>
+// clang-format off
+#  include "config/compiler/protobuf_prefix.h"
+// clang-format on
 
-#  include <google/protobuf/arena.h>
+#include "google/protobuf/arena.h"
 
-#  include "libatbus_protocol.pb.h"
+#include "libatbus_protocol.pb.h"  // NOLINT
 
-#  include <config/compiler/protobuf_suffix.h>
+// clang-format off
+#  include "config/compiler/protobuf_suffix.h"
+// clang-format on
 
 namespace atbus {
 using msg_t = ::atbus::protocol::msg;
 }  // namespace atbus
 
-#  define ATBUS_MACRO_RESERVED_SIZE 1024
+#define ATBUS_MACRO_RESERVED_SIZE 1024
 
-#  ifndef ATBUS_MACRO_PROTOBUF_NAMESPACE_ID
-#    define ATBUS_MACRO_PROTOBUF_NAMESPACE_ID google::protobuf
-#  endif
-
-#endif /* LIBATBUS_PROTOCOL_H */
+#ifndef ATBUS_MACRO_PROTOBUF_NAMESPACE_ID
+#  define ATBUS_MACRO_PROTOBUF_NAMESPACE_ID google::protobuf
+#endif

@@ -30,10 +30,21 @@
 #include "lock/spin_lock.h"
 
 #ifdef WIN32
+
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
+
+#  ifndef NOMINMAX
+#    define NOMINMAX
+#  endif
+
 #  include <Windows.h>
 
 #  ifdef _MSC_VER
-#    include <atlconv.h>
+#    ifdef UNICODE
+#      include <atlconv.h>
+#    endif
 #  endif
 
 #  ifdef UNICODE
@@ -215,7 +226,9 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
 
 #  ifdef _WIN32
 #    ifdef _MSC_VER
+#      ifdef UNICODE
   USES_CONVERSION;
+#      endif
 #    endif
   memset(&shm_record->handle, 0, sizeof(shm_record->handle));
   SYSTEM_INFO si;

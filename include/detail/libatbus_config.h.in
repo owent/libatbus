@@ -66,21 +66,33 @@
 #define ATBUS_MACRO_MOVE(x) std::move(x)
 
 #ifndef ATBUS_MACRO_API
-    #if defined(ATBUS_MACRO_API_NATIVE) && ATBUS_MACRO_API_NATIVE
-        #if defined(ATBUS_MACRO_API_DLL) && ATBUS_MACRO_API_DLL
-            #define ATBUS_MACRO_API UTIL_SYMBOL_EXPORT
-        #else
-            #define ATBUS_MACRO_API
-        #endif
-    #else
-        #if defined(ATBUS_MACRO_API_DLL) && ATBUS_MACRO_API_DLL
-            #define ATBUS_MACRO_API UTIL_SYMBOL_IMPORT
-        #else
-            #define ATBUS_MACRO_API
-        #endif
-    #endif
+#  if defined(ATBUS_MACRO_API_NATIVE) && ATBUS_MACRO_API_NATIVE
+#    if defined(ATBUS_MACRO_API_DLL) && ATBUS_MACRO_API_DLL
+#      define ATBUS_MACRO_API UTIL_SYMBOL_EXPORT
+#    else
+#      define ATBUS_MACRO_API
+#    endif
+#  else
+#    if defined(ATBUS_MACRO_API_DLL) && ATBUS_MACRO_API_DLL
+#      define ATBUS_MACRO_API UTIL_SYMBOL_IMPORT
+#    else
+#      define ATBUS_MACRO_API
+#    endif
+#  endif
 #endif
 #define ATBUS_MACRO_API_HEAD_ONLY UTIL_SYMBOL_VISIBLE
 #define ATBUS_MACRO_API_C(R) extern "C" ATBUS_MACRO_API R __cdecl
+
+#ifndef ATBUS_MACRO_PROTOCOL_API
+#  if defined(ATBUS_MACRO_API_NATIVE) && ATBUS_MACRO_API_NATIVE
+#    if defined(ATBUS_MACRO_API_DLL) && ATBUS_MACRO_API_DLL
+#      define ATBUS_MACRO_PROTOCOL_API UTIL_SYMBOL_IMPORT
+#    else
+#      define ATBUS_MACRO_PROTOCOL_API
+#    endif
+#  else
+#    define ATBUS_MACRO_PROTOCOL_API ATBUS_MACRO_API
+#  endif
+#endif
 
 #endif
