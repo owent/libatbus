@@ -19,6 +19,7 @@ using tty_t = uv_tty_t;
 using tcp_t = uv_tcp_t;
 using handle_t = uv_handle_t;
 using timer_t = uv_timer_t;
+using shutdown_t = uv_shutdown_t;
 
 using fd_t = uv_os_fd_t;
 

@@ -614,6 +614,7 @@ struct io_stream_connect_async_data {
   io_stream_channel *channel;
   io_stream_callback_t callback;
   std::shared_ptr<adapter::stream_t> stream;
+  std::unique_ptr<adapter::shutdown_t> shutdown_request;  // Shutdown handle
   bool pipe;
   void *priv_data;
   size_t priv_size;
@@ -650,6 +651,11 @@ static void io_stream_connection_on_close(uv_handle_t *handle) {
   channel->conn_gc_pool.erase(iter);
 }
 
+static void io_stream_connection_on_shutdown(uv_shutdown_t *req, int /*status*/) {
+  assert(req);
+  uv_close(reinterpret_cast<uv_handle_t *>(req->handle), io_stream_connection_on_close);
+}
+
 static void io_stream_async_data_on_close(uv_handle_t *handle) {
   assert(handle && handle->data);
   if (nullptr == handle || nullptr == handle->data) {
@@ -664,6 +670,11 @@ static void io_stream_async_data_on_close(uv_handle_t *handle) {
   delete async_data;
 }
 
+static void io_stream_async_data_on_shutdown(uv_shutdown_t *req, int /*status*/) {
+  assert(req);
+  uv_close(reinterpret_cast<uv_handle_t *>(req->handle), io_stream_async_data_on_close);
+}
+
 static void io_stream_shared_ptr_on_close(uv_handle_t *handle) {
   assert(handle && handle->data);
   if (nullptr == handle || nullptr == handle->data) {
@@ -676,6 +687,13 @@ static void io_stream_shared_ptr_on_close(uv_handle_t *handle) {
 
   // 这里channel可能已经无效了
   delete ptr;
+}
+
+static void io_stream_shared_ptr_on_shutdown(uv_shutdown_t *req, int /*status*/) {
+  assert(req);
+  uv_close(reinterpret_cast<uv_handle_t *>(req->handle), io_stream_shared_ptr_on_close);
+
+  delete req;
 }
 
 // 删除函数，stream绑定在connection上
@@ -695,11 +713,26 @@ static int io_stream_shutdown_ev_handle(io_stream_connection *conn) {
 
   // ATBUS_CHANNEL_REQ_START(conn->channel);
   // 被动断开也会触发回调，这里的流程不计数active的req
-  uv_close(reinterpret_cast<uv_handle_t *>(conn->handle.get()), io_stream_connection_on_close);
+  do {
+    if (0 == uv_is_writable(conn->handle.get())) {
+      break;
+    }
+    if (!conn->shutdown_request) {
+      conn->shutdown_request.reset(new adapter::shutdown_t());
+    }
+    if (!conn->shutdown_request) {
+      break;
+    }
+    conn->shutdown_request->data = nullptr;
+    if (0 != uv_shutdown(conn->shutdown_request.get(), conn->handle.get(), io_stream_connection_on_shutdown)) {
+      break;
+    }
 
+    return 0;
+  } while (false);
+
+  uv_close(reinterpret_cast<uv_handle_t *>(conn->handle.get()), io_stream_connection_on_close);
   return 0;
-  // uv_shutdown_t* req = new uv_shutdown_t();
-  // return uv_shutdown(req, handle, io_stream_connection_on_shutdown);
 }
 
 // 删除函数，stream绑定在io_stream_connect_async_data上
@@ -709,6 +742,25 @@ static int io_stream_shutdown_ev_handle(io_stream_connect_async_data *async_data
   async_data->stream->data = async_data;
 
   // 这里channel可能已经无效了
+  do {
+    if (0 == uv_is_writable(async_data->stream.get())) {
+      break;
+    }
+    if (!async_data->shutdown_request) {
+      async_data->shutdown_request.reset(new adapter::shutdown_t());
+    }
+    if (!async_data->shutdown_request) {
+      break;
+    }
+    async_data->shutdown_request->data = nullptr;
+    if (0 !=
+        uv_shutdown(async_data->shutdown_request.get(), async_data->stream.get(), io_stream_async_data_on_shutdown)) {
+      break;
+    }
+
+    return 0;
+  } while (false);
+
   uv_close(reinterpret_cast<uv_handle_t *>(async_data->stream.get()), io_stream_async_data_on_close);
   return 0;
 }
@@ -717,6 +769,23 @@ static int io_stream_shutdown_ev_handle(io_stream_connect_async_data *async_data
 static int io_stream_shutdown_ev_handle(std::shared_ptr<adapter::stream_t> &stream) {
   assert(nullptr == stream->data);
   stream->data = new std::shared_ptr<adapter::stream_t>(stream);
+
+  do {
+    if (0 == uv_is_writable(stream.get())) {
+      break;
+    }
+    uv_shutdown_t *shutdown_request = new uv_shutdown_t();
+    if (nullptr == shutdown_request) {
+      break;
+    }
+    shutdown_request->data = nullptr;
+    if (0 != uv_shutdown(shutdown_request, stream.get(), io_stream_shared_ptr_on_shutdown)) {
+      delete shutdown_request;
+      break;
+    }
+
+    return 0;
+  } while (false);
 
   // 这里channel可能已经无效了
   uv_close(reinterpret_cast<uv_handle_t *>(stream.get()), io_stream_shared_ptr_on_close);

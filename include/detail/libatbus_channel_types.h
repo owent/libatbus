@@ -116,8 +116,9 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_connection {
   };
 
   channel_address_t addr;
-  std::shared_ptr<adapter::stream_t> handle;  // 流设备
-  adapter::fd_t fd;                           // 文件描述符
+  std::shared_ptr<adapter::stream_t> handle;              // 流设备
+  adapter::fd_t fd;                                       // 文件描述符
+  std::unique_ptr<adapter::shutdown_t> shutdown_request;  // Shutdown handle
 
   enum status_t { EN_ST_CREATED = 0, EN_ST_CONNECTED, EN_ST_DISCONNECTING, EN_ST_DISCONNECTED };
   status_t status;  // 状态
