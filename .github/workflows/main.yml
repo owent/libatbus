@@ -133,8 +133,8 @@ jobs:
           BUILD_SHARED_LIBS: ${{ matrix.build_shared_libs }}
         run: |
           C:/msys64/msys2_shell.cmd -mingw64 -defterm -no-start -here -lc "ci/do_ci.sh msys2.mingw.test"
-  coverage: # job id, can be any string
-    name: Coverage
+  codeql: # job id, can be any string
+    name: CodeQL
     # This job runs on Linux
     strategy:
       matrix:
