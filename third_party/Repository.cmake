@@ -1,2 +1,3 @@
-include("${ATFRAMEWORK_CMAKE_TOOLSET_DIR}/ports/libuv/libuv.cmake")
-include("${ATFRAMEWORK_CMAKE_TOOLSET_DIR}/ports/protobuf/protobuf.cmake")
+project_third_party_include_port("libuv/libuv.cmake")
+project_third_party_include_port("fmtlib/fmtlib.cmake")
+project_third_party_include_port("protobuf/protobuf.cmake")
