@@ -57,11 +57,11 @@ else()
     target_compile_definitions("${PROJECT_LIBATBUS_LIB_LINK}-protocol" PUBLIC "ATBUS_MACRO_PROTOCOL_API=")
   endif()
 endif()
-set_target_properties(
-  "${PROJECT_LIBATBUS_LIB_LINK}-protocol"
-  PROPERTIES C_VISIBILITY_PRESET "hidden"
-             CXX_VISIBILITY_PRESET "hidden"
-             VERSION ${LIBATBUS_VERSION})
+if(NOT APPLE)
+  set_target_properties("${PROJECT_LIBATBUS_LIB_LINK}-protocol" PROPERTIES C_VISIBILITY_PRESET "hidden"
+                                                                           CXX_VISIBILITY_PRESET "hidden")
+endif()
+set_target_properties("${PROJECT_LIBATBUS_LIB_LINK}-protocol" PROPERTIES VERSION ${LIBATBUS_VERSION})
 target_link_libraries("${PROJECT_LIBATBUS_LIB_LINK}-protocol"
                       PUBLIC ${ATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_PROTOBUF_LINK_NAME})
 target_include_directories(
