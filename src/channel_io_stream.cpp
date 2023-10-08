@@ -30,6 +30,7 @@
 #include "common/file_system.h"
 #include "common/string_oprs.h"
 #include "config/atframe_utils_build_feature.h"
+#include "config/compile_optimize.h"
 #include "config/compiler_features.h"
 
 #include "algorithm/murmur_hash.h"
@@ -121,13 +122,14 @@ static_assert(io_stream_channel::EN_CF_MAX <= sizeof(int) * 8,
               "io_stream_channel::flag_t should has no more bits than io_stream_channel::flags");
 #endif
 
+namespace {
 union io_stream_sockaddr_switcher {
   sockaddr base;
   sockaddr_in ipv4;
   sockaddr_in6 ipv6;
 };
 
-struct io_stream_flag_guard {
+struct UTIL_SYMBOL_LOCAL io_stream_flag_guard {
   int *flags;
   int watch;
   bool is_active;
@@ -150,8 +152,8 @@ struct io_stream_flag_guard {
   io_stream_flag_guard &operator=(const io_stream_flag_guard &other);
 };
 
-static int io_stream_disconnect_inner(io_stream_channel *channel, io_stream_connection *connection,
-                                      io_stream_callback_t callback, bool force);
+static int io_stream_disconnect_internal(io_stream_channel *channel, io_stream_connection *connection,
+                                         io_stream_callback_t callback, bool force);
 
 static inline void io_stream_channel_callback(io_stream_callback_evt_t::mem_fn_t fn, io_stream_channel *channel,
                                               io_stream_callback_t async_callback, io_stream_connection *connection,
@@ -182,6 +184,131 @@ static inline void io_stream_channel_callback(io_stream_callback_evt_t::mem_fn_t
                                               void *priv_data, size_t s) {
   io_stream_channel_callback(fn, channel, connection, connection, status, errcode, priv_data, s);
 }
+
+struct UTIL_SYMBOL_LOCAL io_stream_connect_async_data {
+  uv_connect_t req;
+  channel_address_t addr;
+  io_stream_channel *channel;
+  io_stream_callback_t callback;
+  std::shared_ptr<adapter::stream_t> stream;
+  bool pipe;
+  void *priv_data;
+  size_t priv_size;
+};
+
+// listen 接口传入域名时的回调异步数据
+struct UTIL_SYMBOL_LOCAL io_stream_dns_async_data {
+  io_stream_channel *channel;
+  channel_address_t addr;
+  io_stream_callback_t callback;
+  uv_getaddrinfo_t req;
+  void *priv_data;
+  size_t priv_size;
+};
+
+struct UTIL_SYMBOL_LOCAL io_stream_handle_private_data {
+  io_stream_connection *connection = nullptr;
+  std::shared_ptr<adapter::stream_t> stream_lifetime;
+  std::unique_ptr<io_stream_connect_async_data> connect_async_lifetime;
+
+  inline io_stream_handle_private_data() noexcept {}
+};
+
+template <class HandleType>
+static io_stream_handle_private_data *io_stream_handle_get_private_data_internal(HandleType *handle) {
+  if (nullptr == handle) {
+    return nullptr;
+  }
+
+  return reinterpret_cast<io_stream_handle_private_data *>(handle->data);
+}
+
+static io_stream_handle_private_data *io_stream_handle_get_private_data(adapter::handle_t *handle) {
+  return io_stream_handle_get_private_data_internal(handle);
+}
+
+static void io_stream_handle_remove_private_data(adapter::handle_t *handle) {
+  if (nullptr == handle) {
+    return;
+  }
+
+  if (nullptr == handle->data) {
+    return;
+  }
+
+  io_stream_handle_private_data *private_data = reinterpret_cast<io_stream_handle_private_data *>(handle->data);
+  handle->data = nullptr;
+  delete private_data;
+}
+
+template <class HandleType>
+static io_stream_handle_private_data *io_stream_handle_mutable_private_data_internal(HandleType *handle) {
+  if (nullptr == handle) {
+    return nullptr;
+  }
+
+  if (nullptr != handle->data) {
+    return reinterpret_cast<io_stream_handle_private_data *>(handle->data);
+  }
+
+  io_stream_handle_private_data *ret = new io_stream_handle_private_data();
+  if (nullptr == ret) {
+    return nullptr;
+  }
+
+  handle->data = reinterpret_cast<void *>(ret);
+  return ret;
+}
+
+static io_stream_handle_private_data *io_stream_handle_mutable_private_data(adapter::stream_t *handle) {
+  return io_stream_handle_mutable_private_data_internal(handle);
+}
+
+static bool io_stream_handle_set_connection(adapter::stream_t *handle, io_stream_connection *conn) {
+  io_stream_handle_private_data *private_data = io_stream_handle_mutable_private_data(handle);
+  if (nullptr == private_data) {
+    return false;
+  }
+
+  private_data->connection = conn;
+  return true;
+}
+
+static bool io_stream_handle_set_connection(uv_write_t *req, io_stream_connection *conn) {
+  if (nullptr == req) {
+    return false;
+  }
+
+  req->data = conn;
+  return true;
+}
+
+static io_stream_connection *io_stream_handle_get_connection(adapter::handle_t *handle) {
+  io_stream_handle_private_data *private_data = io_stream_handle_get_private_data(handle);
+  if (nullptr == private_data) {
+    return nullptr;
+  }
+
+  return private_data->connection;
+}
+
+static io_stream_connection *io_stream_handle_get_connection(adapter::stream_t *handle) {
+  io_stream_handle_private_data *private_data = io_stream_handle_mutable_private_data(handle);
+  if (nullptr == private_data) {
+    return nullptr;
+  }
+
+  return private_data->connection;
+}
+
+static io_stream_connection *io_stream_handle_get_connection(uv_write_t *req) {
+  if (nullptr == req) {
+    return nullptr;
+  }
+  return reinterpret_cast<io_stream_connection *>(req->data);
+}
+
+}  // namespace
 
 void io_stream_init_configure(io_stream_conf *conf) {
   if (nullptr == conf) {
@@ -328,11 +455,11 @@ int io_stream_run(io_stream_channel *channel, adapter::run_mode_t mode) {
 }
 
 static void io_stream_on_recv_alloc_fn(uv_handle_t *handle, size_t /*suggested_size*/, uv_buf_t *buf) {
-  assert(handle && handle->data);
-  if (nullptr == handle || nullptr == handle->data) {
+  assert(handle);
+  if (nullptr == handle) {
     return;
   }
-  io_stream_connection *conn_raw_ptr = reinterpret_cast<io_stream_connection *>(handle->data);
+  io_stream_connection *conn_raw_ptr = io_stream_handle_get_connection(handle);
   assert(conn_raw_ptr && conn_raw_ptr->channel);
   if (nullptr == conn_raw_ptr->channel) {
     return;
@@ -344,7 +471,6 @@ static void io_stream_on_recv_alloc_fn(uv_handle_t *handle, size_t /*suggested_s
   if (io_stream_connection::EN_ST_CONNECTED != conn_raw_ptr->status) {
     buf->base = nullptr;
     buf->len = 0;
-    uv_read_stop(conn_raw_ptr->handle.get());
     return;
   }
 
@@ -374,7 +500,7 @@ static void io_stream_on_recv_alloc_fn(uv_handle_t *handle, size_t /*suggested_s
 }
 
 static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const uv_buf_t * /*buf*/) {
-  io_stream_connection *conn_raw_ptr = reinterpret_cast<io_stream_connection *>(stream->data);
+  io_stream_connection *conn_raw_ptr = io_stream_handle_get_connection(stream);
   assert(conn_raw_ptr);
   io_stream_channel *channel = conn_raw_ptr->channel;
   assert(channel);
@@ -383,6 +509,7 @@ static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const 
 
   // 如果正处于关闭阶段，忽略所有数据
   if (io_stream_connection::EN_ST_CONNECTED != conn_raw_ptr->status) {
+    uv_read_stop(conn_raw_ptr->handle.get());
     return;
   }
 
@@ -404,7 +531,7 @@ static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const 
     // 任何非重试的错误则关闭
     // 注意libuv有个特殊的错误码 UV_ENOBUFS 表示缓冲区不足
     // 理论上除非配置错误，否则不应该会出现，并且可能会导致header数据无法缩减。所以也直接关闭连接
-    io_stream_disconnect_inner(channel, conn_raw_ptr, nullptr, nread == UV_ECONNRESET);
+    io_stream_disconnect_internal(channel, conn_raw_ptr, nullptr, nread == UV_ECONNRESET);
     return;
   }
 
@@ -556,7 +683,7 @@ static void io_stream_stream_init(io_stream_channel *channel, io_stream_connecti
     return;
   }
 
-  handle->data = conn;
+  io_stream_handle_set_connection(handle, conn);
 }
 
 static void io_stream_tcp_init(io_stream_channel *channel, io_stream_connection *conn, adapter::tcp_t *handle) {
@@ -608,22 +735,11 @@ static void io_stream_pipe_setup(io_stream_channel *channel, adapter::pipe_t *ha
   io_stream_stream_setup(channel, reinterpret_cast<adapter::stream_t *>(handle));
 }
 
-struct io_stream_connect_async_data {
-  uv_connect_t req;
-  channel_address_t addr;
-  io_stream_channel *channel;
-  io_stream_callback_t callback;
-  std::shared_ptr<adapter::stream_t> stream;
-  std::unique_ptr<adapter::shutdown_t> shutdown_request;  // Shutdown handle
-  bool pipe;
-  void *priv_data;
-  size_t priv_size;
-};
-
-static void io_stream_connection_on_close(uv_handle_t *handle) {
-  io_stream_connection *conn_raw_ptr = reinterpret_cast<io_stream_connection *>(handle->data);
+static void io_stream_handle_on_close(uv_handle_t *handle) {
+  io_stream_connection *conn_raw_ptr = io_stream_handle_get_connection(handle);
   // connect not completed, directly exit
   if (nullptr == conn_raw_ptr) {
+    io_stream_handle_remove_private_data(handle);
     return;
   }
 
@@ -631,6 +747,7 @@ static void io_stream_connection_on_close(uv_handle_t *handle) {
   assert(channel);
   // 被动断开也会触发回调，这里的流程不计数active的req
   if (nullptr == channel) {
+    io_stream_handle_remove_private_data(handle);
     return;
   }
 
@@ -648,58 +765,20 @@ static void io_stream_connection_on_close(uv_handle_t *handle) {
     conn_raw_ptr->act_disc_cbk(channel, conn_raw_ptr, EN_ATBUS_ERR_SUCCESS, nullptr, 0);
   }
 
+  io_stream_handle_remove_private_data(handle);
   channel->conn_gc_pool.erase(iter);
 }
 
-static void io_stream_connection_on_shutdown(uv_shutdown_t *req, int /*status*/) {
+static void io_stream_handle_on_shutdown(uv_shutdown_t *req, int /*status*/) {
   assert(req);
-  uv_close(reinterpret_cast<uv_handle_t *>(req->handle), io_stream_connection_on_close);
-}
-
-static void io_stream_async_data_on_close(uv_handle_t *handle) {
-  assert(handle && handle->data);
-  if (nullptr == handle || nullptr == handle->data) {
-    return;
-  }
-
-  io_stream_connect_async_data *async_data = reinterpret_cast<io_stream_connect_async_data *>(handle->data);
-  assert(async_data);
-  assert(reinterpret_cast<uv_handle_t *>(async_data->stream.get()) == handle);
-
-  // 这里channel可能已经无效了
-  delete async_data;
-}
-
-static void io_stream_async_data_on_shutdown(uv_shutdown_t *req, int /*status*/) {
-  assert(req);
-  uv_close(reinterpret_cast<uv_handle_t *>(req->handle), io_stream_async_data_on_close);
-}
-
-static void io_stream_shared_ptr_on_close(uv_handle_t *handle) {
-  assert(handle && handle->data);
-  if (nullptr == handle || nullptr == handle->data) {
-    return;
-  }
-
-  std::shared_ptr<adapter::stream_t> *ptr = reinterpret_cast<std::shared_ptr<adapter::stream_t> *>(handle->data);
-  assert(ptr);
-  assert(reinterpret_cast<uv_handle_t *>(ptr->get()) == handle);
-
-  // 这里channel可能已经无效了
-  delete ptr;
-}
-
-static void io_stream_shared_ptr_on_shutdown(uv_shutdown_t *req, int /*status*/) {
-  assert(req);
-  uv_close(reinterpret_cast<uv_handle_t *>(req->handle), io_stream_shared_ptr_on_close);
+  uv_close(reinterpret_cast<uv_handle_t *>(req->handle), io_stream_handle_on_close);
 
   delete req;
 }
 
 // 删除函数，stream绑定在connection上
-static int io_stream_shutdown_ev_handle(io_stream_connection *conn) {
+static int io_stream_shutdown_connection(io_stream_connection *conn) {
   assert(conn && conn->handle);
-  assert(conn->handle->data == conn);
   assert(conn->channel);
 
   // move to gc pool
@@ -717,58 +796,61 @@ static int io_stream_shutdown_ev_handle(io_stream_connection *conn) {
     if (0 == uv_is_writable(conn->handle.get())) {
       break;
     }
-    if (!conn->shutdown_request) {
-      conn->shutdown_request.reset(new adapter::shutdown_t());
-    }
-    if (!conn->shutdown_request) {
+    adapter::shutdown_t *shutdown_request = new adapter::shutdown_t();
+    if (nullptr == shutdown_request) {
       break;
     }
-    conn->shutdown_request->data = nullptr;
-    if (0 != uv_shutdown(conn->shutdown_request.get(), conn->handle.get(), io_stream_connection_on_shutdown)) {
+    shutdown_request->data = nullptr;
+    if (0 != uv_shutdown(shutdown_request, conn->handle.get(), io_stream_handle_on_shutdown)) {
       break;
     }
 
     return 0;
   } while (false);
 
-  uv_close(reinterpret_cast<uv_handle_t *>(conn->handle.get()), io_stream_connection_on_close);
+  uv_close(reinterpret_cast<uv_handle_t *>(conn->handle.get()), io_stream_handle_on_close);
   return 0;
 }
 
 // 删除函数，stream绑定在io_stream_connect_async_data上
-static int io_stream_shutdown_ev_handle(io_stream_connect_async_data *async_data) {
-  assert(async_data);
-  assert(async_data->stream->data == async_data || nullptr == async_data->stream->data);
-  async_data->stream->data = async_data;
+static int io_stream_shutdown_async_data(io_stream_connect_async_data *async_data) {
+  assert(async_data && async_data->stream);
+  if (async_data && !async_data->stream) {
+    delete async_data;
+    return 0;
+  }
+
+  io_stream_handle_private_data *private_data = io_stream_handle_mutable_private_data(async_data->stream.get());
+  assert(private_data);
+  private_data->connect_async_lifetime.reset(async_data);
 
   // 这里channel可能已经无效了
   do {
     if (0 == uv_is_writable(async_data->stream.get())) {
       break;
     }
-    if (!async_data->shutdown_request) {
-      async_data->shutdown_request.reset(new adapter::shutdown_t());
-    }
-    if (!async_data->shutdown_request) {
+    adapter::shutdown_t *shutdown_request = new adapter::shutdown_t();
+    if (nullptr == shutdown_request) {
       break;
     }
-    async_data->shutdown_request->data = nullptr;
-    if (0 !=
-        uv_shutdown(async_data->shutdown_request.get(), async_data->stream.get(), io_stream_async_data_on_shutdown)) {
+    shutdown_request->data = nullptr;
+    if (0 != uv_shutdown(shutdown_request, async_data->stream.get(), io_stream_handle_on_shutdown)) {
+      delete shutdown_request;
       break;
     }
 
     return 0;
   } while (false);
 
-  uv_close(reinterpret_cast<uv_handle_t *>(async_data->stream.get()), io_stream_async_data_on_close);
+  uv_close(reinterpret_cast<uv_handle_t *>(async_data->stream.get()), io_stream_handle_on_close);
   return 0;
 }
 
 // 删除函数，stream绑定在shared_ptr上
 static int io_stream_shutdown_ev_handle(std::shared_ptr<adapter::stream_t> &stream) {
-  assert(nullptr == stream->data);
-  stream->data = new std::shared_ptr<adapter::stream_t>(stream);
+  io_stream_handle_private_data *private_data = io_stream_handle_mutable_private_data(stream.get());
+  assert(private_data);
+  private_data->stream_lifetime = stream;
 
   do {
     if (0 == uv_is_writable(stream.get())) {
@@ -779,7 +861,7 @@ static int io_stream_shutdown_ev_handle(std::shared_ptr<adapter::stream_t> &stre
       break;
     }
     shutdown_request->data = nullptr;
-    if (0 != uv_shutdown(shutdown_request, stream.get(), io_stream_shared_ptr_on_shutdown)) {
+    if (0 != uv_shutdown(shutdown_request, stream.get(), io_stream_handle_on_shutdown)) {
       delete shutdown_request;
       break;
     }
@@ -788,7 +870,7 @@ static int io_stream_shutdown_ev_handle(std::shared_ptr<adapter::stream_t> &stre
   } while (false);
 
   // 这里channel可能已经无效了
-  uv_close(reinterpret_cast<uv_handle_t *>(stream.get()), io_stream_shared_ptr_on_close);
+  uv_close(reinterpret_cast<uv_handle_t *>(stream.get()), io_stream_handle_on_close);
   return 0;
 }
 
@@ -812,7 +894,7 @@ static std::shared_ptr<io_stream_connection> io_stream_make_connection(io_stream
   ret->handle = handle;
   ret->data = nullptr;
   ATBUS_CHANNEL_IOS_CLEAR_FLAG(ret->flags);
-  handle->data = ret.get();
+  io_stream_handle_set_connection(handle.get(), ret.get());
 
   memset(ret->evt.callbacks, 0, sizeof(ret->evt.callbacks));
   ret->act_disc_cbk = nullptr;
@@ -833,7 +915,7 @@ static std::shared_ptr<io_stream_connection> io_stream_make_connection(io_stream
   ret->channel = channel;
 
   // 监听关闭事件，用于释放资源
-  handle->close_cb = io_stream_connection_on_close;
+  handle->close_cb = io_stream_handle_on_close;
 
   // 监听可读事件
   uv_read_start(handle.get(), io_stream_on_recv_alloc_fn, io_stream_on_recv_read_fn);
@@ -848,6 +930,9 @@ static void io_stream_delete_stream_fn(adapter::stream_t *handle) {
 
   // 到这里必须已经释放handle了，否则删除hanlde会导致数据异常。
   assert(uv_is_closing(reinterpret_cast<adapter::handle_t *>(handle)));
+
+  // 保底再检查一次数据清理
+  io_stream_handle_remove_private_data(reinterpret_cast<adapter::handle_t *>(handle));
   delete real_conn;
 }
 
@@ -864,7 +949,7 @@ static T *io_stream_make_stream_ptr(std::shared_ptr<adapter::stream_t> &res) {
 static adapter::tcp_t *io_stream_tcp_connection_common(std::shared_ptr<io_stream_connection> &conn,
                                                        std::shared_ptr<adapter::stream_t> &recv_conn, uv_stream_t *req,
                                                        int &status) {
-  io_stream_connection *conn_raw_ptr = reinterpret_cast<io_stream_connection *>(req->data);
+  io_stream_connection *conn_raw_ptr = io_stream_handle_get_connection(req);
   assert(conn_raw_ptr);
   io_stream_channel *channel = conn_raw_ptr->channel;
   assert(channel);
@@ -903,7 +988,7 @@ static adapter::tcp_t *io_stream_tcp_connection_common(std::shared_ptr<io_stream
 
 // tcp/ip 收到连接
 static void io_stream_tcp_connection_cb(uv_stream_t *req, int status) {
-  io_stream_connection *conn_raw_ptr = reinterpret_cast<io_stream_connection *>(req->data);
+  io_stream_connection *conn_raw_ptr = io_stream_handle_get_connection(req);
   assert(conn_raw_ptr);
   io_stream_channel *channel = conn_raw_ptr->channel;
   assert(channel);
@@ -958,7 +1043,7 @@ static void io_stream_tcp_connection_cb(uv_stream_t *req, int status) {
 
 // pipe 收到连接
 static void io_stream_pipe_connection_cb(uv_stream_t *req, int status) {
-  io_stream_connection *conn_raw_ptr = reinterpret_cast<io_stream_connection *>(req->data);
+  io_stream_connection *conn_raw_ptr = io_stream_handle_get_connection(req);
   assert(conn_raw_ptr);
   if (!conn_raw_ptr) {
     return;
@@ -1040,16 +1125,6 @@ static void io_stream_pipe_connection_cb(uv_stream_t *req, int status) {
   }
 }
 
-// listen 接口传入域名时的回调异步数据
-struct io_stream_dns_async_data {
-  io_stream_channel *channel;
-  channel_address_t addr;
-  io_stream_callback_t callback;
-  uv_getaddrinfo_t req;
-  void *priv_data;
-  size_t priv_size;
-};
-
 // listen 接口传入域名时的回调
 static void io_stream_dns_connection_cb(uv_getaddrinfo_t *req, int status, struct addrinfo *res) {
   assert(req && req->data);
@@ -1061,15 +1136,19 @@ static void io_stream_dns_connection_cb(uv_getaddrinfo_t *req, int status, struc
   assert(async_data);
   assert(async_data->channel);
 
-  if (nullptr == async_data->channel) {
-    return;
-  }
-  ATBUS_CHANNEL_REQ_END(async_data->channel);
-
-  io_stream_flag_guard flag_guard(async_data->channel->flags, io_stream_channel::EN_CF_IN_CALLBACK);
-
   int listen_res = status;
   do {
+    if (nullptr == async_data) {
+      break;
+    }
+
+    if (nullptr == async_data->channel) {
+      break;
+    }
+    ATBUS_CHANNEL_REQ_END(async_data->channel);
+
+    io_stream_flag_guard flag_guard(async_data->channel->flags, io_stream_channel::EN_CF_IN_CALLBACK);
+
     async_data->channel->error_code = status;
 
     if (0 != status) {
@@ -1106,7 +1185,7 @@ static void io_stream_dns_connection_cb(uv_getaddrinfo_t *req, int status, struc
   } while (false);
 
   // 接口调用不成功则要调用回调函数
-  if (0 != listen_res) {
+  if (0 != listen_res && nullptr != async_data) {
     io_stream_channel_callback(io_stream_callback_evt_t::EN_FN_CONNECTED, async_data->channel, async_data->callback,
                                nullptr, listen_res, EN_ATBUS_ERR_DNS_GETADDR_FAILED, async_data->priv_data,
                                async_data->priv_size);
@@ -1207,7 +1286,7 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
     } while (false);
 
     if (conn) {
-      io_stream_shutdown_ev_handle(conn.get());
+      io_stream_shutdown_connection(conn.get());
     } else if (listen_conn) {
       io_stream_shutdown_ev_handle(listen_conn);
     }
@@ -1268,7 +1347,7 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
     } while (false);
 
     if (conn) {
-      io_stream_shutdown_ev_handle(conn.get());
+      io_stream_shutdown_connection(conn.get());
     } else if (listen_conn) {
       io_stream_shutdown_ev_handle(listen_conn);
     }
@@ -1353,7 +1432,7 @@ static void io_stream_all_connected_cb(uv_connect_t *req, int status) {
 
   if (!conn) {
     // 只有这里走特殊的流程
-    io_stream_shutdown_ev_handle(async_data);
+    io_stream_shutdown_async_data(async_data);
   } else {
     delete async_data;
   }
@@ -1500,7 +1579,7 @@ int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr,
     } while (false);
 
     // 回收关闭
-    io_stream_shutdown_ev_handle(async_data);
+    io_stream_shutdown_async_data(async_data);
     return ret;
   } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix", addr.scheme.c_str(), 4)) {
     std::shared_ptr<adapter::stream_t> pipe_conn;
@@ -1538,7 +1617,7 @@ int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr,
     } while (false);
 
     // 回收关闭
-    io_stream_shutdown_ev_handle(async_data);
+    io_stream_shutdown_async_data(async_data);
     return ret;
 
   } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("dns", addr.scheme.c_str(), 3)) {
@@ -1565,6 +1644,7 @@ int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr,
   return EN_ATBUS_ERR_CHANNEL_NOT_SUPPORT;
 }
 
+namespace {
 static int io_stream_disconnect_run(io_stream_connection *connection) {
   if (nullptr == connection) {
     return EN_ATBUS_ERR_PARAMS;
@@ -1577,13 +1657,13 @@ static int io_stream_disconnect_run(io_stream_connection *connection) {
 
   // real do closing
   ATBUS_CHANNEL_IOS_SET_FLAG(connection->flags, io_stream_connection::EN_CF_CLOSING);
-  io_stream_shutdown_ev_handle(connection);
+  io_stream_shutdown_connection(connection);
 
   return EN_ATBUS_ERR_SUCCESS;
 }
 
-static int io_stream_disconnect_inner(io_stream_channel *channel, io_stream_connection *connection,
-                                      io_stream_callback_t callback, bool force) {
+static int io_stream_disconnect_internal(io_stream_channel *channel, io_stream_connection *connection,
+                                         io_stream_callback_t callback, bool force) {
   if (nullptr == channel || nullptr == connection) {
     return EN_ATBUS_ERR_PARAMS;
   }
@@ -1603,9 +1683,10 @@ static int io_stream_disconnect_inner(io_stream_channel *channel, io_stream_conn
 
   return io_stream_disconnect_run(connection);
 }
+}  // namespace
 
 int io_stream_disconnect(io_stream_channel *channel, io_stream_connection *connection, io_stream_callback_t callback) {
-  return io_stream_disconnect_inner(channel, connection, callback, false);
+  return io_stream_disconnect_internal(channel, connection, callback, false);
 }
 
 int io_stream_disconnect_fd(io_stream_channel *channel, adapter::fd_t fd, io_stream_callback_t callback) {
@@ -1625,7 +1706,7 @@ static void io_stream_on_written_fn(uv_write_t *req, int status) {
   // req is at the begin of the data block, and will not be used any more, we can delete it here
   // if uv_write2 return 0, this will always be called, so free all data here
 
-  io_stream_connection *connection = reinterpret_cast<io_stream_connection *>(req->data);
+  io_stream_connection *connection = io_stream_handle_get_connection(req);
   assert(connection);
   assert(connection->channel);
 
@@ -1814,7 +1895,7 @@ int io_stream_try_write(io_stream_connection *connection) {
 
   // 初始化req，填充vint，复制数据区
   uv_write_t *req = reinterpret_cast<uv_write_t *>(writing_block->raw_data());
-  req->data = connection;
+  io_stream_handle_set_connection(req, connection);
 
   char *buff_start = reinterpret_cast<char *>(writing_block->raw_data());
   // req
@@ -1865,7 +1946,7 @@ int io_stream_send(io_stream_connection *connection, const void *buf, size_t len
 
     // 初始化req，填充vint，复制数据区
     uv_write_t *req = reinterpret_cast<uv_write_t *>(data);
-    req->data = connection;
+    io_stream_handle_set_connection(req, connection);
     char *buff_start = reinterpret_cast<char *>(data);
     // req
     buff_start += sizeof(uv_write_t);

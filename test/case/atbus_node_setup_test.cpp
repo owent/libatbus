@@ -1,3 +1,6 @@
+
+#include <signal.h>
+
 #include <cstdlib>
 #include <cstring>
 #include <iomanip>
@@ -11,10 +14,25 @@
 #include <common/string_oprs.h>
 #include <std/explicit_declare.h>
 
+#include <algorithm/crypto_cipher.h>
+
 #include "atbus_test_utils.h"
 #include "frame/test_macros.h"
 
 #include <stdarg.h>
+
+CASE_TEST_EVENT_ON_START(unit_test_event_on_start_setup_openssl) { util::crypto::cipher::init_global_algorithm(); }
+
+CASE_TEST_EVENT_ON_EXIT(unit_test_event_on_exit_close_openssl) { util::crypto::cipher::cleanup_global_algorithm(); }
+
+CASE_TEST_EVENT_ON_START(unit_test_event_on_start_ignore_sigpipe) {
+#ifndef WIN32
+  signal(SIGPIPE, SIG_IGN);  // close stdin, stdout or stderr
+  signal(SIGTSTP, SIG_IGN);  // close tty
+  signal(SIGTTIN, SIG_IGN);  // tty input
+  signal(SIGTTOU, SIG_IGN);  // tty output
+#endif
+}
 
 CASE_TEST_EVENT_ON_EXIT(unit_test_event_on_exit_shutdown_protobuf) {
   ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ShutdownProtobufLibrary();
