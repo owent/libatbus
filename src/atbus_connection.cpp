@@ -1,7 +1,7 @@
 // Copyright 2022 atframework
 // Created by owent on on 2015-11-20
 
-#include "atbus_connection.h"
+#include "atbus_connection.h"  // NOLINT: build/include_subdir
 
 #include <common/file_system.h>
 #include <common/string_oprs.h>
@@ -20,10 +20,10 @@
 #include <cstring>
 #include <ctime>
 
-#include "atbus_node.h"
+#include "atbus_node.h"  // NOLINT: build/include_subdir
 #include "detail/buffer.h"
 
-#include "libatbus_protocol.h"
+#include "libatbus_protocol.h"  // NOLINT: build/include_subdir
 
 namespace atbus {
 namespace detail {
@@ -57,7 +57,7 @@ struct connection_async_data {
   node *owner_node;
   connection::ptr_t conn;
 
-  connection_async_data(node *o) : owner_node(o) {
+  explicit connection_async_data(node *o) : owner_node(o) {
     assert(owner_node);
     if (nullptr != owner_node) {
       owner_node->ref_object(reinterpret_cast<void *>(this));
@@ -503,7 +503,7 @@ ATBUS_MACRO_API size_t connection::add_stat_fault() { return ++stat_.fault_count
 /** 清空错误计数 **/
 ATBUS_MACRO_API void connection::clear_stat_fault() { stat_.fault_count = 0; }
 
-ATBUS_MACRO_API const channel::channel_address_t &connection::get_address() const { return address_; };
+ATBUS_MACRO_API const channel::channel_address_t &connection::get_address() const { return address_; }
 
 ATBUS_MACRO_API bool connection::is_connected() const { return state_t::CONNECTED == state_; }
 

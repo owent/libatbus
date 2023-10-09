@@ -1,3 +1,7 @@
+// Copyright 2023 atframework
+
+#include <common/string_oprs.h>
+
 #include <assert.h>
 #include <stdint.h>
 #include <cstddef>
@@ -6,14 +10,12 @@
 #include <cstring>
 #include <ctime>
 
-#include <common/string_oprs.h>
-
 #include "detail/buffer.h"
 
-#include "atbus_endpoint.h"
-#include "atbus_node.h"
+#include "atbus_endpoint.h"  // NOLINT: build/include_subdir
+#include "atbus_node.h"      // NOLINT: build/include_subdir
 
-#include "libatbus_protocol.h"
+#include "libatbus_protocol.h"  // NOLINT: build/include_subdir
 
 namespace atbus {
 ATBUS_MACRO_API endpoint_subnet_conf::endpoint_subnet_conf() : id_prefix(0), mask_bits(0) {}
@@ -234,8 +236,8 @@ ATBUS_MACRO_API void endpoint::reset() {
 ATBUS_MACRO_API endpoint::bus_id_t endpoint::get_id() const { return id_; }
 ATBUS_MACRO_API const std::vector<endpoint_subnet_range> &endpoint::get_subnets() const { return subnets_; }
 
-ATBUS_MACRO_API int32_t endpoint::get_pid() const { return pid_; };
-ATBUS_MACRO_API const std::string &endpoint::get_hostname() const { return hostname_; };
+ATBUS_MACRO_API int32_t endpoint::get_pid() const { return pid_; }
+ATBUS_MACRO_API const std::string &endpoint::get_hostname() const { return hostname_; }
 ATBUS_MACRO_API const std::string &endpoint::get_hash_code() const { return hash_code_; }
 ATBUS_MACRO_API void endpoint::update_hash_code(const std::string &in) {
   if (in.empty()) {

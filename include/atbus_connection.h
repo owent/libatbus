@@ -14,7 +14,9 @@
 #include <ctime>
 #include <list>
 #include <memory>
+#include <string>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "std/explicit_declare.h"
@@ -23,7 +25,7 @@
 #include "detail/libatbus_config.h"
 #include "detail/libatbus_error.h"
 
-#include "libatbus_protocol.h"
+#include "libatbus_protocol.h"  // NOLINT: build/include_subdir
 
 namespace atbus {
 namespace protocol {
