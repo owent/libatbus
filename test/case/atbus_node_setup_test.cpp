@@ -21,9 +21,11 @@
 
 #include <stdarg.h>
 
+#ifdef CRYPTO_CIPHER_ENABLED
 CASE_TEST_EVENT_ON_START(unit_test_event_on_start_setup_openssl) { util::crypto::cipher::init_global_algorithm(); }
 
 CASE_TEST_EVENT_ON_EXIT(unit_test_event_on_exit_close_openssl) { util::crypto::cipher::cleanup_global_algorithm(); }
+#endif
 
 CASE_TEST_EVENT_ON_START(unit_test_event_on_start_ignore_sigpipe) {
 #ifndef WIN32
