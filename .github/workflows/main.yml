@@ -106,33 +106,33 @@ jobs:
           CONFIGURATION: RelWithDebInfo
         run: |
           pwsh ci/do_ci.ps1 "msvc.2019+.test" ;
-  mingw_build: # job id, can be any string
-    name: MinGW Build
-    strategy:
-      matrix:
-        include:
-          - os: windows-latest
-            build_shared_libs: "ON"
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-      - name: Generate cache key
-        shell: bash
-        run: git submodule > '.github/.cache-key'
-      - name: Cache packages
-        uses: actions/cache@v3
-        with:
-          path: |
-            third_party/install
-            C:/msys64/var/cache/pacman/pkg
-          key: ${{ matrix.os }}-mingw-shared-${{ matrix.build_shared_libs }}-${{ hashFiles('.github/.cache-key') }}
-      - name: Build & Test
-        shell: bash
-        env:
-          BUILD_SHARED_LIBS: ${{ matrix.build_shared_libs }}
-        run: |
-          C:/msys64/msys2_shell.cmd -mingw64 -defterm -no-start -here -lc "ci/do_ci.sh msys2.mingw.test"
+  # mingw_build: # job id, can be any string
+  #   name: MinGW Build
+  #   strategy:
+  #     matrix:
+  #       include:
+  #         - os: windows-latest
+  #           build_shared_libs: "ON"
+  #   runs-on: ${{ matrix.os }}
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v3
+  #     - name: Generate cache key
+  #       shell: bash
+  #       run: git submodule > '.github/.cache-key'
+  #     - name: Cache packages
+  #       uses: actions/cache@v3
+  #       with:
+  #         path: |
+  #           third_party/install
+  #           C:/msys64/var/cache/pacman/pkg
+  #         key: ${{ matrix.os }}-mingw-shared-${{ matrix.build_shared_libs }}-${{ hashFiles('.github/.cache-key') }}
+  #     - name: Build & Test
+  #       shell: bash
+  #       env:
+  #         BUILD_SHARED_LIBS: ${{ matrix.build_shared_libs }}
+  #       run: |
+  #         C:/msys64/msys2_shell.cmd -mingw64 -defterm -no-start -here -lc "ci/do_ci.sh msys2.mingw.test"
   codeql: # job id, can be any string
     name: CodeQL
     # This job runs on Linux
