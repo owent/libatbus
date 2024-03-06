@@ -1027,7 +1027,6 @@ ATBUS_MACRO_API int msg_handler::on_recv_node_reg_rsp(node &n, connection *conn,
   }
 
   endpoint *ep = conn->get_binding();
-  n.on_reg(ep, conn, m.head().ret());
 
   // Check access token
   bool check_access_token = true;
@@ -1067,9 +1066,16 @@ ATBUS_MACRO_API int msg_handler::on_recv_node_reg_rsp(node &n, connection *conn,
       ATBUS_FUNC_NODE_ERROR(n, ep, conn, ret_code, errcode);
     } while (false);
 
+    n.on_reg(ep, conn, ret_code);
+
     conn->reset();
     return ret_code;
-  } else if (node::state_t::CONNECTING_PARENT == n.get_state()) {
+  }
+
+  // 注册事件触发
+  n.on_reg(ep, conn, m.head().ret());
+
+  if (node::state_t::CONNECTING_PARENT == n.get_state()) {
     // 父节点返回的rsp成功则可以上线
     // 这时候父节点的endpoint不一定初始化完毕
     if (n.is_parent_node(reg_data->bus_id())) {

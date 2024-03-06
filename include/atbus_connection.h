@@ -66,6 +66,7 @@ class connection final : public util::design_pattern::noncopyable {
       DESTRUCTING,       /** 正在执行析构（屏蔽某些接口） **/
       LISTEN_FD,         /** 是否是用于listen的连接 **/
       TEMPORARY,         /** 是否是临时连接 **/
+      PEER_CLOSED,       /** 对端已关闭 **/
       MAX
     };
   };

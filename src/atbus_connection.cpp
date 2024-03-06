@@ -659,6 +659,9 @@ ATBUS_MACRO_API void connection::iostream_on_recv_cb(channel::io_stream_channel 
   connection *conn = reinterpret_cast<connection *>(conn_ios->data);
 
   if (status < 0 || nullptr == buffer || s <= 0) {
+    if (nullptr != conn && (UV_EOF == channel->error_code || UV_ECONNRESET == channel->error_code)) {
+      conn->flags_.set(flag_t::PEER_CLOSED, true);
+    }
     ::atbus::protocol::msg m;
     _this->on_recv(conn, ATBUS_MACRO_MOVE(m), status, channel->error_code);
     return;

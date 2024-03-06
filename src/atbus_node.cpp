@@ -1452,8 +1452,12 @@ ATBUS_MACRO_API bool node::remove_connection_timer(timer_desc_ls<connection::ptr
   }
 
   if (event_msg_.on_invalid_connection && out->second && !out->second->is_connected()) {
-    flag_guard_t fgd(this, flag_t::EN_FT_IN_CALLBACK);
-    event_msg_.on_invalid_connection(std::cref(*this), out->second.get(), EN_ATBUS_ERR_NODE_TIMEOUT);
+    // 确认的临时连接断开不属于无效连接
+    if (!out->second->check_flag(connection::flag_t::TEMPORARY) ||
+        !out->second->check_flag(connection::flag_t::PEER_CLOSED)) {
+      flag_guard_t fgd(this, flag_t::EN_FT_IN_CALLBACK);
+      event_msg_.on_invalid_connection(std::cref(*this), out->second.get(), EN_ATBUS_ERR_NODE_TIMEOUT);
+    }
   }
 
   event_timer_.connecting_list.erase(out);
