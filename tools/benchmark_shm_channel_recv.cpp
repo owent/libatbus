@@ -142,8 +142,8 @@ int main(int argc, char *argv[]) {
 
     std::cout << "[ RUNNING  ] NO." << secs << " m" << std::endl
               << "[ RUNNING  ] recv(" << sum_recv_times << " times, " << (sum_recv_len / unit_devi[unit_index]) << " "
-              << unit_desc[unit_index] << ") "
-              << "recv err " << sum_recv_err << " times, data valid failed " << sum_data_err << " times" << std::endl
+              << unit_desc[unit_index] << ") " << "recv err " << sum_recv_err << " times, data valid failed "
+              << sum_data_err << " times" << std::endl
               << std::endl;
 
     shm_show_channel(channel, std::cout, false, 0);

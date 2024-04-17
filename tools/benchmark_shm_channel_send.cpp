@@ -135,8 +135,8 @@ int main(int argc, char *argv[]) {
 
     std::cout << "[ RUNNING  ] NO." << secs << " m" << std::endl
               << "[ RUNNING  ] send(" << sum_send_times << " times, " << (sum_send_len / unit_devi[unit_index]) << " "
-              << unit_desc[unit_index] << ") "
-              << "full " << sum_send_full << " times, err " << sum_send_err << " times" << std::endl
+              << unit_desc[unit_index] << ") " << "full " << sum_send_full << " times, err " << sum_send_err << " times"
+              << std::endl
               << std::endl;
   }
 

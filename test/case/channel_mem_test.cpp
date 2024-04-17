@@ -284,8 +284,7 @@ CASE_TEST(channel, mem_miso) {
             } else {
               ++sum_send_times;
               size_t cas_len = sum_send_len.load();
-              while (false == sum_send_len.compare_exchange_strong(cas_len, cas_len + n * sizeof(size_t)))
-                ;
+              while (false == sum_send_len.compare_exchange_strong(cas_len, cas_len + n * sizeof(size_t)));
 
               ++seq_body;
               seq_body <<= head_len;
@@ -366,9 +365,8 @@ CASE_TEST(channel, mem_miso) {
       CASE_MSG_INFO() << "NO." << secs << " second(s)" << std::endl;
       CASE_MSG_INFO() << "recv(" << sum_recv_times << " times, " << sum_recv_len << " Bytes) err " << sum_recv_err
                       << " times" << std::endl;
-      CASE_MSG_INFO() << "send(" << sum_send_times.load() << " times, " << sum_send_len.load() << " Bytes) "
-                      << "full " << sum_send_full.load() << " times, err " << sum_send_err.load() << " times"
-                      << std::endl;
+      CASE_MSG_INFO() << "send(" << sum_send_times.load() << " times, " << sum_send_len.load() << " Bytes) " << "full "
+                      << sum_send_full.load() << " times, err " << sum_send_err.load() << " times" << std::endl;
       CASE_MSG_INFO() << "\tdata nodes [" << curent_cursor.first << ", " << curent_cursor.second << ")" << std::endl;
 
     } while (left_sec >= 0);

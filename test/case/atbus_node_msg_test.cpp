@@ -135,16 +135,14 @@ static int node_msg_test_recv_msg_test_record_fn(const atbus::node &n, const atb
     recv_msg_history.data.assign(reinterpret_cast<const char *>(buffer), len);
     CASE_MSG_INFO() << "[Log Debug] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
                     << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
-                    << std::setw(static_cast<int>(w)) << std::dec << "\t"
-                    << "recv message: ";
+                    << std::setw(static_cast<int>(w)) << std::dec << "\t" << "recv message: ";
     std::cout.write(reinterpret_cast<const char *>(buffer), static_cast<std::streamsize>(len));
     std::cout << std::endl;
   } else {
     recv_msg_history.data.clear();
     CASE_MSG_INFO() << "[Log Debug] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
                     << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
-                    << std::setw(static_cast<int>(w)) << std::dec << "\t"
-                    << "recv message: [NOTHING]" << std::endl;
+                    << std::setw(static_cast<int>(w)) << std::dec << "\t" << "recv message: [NOTHING]" << std::endl;
   }
 
   return 0;
@@ -706,16 +704,14 @@ static int node_msg_test_recv_and_send_msg_fn(const atbus::node &n, const atbus:
     recv_msg_history.data.assign(reinterpret_cast<const char *>(buffer), len);
     CASE_MSG_INFO() << "[Log Debug] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
                     << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
-                    << std::setw(static_cast<int>(w)) << std::dec << "\t"
-                    << "recv message: ";
+                    << std::setw(static_cast<int>(w)) << std::dec << "\t" << "recv message: ";
     std::cout.write(reinterpret_cast<const char *>(buffer), static_cast<std::streamsize>(len));
     std::cout << std::endl;
   } else {
     recv_msg_history.data.clear();
     CASE_MSG_INFO() << "[Log Debug] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
                     << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
-                    << std::setw(static_cast<int>(w)) << std::dec << "\t"
-                    << "recv message: [NOTHING]" << std::endl;
+                    << std::setw(static_cast<int>(w)) << std::dec << "\t" << "recv message: [NOTHING]" << std::endl;
   }
 
   std::string sended_data;

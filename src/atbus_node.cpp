@@ -309,10 +309,7 @@ ATBUS_MACRO_API int node::reset() {
   ATBUS_FUNC_NODE_INFO(*this, nullptr, nullptr, "node reset");
 
   // dispatch all self msgs
-  {
-    while (dispatch_all_self_msgs() > 0)
-      ;
-  }
+  { while (dispatch_all_self_msgs() > 0); }
 
   // first save all connection, and then reset it
   using auto_map_t = detail::auto_select_map<std::string, connection::ptr_t>::type;
@@ -1396,7 +1393,9 @@ ATBUS_MACRO_API int32_t node::get_protocol_version() const { return conf_.protoc
 ATBUS_MACRO_API int32_t node::get_protocol_minimal_version() const { return conf_.protocol_minimal_version; }
 
 ATBUS_MACRO_API const std::list<std::string> &node::get_listen_list() const {
-  UTIL_LIKELY_IF(self_) { return self_->get_listen(); }
+  UTIL_LIKELY_IF (self_) {
+    return self_->get_listen();
+  }
 
   static std::list<std::string> empty;
   return empty;

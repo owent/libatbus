@@ -87,8 +87,8 @@ static void stat_callback(uv_timer_t * /*handle*/) {
 
   std::cout << "[ RUNNING  ] NO." << secs << " m" << std::endl
             << "[ RUNNING  ] recv(" << conf.sum_recv_times << " times, " << (conf.sum_recv_len / unit_devi[unit_index])
-            << " " << unit_desc[unit_index] << ") "
-            << "full " << conf.sum_recv_full << " times, err " << conf.sum_recv_err << " times" << std::endl
+            << " " << unit_desc[unit_index] << ") " << "full " << conf.sum_recv_full << " times, err "
+            << conf.sum_recv_err << " times" << std::endl
             << std::endl;
 
   std::cout.flush();
