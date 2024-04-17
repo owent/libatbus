@@ -16,6 +16,8 @@ IncludeBlocks: Preserve
 #   #  include <curl.h>
 #   #endif
 IndentPPDirectives: AfterHash
+
+IfMacros: ["UTIL_LIKELY_IF", "UTIL_UNLIKELY_IF"]
 ---
 
 ---
