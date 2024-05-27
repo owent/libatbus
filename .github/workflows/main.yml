@@ -56,6 +56,10 @@ jobs:
           USE_CC: ${{ matrix.cc }}
           VCPKG_TARGET_TRIPLET: ${{ matrix.triplet }}
         run: |
+          # The OpenSSL config package in apple ci job is break
+          if [ -e /opt/homebrew/lib/cmake/OpenSSL ]; then
+            rm -rf /opt/homebrew/lib/cmake/OpenSSL || true
+          fi
           if [[ "xgcc-4.8" == "x$USE_CC" ]]; then
             sudo apt-add-repository 'deb http://archive.ubuntu.com/ubuntu/ xenial main'
             sudo apt-add-repository 'deb http://archive.ubuntu.com/ubuntu/ xenial universe'

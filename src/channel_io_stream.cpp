@@ -1940,7 +1940,7 @@ int io_stream_send(io_stream_connection *connection, const void *buf, size_t len
     // 判定内存限制
     void *data;
     int res = connection->write_buffers.push_back(data, total_buffer_size);
-    if (res < 0) {
+    if (res < 0 || nullptr == data) {
       return res;
     }
 
