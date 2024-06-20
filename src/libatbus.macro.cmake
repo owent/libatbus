@@ -30,6 +30,4 @@ add_custom_command(
 add_custom_target("atbus-generate-protocol" SOURCES "${PROJECT_LIBATBUS_GENERATED_DIR}/include/libatbus_protocol.pb.h"
                                                     "${PROJECT_LIBATBUS_GENERATED_DIR}/src/libatbus_protocol.pb.cc")
 
-if(MSVC)
-  set_property(TARGET "atbus-generate-protocol" PROPERTY FOLDER "atframework/atbus")
-endif()
+set_property(TARGET "atbus-generate-protocol" PROPERTY FOLDER "atframework/atbus")

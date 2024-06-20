@@ -24,8 +24,8 @@ foreach(SAMPLE_SRC_FILE IN LISTS SAMPLE_SRC_LIST)
 
   target_compile_options(${SAMPLE_SRC_BIN_NAME} PRIVATE ${PROJECT_LIBATBUS_PRIVATE_COMPILE_OPTIONS})
 
+  set_property(TARGET ${SAMPLE_SRC_BIN_NAME} PROPERTY FOLDER "atframework/sample/atbus")
   if(MSVC)
-    set_property(TARGET ${SAMPLE_SRC_BIN_NAME} PROPERTY FOLDER "atframework/sample/atbus")
     add_target_properties(${SAMPLE_SRC_BIN_NAME} LINK_FLAGS /NODEFAULTLIB:library)
   endif()
 endforeach()

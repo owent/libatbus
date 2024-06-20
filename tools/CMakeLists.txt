@@ -13,9 +13,7 @@ foreach(TOOLS_SRC_FILE IN LISTS TOOLS_SRC_LIST)
   target_link_libraries("${TOOLS_SRC_BIN_NAME}" atframework::atbus)
   target_include_directories("${TOOLS_SRC_BIN_NAME}" PRIVATE "$<BUILD_INTERFACE:${PROJECT_TOOLS_INC_DIR}>")
 
-  if(MSVC)
-    set_property(TARGET "${TOOLS_SRC_BIN_NAME}" PROPERTY FOLDER "atframework/tools/atbus")
-  endif()
+  set_property(TARGET "${TOOLS_SRC_BIN_NAME}" PROPERTY FOLDER "atframework/tools/atbus")
 
   install(
     TARGETS "${TOOLS_SRC_BIN_NAME}"
