@@ -139,7 +139,11 @@ ATBUS_MACRO_API int msg_handler::send_ping(node &n, connection &conn, uint64_t m
   ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
   arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
   ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena arena(arena_options);
+#if defined(PROTOBUF_VERSION) && PROTOBUF_VERSION >= 5027000
+  atbus::protocol::msg *m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::Create<atbus::protocol::msg>(&arena);
+#else
   atbus::protocol::msg *m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
+#endif
   assert(m);
 
   ::atbus::protocol::msg_head *head = m->mutable_head();
@@ -169,7 +173,11 @@ ATBUS_MACRO_API int msg_handler::send_reg(int32_t msg_id, node &n, connection &c
   ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
   arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
   ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena arena(arena_options);
+#if defined(PROTOBUF_VERSION) && PROTOBUF_VERSION >= 5027000
+  atbus::protocol::msg *m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::Create<atbus::protocol::msg>(&arena);
+#else
   atbus::protocol::msg *m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
+#endif
   assert(m);
 
   ::atbus::protocol::msg_head *head = m->mutable_head();
@@ -294,7 +302,11 @@ ATBUS_MACRO_API int msg_handler::send_custom_cmd_rsp(node &n, connection *conn, 
   ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
   arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
   ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena arena(arena_options);
+#if defined(PROTOBUF_VERSION) && PROTOBUF_VERSION >= 5027000
+  atbus::protocol::msg *m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::Create<atbus::protocol::msg>(&arena);
+#else
   atbus::protocol::msg *m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
+#endif
   assert(m);
 
   ::atbus::protocol::msg_head *head = m->mutable_head();
@@ -370,7 +382,11 @@ ATBUS_MACRO_API int msg_handler::send_node_connect_sync(node &n, uint64_t direct
     ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
     arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
     ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena arena(arena_options);
+#if defined(PROTOBUF_VERSION) && PROTOBUF_VERSION >= 5027000
+    atbus::protocol::msg *m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::Create<atbus::protocol::msg>(&arena);
+#else
     atbus::protocol::msg *m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
+#endif
     assert(m);
 
     ::atbus::protocol::msg_head *head = m->mutable_head();
@@ -1158,8 +1174,12 @@ ATBUS_MACRO_API int msg_handler::on_recv_node_ping(node &n, connection *conn,
       ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
       arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
       ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena arena(arena_options);
+#if defined(PROTOBUF_VERSION) && PROTOBUF_VERSION >= 5027000
+      atbus::protocol::msg *rsp_m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::Create<atbus::protocol::msg>(&arena);
+#else
       atbus::protocol::msg *rsp_m =
           ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
+#endif
       assert(rsp_m);
 
       ::atbus::protocol::msg_head *head = rsp_m->mutable_head();

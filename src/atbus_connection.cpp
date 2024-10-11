@@ -937,7 +937,11 @@ ATBUS_MACRO_API int connection::ios_push_fn(connection &conn, const void *buffer
 ATBUS_MACRO_API bool connection::unpack(connection &conn, ::atbus::msg_t *&m,
                                         ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena &arena,
                                         std::vector<unsigned char> &in) {
+#if defined(PROTOBUF_VERSION) && PROTOBUF_VERSION >= 5027000
+  m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::Create<atbus::protocol::msg>(&arena);
+#else
   m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
+#endif
   if (nullptr == m) {
     ATBUS_FUNC_NODE_ERROR(*conn.owner_, conn.binding_, &conn, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC);
     return false;

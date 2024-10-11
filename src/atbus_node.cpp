@@ -882,7 +882,11 @@ ATBUS_MACRO_API int node::send_data(bus_id_t tid, int type, const void *buffer, 
   ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
   arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
   ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena arena(arena_options);
+#if defined(PROTOBUF_VERSION) && PROTOBUF_VERSION >= 5027000
+  ::atbus::msg_t *m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::Create<atbus::protocol::msg>(&arena);
+#else
   ::atbus::msg_t *m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
+#endif
   if (nullptr == m) {
     ATBUS_FUNC_NODE_ERROR(*this, nullptr, nullptr, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC);
     return EN_ATBUS_ERR_MALLOC;
@@ -942,7 +946,11 @@ ATBUS_MACRO_API int node::send_custom_cmd(bus_id_t tid, const void *arr_buf[], s
   ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
   arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
   ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena arena(arena_options);
+#if defined(PROTOBUF_VERSION) && PROTOBUF_VERSION >= 5027000
+  ::atbus::msg_t *m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::Create<atbus::protocol::msg>(&arena);
+#else
   ::atbus::msg_t *m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
+#endif
   if (nullptr == m) {
     ATBUS_FUNC_NODE_ERROR(*this, nullptr, nullptr, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC);
     return EN_ATBUS_ERR_MALLOC;
@@ -1735,7 +1743,11 @@ ATBUS_MACRO_API int node::dispatch_all_self_msgs() {
       ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
       arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
       ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena arena(arena_options);
+#if defined(PROTOBUF_VERSION) && PROTOBUF_VERSION >= 5027000
+      ::atbus::msg_t *m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::Create<atbus::protocol::msg>(&arena);
+#else
       ::atbus::msg_t *m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
+#endif
       if (nullptr == m) {
         ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), nullptr, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC);
         break;
@@ -1782,7 +1794,11 @@ ATBUS_MACRO_API int node::dispatch_all_self_msgs() {
       ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
       arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
       ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena arena(arena_options);
+#if defined(PROTOBUF_VERSION) && PROTOBUF_VERSION >= 5027000
+      ::atbus::msg_t *m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::Create<atbus::protocol::msg>(&arena);
+#else
       ::atbus::msg_t *m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
+#endif
       if (nullptr == m) {
         ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), nullptr, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC);
         break;

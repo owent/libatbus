@@ -247,7 +247,11 @@ message msg {
 
 ```cpp
 ::google::protobuf::Arena arena;
+#if defined(PROTOBUF_VERSION) && PROTOBUF_VERSION >= 5027000
+atbus::protocol::msg *    m_src = ::google::protobuf::Arena::Create<atbus::protocol::msg>(&arena);
+#else
 atbus::protocol::msg *    m_src = ::google::protobuf::Arena::CreateMessage<atbus::protocol::msg>(&arena);
+#endif
 std::string               packed_buffer;
 char                      test_buffer[] = "hello world!";
 
