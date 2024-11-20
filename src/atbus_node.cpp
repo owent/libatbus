@@ -51,6 +51,7 @@ static void atbus_node_global_init_once() {
   uv_loop_t loop;
   // Call uv_loop_init() to initialize the global data.
   uv_loop_init(&loop);
+  uv_loop_configure(&loop, UV_METRICS_IDLE_TIME);
   uv_loop_close(&loop);
 }
 }  // namespace detail
@@ -61,6 +62,7 @@ static void atbus_node_global_init_once() {
   uv_loop_t loop;
   // Call uv_loop_init() to initialize the global data.
   uv_loop_init(&loop);
+  uv_loop_configure(&loop, UV_METRICS_IDLE_TIME);
   uv_loop_close(&loop);
 }
 }  // namespace detail
@@ -309,7 +311,9 @@ ATBUS_MACRO_API int node::reset() {
   ATBUS_FUNC_NODE_INFO(*this, nullptr, nullptr, "node reset");
 
   // dispatch all self msgs
-  { while (dispatch_all_self_msgs() > 0); }
+  {
+    while (dispatch_all_self_msgs() > 0);
+  }
 
   // first save all connection, and then reset it
   using auto_map_t = detail::auto_select_map<std::string, connection::ptr_t>::type;
