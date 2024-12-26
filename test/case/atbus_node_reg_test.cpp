@@ -1606,13 +1606,13 @@ CASE_TEST(atbus_node_reg, mem_and_send) {
 
 static bool node_reg_test_is_shm_available(const atbus::node::conf_t &conf) {
   // check if /proc/sys/kernel/shmmax exists
-  if (!util::file_system::is_exist("/proc/sys/kernel/shmmax")) {
+  if (!atfw::util::file_system::is_exist("/proc/sys/kernel/shmmax")) {
     return false;
   }
 
   std::string sz_contest;
-  util::file_system::get_file_content(sz_contest, "/proc/sys/kernel/shmmax");
-  return util::string::to_int<size_t>(sz_contest.c_str()) >= conf.recv_buffer_size;
+  atfw::util::file_system::get_file_content(sz_contest, "/proc/sys/kernel/shmmax");
+  return atfw::util::string::to_int<size_t>(sz_contest.c_str()) >= conf.recv_buffer_size;
 }
 
 // 正常首发数据测试 -- 共享内存

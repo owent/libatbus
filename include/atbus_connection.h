@@ -41,7 +41,7 @@ struct timer_desc_ls {
   using type = std::list<pair_type>;
 };
 
-class connection final : public util::design_pattern::noncopyable {
+class connection final : public atfw::util::design_pattern::noncopyable {
  public:
   using ptr_t = std::shared_ptr<connection>;
 

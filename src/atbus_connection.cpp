@@ -32,9 +32,9 @@ namespace detail {
 static int try_flock_file(const std::string &lock_path) {
   // mkdir if dir not exists
   std::string dirname;
-  if (util::file_system::dirname(lock_path.c_str(), lock_path.size(), dirname)) {
-    if (!util::file_system::is_exist(dirname.c_str())) {
-      util::file_system::mkdir(dirname.c_str(), true);
+  if (atfw::util::file_system::dirname(lock_path.c_str(), lock_path.size(), dirname)) {
+    if (!atfw::util::file_system::is_exist(dirname.c_str())) {
+      atfw::util::file_system::mkdir(dirname.c_str(), true);
     }
   }
 
@@ -203,7 +203,7 @@ ATBUS_MACRO_API int connection::listen(const char *addr_str) {
   if (0 == UTIL_STRFUNC_STRNCASE_CMP("mem", address_.scheme.c_str(), 3)) {
     channel::mem_channel *mem_chann = nullptr;
     intptr_t ad;
-    util::string::str2int(ad, address_.host.c_str());
+    atfw::util::string::str2int(ad, address_.host.c_str());
     int res = channel::mem_attach(reinterpret_cast<void *>(ad), conf.recv_buffer_size, &mem_chann, nullptr);
     if (res < 0) {
       res = channel::mem_init(reinterpret_cast<void *>(ad), conf.recv_buffer_size, &mem_chann, nullptr);
@@ -264,8 +264,8 @@ ATBUS_MACRO_API int connection::listen(const char *addr_str) {
     // Unix sock的listen的地址应该转为绝对地址，方便跨组连接时可以不依赖相对目录
     // Unix sock也必须共享Host
     if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix", address_.scheme.c_str(), 4)) {
-      if (false == util::file_system::is_abs_path(address_.host.c_str())) {
-        std::string abs_host_path = util::file_system::get_abs_path(address_.host.c_str());
+      if (false == atfw::util::file_system::is_abs_path(address_.host.c_str())) {
+        std::string abs_host_path = atfw::util::file_system::get_abs_path(address_.host.c_str());
         size_t max_addr_size = ::atbus::channel::io_stream_get_max_unix_socket_length();
         if (max_addr_size > 0 && abs_host_path.size() <= max_addr_size) {
           address_.host = abs_host_path;
@@ -291,8 +291,8 @@ ATBUS_MACRO_API int connection::listen(const char *addr_str) {
       }
 #endif
 
-      if (util::file_system::is_exist(address_.host.c_str())) {
-        if (false == util::file_system::remove(address_.host.c_str())) {
+      if (atfw::util::file_system::is_exist(address_.host.c_str())) {
+        if (false == atfw::util::file_system::remove(address_.host.c_str())) {
           ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_PIPE_REMOVE_FAILED, 0);
           return EN_ATBUS_ERR_PIPE_REMOVE_FAILED;
         }
@@ -335,7 +335,7 @@ ATBUS_MACRO_API int connection::connect(const char *addr_str) {
   if (0 == UTIL_STRFUNC_STRNCASE_CMP("mem", address_.scheme.c_str(), 3)) {
     channel::mem_channel *mem_chann = nullptr;
     intptr_t ad;
-    util::string::str2int(ad, address_.host.c_str());
+    atfw::util::string::str2int(ad, address_.host.c_str());
     int res = channel::mem_attach(reinterpret_cast<void *>(ad), conf.recv_buffer_size, &mem_chann, nullptr);
     if (res < 0) {
       res = channel::mem_init(reinterpret_cast<void *>(ad), conf.recv_buffer_size, &mem_chann, nullptr);

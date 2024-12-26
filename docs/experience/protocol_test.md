@@ -82,7 +82,7 @@ char test_buffer[] = "hello world!";
     packed_buffer.assign(reinterpret_cast<const unsigned char *>(fbb.GetBufferPointer()), 
         reinterpret_cast<const unsigned char *>(fbb.GetBufferPointer()) + fbb.GetSize());
     std::stringstream so;
-    util::string::serialization(packed_buffer.data(), packed_buffer.size(), so);
+    atfw::util::string::serialization(packed_buffer.data(), packed_buffer.size(), so);
     std::cout<< "flatbuffers encoded(size=" << packed_buffer.size() << "): " << so.str() << std::endl;
 }
 ```
@@ -186,7 +186,7 @@ char test_buffer[] = "hello world!";
     msgpack::pack(ss, m_src);
     packed_buffer = ss.str();
     std::stringstream so;
-    util::string::serialization(packed_buffer.data(), packed_buffer.size(), so);
+    atfw::util::string::serialization(packed_buffer.data(), packed_buffer.size(), so);
     std::cout<< "msgpack encoded(size=" << packed_buffer.size() << "): " << so.str() << std::endl;
 }
 ```
@@ -270,7 +270,7 @@ char                      test_buffer[] = "hello world!";
 
     m_src->SerializeToString(&packed_buffer);
     std::stringstream so;
-    util::string::serialization(packed_buffer.data(), packed_buffer.size(), so);
+    atfw::util::string::serialization(packed_buffer.data(), packed_buffer.size(), so);
     std::cout << "arena(allocated= " << arena.SpaceAllocated() << ", used= " << arena.SpaceUsed() << "), protobuf encoded(size=" << packed_buffer.size()
               << "): " << so.str() << std::endl;
 }

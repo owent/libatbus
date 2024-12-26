@@ -105,9 +105,9 @@ int main(int argc, char *argv[]) {
               is_last_tick_faild = false;
             } else {
               std::cerr << "pid: " << pid << " expected data is ";
-              util::string::dumphex(val_check, 1, std::cerr);
+              atfw::util::string::dumphex(val_check, 1, std::cerr);
               std::cerr << ", but real is ";
-              util::string::dumphex(buf_pool + sizeof(int), 1, std::cerr);
+              atfw::util::string::dumphex(buf_pool + sizeof(int), 1, std::cerr);
               std::cerr << std::endl;
               *val_check = *(buf_pool + sizeof(int));
 

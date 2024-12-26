@@ -231,15 +231,15 @@ CASE_TEST(channel, mem_miso) {
   CASE_EXPECT_EQ(EN_ATBUS_ERR_BUFF_LIMIT, mem_send(channel, buffer, buffer_len));
 
   int left_sec = 16;
-  util::lock::atomic_int_type<size_t> sum_send_len;
+  atfw::util::lock::atomic_int_type<size_t> sum_send_len;
   sum_send_len.store(0);
-  util::lock::atomic_int_type<size_t> sum_send_times;
+  atfw::util::lock::atomic_int_type<size_t> sum_send_times;
   sum_send_times.store(0);
-  util::lock::atomic_int_type<size_t> sum_send_full;
+  atfw::util::lock::atomic_int_type<size_t> sum_send_full;
   sum_send_full.store(0);
-  util::lock::atomic_int_type<size_t> sum_send_err;
+  atfw::util::lock::atomic_int_type<size_t> sum_send_err;
   sum_send_err.store(0);
-  util::lock::atomic_int_type<size_t> sum_seq;
+  atfw::util::lock::atomic_int_type<size_t> sum_seq;
   sum_seq.store(0);
   size_t sum_recv_len = 0;
   size_t sum_recv_times = 0;

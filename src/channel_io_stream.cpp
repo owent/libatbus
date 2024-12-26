@@ -47,7 +47,8 @@
 
 #define ATBUS_MACRO_TLS_MERGE_BUFFER_LEN (ATBUS_MACRO_MSG_LIMIT - ATBUS_MACRO_DATA_ALIGN_SIZE - sizeof(uv_write_t))
 
-#if !(defined(THREAD_TLS_USE_PTHREAD) && THREAD_TLS_USE_PTHREAD) && defined(UTIL_CONFIG_THREAD_LOCAL)
+#if !(defined(ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD) && ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD) && \
+    defined(UTIL_CONFIG_THREAD_LOCAL)
 namespace atbus {
 namespace channel {
 namespace detail {
@@ -564,8 +565,8 @@ static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const 
       // 如果读取vint成功，判定是否有小数据包。并对小数据包直接回调
       if (buff_left_len >= sizeof(uint32_t) + vint_len + msg_len) {
         channel->error_code = 0;
-        uint32_t check_hash =
-            util::hash::murmur_hash3_x86_32(buff_start + sizeof(uint32_t) + vint_len, static_cast<int>(msg_len), 0);
+        uint32_t check_hash = atfw::util::hash::murmur_hash3_x86_32(buff_start + sizeof(uint32_t) + vint_len,
+                                                                    static_cast<int>(msg_len), 0);
         uint32_t expect_hash;
         memcpy(&expect_hash, buff_start, sizeof(uint32_t));
         int errcode = EN_ATBUS_ERR_SUCCESS;
@@ -635,8 +636,8 @@ static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const 
     data = ::atbus::detail::fn::buffer_prev(data, sread);
 
     // 32位Hash校验和
-    uint32_t check_hash = util::hash::murmur_hash3_x86_32(reinterpret_cast<char *>(data) + sizeof(uint32_t),
-                                                          static_cast<int>(sread - sizeof(uint32_t)), 0);
+    uint32_t check_hash = atfw::util::hash::murmur_hash3_x86_32(reinterpret_cast<char *>(data) + sizeof(uint32_t),
+                                                                static_cast<int>(sread - sizeof(uint32_t)), 0);
     uint32_t expect_hash;
     memcpy(&expect_hash, data, sizeof(uint32_t));
     size_t msg_len = sread - sizeof(uint32_t);  // - hash32 header
@@ -1099,7 +1100,7 @@ static void io_stream_pipe_connection_cb(uv_stream_t *req, int status) {
     io_stream_pipe_setup(channel, pipe_conn);
     io_stream_pipe_init(channel, conn.get(), pipe_conn);
 
-    char pipe_path[util::file_system::MAX_PATH_LEN];
+    char pipe_path[atfw::util::file_system::MAX_PATH_LEN];
     size_t path_len = sizeof(pipe_path);
     uv_pipe_getpeername(pipe_conn, pipe_path, &path_len);
     if (0 == path_len || 0 == pipe_path[0]) {
@@ -1299,9 +1300,9 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
     // try to mkdir for basedir
     {
       std::string dirname;
-      if (util::file_system::dirname(addr.host.c_str(), addr.host.size(), dirname)) {
-        if (!util::file_system::is_exist(dirname.c_str())) {
-          util::file_system::mkdir(dirname.c_str(), true);
+      if (atfw::util::file_system::dirname(addr.host.c_str(), addr.host.size(), dirname)) {
+        if (!atfw::util::file_system::is_exist(dirname.c_str())) {
+          atfw::util::file_system::mkdir(dirname.c_str(), true);
         }
       }
     }
@@ -1952,7 +1953,8 @@ int io_stream_send(io_stream_connection *connection, const void *buf, size_t len
     buff_start += sizeof(uv_write_t);
 
     // 32bits hash
-    uint32_t hash32 = util::hash::murmur_hash3_x86_32(reinterpret_cast<const char *>(buf), static_cast<int>(len), 0);
+    uint32_t hash32 =
+        atfw::util::hash::murmur_hash3_x86_32(reinterpret_cast<const char *>(buf), static_cast<int>(len), 0);
     memcpy(buff_start, &hash32, sizeof(uint32_t));
 
     // vint

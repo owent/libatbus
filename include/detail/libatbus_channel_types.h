@@ -188,10 +188,10 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_channel {
 
   int error_code;  // 记录外部的错误码
   // 统计信息
-  util::lock::seq_alloc_u32 active_reqs;      // 正在进行的req数量
-  size_t read_net_eagain_count;               // 读到的网络重试错误数量
-  size_t read_check_block_size_failed_count;  // 读到的数据块长度检查错误数量
-  size_t read_check_hash_failed_count;        // 读到的数据hash检查错误数量
+  atfw::util::lock::seq_alloc_u32 active_reqs;  // 正在进行的req数量
+  size_t read_net_eagain_count;                 // 读到的网络重试错误数量
+  size_t read_check_block_size_failed_count;    // 读到的数据块长度检查错误数量
+  size_t read_check_hash_failed_count;          // 读到的数据hash检查错误数量
 
   // 自定义数据区域
   void *data;

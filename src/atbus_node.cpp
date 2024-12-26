@@ -26,7 +26,8 @@
 #include <ctime>
 #include <functional>
 #include <sstream>
-#if !(defined(THREAD_TLS_USE_PTHREAD) && THREAD_TLS_USE_PTHREAD) && __cplusplus >= 201103L
+#if !(defined(ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD) && ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD) && \
+    __cplusplus >= 201103L
 #  include <mutex>
 #endif
 
@@ -44,7 +45,7 @@
 
 namespace atbus {
 
-#if defined(THREAD_TLS_USE_PTHREAD) && THREAD_TLS_USE_PTHREAD
+#if defined(ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD) && ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD
 namespace detail {
 static pthread_once_t gt_atbus_node_global_init_once = PTHREAD_ONCE_INIT;
 static void atbus_node_global_init_once() {
@@ -148,7 +149,7 @@ node::node() : state_(state_t::CREATED), ev_loop_(nullptr), static_buffer_(nullp
 
   flags_.reset();
 
-#if defined(THREAD_TLS_USE_PTHREAD) && THREAD_TLS_USE_PTHREAD
+#if defined(ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD) && ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD
   (void)pthread_once(&detail::gt_atbus_node_global_init_once, detail::atbus_node_global_init_once);
 #elif __cplusplus >= 201103L
   std::call_once(detail::gt_atbus_node_global_init_once, detail::atbus_node_global_init_once);
@@ -264,9 +265,9 @@ ATBUS_MACRO_API int node::start(const start_conf_t &start_conf) {
 
   // 初始化时间
   if (0 == start_conf.timer_sec && 0 == start_conf.timer_usec) {
-    util::time::time_utility::update();
-    event_timer_.sec = util::time::time_utility::get_sys_now();
-    event_timer_.usec = util::time::time_utility::get_now_usec();
+    atfw::util::time::time_utility::update();
+    event_timer_.sec = atfw::util::time::time_utility::get_sys_now();
+    event_timer_.usec = atfw::util::time::time_utility::get_now_usec();
   } else {
     event_timer_.sec = start_conf.timer_sec;
     event_timer_.usec = start_conf.timer_usec;
@@ -1194,8 +1195,8 @@ ATBUS_MACRO_API bool node::generate_access_hash(size_t idx, uint32_t &salt, uint
 
   salt = static_cast<uint32_t>(random_engine_.random());
   uint64_t out[2] = {0};
-  ::util::hash::murmur_hash3_x64_128(reinterpret_cast<const void *>(&conf_.access_tokens[idx][0]),
-                                     static_cast<int>(conf_.access_tokens[idx].size()), salt, out);
+  ::atfw::util::hash::murmur_hash3_x64_128(reinterpret_cast<const void *>(&conf_.access_tokens[idx][0]),
+                                           static_cast<int>(conf_.access_tokens[idx].size()), salt, out);
   hashval1 = out[0];
   hashval2 = out[1];
   return true;
@@ -1209,8 +1210,8 @@ ATBUS_MACRO_API bool node::check_access_hash(const uint32_t salt, const uint64_t
 
   for (size_t i = 0; i < conf_.access_tokens.size(); ++i) {
     uint64_t out[2] = {0};
-    ::util::hash::murmur_hash3_x64_128(reinterpret_cast<const void *>(&conf_.access_tokens[i][0]),
-                                       static_cast<int>(conf_.access_tokens[i].size()), salt, out);
+    ::atfw::util::hash::murmur_hash3_x64_128(reinterpret_cast<const void *>(&conf_.access_tokens[i][0]),
+                                             static_cast<int>(conf_.access_tokens[i].size()), salt, out);
     if (hashval1 == out[0] && hashval2 == out[1]) {
       return true;
     }
@@ -1334,8 +1335,8 @@ ATBUS_MACRO_API const std::string &node::get_hostname() {
       }
       if (dump_index < sizeof(inter_addr->phys_addr)) {
         one_addr.resize((sizeof(inter_addr->phys_addr) - dump_index) * 2);
-        util::string::dumphex(inter_addr->phys_addr + dump_index, (sizeof(inter_addr->phys_addr) - dump_index),
-                              &one_addr[0]);
+        atfw::util::string::dumphex(inter_addr->phys_addr + dump_index, (sizeof(inter_addr->phys_addr) - dump_index),
+                                    &one_addr[0]);
       }
 
       if (!one_addr.empty()) {
@@ -2191,8 +2192,8 @@ void node::remove_ping_timer(timer_desc_ls<std::weak_ptr<endpoint> >::type::iter
 }
 
 void node::init_hash_code() {
-  util::hash::sha sha256;
-  sha256.init(util::hash::sha::EN_ALGORITHM_SHA256);
+  atfw::util::hash::sha sha256;
+  sha256.init(atfw::util::hash::sha::EN_ALGORITHM_SHA256);
 
   // hash all interface
   {
@@ -2214,8 +2215,8 @@ void node::init_hash_code() {
       }
       if (dump_index < sizeof(inter_addr->phys_addr)) {
         one_addr.resize((sizeof(inter_addr->phys_addr) - dump_index) * 2);
-        util::string::dumphex(inter_addr->phys_addr + dump_index, (sizeof(inter_addr->phys_addr) - dump_index),
-                              &one_addr[0]);
+        atfw::util::string::dumphex(inter_addr->phys_addr + dump_index, (sizeof(inter_addr->phys_addr) - dump_index),
+                                    &one_addr[0]);
       }
 
       if (!one_addr.empty()) {

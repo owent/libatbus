@@ -44,7 +44,7 @@ CASE_TEST(atbus_node_rela, basic_test) {
         packed_buffer.assign(reinterpret_cast<const unsigned char *>(fbb.GetBufferPointer()), 
             reinterpret_cast<const unsigned char *>(fbb.GetBufferPointer()) + fbb.GetSize());
         std::stringstream so;
-        util::string::serialization(packed_buffer.data(), packed_buffer.size(), so);
+        atfw::util::string::serialization(packed_buffer.data(), packed_buffer.size(), so);
         CASE_MSG_INFO() << "flatbuffers encoded(size=" << packed_buffer.size() << "): " << so.str() << std::endl;
     }
 

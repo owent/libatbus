@@ -96,12 +96,12 @@ struct shm_mapped_handle_info {
 #  endif
 struct shm_mapped_record_type {
   shm_mapped_handle_info handle;
-  util::lock::atomic_int_type<size_t> reference_count;
+  atfw::util::lock::atomic_int_type<size_t> reference_count;
 };
 
 using shm_mapped_by_key_t = ATBUS_ADVANCE_TYPE_MAP(std::string, std::shared_ptr<shm_mapped_record_type>);
 static shm_mapped_by_key_t shm_mapped_by_key_records;
-static ::util::lock::spin_lock shm_mapped_records_lock;
+static ::atfw::util::lock::spin_lock shm_mapped_records_lock;
 
 static std::pair<std::string, int64_t> shm_normalize_path(const char *in) {
   std::pair<std::string, int64_t> ret;
@@ -115,14 +115,14 @@ static std::pair<std::string, int64_t> shm_normalize_path(const char *in) {
     ret.first.push_back('/');
     ret.first += &in[1];
   } else {
-    util::string::str2int(ret.second, in);
+    atfw::util::string::str2int(ret.second, in);
     char key_buf[32] = {0};
-    util::string::int2str(key_buf, 31, ret.second);
+    atfw::util::string::int2str(key_buf, 31, ret.second);
     ret.first = &key_buf[0];
   }
 
 #  ifdef WIN32
-  std::transform(ret.first.begin(), ret.first.end(), ret.first.begin(), util::string::tolower<char>);
+  std::transform(ret.first.begin(), ret.first.end(), ret.first.begin(), atfw::util::string::tolower<char>);
 #  endif
   return ret;
 }
@@ -161,7 +161,7 @@ static int shm_close_buffer(const char *input_path) {
     return EN_ATBUS_ERR_SHM_PATH_INVALID;
   }
 
-  ::util::lock::lock_holder< ::util::lock::spin_lock> lock_guard(shm_mapped_records_lock);
+  ::atfw::util::lock::lock_holder< ::atfw::util::lock::spin_lock> lock_guard(shm_mapped_records_lock);
 
   shm_mapped_by_key_t::iterator iter = shm_mapped_by_key_records.find(shm_path.first);
   if (shm_mapped_by_key_records.end() == iter) return EN_ATBUS_ERR_SHM_NOT_FOUND;
@@ -206,7 +206,7 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
     return EN_ATBUS_ERR_SHM_PATH_INVALID;
   }
 
-  ::util::lock::lock_holder< ::util::lock::spin_lock> lock_guard(shm_mapped_records_lock);
+  ::atfw::util::lock::lock_holder< ::atfw::util::lock::spin_lock> lock_guard(shm_mapped_records_lock);
 
   std::shared_ptr<shm_mapped_record_type> shm_record = std::make_shared<shm_mapped_record_type>();
   if (!shm_record) {

@@ -54,7 +54,7 @@ struct hash_factor;
 template <>
 struct hash_factor<false> {
   static uint32_t hash(uint32_t seed, const void *s, size_t l) {
-    return util::hash::murmur_hash3_x86_32(s, static_cast<int>(l), seed);
+    return atfw::util::hash::murmur_hash3_x86_32(s, static_cast<int>(l), seed);
     // CRC算法性能太差，包长度也不太可能超过2GB
     // return atbus::detail::crc32(crc, static_cast<const unsigned char *>(s), l);
   }
@@ -63,7 +63,7 @@ struct hash_factor<false> {
 template <>
 struct hash_factor<true> {
   static uint64_t hash(uint64_t seed, const void *s, size_t l) {
-    return util::hash::murmur_hash3_x86_32(s, static_cast<int>(l), static_cast<uint32_t>(seed));
+    return atfw::util::hash::murmur_hash3_x86_32(s, static_cast<int>(l), static_cast<uint32_t>(seed));
     // CRC算法性能太差，包长度也不太可能超过2GB
     // return atbus::detail::crc64(crc, static_cast<const unsigned char *>(s), l);
   }
@@ -86,7 +86,7 @@ __pragma(pack(push, 1))
 
   size_t write_retry_times;
   // TODO 接收端校验号(用于保证只有一个接收者)
-  volatile util::lock::atomic_int_type<size_t> atomic_receiver_identify;
+  volatile atfw::util::lock::atomic_int_type<size_t> atomic_receiver_identify;
 } ATBUS_MACRO_PACK_ATTR;
 
 // 通道头
@@ -104,13 +104,13 @@ struct mem_channel {
   // [atomic_read_cur, atomic_write_cur) 内的数据块都是已使用的数据块
   // atomic_write_cur指向的数据块一定是空块，故而必然有一个node的空洞
   // c11的stdatomic.h在很多编译器不支持并且还有些潜规则(gcc 不能使用-fno-builtin 和 -march=xxx)，故而使用c++版本
-  volatile util::lock::atomic_int_type<size_t> atomic_read_cur;   // util::lock::atomic_int_type也是POD类型
-  volatile util::lock::atomic_int_type<size_t> atomic_write_cur;  // util::lock::atomic_int_type也是POD类型
+  volatile atfw::util::lock::atomic_int_type<size_t> atomic_read_cur;   // atfw::util::lock::atomic_int_type也是POD类型
+  volatile atfw::util::lock::atomic_int_type<size_t> atomic_write_cur;  // atfw::util::lock::atomic_int_type也是POD类型
 
   // 第一次读到正在写入数据的时间
   uint64_t first_failed_writing_time;
 
-  volatile util::lock::atomic_int_type<uint32_t> atomic_operation_seq;  // 操作序列号(用于保证只有一个接收者)
+  volatile atfw::util::lock::atomic_int_type<uint32_t> atomic_operation_seq;  // 操作序列号(用于保证只有一个接收者)
 
   // 配置
   mem_conf conf;
@@ -634,13 +634,13 @@ static int mem_send_real(mem_channel *channel, const void *buf, size_t len) {
   // 设置首node header，数据写完标记
   {
     // 设置屏障，先保证数据区和head区内存已被刷入
-    UTIL_LOCK_ATOMIC_THREAD_FENCE(util::lock::memory_order_acq_rel);
+    UTIL_LOCK_ATOMIC_THREAD_FENCE(atfw::util::lock::memory_order_acq_rel);
 
     volatile mem_node_head *first_node_head = mem_get_node_head(channel, write_cur, nullptr, nullptr);
     first_node_head->flag = set_flag(first_node_head->flag, MF_WRITEN);
 
     // 设置屏障，保证head内存同步，然后复查操作序号，writen标记延迟同步没关系
-    UTIL_LOCK_ATOMIC_THREAD_FENCE(util::lock::memory_order_acquire);
+    UTIL_LOCK_ATOMIC_THREAD_FENCE(atfw::util::lock::memory_order_acquire);
     // 再检查一次，以防memcpy时发生写冲突
     if (opr_seq != first_node_head->operation_seq) {
       ++channel->write_check_sequence_failed_count;
@@ -837,7 +837,7 @@ ATBUS_MACRO_API int mem_recv(mem_channel *channel, void *buf, size_t len, size_t
     }
 
     // 设置屏障，保证这个执行前数据区和head区内存已被刷入
-    UTIL_LOCK_ATOMIC_THREAD_FENCE(util::lock::memory_order_acquire);
+    UTIL_LOCK_ATOMIC_THREAD_FENCE(atfw::util::lock::memory_order_acquire);
 
     channel->first_failed_writing_time = 0;
 
@@ -956,9 +956,9 @@ ATBUS_MACRO_API void mem_show_channel(mem_channel *channel, std::ostream &out, b
       }
 
       if (need_node_data < mem_block::node_data_size) {
-        util::string::dumphex(data_ptr, need_node_data, out);
+        atfw::util::string::dumphex(data_ptr, need_node_data, out);
       } else {
-        util::string::dumphex(data_ptr, mem_block::node_data_size, out);
+        atfw::util::string::dumphex(data_ptr, mem_block::node_data_size, out);
       }
       out << std::endl;
     }

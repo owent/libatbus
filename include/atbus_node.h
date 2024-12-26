@@ -49,7 +49,7 @@ class node_access_controller {
   static void remove_ping_timer(node &n, timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator &inout);
 };
 
-class node final : public util::design_pattern::noncopyable {
+class node final : public atfw::util::design_pattern::noncopyable {
  public:
   using ptr_t = std::shared_ptr<node>;
   using msg_builder_ref_t = ::atbus::protocol::msg &;
@@ -104,17 +104,17 @@ class node final : public util::design_pattern::noncopyable {
     std::vector<endpoint_subnet_conf> subnets;   /** 子网范围 **/
     std::bitset<conf_flag_t::EN_CONF_MAX> flags; /** 开关配置 **/
     std::string parent_address;                  /** 父节点地址 **/
-    int loop_times; /** 消息循环次数限制，防止某些通道繁忙把其他通道堵死 **/
-    int ttl;        /** 消息转发跳转限制 **/
+    int loop_times;                              /** 消息循环次数限制，防止某些通道繁忙把其他通道堵死 **/
+    int ttl;                                     /** 消息转发跳转限制 **/
     int32_t protocol_version;
     int32_t protocol_minimal_version;
 
     // ===== 连接配置 =====
     int backlog;
-    time_t first_idle_timeout; /** 第一个包允许的空闲时间，秒 **/
-    time_t ping_interval;      /** ping包间隔，秒 **/
-    time_t retry_interval;     /** 重试包间隔，秒 **/
-    size_t fault_tolerant;     /** 容错次数，次 **/
+    time_t first_idle_timeout;      /** 第一个包允许的空闲时间，秒 **/
+    time_t ping_interval;           /** ping包间隔，秒 **/
+    time_t retry_interval;          /** 重试包间隔，秒 **/
+    size_t fault_tolerant;          /** 容错次数，次 **/
     size_t access_token_max_number; /** 最大access token数量，请不要设置的太大，验证次数最大可能是N^2 **/
     std::vector<std::vector<unsigned char> > access_tokens; /** access token列表 **/
     bool overwrite_listen_path;                             /** 是否覆盖已存在的listen path(unix socket) **/
@@ -698,7 +698,7 @@ class node final : public util::design_pattern::noncopyable {
   conf_t conf_;
   std::string hash_code_;
   std::weak_ptr<node> watcher_;  // just like std::shared_from_this<T>
-  util::lock::seq_alloc_u64 msg_seq_alloc_;
+  atfw::util::lock::seq_alloc_u64 msg_seq_alloc_;
 
   // 引用的资源标记（释放时要保证这些资源引用被移除）
   std::set<void *> ref_objs_;
@@ -752,7 +752,7 @@ class node final : public util::design_pattern::noncopyable {
     stat_info_t();
   };
   stat_info_t stat_;
-  ::util::random::xoshiro256_starstar random_engine_;
+  ::atfw::util::random::xoshiro256_starstar random_engine_;
 
   // 调试辅助函数
  public:

@@ -93,7 +93,7 @@ class ATBUS_MACRO_API endpoint_subnet_range {
   ATBUS_MACRO_BUSID_TYPE max_id_;
 };
 
-class endpoint final : public util::design_pattern::noncopyable {
+class endpoint final : public atfw::util::design_pattern::noncopyable {
  public:
   using bus_id_t = ATBUS_MACRO_BUSID_TYPE;
   using ptr_t = std::shared_ptr<endpoint>;
