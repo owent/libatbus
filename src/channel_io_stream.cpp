@@ -45,7 +45,7 @@
 
 #endif
 
-#define ATBUS_MACRO_TLS_MERGE_BUFFER_LEN (ATBUS_MACRO_MSG_LIMIT - ATBUS_MACRO_DATA_ALIGN_SIZE - sizeof(uv_write_t))
+#define ATBUS_MACRO_TLS_MERGE_BUFFER_LEN (ATBUS_MACRO_MESSAGE_LIMIT - ATBUS_MACRO_DATA_ALIGN_SIZE - sizeof(uv_write_t))
 
 #if !(defined(ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD) && ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD) && \
     defined(UTIL_CONFIG_THREAD_LOCAL)
@@ -324,12 +324,12 @@ void io_stream_init_configure(io_stream_conf *conf) {
 
   conf->send_buffer_max_size = 0;
   conf->send_buffer_limit_size =
-      ATBUS_MACRO_MSG_LIMIT +
+      ATBUS_MACRO_MESSAGE_LIMIT +
       ::atbus::detail::buffer_block::padding_size(sizeof(uv_write_t) + sizeof(uint32_t) + 16);  // 预留header长度
 
   conf->recv_buffer_max_size =
-      ATBUS_MACRO_MSG_LIMIT * 2;  // 最大接收缓冲区2个最大包体够了，一般一个正在处理的和一个正在接收的
-  conf->recv_buffer_limit_size = ATBUS_MACRO_MSG_LIMIT;
+      ATBUS_MACRO_MESSAGE_LIMIT * 2;  // 最大接收缓冲区2个最大包体够了，一般一个正在处理的和一个正在接收的
+  conf->recv_buffer_limit_size = ATBUS_MACRO_MESSAGE_LIMIT;
 
   conf->backlog = ATBUS_MACRO_CONNECTION_BACKLOG;
 

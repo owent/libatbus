@@ -69,7 +69,7 @@ struct channel_ios_unix_addr_holder {
 
 channel_ios_unix_addr_holder g_channel_ios_unix_test_path;
 
-static const size_t MAX_TEST_BUFFER_LEN = ATBUS_MACRO_MSG_LIMIT * 4;
+static const size_t MAX_TEST_BUFFER_LEN = ATBUS_MACRO_MESSAGE_LIMIT * 4;
 static int g_check_flag = 0;
 static std::pair<size_t, size_t> g_recv_rec = std::make_pair(0, 0);
 static std::list<std::pair<size_t, size_t> > g_check_buff_sequence;

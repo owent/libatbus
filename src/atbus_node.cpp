@@ -184,7 +184,7 @@ ATBUS_MACRO_API void node::default_conf(conf_t *conf) {
   conf->access_tokens.clear();
   conf->overwrite_listen_path = false;
 
-  conf->msg_size = ATBUS_MACRO_MSG_LIMIT;
+  conf->msg_size = ATBUS_MACRO_MESSAGE_LIMIT;
 
   // recv_buffer_size 用于内存/共享内存通道的缓冲区长度，因为本机节点一般数量少所以默认设的大一点
   conf->recv_buffer_size = ATBUS_MACRO_SHM_MEM_CHANNEL_LENGTH;

@@ -243,13 +243,13 @@ static void mem_default_conf(mem_channel *channel) {
     return;
   }
 
-// 根据Jeffrey Dean大神2007年发布的一个数据，内存4ms大约能复制16MB数据
+// 根据Jeffrey Dean 2007年发布的一个数据，内存4ms大约能复制16MB数据
 // 我们实测的每秒大约能传输数据量大于1GB，所以最大消息长度在4MB以内时4ms都足够传输整个消息，但是超出这个数值最好就再设置长一点
 // 这里我们不考虑CPU调度切换，因为这个情况下无法估计时间，所以就让他超时吧
-#if ATBUS_MACRO_MSG_LIMIT <= 4 * 1024 * 1024
+#if ATBUS_MACRO_MESSAGE_LIMIT <= 4 * 1024 * 1024
   channel->conf.conf_send_timeout_ms = 4;
 #else
-  channel->conf.conf_send_timeout_ms = (ATBUS_MACRO_MSG_LIMIT / (1024 * 1024)) + 1;
+  channel->conf.conf_send_timeout_ms = (ATBUS_MACRO_MESSAGE_LIMIT / (1024 * 1024)) + 1;
 #endif
   channel->conf.write_retry_times = 4;  // 默认写序列错误重试4次
 

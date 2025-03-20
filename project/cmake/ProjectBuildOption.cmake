@@ -19,21 +19,21 @@ set(ATBUS_MACRO_DATA_MAX_PROTECT_SIZE
     16384
     CACHE STRING "max protected node size for mem/shm channel")
 
-# for now, other component in io_stream_connection cost 472 bytes, make_shared will also cost some memory. we hope one
-# connection will cost no more than 4KB, so 100K connections will cost no more than 400MB memory so we use 3KB for small
-# message buffer, and left about 500 Bytes in feture use. This can be 512 or smaller (but not smaller than 32), but in
+# By now, other component in io_stream_connection cost 472 bytes, make_shared will also cost some memory. we hope one
+# connection will cost no more than 8KB, so 100K connections will cost no more than 800MB memory so we use 7KB for small
+# message buffer, and left about 500 Bytes in future use. This can be 512 or smaller (but not smaller than 32), but in
 # most server environment, memory is cheap and there are only few connections between server and server.
 set(ATBUS_MACRO_DATA_SMALL_SIZE
-    3072
+    7168
     CACHE STRING
           "small message buffer for io_stream channel(used to reduce memory copy when there are many small messages)")
 
 set(ATBUS_MACRO_HUGETLB_SIZE
     4194304
     CACHE STRING "huge page size in shared memory channel(unused now)")
-set(ATBUS_MACRO_MSG_LIMIT
-    262144
-    CACHE STRING "message size limit")
+set(ATBUS_MACRO_MESSAGE_LIMIT
+    2097152
+    CACHE STRING "message size hard limit")
 set(ATBUS_MACRO_MAX_FRAME_HEADER
     1024
     CACHE STRING "message header size limit")
@@ -41,10 +41,10 @@ set(ATBUS_MACRO_CONNECTION_CONFIRM_TIMEOUT
     30
     CACHE STRING "connection confirm timeout")
 set(ATBUS_MACRO_CONNECTION_BACKLOG
-    128
+    256
     CACHE STRING "tcp backlog")
 set(ATBUS_MACRO_SHM_MEM_CHANNEL_LENGTH
-    8388608
+    167510016
     CACHE STRING "channel size for shm/mem channel")
 set(ATBUS_MACRO_IOS_SEND_BUFFER_LENGTH
     2097152
