@@ -406,6 +406,7 @@ CASE_TEST(atbus_node_reg, timeout) {
 CASE_TEST(atbus_node_reg, message_size_limit) {
   atbus::node::conf_t conf;
   atbus::node::default_conf(&conf);
+  conf.msg_size = 256 * 1024;
   conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
   conf.access_tokens.push_back(std::vector<unsigned char>());
   unsigned char access_token[] = "test access token";
@@ -734,6 +735,7 @@ CASE_TEST(atbus_node_reg, reg_failed_with_unsupported) {
 CASE_TEST(atbus_node_reg, destruct) {
   atbus::node::conf_t conf;
   atbus::node::default_conf(&conf);
+  conf.msg_size = 256 * 1024;
   conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
   uv_loop_t ev_loop;
   uv_loop_init(&ev_loop);

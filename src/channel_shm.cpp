@@ -15,6 +15,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 
 #include "detail/libatbus_adapter_libuv.h"
 
@@ -99,7 +100,7 @@ struct shm_mapped_record_type {
   atfw::util::lock::atomic_int_type<size_t> reference_count;
 };
 
-using shm_mapped_by_key_t = ATBUS_ADVANCE_TYPE_MAP(std::string, std::shared_ptr<shm_mapped_record_type>);
+using shm_mapped_by_key_t = std::unordered_map<std::string, std::shared_ptr<shm_mapped_record_type>>;
 static shm_mapped_by_key_t shm_mapped_by_key_records;
 static ::atfw::util::lock::spin_lock shm_mapped_records_lock;
 
@@ -161,7 +162,7 @@ static int shm_close_buffer(const char *input_path) {
     return EN_ATBUS_ERR_SHM_PATH_INVALID;
   }
 
-  ::atfw::util::lock::lock_holder< ::atfw::util::lock::spin_lock> lock_guard(shm_mapped_records_lock);
+  ::atfw::util::lock::lock_holder<::atfw::util::lock::spin_lock> lock_guard(shm_mapped_records_lock);
 
   shm_mapped_by_key_t::iterator iter = shm_mapped_by_key_records.find(shm_path.first);
   if (shm_mapped_by_key_records.end() == iter) return EN_ATBUS_ERR_SHM_NOT_FOUND;
@@ -206,7 +207,7 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
     return EN_ATBUS_ERR_SHM_PATH_INVALID;
   }
 
-  ::atfw::util::lock::lock_holder< ::atfw::util::lock::spin_lock> lock_guard(shm_mapped_records_lock);
+  ::atfw::util::lock::lock_holder<::atfw::util::lock::spin_lock> lock_guard(shm_mapped_records_lock);
 
   std::shared_ptr<shm_mapped_record_type> shm_record = std::make_shared<shm_mapped_record_type>();
   if (!shm_record) {

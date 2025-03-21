@@ -1,16 +1,14 @@
-使用（编译）流程
-======
+# 使用（编译）流程
 
-依赖工具集合库
-------
+## 依赖工具集合库
 
 + 支持c++0x或c++11的编译器(为了代码尽量简洁,特别是少做无意义的平台兼容，依赖部分 C11和C++11的功能，所以不支持过低版本的编译器)
 
-> + GCC: 4.7 及以上（建议gcc 4.8及以上）
-> + Clang: 3.0 及以上 （建议 clang 3.4及以上）
-> + VC: 10 及以上 （建议VC 12及以上）
+> + GCC: 4.8 及以上
+> + Clang: 7.0 及以上
+> + MSVC: VS 2019 及以上
 
-+ [cmake](https://cmake.org/download/) 3.13.0 以上
++ [cmake](https://cmake.org/download/) 3.24.0 以上
 + [protobuf](https://github.com/protocolbuffers/protobuf)
 
 > 用于协议打解包,仅使用头文件
@@ -25,9 +23,10 @@
 + (可选)[python](http://python.org/) （周边工具集）
 + (可选)tar, curl, wget: 如果使用内置的脚本自动构建依赖的库，则这些是必要的工具
 
-环境准备(开发环境最小依赖)
-------
+## 环境准备(开发环境最小依赖)
+
 ### Windows + MSVC
+
 1. [cmake](https://cmake.org/download/)
 2. [visual studio](https://www.visualstudio.com)
 3. [libuv](http://dist.libuv.org/dist)
@@ -43,9 +42,10 @@
 上面最后一条命令可以根据实际环境修改参数，这里只提供一个示例
 
 ### Windows + MinGW(msys2)
+
 1. 安装[Msys2](http://msys2.github.io/)
 2. Msys2里安装依赖组件
-> ```
+> ```bash
 > for pkg_name in git m4 curl wget tar autoconf automake mingw-w64-i686-toolchain mingw-w64-x86_64-toolchain mingw-w64-x86_64-libtool mingw-w64-i686-libtool python; do pacman -S --noconfirm --needed $pkg_name; done
 > ```
 > 具体可以根据 编译目标裁剪，这里把32位和64位依赖库都安装上了
@@ -80,7 +80,8 @@
 以上请用Linux发行版的包管理器安装，然后正常使用cmake即可
 
 比如CentOS:
-```
+
+```bash
 yum install gcc gcc-c++ autoconf automake gdb valgrind curl wget tar m4 automake make git;
 wget -c "https://cmake.org/files/v3.9/cmake-3.9.4-Linux-x86_64.sh" -O "cmake-Linux-x86_64.sh";
 bash cmake-Linux-x86_64.sh --skip-license --prefix=/usr ;
@@ -112,22 +113,22 @@ bash cmake-Linux-x86_64.sh --skip-license --prefix=/usr ;
 + PROJECT_ENABLE_TOOLS (默认: NO): 是否编译工具集（主要是压力测试工具）
 + ============= 以上选项根据实际环境配置，以下选项不建议修改 =============
 + ATBUS_MACRO_BUSID_TYPE (默认: uint64_t): busid的类型，建议不要设置成大于64位，否则需要修改protocol目录内的busid类型，并且重新生成协议文件
-+ ATBUS_MACRO_DATA_NODE_SIZE (默认: 128): atbus的内存通道node大小（必须是2的倍数）
++ ATBUS_MACRO_DATA_NODE_SIZE (默认: 256): atbus的内存通道node大小（必须是2的倍数）
 + ATBUS_MACRO_DATA_ALIGN_SIZE (默认: 16): atbus的内存内存块对齐大小，大多数某些架构要求对齐到16
 + ATBUS_MACRO_DATA_SMALL_SIZE (默认: 3072): 流通道小数据块大小（用于优化减少内存拷贝）
 + ATBUS_MACRO_HUGETLB_SIZE (默认: 4194304): 大页表分页大小（用于优化共享内存分页,此功能暂时关闭，所以并不生效）
-+ ATBUS_MACRO_MESSAGE_LIMIT (默认: 262144): 默认消息体大小限制
++ ATBUS_MACRO_MESSAGE_LIMIT (默认: 2097152): 默认消息体大小限制
 + ATBUS_MACRO_CONNECTION_CONFIRM_TIMEOUT (默认: 30): 默认连接确认时限
 + ATBUS_MACRO_CONNECTION_BACKLOG (默认: 128): 默认握手队列的最大连接数
 + ATBUS_MACRO_SHM_MEM_CHANNEL_LENGTH (默认: 8388608): 共享内存和内存通道的默认大小
-+ ATBUS_MACRO_IOS_SEND_BUFFER_LENGTH (默认: 2097152): IO流（tcp/unix sock）发送通道的默认大小
++ ATBUS_MACRO_IOS_SEND_BUFFER_LENGTH (默认: 4194304): IO流（tcp/unix sock）发送通道的默认大小
 + GTEST_ROOT: 使用GTest单元测试框架
 + BOOST_ROOT: 设置Boost库根目录
 + PROJECT_TEST_ENABLE_BOOST_UNIT_TEST: 使用Boost.Test单元测试框架(如果GTEST_ROOT和此项都不设置，则使用内置单元测试框架)
 
-
 ### 示例构建脚本(MinGW64)
-```
+
+```bash
 git clone --depth=1 "https://github.com/atframework/libatbus.git"
 mkdir libatbus/build;
 cd libatbus/build;

@@ -40,19 +40,9 @@
 #cmakedefine ATBUS_MACRO_IOS_SEND_BUFFER_LENGTH @ATBUS_MACRO_IOS_SEND_BUFFER_LENGTH@
 #cmakedefine01 ATBUS_MACRO_ABORT_ON_PROTECTED_ERROR
 
-#if defined(__cplusplus) &&                                                                                         \
-    (__cplusplus >= 201103L || (defined(_MSC_VER) && (_MSC_VER == 1500 && defined(_HAS_TR1)) || _MSC_VER > 1500) || \
-     (defined(__GNUC__) && defined(__GXX_EXPERIMENTAL_CXX0X__)))
+
 #include <unordered_map>
 #include <unordered_set>
-#define ATBUS_ADVANCE_TYPE_MAP(...) std::unordered_map<__VA_ARGS__>
-#define ATBUS_ADVANCE_TYPE_SET(...) std::unordered_set<__VA_ARGS__>
-#else
-#include <map>
-#include <set>
-#define ATBUS_ADVANCE_TYPE_MAP(...) std::map<__VA_ARGS__>
-#define ATBUS_ADVANCE_TYPE_SET(...) std::set<__VA_ARGS__>
-#endif
 
 #if defined(__cplusplus) && __cplusplus >= 201103L
 #define ATBUS_MACRO_ENABLE_STATIC_ASSERT 1
@@ -68,27 +58,27 @@
 #ifndef ATBUS_MACRO_API
 #  if defined(ATBUS_MACRO_API_NATIVE) && ATBUS_MACRO_API_NATIVE
 #    if defined(ATBUS_MACRO_API_DLL) && ATBUS_MACRO_API_DLL
-#      define ATBUS_MACRO_API UTIL_SYMBOL_EXPORT
+#      define ATBUS_MACRO_API ATFW_UTIL_SYMBOL_EXPORT
 #    else
-#      define ATBUS_MACRO_API
+#      define ATBUS_MACRO_API ATFW_UTIL_SYMBOL_VISIBLE
 #    endif
 #  else
 #    if defined(ATBUS_MACRO_API_DLL) && ATBUS_MACRO_API_DLL
-#      define ATBUS_MACRO_API UTIL_SYMBOL_IMPORT
+#      define ATBUS_MACRO_API ATFW_UTIL_SYMBOL_IMPORT
 #    else
-#      define ATBUS_MACRO_API
+#      define ATBUS_MACRO_API ATFW_UTIL_SYMBOL_VISIBLE
 #    endif
 #  endif
 #endif
-#define ATBUS_MACRO_API_HEAD_ONLY UTIL_SYMBOL_VISIBLE
+#define ATBUS_MACRO_API_HEAD_ONLY ATFW_UTIL_SYMBOL_VISIBLE
 #define ATBUS_MACRO_API_C(R) extern "C" ATBUS_MACRO_API R __cdecl
 
 #ifndef ATBUS_MACRO_PROTOCOL_API
 #  if defined(ATBUS_MACRO_API_NATIVE) && ATBUS_MACRO_API_NATIVE
 #    if defined(ATBUS_MACRO_API_DLL) && ATBUS_MACRO_API_DLL
-#      define ATBUS_MACRO_PROTOCOL_API UTIL_SYMBOL_IMPORT
+#      define ATBUS_MACRO_PROTOCOL_API ATFW_UTIL_SYMBOL_IMPORT
 #    else
-#      define ATBUS_MACRO_PROTOCOL_API
+#      define ATBUS_MACRO_PROTOCOL_API ATFW_UTIL_SYMBOL_VISIBLE
 #    endif
 #  else
 #    define ATBUS_MACRO_PROTOCOL_API ATBUS_MACRO_API

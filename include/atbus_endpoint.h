@@ -4,45 +4,44 @@
  *  Created on: 2015年11月20日
  *      Author: owent
  */
+#ifndef LIBATBUS_ENDPOINT_H
+#define LIBATBUS_ENDPOINT_H
 
 #pragma once
 
-#ifndef LIBATBUS_ENDPOINT_H
-#  define LIBATBUS_ENDPOINT_H
+#include <list>
+#include <memory>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
-#  pragma once
+#ifdef __cpp_impl_three_way_comparison
+#  include <compare>
+#endif
 
-#  include <list>
-#  include <memory>
-#  include <vector>
+#ifdef _MSC_VER
+#  include <WinSock2.h>
+#endif
 
-#  ifdef __cpp_impl_three_way_comparison
-#    include <compare>
-#  endif
+#include <design_pattern/nomovable.h>
+#include <design_pattern/noncopyable.h>
 
-#  ifdef _MSC_VER
-#    include <WinSock2.h>
-#  endif
+#include "detail/libatbus_channel_export.h"
+#include "detail/libatbus_config.h"
+#include "detail/libatbus_error.h"
 
-#  include <design_pattern/nomovable.h>
-#  include <design_pattern/noncopyable.h>
-
-#  include "detail/libatbus_channel_export.h"
-#  include "detail/libatbus_config.h"
-#  include "detail/libatbus_error.h"
-
-#  include "atbus_connection.h"
+#include "atbus_connection.h"
 
 namespace atbus {
 namespace detail {
 template <typename TKey, typename TVal>
 struct auto_select_map {
-  using type = ATBUS_ADVANCE_TYPE_MAP(TKey, TVal);
+  using type = std::unordered_map<TKey, TVal>;
 };
 
 template <typename TVal>
 struct auto_select_set {
-  using type = ATBUS_ADVANCE_TYPE_SET(TVal);
+  using type = std::unordered_set<TVal>;
 };
 }  // namespace detail
 
@@ -62,16 +61,16 @@ class ATBUS_MACRO_API endpoint_subnet_range {
   endpoint_subnet_range(ATBUS_MACRO_BUSID_TYPE a, uint32_t b);
 
   bool operator==(const endpoint_subnet_range &other) const;
-#  ifdef __cpp_impl_three_way_comparison
+#ifdef __cpp_impl_three_way_comparison
   std::strong_ordering operator<=>(const endpoint_subnet_range &other) const;
-#  else
+#else
 
   bool operator<(const endpoint_subnet_range &other) const;
   bool operator<=(const endpoint_subnet_range &other) const;
   bool operator>(const endpoint_subnet_range &other) const;
   bool operator>=(const endpoint_subnet_range &other) const;
   bool operator!=(const endpoint_subnet_range &other) const;
-#  endif
+#endif
 
   inline ATBUS_MACRO_BUSID_TYPE get_id_prefix() const { return id_prefix_; }
   inline uint32_t get_mask_bits() const { return mask_bits_; }

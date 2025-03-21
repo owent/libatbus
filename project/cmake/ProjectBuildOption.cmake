@@ -47,7 +47,7 @@ set(ATBUS_MACRO_SHM_MEM_CHANNEL_LENGTH
     167510016
     CACHE STRING "channel size for shm/mem channel")
 set(ATBUS_MACRO_IOS_SEND_BUFFER_LENGTH
-    2097152
+    4194304
     CACHE STRING "send buffer size for iostream channel")
 option(ATBUS_MACRO_ABORT_ON_PROTECTED_ERROR "abort when any inner error found." OFF)
 

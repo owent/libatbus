@@ -4,47 +4,45 @@
  *  Created on: 2014年8月13日
  *      Author: owent
  */
+#ifndef LIBATBUS_CHANNEL_TYPES_H
+#define LIBATBUS_CHANNEL_TYPES_H
 
 #pragma once
 
-#ifndef LIBATBUS_CHANNEL_TYPES_H
-#  define LIBATBUS_CHANNEL_TYPES_H
+#include <stdint.h>
+#include <cstddef>
+#include <map>
+#include <memory>
+#include <ostream>
+#include <string>
+#include <unordered_map>
+#include <utility>
 
-#  pragma once
+#include "lock/seq_alloc.h"
 
-#  include <stdint.h>
-#  include <cstddef>
-#  include <map>
-#  include <memory>
-#  include <ostream>
-#  include <string>
-#  include <utility>
+#include "detail/libatbus_config.h"
 
-#  include "lock/seq_alloc.h"
+#include "buffer.h"
+#include "detail/libatbus_adapter_libuv.h"
 
-#  include "detail/libatbus_config.h"
-
-#  include "buffer.h"
-#  include "detail/libatbus_adapter_libuv.h"
-
-#  if defined(__ANDROID__)
-#  elif defined(__APPLE__)
-#    if __dest_os == __mac_os_x
-#      include <sys/ipc.h>
-#      include <sys/shm.h>
-
-#      define ATBUS_CHANNEL_SHM 1
-#    endif
-#  elif defined(__unix__)
+#if defined(__ANDROID__)
+#elif defined(__APPLE__)
+#  if __dest_os == __mac_os_x
 #    include <sys/ipc.h>
 #    include <sys/shm.h>
 
 #    define ATBUS_CHANNEL_SHM 1
-#  else
-#    include <Windows.h>
-
-#    define ATBUS_CHANNEL_SHM 1
 #  endif
+#elif defined(__unix__)
+#  include <sys/ipc.h>
+#  include <sys/shm.h>
+
+#  define ATBUS_CHANNEL_SHM 1
+#else
+#  include <Windows.h>
+
+#  define ATBUS_CHANNEL_SHM 1
+#endif
 
 namespace atbus {
 namespace channel {
@@ -73,13 +71,13 @@ struct ATBUS_MACRO_API_HEAD_ONLY mem_stats_block_error {
   size_t read_check_hash_failed_count;        // 读到的数据hash值检查错误数量
 };
 
-#  ifdef ATBUS_CHANNEL_SHM
+#ifdef ATBUS_CHANNEL_SHM
 // shared memory channel
 struct shm_channel;
 struct shm_conf;
 
 using shm_stats_block_error = mem_stats_block_error;
-#  endif
+#endif
 
 // stream channel(tcp,pipe(unix socket) and etc. udp is not a stream)
 struct io_stream_connection;
@@ -178,9 +176,9 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_channel {
 
   io_stream_conf conf;
 
-  using conn_pool_t = ATBUS_ADVANCE_TYPE_MAP(adapter::fd_t, std::shared_ptr<io_stream_connection>);
+  using conn_pool_t = std::unordered_map<adapter::fd_t, std::shared_ptr<io_stream_connection>>;
   conn_pool_t conn_pool;
-  using conn_gc_pool_t = ATBUS_ADVANCE_TYPE_MAP(uintptr_t, std::shared_ptr<io_stream_connection>);
+  using conn_gc_pool_t = std::unordered_map<uintptr_t, std::shared_ptr<io_stream_connection>>;
   conn_gc_pool_t conn_gc_pool;
 
   // 事件响应
@@ -197,17 +195,17 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_channel {
   void *data;
 };
 
-#  define ATBUS_CHANNEL_IOS_CHECK_FLAG(f, v) (0 != ((f) & (1 << (v))))
-#  define ATBUS_CHANNEL_IOS_SET_FLAG(f, v) (f) |= (1 << (v))
-#  define ATBUS_CHANNEL_IOS_UNSET_FLAG(f, v) (f) &= ~(1 << (v))
-#  define ATBUS_CHANNEL_IOS_CLEAR_FLAG(f) (f) = 0
+#define ATBUS_CHANNEL_IOS_CHECK_FLAG(f, v) (0 != ((f) & (1 << (v))))
+#define ATBUS_CHANNEL_IOS_SET_FLAG(f, v) (f) |= (1 << (v))
+#define ATBUS_CHANNEL_IOS_UNSET_FLAG(f, v) (f) &= ~(1 << (v))
+#define ATBUS_CHANNEL_IOS_CLEAR_FLAG(f) (f) = 0
 
-#  define ATBUS_CHANNEL_REQ_START(channel) (channel)->active_reqs.inc()
-#  define ATBUS_CHANNEL_REQ_ACTIVE(channel) ((channel)->active_reqs.get() > 0)
+#define ATBUS_CHANNEL_REQ_START(channel) (channel)->active_reqs.inc()
+#define ATBUS_CHANNEL_REQ_ACTIVE(channel) ((channel)->active_reqs.get() > 0)
 
-#  define ATBUS_CHANNEL_REQ_END(channel)       \
-    assert(ATBUS_CHANNEL_REQ_ACTIVE(channel)); \
-    (channel)->active_reqs.dec()
+#define ATBUS_CHANNEL_REQ_END(channel)       \
+  assert(ATBUS_CHANNEL_REQ_ACTIVE(channel)); \
+  (channel)->active_reqs.dec()
 }  // namespace channel
 }  // namespace atbus
 
