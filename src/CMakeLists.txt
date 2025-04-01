@@ -3,7 +3,6 @@ echowithcolor(COLOR GREEN "-- Configure ${CMAKE_CURRENT_LIST_DIR}")
 file(RELATIVE_PATH PROJECT_ROOT_RELINC_DIR ${CMAKE_CURRENT_LIST_DIR} ${PROJECT_LIBATBUS_ROOT_INC_DIR})
 
 set(PROJECT_LIB_SRC_LIST
-    "${PROJECT_LIBATBUS_GENERATED_DIR}/include/detail/libatbus_config.h"
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/detail/buffer.h"
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/detail/libatbus_adapter_libuv.h"
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/detail/libatbus_channel_export.h"
@@ -24,7 +23,12 @@ set(PROJECT_LIB_SRC_LIST
     "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/channel_mem.cpp"
     "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/channel_shm.cpp"
     "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/channel_utility.cpp")
-source_group_by_dir(PROJECT_LIB_SRC_LIST)
+
+source_group(TREE "${PROJECT_SOURCE_DIR}" FILES ${PROJECT_LIB_SRC_LIST})
+
+list(APPEND PROJECT_LIB_SRC_LIST "${PROJECT_LIBATBUS_GENERATED_DIR}/include/detail/libatbus_config.h")
+source_group(TREE "${PROJECT_LIBATBUS_GENERATED_DIR}"
+             FILES "${PROJECT_LIBATBUS_GENERATED_DIR}/include/detail/libatbus_config.h")
 
 set(PROJECT_LIB_PROTOCOL_SRC_LIST "${PROJECT_LIBATBUS_GENERATED_DIR}/include/libatbus_protocol.pb.h"
                                   "${PROJECT_LIBATBUS_GENERATED_DIR}/src/libatbus_protocol.pb.cc")
