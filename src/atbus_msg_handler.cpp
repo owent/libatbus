@@ -1,6 +1,7 @@
 #include <sstream>
 
 #include "common/string_oprs.h"
+#include "nostd/string_view.h"
 
 #include "detail/buffer.h"
 
@@ -16,14 +17,45 @@
 namespace atbus {
 
 namespace detail {
-const char *get_cmd_name(int cmd) {
-  const ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::FieldDescriptor *field_desc =
-      ::atbus::protocol::msg::descriptor()->FindFieldByNumber(cmd);
-  if (field_desc == nullptr) {
-    return "UNKNOWN";
+static const char *get_cmd_name(int cmd) {
+  switch (cmd) {
+    case ::atbus::protocol::msg::kCustomCommandReq: {
+      return "CustomCommandReq";
+    }
+    case ::atbus::protocol::msg::kCustomCommandRsp: {
+      return "CustomCommandRsp";
+    }
+    case ::atbus::protocol::msg::kDataTransformReq: {
+      return "DataTransformReq";
+    }
+    case ::atbus::protocol::msg::kDataTransformRsp: {
+      return "DataTransformRsp";
+    }
+    case ::atbus::protocol::msg::kNodeSyncReq: {
+      return "NodeSyncReq";
+    }
+    case ::atbus::protocol::msg::kNodeSyncRsp: {
+      return "NodeSyncRsp";
+    }
+    case ::atbus::protocol::msg::kNodeRegisterReq: {
+      return "NodeRegisterReq";
+    }
+    case ::atbus::protocol::msg::kNodeRegisterRsp: {
+      return "NodeRegisterRsp";
+    }
+    case ::atbus::protocol::msg::kNodeConnectSync: {
+      return "NodeConnectSync";
+    }
+    case ::atbus::protocol::msg::kNodePingReq: {
+      return "NodePingReq";
+    }
+    case ::atbus::protocol::msg::kNodePongRsp: {
+      return "NodePongRsp";
+    }
+    default: {
+      return "UNKNOWN";
+    }
   }
-
-  return field_desc->name().c_str();
 }
 
 static int forward_data_message(::atbus::node &n, ::atbus::node::msg_builder_ref_t m, uint64_t from_server_id,
