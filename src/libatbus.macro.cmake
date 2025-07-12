@@ -21,6 +21,8 @@ add_custom_command(
           "${PROJECT_LIBATBUS_GENERATED_DIR}/include/libatbus_protocol.pb.h"
   COMMAND "${CMAKE_COMMAND}" -E copy_if_different "${PROJECT_LIBATBUS_GENERATED_DIR}/temp/libatbus_protocol.pb"
           "${PROJECT_LIBATBUS_GENERATED_DIR}/libatbus_protocol.pb"
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PROJECT_SOURCE_DIR}/third_party/.clang-tidy"
+          "${PROJECT_LIBATBUS_GENERATED_DIR}/"
   DEPENDS "${PROJECT_LIBATBUS_ROOT_INC_DIR}/libatbus_protocol.proto"
           "${ATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_PROTOBUF_BIN_PROTOC}"
   COMMENT

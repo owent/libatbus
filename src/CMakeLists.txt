@@ -65,7 +65,11 @@ if(NOT APPLE)
   set_target_properties("${PROJECT_LIBATBUS_LIB_LINK}-protocol" PROPERTIES C_VISIBILITY_PRESET "hidden"
                                                                            CXX_VISIBILITY_PRESET "hidden")
 endif()
-set_target_properties("${PROJECT_LIBATBUS_LIB_LINK}-protocol" PROPERTIES VERSION ${LIBATBUS_VERSION})
+set_target_properties(
+  "${PROJECT_LIBATBUS_LIB_LINK}-protocol"
+  PROPERTIES VERSION ${LIBATBUS_VERSION}
+             CXX_INCLUDE_WHAT_YOU_USE ""
+             CXX_CLANG_TIDY "")
 target_link_libraries("${PROJECT_LIBATBUS_LIB_LINK}-protocol"
                       PUBLIC ${ATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_PROTOBUF_LINK_NAME})
 target_include_directories(
