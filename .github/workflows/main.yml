@@ -28,9 +28,6 @@ jobs:
           - os: ubuntu-latest
             triplet: x64-linux
             cc: gcc
-          - os: ubuntu-20.04
-            triplet: x64-linux
-            cc: gcc-4.8
           - os: ubuntu-latest
             triplet: x64-linux
             cc: clang-latest
@@ -60,13 +57,7 @@ jobs:
           if [ -e /opt/homebrew/lib/cmake/OpenSSL ]; then
             rm -rf /opt/homebrew/lib/cmake/OpenSSL || true
           fi
-          if [[ "xgcc-4.8" == "x$USE_CC" ]]; then
-            sudo apt-add-repository 'deb http://archive.ubuntu.com/ubuntu/ xenial main'
-            sudo apt-add-repository 'deb http://archive.ubuntu.com/ubuntu/ xenial universe'
-            sudo apt-get update ;
-            sudo apt-get install --no-install-recommends --no-install-suggests -y g++-4.8 ;
-            bash ci/do_ci.sh gcc.legacy.test ;
-          elif [[ "x$USE_CC" =~ xclang.* ]]; then
+          if [[ "x$USE_CC" =~ xclang.* ]]; then
             bash ci/do_ci.sh clang.test ;
           else
             bash ci/do_ci.sh ssl.openssl ;
