@@ -71,8 +71,8 @@ jobs:
           else
             bash ci/do_ci.sh ssl.openssl ;
           fi
-  vs2019_2022_build: # job id, can be any string
-    name: "Visual Studio 2019/2022 Build"
+  vs2022_build: # job id, can be any string
+    name: "Visual Studio 2022 Build"
     strategy:
       matrix:
         include:
@@ -82,10 +82,6 @@ jobs:
             platform: x64
           - os: windows-latest
             generator: "Visual Studio 17 2022"
-            build_shared_libs: "OFF"
-            platform: x64
-          - os: windows-2019
-            generator: "Visual Studio 16 2019"
             build_shared_libs: "OFF"
             platform: x64
     runs-on: ${{ matrix.os }}
