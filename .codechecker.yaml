@@ -1,0 +1,27 @@
+# CodeChecker check --config ../.codechecker.yaml -i ../.codechecker.skipfile -l compile_commands.json -j 30 -o codechecker-result || true
+analyzer:
+  # Disable unused cases
+  - --analyzers
+  - clang-tidy
+  # - clangsa # 这个PCH有适配问题, 先关闭
+
+  # Allow .clang-tidy
+  - "--analyzer-config"
+  - "clang-tidy:take-config-from-directory=true"
+  - "clang-tidy:cc-verbatim-args-file=.codechecker.clang-tidy.args"
+
+  # - --enable=profile:extreme
+  # - --disable=boost
+  #
+  # # Many identifiers in MX framework start with _
+  # - --disable=clang-diagnostic-reserved-identifier
+  # - --disable=clang-diagnostic-reserved-macro-identifier
+  # - --disable=clang-diagnostic-unused-parameter
+
+  # # For ccc-analyzer/clangsa
+  # - --disable=alpha.clone.CloneChecker
+  # - --disable=alpha.cplusplus.IteratorRange
+
+  # PCH support
+  # - --ctu
+  # - --ctu-ast-mode=load-from-pch

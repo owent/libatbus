@@ -6,6 +6,8 @@ endif()
 
 enable_testing()
 
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
 project(
   libatbus
   VERSION "2.3.1"

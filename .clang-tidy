@@ -1,4 +1,83 @@
-Checks: "clang-diagnostic-*,clang-analyzer-*"
+Checks:
+  - "clang-diagnostic-*"
+  - "clang-analyzer-*"
+  - "bugprone-*"
+  # - 'concurrency-*'
+  - "misc-*"
+  - "modernize-*"
+  - "cppcoreguidelines-*"
+  - "performance-*"
+  - "portability-*"
+  - "readability-*"
+  - "-misc-non-private-member-variables-in-classes"
+  - "-misc-unused-parameters"
+  - "-modernize-use-trailing-return-type"
+  - "-modernize-avoid-c-arrays"
+  - "-modernize-type-traits"
+  - "-modernize-use-auto"
+  - "-modernize-concat-nested-namespaces"
+  - "-modernize-use-constraints"
+  - "-portability-avoid-pragma-once"
+  - "-cppcoreguidelines-avoid-do-while"
+  - "-cppcoreguidelines-pro-type-vararg"
+  - "-cppcoreguidelines-pro-bounds-pointer-arithmetic"
+  - "-cppcoreguidelines-pro-type-static-cast-downcast"
+  - "-cppcoreguidelines-pro-type-reinterpret-cast"
+  - "-cppcoreguidelines-pro-type-union-access"
+  - "-cppcoreguidelines-avoid-c-arrays"
+  - "-cppcoreguidelines-owning-memory"
+  - "-cppcoreguidelines-rvalue-reference-param-not-moved"
+  - "-cppcoreguidelines-pro-bounds-array-to-pointer-decay"
+  - "-cppcoreguidelines-pro-bounds-constant-array-index"
+  - "-performance-unnecessary-copy-initialization"
+  - "-performance-enum-size"
+  - "-readability-identifier-length"
+  - "-readability-identifier-length"
+  - "-readability-avoid-const-params-in-decls"
+  - "-readability-redundant-access-specifiers"
+  - "-readability-avoid-unconditional-preprocessor-if"
+  - "-readability-redundant-inline-specifier"
+  - "-readability-container-contains"
+  - "-readability-use-std-min-max"
+  - "-readability-static-definition-in-anonymous-namespace"
+  - "-readability-named-parameter"
+  - "-readability-simplify-boolean-expr"
+  - "-bugprone-misplaced-widening-cast"
+  - "-bugprone-branch-clone"
+  # 虽然按规范下划线开头的都是保留字，但是写通用库的时候常见使用私有的保留字来减少冲突
+  - "-bugprone-reserved-identifier"
+  # 算法库常用magic number
+  - "-readability-magic-numbers"
+  # 过于常见的用法而忽略
+  - "-bugprone-easily-swappable-parameters" # 参数容易被隐式转换而被调用者传错顺序
+  - "-misc-no-recursion" # 递归调用
+  - "-performance-move-const-arg" # 无意义的move可用于标记生命周期
+  # 重复报告
+  - "-bugprone-narrowing-conversions" # 和 clang-diagnostic-sign-conversion/clang-diagnostic-shorten-64-to-32 重复
+  - "-bugprone-switch-missing-default-case" # 由 fallthrough 告警管理,某些设计模式通过宏实现，无法通过注释排除
+  # 存在误判，先关闭
+  - "-readability-make-member-function-const"
+  - "-cppcoreguidelines-special-member-functions"
+  # 由于C++标准版本兼容性考虑而忽略的checks
+  - "-modernize-use-ranges"
+  - "-modernize-use-starts-ends-with"
+  # 以下检查由于性能问题被关闭(@see https://github.com/llvm/llvm-project/blob/main/clang-tools-extra/clangd/TidyFastChecks.inc)
+  - "-misc-confusable-identifiers"
+  - "-misc-const-correctness"
+  - "-misc-header-include-cycle"
+  - "-altera-id-dependent-backward-branch"
+  - "-readability-container-size-empty"
+  # RT类型和用于SHM内数据类型必须保持Trivially Copyable,所以不能使用member-init和某些不必要的lint
+  - "-cppcoreguidelines-use-default-member-init"
+  - "-modernize-use-equals-default"
+  - "-modernize-use-default-member-init"
+  # 以下是某些老代码的checkes，不影响功能
+  - "-cppcoreguidelines-avoid-magic-numbers"
+  - "-cppcoreguidelines-macro-usage"
+  - "-cppcoreguidelines-macro-to-enum"
+  - "-modernize-macro-to-enum"
+  - "-readability-isolate-declaration"
+  - "-readability-uppercase-literal-suffix"
 WarningsAsErrors: ""
 HeaderFileExtensions:
   - ""
@@ -34,4 +113,10 @@ CheckOptions:
   llvm-else-after-return.WarnOnConditionVariables: "false"
   llvm-else-after-return.WarnOnUnfixable: "false"
   llvm-qualified-auto.AddConstToQualified: "false"
+  bugprone-lambda-function-name.IgnoreMacros: "true"
+  bugprone-signed-char-misuse.CharTypdefsToIgnore: "signed char"
+  bugprone-implicit-widening-of-multiplication-result.IgnoreConstantIntExpr: "true"
+  readability-function-cognitive-complexity.Threshold: "100"
+  readability-implicit-bool-conversion.AllowIntegerConditions: "true"
+  misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic: "true"
 SystemHeaders: false
