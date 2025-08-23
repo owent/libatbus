@@ -52,6 +52,8 @@ Checks:
   - "-bugprone-easily-swappable-parameters" # 参数容易被隐式转换而被调用者传错顺序
   - "-misc-no-recursion" # 递归调用
   - "-performance-move-const-arg" # 无意义的move可用于标记生命周期
+  - "-cppcoreguidelines-pro-type-const-cast" # 使用const_cast的地方通常都是故意使用的
+  - "-modernize-use-nodiscard"
   # 重复报告
   - "-bugprone-narrowing-conversions" # 和 clang-diagnostic-sign-conversion/clang-diagnostic-shorten-64-to-32 重复
   - "-bugprone-switch-missing-default-case" # 由 fallthrough 告警管理,某些设计模式通过宏实现，无法通过注释排除

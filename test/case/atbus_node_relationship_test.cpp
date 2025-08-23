@@ -41,7 +41,7 @@ CASE_TEST(atbus_node_rela, basic_test) {
                                          .Union())
 
         );
-        packed_buffer.assign(reinterpret_cast<const unsigned char *>(fbb.GetBufferPointer()), 
+        packed_buffer.assign(reinterpret_cast<const unsigned char *>(fbb.GetBufferPointer()),
             reinterpret_cast<const unsigned char *>(fbb.GetBufferPointer()) + fbb.GetSize());
         std::stringstream so;
         atfw::util::string::serialization(packed_buffer.data(), packed_buffer.size(), so);
@@ -57,7 +57,7 @@ CASE_TEST(atbus_node_rela, basic_test) {
         CASE_EXPECT_EQ(123, m->head()->type());
         CASE_EXPECT_EQ(0, m->head()->ret());
         CASE_EXPECT_EQ(9876543210, m->head()->sequence());
-        CASE_EXPECT_EQ(0x12345678, m->head()->src_bus_id());
+        CASE_EXPECT_EQ(0x12345678, m->head()->source_bus_id());
 
         CASE_EXPECT_EQ(0x123456789, m->body_as_data_transform_req()->from());
         CASE_EXPECT_EQ(0x987654321, m->body_as_data_transform_req()->to());

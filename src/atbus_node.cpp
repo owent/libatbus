@@ -897,7 +897,7 @@ ATBUS_MACRO_API int node::send_data(bus_id_t tid, int type, const void *buffer, 
     return EN_ATBUS_ERR_MALLOC;
   }
 
-  atbus::protocol::msg_head *head = m->mutable_head();
+  atbus::protocol::message_head *head = m->mutable_head();
   atbus::protocol::forward_data *body = m->mutable_data_transform_req();
   if (nullptr == head || nullptr == body) {
     ATBUS_FUNC_NODE_ERROR(*this, nullptr, nullptr, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC);
@@ -914,7 +914,7 @@ ATBUS_MACRO_API int node::send_data(bus_id_t tid, int type, const void *buffer, 
 
   head->set_version(get_protocol_version());
   head->set_type(type);
-  head->set_src_bus_id(self_id);
+  head->set_source_bus_id(self_id);
   if (nullptr == seq) {
     head->set_sequence(alloc_msg_seq());
   } else if (0 != *seq) {
@@ -961,7 +961,7 @@ ATBUS_MACRO_API int node::send_custom_cmd(bus_id_t tid, const void *arr_buf[], s
     return EN_ATBUS_ERR_MALLOC;
   }
 
-  atbus::protocol::msg_head *head = m->mutable_head();
+  atbus::protocol::message_head *head = m->mutable_head();
   atbus::protocol::custom_command_data *body = m->mutable_custom_command_req();
   if (nullptr == head || nullptr == body) {
     ATBUS_FUNC_NODE_ERROR(*this, nullptr, nullptr, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC);
@@ -979,25 +979,9 @@ ATBUS_MACRO_API int node::send_custom_cmd(bus_id_t tid, const void *arr_buf[], s
   }
 
   head->set_version(get_protocol_version());
-  head->set_src_bus_id(self_id);
+  head->set_source_bus_id(self_id);
 
   body->set_from(self_id);
-  body->mutable_access_keys()->Reserve(static_cast<int>(get_conf().access_tokens.size()));
-  for (size_t idx = 0; idx < get_conf().access_tokens.size(); ++idx) {
-    uint32_t salt = 0;
-    uint64_t hashval1 = 0;
-    uint64_t hashval2 = 0;
-    if (generate_access_hash(idx, salt, hashval1, hashval2)) {
-      ::atbus::protocol::access_data *access = body->add_access_keys();
-      if (access == nullptr) {
-        continue;
-      }
-      access->set_token_salt(salt);
-      access->set_token_hash1(hashval1);
-      access->set_token_hash2(hashval2);
-    }
-  }
-
   body->mutable_commands()->Reserve(static_cast<int>(arr_count));
   for (size_t i = 0; i < arr_count; ++i) {
     ::atbus::protocol::custom_command_argv *arg = body->add_commands();
@@ -1006,6 +990,13 @@ ATBUS_MACRO_API int node::send_custom_cmd(bus_id_t tid, const void *arr_buf[], s
     }
 
     arg->mutable_arg()->assign(reinterpret_cast<const char *>(arr_buf[i]), arr_size[i]);
+  }
+
+  if (!get_conf().access_tokens.empty()) {
+    body->mutable_access_key();
+    msg_handler::generate_access_data(
+        *body->mutable_access_key(), self_id, static_cast<uint64_t>(random_engine_.random()),
+        static_cast<uint64_t>(random_engine_.random()), gsl::make_span(get_conf().access_tokens), *body);
   }
 
   return send_data_msg(tid, *m);
@@ -1185,25 +1176,12 @@ ATBUS_MACRO_API bool node::is_endpoint_available(bus_id_t tid) const {
   return 0 == get_id() || nullptr != self_->get_data_connection(ep, false);
 }
 
-ATBUS_MACRO_API bool node::generate_access_hash(size_t idx, uint32_t &salt, uint64_t &hashval1, uint64_t &hashval2) {
-  if (idx >= conf_.access_tokens.size()) {
-    salt = 0;
-    hashval1 = 0;
-    hashval2 = 0;
+ATBUS_MACRO_API bool node::check_access_hash(const ::atbus::protocol::access_data &access_key, connection *conn) const {
+  if (access_key.algorithm() != ::atbus::protocol::ATBUS_ACCESS_DATA_ALGORITHM_HMAC_SHA256) {
+    ATBUS_FUNC_NODE_ERROR(*this, ep, conn, status, errorcode)
     return false;
   }
 
-  salt = static_cast<uint32_t>(random_engine_.random());
-  uint64_t out[2] = {0};
-  ::atfw::util::hash::murmur_hash3_x64_128(reinterpret_cast<const void *>(&conf_.access_tokens[idx][0]),
-                                           static_cast<int>(conf_.access_tokens[idx].size()), salt, out);
-  hashval1 = out[0];
-  hashval2 = out[1];
-  return true;
-}
-
-ATBUS_MACRO_API bool node::check_access_hash(const uint32_t salt, const uint64_t hashval1,
-                                             const uint64_t hashval2) const {
   if (conf_.access_tokens.empty()) {
     return 0 == hashval1 && 0 == hashval2;
   }
@@ -1483,8 +1461,7 @@ ATBUS_MACRO_API time_t node::get_timer_sec() const { return event_timer_.sec; }
 
 ATBUS_MACRO_API time_t node::get_timer_usec() const { return event_timer_.usec; }
 
-ATBUS_MACRO_API void node::on_recv(connection *conn, ::atbus::protocol::msg ATBUS_MACRO_RVALUE_REFERENCES m, int status,
-                                   int errcode) {
+ATBUS_MACRO_API void node::on_recv(connection *conn, ::atbus::protocol::msg &&m, int status, int errcode) {
   if (status < 0 || errcode < 0) {
     ATBUS_FUNC_NODE_ERROR(*this, nullptr, conn, status, errcode);
 
@@ -1507,7 +1484,7 @@ ATBUS_MACRO_API void node::on_recv(connection *conn, ::atbus::protocol::msg ATBU
     conn_sptr = conn->watch();
   }
   // 内部协议处理
-  int res = msg_handler::dispatch_msg(*this, conn, ATBUS_MACRO_MOVE(m), status, errcode);
+  int res = msg_handler::dispatch_msg(*this, conn, std::move(m), status, errcode);
   if (res < 0) {
     if (nullptr != conn) {
       // maybe removed all reference of this connection after call add_endpoint_fault()
@@ -1766,12 +1743,12 @@ ATBUS_MACRO_API int node::dispatch_all_self_msgs() {
       }
 
       // unpack
-      if (false == m->has_head() || ::atbus::protocol::msg::MSG_BODY_NOT_SET == m->msg_body_case()) {
+      if (false == m->has_head() || ::atbus::protocol::msg::MESSAGE_BODY_NOT_SET == m->message_body_case()) {
         ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), nullptr, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_UNPACK);
         break;
       }
 
-      if (::atbus::protocol::msg::kDataTransformReq == m->msg_body_case()) {
+      if (::atbus::protocol::msg::kDataTransformReq == m->message_body_case()) {
         const ::atbus::protocol::forward_data &fwd_data = m->data_transform_req();
         on_recv_data(get_self_endpoint(), nullptr, *m, reinterpret_cast<const void *>(fwd_data.content().data()),
                      fwd_data.content().size());
@@ -1818,12 +1795,12 @@ ATBUS_MACRO_API int node::dispatch_all_self_msgs() {
       }
 
       // unpack
-      if (false == m->has_head() || ::atbus::protocol::msg::MSG_BODY_NOT_SET == m->msg_body_case()) {
+      if (false == m->has_head() || ::atbus::protocol::msg::MESSAGE_BODY_NOT_SET == m->message_body_case()) {
         ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), nullptr, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_UNPACK);
         break;
       }
 
-      on_recv(nullptr, ATBUS_MACRO_MOVE(*m), 0, 0);
+      on_recv(nullptr, std::move(*m), 0, 0);
       ++ret;
 
     } while (false);
@@ -2334,7 +2311,7 @@ int node::send_msg(bus_id_t tid, msg_builder_ref_t mb, endpoint::get_connection_
 
   if (tid == get_id()) {
     // verify
-    if (false == mb.has_head() || ::atbus::protocol::msg::MSG_BODY_NOT_SET == mb.msg_body_case()) {
+    if (false == mb.has_head() || ::atbus::protocol::msg::MESSAGE_BODY_NOT_SET == mb.message_body_case()) {
       ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), nullptr, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_UNPACK);
       return EN_ATBUS_ERR_UNPACK;
     }
@@ -2343,23 +2320,23 @@ int node::send_msg(bus_id_t tid, msg_builder_ref_t mb, endpoint::get_connection_
       mb.mutable_head()->set_sequence(alloc_msg_seq());
     }
 
-    if (!(::atbus::protocol::msg::kDataTransformReq == mb.msg_body_case() ||
-          ::atbus::protocol::msg::kDataTransformRsp == mb.msg_body_case() ||
-          ::atbus::protocol::msg::kCustomCommandReq == mb.msg_body_case() ||
-          ::atbus::protocol::msg::kCustomCommandRsp == mb.msg_body_case())) {
+    if (!(::atbus::protocol::msg::kDataTransformReq == mb.message_body_case() ||
+          ::atbus::protocol::msg::kDataTransformRsp == mb.message_body_case() ||
+          ::atbus::protocol::msg::kCustomCommandReq == mb.message_body_case() ||
+          ::atbus::protocol::msg::kCustomCommandRsp == mb.message_body_case())) {
       ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), nullptr, EN_ATBUS_ERR_ATNODE_INVALID_MSG, 0);
       return EN_ATBUS_ERR_ATNODE_INVALID_MSG;
     }
 
-    assert(::atbus::protocol::msg::kDataTransformReq == mb.msg_body_case() ||
-           ::atbus::protocol::msg::kDataTransformRsp == mb.msg_body_case() ||
-           ::atbus::protocol::msg::kCustomCommandReq == mb.msg_body_case() ||
-           ::atbus::protocol::msg::kCustomCommandRsp == mb.msg_body_case());
+    assert(::atbus::protocol::msg::kDataTransformReq == mb.message_body_case() ||
+           ::atbus::protocol::msg::kDataTransformRsp == mb.message_body_case() ||
+           ::atbus::protocol::msg::kCustomCommandReq == mb.message_body_case() ||
+           ::atbus::protocol::msg::kCustomCommandRsp == mb.message_body_case());
 
     using bin_data_block_t = std::vector<unsigned char>;
     // self data msg
-    if (::atbus::protocol::msg::kDataTransformReq == mb.msg_body_case() ||
-        ::atbus::protocol::msg::kDataTransformRsp == mb.msg_body_case()) {
+    if (::atbus::protocol::msg::kDataTransformReq == mb.message_body_case() ||
+        ::atbus::protocol::msg::kDataTransformRsp == mb.message_body_case()) {
       self_data_msgs_.push_back(bin_data_block_t());
       bin_data_block_t &bin_data = self_data_msgs_.back();
 
@@ -2370,8 +2347,8 @@ int node::send_msg(bus_id_t tid, msg_builder_ref_t mb, endpoint::get_connection_
     }
 
     // self command msg
-    if (::atbus::protocol::msg::kCustomCommandReq == mb.msg_body_case() ||
-        ::atbus::protocol::msg::kCustomCommandRsp == mb.msg_body_case()) {
+    if (::atbus::protocol::msg::kCustomCommandReq == mb.message_body_case() ||
+        ::atbus::protocol::msg::kCustomCommandRsp == mb.message_body_case()) {
       self_cmd_msgs_.push_back(bin_data_block_t());
       bin_data_block_t &bin_data = self_cmd_msgs_.back();
 
@@ -2399,7 +2376,7 @@ int node::send_msg(bus_id_t tid, msg_builder_ref_t mb, endpoint::get_connection_
     return EN_ATBUS_ERR_ATNODE_NO_CONNECTION;
   }
 
-  if (false == mb.has_head() || ::atbus::protocol::msg::MSG_BODY_NOT_SET == mb.msg_body_case()) {
+  if (false == mb.has_head() || ::atbus::protocol::msg::MESSAGE_BODY_NOT_SET == mb.message_body_case()) {
     ATBUS_FUNC_NODE_ERROR(*this, ep_out ? (*ep_out) : conn->get_binding(), conn, EN_ATBUS_ERR_UNPACK,
                           EN_ATBUS_ERR_UNPACK);
     return EN_ATBUS_ERR_UNPACK;

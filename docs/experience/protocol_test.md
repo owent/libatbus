@@ -9,7 +9,7 @@
         "type": 123,
         "ret": 0,
         "sequence": 9876543210,
-        "src_bus_id": 0x12345678
+        "source_bus_id": 0x12345678
     },
     "bdoy": {
         "data_transform_req": {
@@ -35,7 +35,7 @@ table forward_data {
     flags   : uint32   (id: 4);
 }
 
-union msg_body {
+union message_body {
     // invalid_body        : string              (id: 0);
     custom_command_req  : custom_command_data = 1,
     custom_command_rsp  : custom_command_data = 2,
@@ -44,17 +44,17 @@ union msg_body {
     // ...
 }
 
-table msg_head {
+table message_head {
     version     : int32     (id: 0);
     type        : int32     (id: 1);
     ret         : int32     (id: 2);
     sequence    : uint64    (id: 3);
-    src_bus_id  : uint64    (id: 4);
+    source_bus_id  : uint64    (id: 4);
 }
 
 table msg {
-    head: msg_head  (id: 0);
-    body: msg_body  (id: 2); // id: 1 is implicitly added for body case by flatc
+    head: message_head  (id: 0);
+    body: message_body  (id: 2); // id: 1 is implicitly added for body case by flatc
 }
 ```
 
@@ -70,9 +70,9 @@ char test_buffer[] = "hello world!";
     flags |= atbus::protocol::ATBUS_FORWARD_DATA_FLAG_TYPE_REQUIRE_RSP;
 
     fbb.Finish(::atbus::protocol::Createmsg(fbb,
-                                    ::atbus::protocol::Createmsg_head(fbb, ::atbus::protocol::ATBUS_PROTOCOL_CONST_ATBUS_PROTOCOL_VERSION,
+                                    ::atbus::protocol::Createmessage_head(fbb, ::atbus::protocol::ATBUS_PROTOCOL_CONST_ATBUS_PROTOCOL_VERSION,
                                                                     123, 0, 9876543210, self_id),
-                                    ::atbus::protocol::msg_body_data_transform_req,
+                                    ::atbus::protocol::message_body_data_transform_req,
                                     ::atbus::protocol::Createforward_data(fbb, 0x123456789, 0x987654321, fbb.CreateVector(&self_id, 1),
                                                                         fbb.CreateVector(reinterpret_cast<const uint8_t *>(test_buffer), sizeof(test_buffer)),
                                                                         flags)
@@ -125,13 +125,13 @@ struct forward_data {
     MSGPACK_DEFINE(from, to, router, content, flags);
 };
 
-class msg_body {
+class message_body {
 public:
     forward_data *forward;
     // ...
 
-    msg_body() : forward(nullptr) {}
-    ~msg_body() {
+    message_body() : forward(nullptr) {}
+    ~message_body() {
         if (nullptr != forward) {
             delete forward;
         }
@@ -139,23 +139,23 @@ public:
     }
 };
 
-struct msg_head {
+struct message_head {
     ATBUS_PROTOCOL_CMD cmd;            // ID: 0
     int32_t version;                   // ID  1
     int32_t type;                      // ID: 2
     int32_t ret;                       // ID: 3
     uint64_t sequence;                 // ID: 4
-    uint64_t src_bus_id;               // ID: 5
+    uint64_t source_bus_id;               // ID: 5
 
 
-    msg_head() : cmd(ATBUS_CMD_INVALID), version(2), type(0), ret(0), sequence(0) {}
+    message_head() : cmd(ATBUS_CMD_INVALID), version(2), type(0), ret(0), sequence(0) {}
 
-    MSGPACK_DEFINE(cmd, type, ret, sequence, src_bus_id, version);
+    MSGPACK_DEFINE(cmd, type, ret, sequence, source_bus_id, version);
 };
 
 struct msg {
-    msg_head head; // map.key = 1
-    msg_body body; // map.key = 2
+    message_head head; // map.key = 1
+    message_body body; // map.key = 2
 };
 
 // 下面对自定义encode/decode的封装就不贴了
@@ -172,7 +172,7 @@ char test_buffer[] = "hello world!";
     m_src.head.type       = 123;
     m_src.head.ret        = 0;
     m_src.head.sequence   = 9876543210;
-    m_src.head.src_bus_id = 0x12345678;
+    m_src.head.source_bus_id = 0x12345678;
 
     m_src.body.forward = new ::atbus::protocol::forward_data();
     m_src.body.forward->from = 0x12345678;
@@ -227,17 +227,17 @@ message forward_data {
     uint32          flags   = 5;
 }
 
-message msg_head {
+message message_head {
     int32  version    = 1;
     int32  type       = 2;
     int32  ret        = 3;
     uint64 sequence   = 4;
-    uint64 src_bus_id = 5;
+    uint64 source_bus_id = 5;
 }
 
 message msg {
-    msg_head head = 1;
-    oneof    msg_body {
+    message_head head = 1;
+    oneof    message_body {
         // ... 
         forward_data        data_transform_req = 13;
         // ...
@@ -260,7 +260,7 @@ char                      test_buffer[] = "hello world!";
     m_src->mutable_head()->set_type(123);
     m_src->mutable_head()->set_ret(0);
     m_src->mutable_head()->set_sequence(9876543210);
-    m_src->mutable_head()->set_src_bus_id(0x12345678);
+    m_src->mutable_head()->set_source_bus_id(0x12345678);
 
     m_src->mutable_data_transform_req()->set_from(0x12345678);
     m_src->mutable_data_transform_req()->set_to(0x987654321);
