@@ -3,15 +3,15 @@ namespace atbus.protocol;
 
 // --gen-mutable --gen-name-strings --no-includes --natural-utf8 --allow-non-utf8
 
-enum ATBUS_PROTOCOL_CONST : byte { 
+enum ATBUS_PROTOCOL_CONST : byte {
     ATBUS_PROTOCOL_VERSION         = 2,
 }
 
-enum ATBUS_PROTOCOL_COMPACT : byte { 
+enum ATBUS_PROTOCOL_COMPACT : byte {
     ATBUS_PROTOCOL_MINIMAL_VERSION = 2, // minimal protocol version supported
 }
 
-enum ATBUS_FORWARD_DATA_FLAG_TYPE : uint32 (bit_flags) { 
+enum ATBUS_FORWARD_DATA_FLAG_TYPE : uint32 (bit_flags) {
     REQUIRE_RSP = 1
 }
 
@@ -75,7 +75,7 @@ table connection_data {
     address: channel_data (id: 0); // ID: 0
 }
 
-union msg_body {
+union message_body {
     // invalid_body        : string              (id: 0);
     custom_command_req  : custom_command_data = 1,
     custom_command_rsp  : custom_command_data = 2,
@@ -90,17 +90,17 @@ union msg_body {
     node_pong_rsp       : ping_data           = 12,
 }
 
-table msg_head {
+table message_head {
     version     : int32     (id: 0);
     type        : int32     (id: 1);
     ret         : int32     (id: 2);
     sequence    : uint64    (id: 3);
-    src_bus_id  : uint64    (id: 4);
+    source_bus_id  : uint64    (id: 4);
 }
 
 table msg {
-    head: msg_head  (id: 0);
-    body: msg_body  (id: 2); // id: 1 is implicitly added for body case by flatc
+    head: message_head  (id: 0);
+    body: message_body  (id: 2); // id: 1 is implicitly added for body case by flatc
 }
 
 root_type msg;

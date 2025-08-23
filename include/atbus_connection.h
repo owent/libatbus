@@ -9,6 +9,7 @@
 
 #include <design_pattern/nomovable.h>
 #include <design_pattern/noncopyable.h>
+#include <gsl/select-gsl.h>
 
 #include <bitset>
 #include <ctime>
@@ -231,7 +232,7 @@ class connection final : public atfw::util::design_pattern::noncopyable {
   static ATBUS_MACRO_API int ios_push_fn(connection &conn, const void *buffer, size_t s);
 
   static ATBUS_MACRO_API bool unpack(connection &conn, ::atbus::protocol::msg *&m,
-                                     ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena &arena, std::vector<unsigned char> &in);
+                                     ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena &arena, gsl::span<const unsigned char> in);
 
  private:
   state_t::type state_;

@@ -663,7 +663,7 @@ ATBUS_MACRO_API void connection::iostream_on_recv_cb(channel::io_stream_channel 
       conn->flags_.set(flag_t::PEER_CLOSED, true);
     }
     ::atbus::protocol::msg m;
-    _this->on_recv(conn, ATBUS_MACRO_MOVE(m), status, channel->error_code);
+    _this->on_recv(conn, std::move(m), status, channel->error_code);
     return;
   }
 
@@ -678,8 +678,7 @@ ATBUS_MACRO_API void connection::iostream_on_recv_cb(channel::io_stream_channel 
   conn->stat_.pull_size += s;
 
   // unpack
-  std::vector<unsigned char> msg_buffer;
-  msg_buffer.assign(static_cast<const unsigned char *>(buffer), static_cast<const unsigned char *>(buffer) + s);
+  gsl::span<const unsigned char> msg_buffer{static_cast<const unsigned char *>(buffer), s};
   protocol::msg *m;
   ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
   arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
@@ -692,7 +691,7 @@ ATBUS_MACRO_API void connection::iostream_on_recv_cb(channel::io_stream_channel 
   assert(m);
 
   if (nullptr != _this) {
-    _this->on_recv(conn, ATBUS_MACRO_MOVE(*m), status, channel->error_code);
+    _this->on_recv(conn, std::move(*m), status, channel->error_code);
   }
 }
 
@@ -806,7 +805,7 @@ ATBUS_MACRO_API int connection::shm_proc_fn(node &n, connection &conn, time_t /*
     if (res < 0) {
       ret = res;
       ::atbus::protocol::msg m;
-      n.on_recv(&conn, ATBUS_MACRO_MOVE(m), res, res);
+      n.on_recv(&conn, std::move(m), res, res);
       break;
     } else {
       // statistic
@@ -814,9 +813,7 @@ ATBUS_MACRO_API int connection::shm_proc_fn(node &n, connection &conn, time_t /*
       conn.stat_.pull_size += recv_len;
 
       // unpack
-      std::vector<unsigned char> msg_buffer;
-      msg_buffer.assign(static_cast<const unsigned char *>(static_buffer->data()),
-                        static_cast<const unsigned char *>(static_buffer->data()) + recv_len);
+      gsl::span<const unsigned char> msg_buffer{static_cast<const unsigned char *>(static_buffer->data()), recv_len};
       protocol::msg *m;
       ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
       arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
@@ -827,7 +824,7 @@ ATBUS_MACRO_API int connection::shm_proc_fn(node &n, connection &conn, time_t /*
 
       assert(m);
 
-      n.on_recv(&conn, ATBUS_MACRO_MOVE(*m), res, res);
+      n.on_recv(&conn, std::move(*m), res, res);
       ++ret;
     }
   }
@@ -874,7 +871,7 @@ ATBUS_MACRO_API int connection::mem_proc_fn(node &n, connection &conn, time_t /*
     if (res < 0) {
       ret = res;
       ::atbus::protocol::msg m;
-      n.on_recv(&conn, ATBUS_MACRO_MOVE(m), res, res);
+      n.on_recv(&conn, std::move(m), res, res);
       break;
     } else {
       // statistic
@@ -882,9 +879,7 @@ ATBUS_MACRO_API int connection::mem_proc_fn(node &n, connection &conn, time_t /*
       conn.stat_.pull_size += recv_len;
 
       // unpack
-      std::vector<unsigned char> msg_buffer;
-      msg_buffer.assign(static_cast<const unsigned char *>(static_buffer->data()),
-                        static_cast<const unsigned char *>(static_buffer->data()) + recv_len);
+      gsl::span<const unsigned char> msg_buffer{static_cast<const unsigned char *>(static_buffer->data()), recv_len};
       protocol::msg *m;
       ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
       arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
@@ -894,7 +889,7 @@ ATBUS_MACRO_API int connection::mem_proc_fn(node &n, connection &conn, time_t /*
       }
 
       assert(m);
-      n.on_recv(&conn, ATBUS_MACRO_MOVE(*m), res, res);
+      n.on_recv(&conn, std::move(*m), res, res);
       ++ret;
     }
   }
@@ -936,7 +931,7 @@ ATBUS_MACRO_API int connection::ios_push_fn(connection &conn, const void *buffer
 
 ATBUS_MACRO_API bool connection::unpack(connection &conn, ::atbus::msg_t *&m,
                                         ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena &arena,
-                                        std::vector<unsigned char> &in) {
+                                        gsl::span<const unsigned char> in) {
 #if defined(PROTOBUF_VERSION) && PROTOBUF_VERSION >= 5027000
   m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::Create<atbus::protocol::msg>(&arena);
 #else
@@ -954,13 +949,13 @@ ATBUS_MACRO_API bool connection::unpack(connection &conn, ::atbus::msg_t *&m,
     return false;
   }
 
-  if (false == m->has_head() || atbus::protocol::msg::MSG_BODY_NOT_SET == m->msg_body_case()) {
+  if (false == m->has_head() || atbus::protocol::msg::MESSAGE_BODY_NOT_SET == m->message_body_case()) {
     ATBUS_FUNC_NODE_ERROR(*conn.owner_, conn.binding_, &conn, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_BAD_DATA);
     return false;
   }
 
   if (nullptr != conn.binding_ && 0 != conn.binding_->get_id()) {
-    m->mutable_head()->set_src_bus_id(conn.binding_->get_id());
+    m->mutable_head()->set_source_bus_id(conn.binding_->get_id());
   }
 
   return true;

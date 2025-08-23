@@ -118,9 +118,9 @@ static int node_msg_test_recv_msg_test_record_fn(const atbus::node &n, const atb
   ++recv_msg_history.count;
 
   const ::atbus::protocol::forward_data *fwd_data = nullptr;
-  if (m.msg_body_case() == ::atbus::protocol::msg::kDataTransformReq) {
+  if (m.message_body_case() == ::atbus::protocol::msg::kDataTransformReq) {
     fwd_data = &m.data_transform_req();
-  } else if (m.msg_body_case() == ::atbus::protocol::msg::kDataTransformRsp) {
+  } else if (m.message_body_case() == ::atbus::protocol::msg::kDataTransformRsp) {
     fwd_data = &m.data_transform_rsp();
   }
 
@@ -158,9 +158,9 @@ static int node_msg_test_send_data_forward_response_fn(const atbus::node &n, con
 
   const ::atbus::protocol::forward_data *fwd_data = nullptr;
   if (nullptr != m) {
-    if (m->msg_body_case() == ::atbus::protocol::msg::kDataTransformReq) {
+    if (m->message_body_case() == ::atbus::protocol::msg::kDataTransformReq) {
       fwd_data = &m->data_transform_req();
-    } else if (m->msg_body_case() == ::atbus::protocol::msg::kDataTransformRsp) {
+    } else if (m->message_body_case() == ::atbus::protocol::msg::kDataTransformRsp) {
       fwd_data = &m->data_transform_rsp();
     }
   }
@@ -663,7 +663,7 @@ CASE_TEST(atbus_node_msg, send_loopback_error) {
       m.mutable_head()->set_type(0);
       m.mutable_head()->set_ret(0);
       m.mutable_head()->set_sequence(node1->alloc_msg_seq());
-      m.mutable_head()->set_src_bus_id(0);  // fake bad parameter, this should be reset by receiver
+      m.mutable_head()->set_source_bus_id(0);  // fake bad parameter, this should be reset by receiver
 
       m.mutable_data_transform_req()->set_from(node1->get_id());
       m.mutable_data_transform_req()->set_to(0x12346789);

@@ -400,23 +400,12 @@ class node final : public atfw::util::design_pattern::noncopyable {
   ATBUS_MACRO_API bool is_endpoint_available(bus_id_t tid) const;
 
   /**
-   * @brief 生成用于access token验证的hash值
-   * @param idx 第几个accesstoken
-   * @param salt 生成的随机盐
-   * @param hashval1 生成的hash值1
-   * @param hashval2 生成的hash值2
-   * @return idx无效返回false
-   */
-  ATBUS_MACRO_API bool generate_access_hash(size_t idx, uint32_t &salt, uint64_t &hashval1, uint64_t &hashval2);
-
-  /**
-   * @brief 检查access token的有效性
-   * @param salt 盐
-   * @param hashval1 hash值1
-   * @param hashval2 hash值2
+   * @brief 检查access token集合的有效性
+   * @param access_key access token集合和参数数据
+   * @param conn 关联的连接
    * @return 没有检查通过的access token则返回false
    */
-  ATBUS_MACRO_API bool check_access_hash(const uint32_t salt, const uint64_t hashval1, const uint64_t hashval2) const;
+  ATBUS_MACRO_API bool check_access_hash(const ::atbus::protocol::access_data &access_key, connection *conn) const;
 
   ATBUS_MACRO_API const std::string &get_hash_code() const;
 
@@ -530,8 +519,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   ATBUS_MACRO_API time_t get_timer_usec() const;
 
-  ATBUS_MACRO_API void on_recv(connection *conn, ::atbus::protocol::msg ATBUS_MACRO_RVALUE_REFERENCES m, int status,
-                               int errcode);
+  ATBUS_MACRO_API void on_recv(connection *conn, ::atbus::protocol::msg &&m, int status, int errcode);
 
   ATBUS_MACRO_API void on_recv_data(const endpoint *ep, connection *conn, const ::atbus::protocol::msg &m,
                                     const void *buffer, size_t s) const;
