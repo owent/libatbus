@@ -723,21 +723,13 @@ ATBUS_MACRO_API int msg_handler::on_recv_custom_cmd_req(node &n, connection *con
   }
 
   // Check access token
-  int access_keys_size = cmd_data->access_keys_size();
-  if (!n.get_conf().access_tokens.empty() || access_keys_size > 0) {
-    bool check_pass = false;
-    for (int i = 0; false == check_pass && i < access_keys_size; ++i) {
-      const ::atbus::protocol::access_data &access_key = cmd_data->access_keys(i);
-      check_pass = n.check_access_hash(access_key.token_salt(), access_key.token_hash1(), access_key.token_hash2());
-    }
-
-    if (!check_pass) {
-      std::list<std::string> rsp_data;
-      rsp_data.push_back("Access Deny - Invalid Token");
-      ATBUS_FUNC_NODE_ERROR(n, nullptr == conn ? nullptr : conn->get_binding(), conn, EN_ATBUS_ERR_ACCESS_DENY, 0);
-      return send_custom_cmd_rsp(n, conn, rsp_data, m.head().type(), EN_ATBUS_ERR_ACCESS_DENY, m.head().sequence(),
-                                 cmd_data->from());
-    }
+  if (!n.check_access_hash(cmd_data->access_key(),
+                           make_access_data_plaintext(cmd_data->from(), cmd_data->access_key(), *cmd_data), conn)) {
+    std::list<std::string> rsp_data;
+    rsp_data.push_back("Access Deny - Invalid Token");
+    ATBUS_FUNC_NODE_ERROR(n, nullptr == conn ? nullptr : conn->get_binding(), conn, EN_ATBUS_ERR_ACCESS_DENY, 0);
+    return send_custom_cmd_rsp(n, conn, rsp_data, m.head().type(), EN_ATBUS_ERR_ACCESS_DENY, m.head().sequence(),
+                               cmd_data->from());
   }
 
   std::vector<std::pair<const void *, size_t>> cmd_args;
@@ -872,28 +864,21 @@ ATBUS_MACRO_API int msg_handler::on_recv_node_reg_req(node &n, connection *conn,
   }
 
   // Check access token
-  int access_keys_size = reg_data->access_keys_size();
-  if (!n.get_conf().access_tokens.empty() || access_keys_size > 0) {
-    bool check_pass = false;
-    for (int i = 0; false == check_pass && i < access_keys_size; ++i) {
-      const ::atbus::protocol::access_data &access_key = reg_data->access_keys(i);
-      check_pass = n.check_access_hash(access_key.token_salt(), access_key.token_hash1(), access_key.token_hash2());
-    }
+  if (!n.check_access_hash(
+          reg_data->access_key(),
+          make_access_data_plaintext(reg_data->bus_id(), reg_data->access_key(), reg_data->crypto_handshake()), conn)) {
+    ATBUS_FUNC_NODE_ERROR(n, nullptr == conn ? nullptr : conn->get_binding(), conn, EN_ATBUS_ERR_ACCESS_DENY, 0);
 
-    if (!check_pass) {
-      ATBUS_FUNC_NODE_ERROR(n, nullptr == conn ? nullptr : conn->get_binding(), conn, EN_ATBUS_ERR_ACCESS_DENY, 0);
-
-      if (nullptr != conn) {
-        int ret =
-            send_reg(::atbus::protocol::msg::kNodeRegisterRsp, n, *conn, EN_ATBUS_ERR_ACCESS_DENY, m.head().sequence());
-        if (ret < 0) {
-          ATBUS_FUNC_NODE_ERROR(n, conn->get_binding(), conn, ret, 0);
-          conn->reset();
-        }
-        return ret;
-      } else {
-        return EN_ATBUS_ERR_ACCESS_DENY;
+    if (nullptr != conn) {
+      int ret =
+          send_reg(::atbus::protocol::msg::kNodeRegisterRsp, n, *conn, EN_ATBUS_ERR_ACCESS_DENY, m.head().sequence());
+      if (ret < 0) {
+        ATBUS_FUNC_NODE_ERROR(n, conn->get_binding(), conn, ret, 0);
+        conn->reset();
       }
+      return ret;
+    } else {
+      return EN_ATBUS_ERR_ACCESS_DENY;
     }
   }
 
@@ -1140,18 +1125,11 @@ ATBUS_MACRO_API int msg_handler::on_recv_node_reg_rsp(node &n, connection *conn,
 
   // Check access token
   bool check_access_token = true;
-  int access_keys_size = reg_data->access_keys_size();
-  if (!n.get_conf().access_tokens.empty() || access_keys_size > 0) {
-    bool check_pass = false;
-    for (int i = 0; false == check_pass && i < access_keys_size; ++i) {
-      const ::atbus::protocol::access_data &access_key = reg_data->access_keys(i);
-      check_pass = n.check_access_hash(access_key.token_salt(), access_key.token_hash1(), access_key.token_hash2());
-    }
-
-    if (!check_pass) {
-      ATBUS_FUNC_NODE_ERROR(n, nullptr == conn ? nullptr : conn->get_binding(), conn, EN_ATBUS_ERR_ACCESS_DENY, 0);
-      check_access_token = false;
-    }
+  if (!n.check_access_hash(
+          reg_data->access_key(),
+          make_access_data_plaintext(reg_data->bus_id(), reg_data->access_key(), reg_data->crypto_handshake()), conn)) {
+    ATBUS_FUNC_NODE_ERROR(n, nullptr == conn ? nullptr : conn->get_binding(), conn, EN_ATBUS_ERR_ACCESS_DENY, 0);
+    check_access_token = false;
   }
 
   if (!check_access_token || m.head().ret() < 0) {
