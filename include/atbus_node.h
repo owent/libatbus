@@ -10,6 +10,10 @@
 
 #pragma once
 
+#include <design_pattern/nomovable.h>
+#include <design_pattern/noncopyable.h>
+#include <nostd/string_view.h>
+
 #include <stdint.h>
 #include <bitset>
 #include <cstddef>
@@ -24,9 +28,6 @@
 #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
 #  include <WinSock2.h>
 #endif
-
-#include <design_pattern/nomovable.h>
-#include <design_pattern/noncopyable.h>
 
 #include "lock/seq_alloc.h"
 #include "random/random_generator.h"
@@ -402,10 +403,12 @@ class node final : public atfw::util::design_pattern::noncopyable {
   /**
    * @brief 检查access token集合的有效性
    * @param access_key access token集合和参数数据
+   * @param plaintext 需要进行签名的明文数据
    * @param conn 关联的连接
    * @return 没有检查通过的access token则返回false
    */
-  ATBUS_MACRO_API bool check_access_hash(const ::atbus::protocol::access_data &access_key, connection *conn) const;
+  ATBUS_MACRO_API bool check_access_hash(const ::atbus::protocol::access_data &access_key,
+                                         atfw::util::nostd::string_view plaintext, connection *conn) const;
 
   ATBUS_MACRO_API const std::string &get_hash_code() const;
 
@@ -526,9 +529,10 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   ATBUS_MACRO_API void on_recv_forward_response(const endpoint *, const connection *, const ::atbus::protocol::msg *m);
 
-  ATBUS_MACRO_API int on_error(const char *file_path, size_t line, const endpoint *, const connection *, int, int);
+  ATBUS_MACRO_API int on_error(const char *file_path, size_t line, const endpoint *, const connection *, int,
+                               int) const;
   ATBUS_MACRO_API void on_info_log(const char *file_path, size_t line, const endpoint *, const connection *,
-                                   const char *);
+                                   const char *) const;
   ATBUS_MACRO_API int on_disconnect(const connection *);
   ATBUS_MACRO_API int on_new_connection(connection *);
   ATBUS_MACRO_API int on_shutdown(int reason);

@@ -1,8 +1,17 @@
+// Copyright 2025 atframework
 /**
  * @brief 所有channel文件的模式均为 c + channel<br />
  *        使用c的模式是为了简单、结构清晰并且避免异常<br />
  *        附带c++的部分是为了避免命名空间污染并且c++的跨平台适配更加简单
  */
+
+#include "atbus_node.h"
+
+#include <algorithm/murmur_hash.h>
+#include <algorithm/sha.h>
+#include <common/string_oprs.h>
+#include <string/string_format.h>
+#include <time/time_utility.h>
 
 #ifndef _MSC_VER
 
@@ -17,9 +26,9 @@
 #  pragma comment(lib, "Ws2_32.lib")
 #endif
 
-#include <assert.h>
-#include <stdint.h>
+#include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -31,15 +40,9 @@
 #  include <mutex>
 #endif
 
-#include <algorithm/murmur_hash.h>
-#include <algorithm/sha.h>
-#include <common/string_oprs.h>
-#include <time/time_utility.h>
-
 #include "detail/buffer.h"
 
 #include "atbus_msg_handler.h"
-#include "atbus_node.h"
 
 #include "libatbus_protocol.h"
 
@@ -1176,25 +1179,54 @@ ATBUS_MACRO_API bool node::is_endpoint_available(bus_id_t tid) const {
   return 0 == get_id() || nullptr != self_->get_data_connection(ep, false);
 }
 
-ATBUS_MACRO_API bool node::check_access_hash(const ::atbus::protocol::access_data &access_key, connection *conn) const {
+ATBUS_MACRO_API bool node::check_access_hash(const ::atbus::protocol::access_data &access_key,
+                                             atfw::util::nostd::string_view plaintext, connection *conn) const {
+  const endpoint *ep = conn == nullptr ? nullptr : conn->get_binding();
   if (access_key.algorithm() != ::atbus::protocol::ATBUS_ACCESS_DATA_ALGORITHM_HMAC_SHA256) {
-    ATBUS_FUNC_NODE_ERROR(*this, ep, conn, status, errorcode)
+    ATBUS_FUNC_NODE_ERROR(*this, ep, conn, EN_ATBUS_ERR_ALGORITHM_NOT_SUPPORT, 0);
+    std::string msg =
+        atfw::util::string::format("access hash algorithm {} not supported", static_cast<int>(access_key.algorithm()));
+    ATBUS_FUNC_NODE_INFO(*this, ep, conn, msg.c_str());
     return false;
   }
 
-  if (conf_.access_tokens.empty()) {
-    return 0 == hashval1 && 0 == hashval2;
+  if (conf_.access_tokens.empty() && access_key.signature().empty()) {
+    return true;
   }
 
-  for (size_t i = 0; i < conf_.access_tokens.size(); ++i) {
-    uint64_t out[2] = {0};
-    ::atfw::util::hash::murmur_hash3_x64_128(reinterpret_cast<const void *>(&conf_.access_tokens[i][0]),
-                                             static_cast<int>(conf_.access_tokens[i].size()), salt, out);
-    if (hashval1 == out[0] && hashval2 == out[1]) {
-      return true;
+  if (conf_.access_tokens.empty()) {
+    ATBUS_FUNC_NODE_ERROR(*this, ep, conn, EN_ATBUS_ERR_ACCESS_DENY, 0);
+    ATBUS_FUNC_NODE_INFO(
+        *this, ep, conn,
+        "access hash configuration is empty; we do not allow handshaking an endpoint with a signature.");
+    return false;
+  }
+
+  if (access_key.signature().empty()) {
+    ATBUS_FUNC_NODE_ERROR(*this, ep, conn, EN_ATBUS_ERR_ACCESS_DENY, 0);
+    ATBUS_FUNC_NODE_INFO(*this, ep, conn, "access hash configuration is not empty; signature is required.");
+    return false;
+  }
+
+  const EVP_MD *evp_md = EVP_sha256();
+  if (nullptr == evp_md) {
+    ATBUS_FUNC_NODE_ERROR(*this, ep, conn, EN_ATBUS_ERR_NOT_INITED, EN_ATBUS_ERR_NOT_INITED);
+    ATBUS_FUNC_NODE_INFO(*this, ep, conn, "sha256 unavailabled.");
+    return false;
+  }
+
+  for (const auto &access_token : conf_.access_tokens) {
+    std::string real_signature = msg_handler::calculate_access_data_signature(
+        access_key, gsl::make_span(access_token.data(), static_cast<int>(access_token.size())), plaintext);
+    for (const auto &expect_signature : access_key.signature()) {
+      if (real_signature == expect_signature) {
+        return true;
+      }
     }
   }
 
+  ATBUS_FUNC_NODE_ERROR(*this, ep, conn, EN_ATBUS_ERR_ACCESS_DENY, 0);
+  ATBUS_FUNC_NODE_INFO(*this, ep, conn, "no valid access hash found.");
   return false;
 }
 
@@ -1530,7 +1562,7 @@ ATBUS_MACRO_API void node::on_recv_forward_response(const endpoint *ep, const co
 }
 
 ATBUS_MACRO_API int node::on_error(const char * /*file_path*/, size_t /*line*/, const endpoint *ep,
-                                   const connection *conn, int status, int errcode) {
+                                   const connection *conn, int status, int errcode) const {
   if (nullptr == ep && nullptr != conn) {
     ep = conn->get_binding();
   }
@@ -1544,7 +1576,7 @@ ATBUS_MACRO_API int node::on_error(const char * /*file_path*/, size_t /*line*/, 
 }
 
 ATBUS_MACRO_API void node::on_info_log(const char * /*file_path*/, size_t /*line*/, const endpoint *ep,
-                                       const connection *conn, const char *msg) {
+                                       const connection *conn, const char *msg) const {
   if (event_msg_.on_info_log) {
     flag_guard_t fgd(this, flag_t::EN_FT_IN_CALLBACK);
     event_msg_.on_info_log(std::cref(*this), ep, conn, msg);

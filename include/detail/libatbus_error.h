@@ -8,19 +8,20 @@ enum ATBUS_ERROR_TYPE {
 
   EN_ATBUS_ERR_PARAMS = -1,
   EN_ATBUS_ERR_INNER = -2,
-  EN_ATBUS_ERR_NO_DATA = -3,               // 无数据
-  EN_ATBUS_ERR_BUFF_LIMIT = -4,            // 缓冲区不足
-  EN_ATBUS_ERR_MALLOC = -5,                // 分配失败
-  EN_ATBUS_ERR_SCHEME = -6,                // 协议错误
-  EN_ATBUS_ERR_BAD_DATA = -7,              // 数据校验不通过
-  EN_ATBUS_ERR_INVALID_SIZE = -8,          // 数据大小异常
-  EN_ATBUS_ERR_NOT_INITED = -9,            // 未初始化
-  EN_ATBUS_ERR_ALREADY_INITED = -10,       // 已填充初始数据
-  EN_ATBUS_ERR_ACCESS_DENY = -11,          // 不允许的操作
-  EN_ATBUS_ERR_UNPACK = -12,               // 解包失败
-  EN_ATBUS_ERR_PACK = -13,                 // 打包失败
-  EN_ATBUS_ERR_UNSUPPORTED_VERSION = -14,  // 版本不受支持
-  EN_ATBUS_ERR_CLOSING = -15,              // 正在关闭或已关闭
+  EN_ATBUS_ERR_NO_DATA = -3,                 // 无数据
+  EN_ATBUS_ERR_BUFF_LIMIT = -4,              // 缓冲区不足
+  EN_ATBUS_ERR_MALLOC = -5,                  // 分配失败
+  EN_ATBUS_ERR_SCHEME = -6,                  // 协议错误
+  EN_ATBUS_ERR_BAD_DATA = -7,                // 数据校验不通过
+  EN_ATBUS_ERR_INVALID_SIZE = -8,            // 数据大小异常
+  EN_ATBUS_ERR_NOT_INITED = -9,              // 未初始化
+  EN_ATBUS_ERR_ALREADY_INITED = -10,         // 已填充初始数据
+  EN_ATBUS_ERR_ACCESS_DENY = -11,            // 不允许的操作
+  EN_ATBUS_ERR_UNPACK = -12,                 // 解包失败
+  EN_ATBUS_ERR_PACK = -13,                   // 打包失败
+  EN_ATBUS_ERR_UNSUPPORTED_VERSION = -14,    // 版本不受支持
+  EN_ATBUS_ERR_CLOSING = -15,                // 正在关闭或已关闭
+  EN_ATBUS_ERR_ALGORITHM_NOT_SUPPORT = -16,  // 算法不受支持
 
   EN_ATBUS_ERR_ATNODE_NOT_FOUND = -65,         // 查找不到目标节点
   EN_ATBUS_ERR_ATNODE_INVALID_ID = -66,        // 不可用的ID
@@ -49,8 +50,8 @@ enum ATBUS_ERROR_TYPE {
 
   EN_ATBUS_ERR_NODE_TIMEOUT = -211,  // 操作超时
 
-  EN_ATBUS_ERR_SHM_GET_FAILED = -301,  // 连接共享内存出错，具体错误原因可以查看errno或类似的位置
-  EN_ATBUS_ERR_SHM_NOT_FOUND = -302,  // 共享内存未找到
+  EN_ATBUS_ERR_SHM_GET_FAILED = -301,    // 连接共享内存出错，具体错误原因可以查看errno或类似的位置
+  EN_ATBUS_ERR_SHM_NOT_FOUND = -302,     // 共享内存未找到
   EN_ATBUS_ERR_SHM_CLOSE_FAILED = -303,  // 移除共享内存出错，具体错误原因可以查看errno或类似的位置
   EN_ATBUS_ERR_SHM_PATH_INVALID = -304,  // 共享内存地址错误
   EN_ATBUS_ERR_SHM_MAP_FAILED = -305,    // 共享内存地址映射错误
@@ -59,10 +60,10 @@ enum ATBUS_ERROR_TYPE {
   EN_ATBUS_ERR_SOCK_LISTEN_FAILED = -402,   // 监听失败
   EN_ATBUS_ERR_SOCK_CONNECT_FAILED = -403,  // 连接失败
 
-  EN_ATBUS_ERR_PIPE_BIND_FAILED = -501,     // 绑定地址或端口失败
-  EN_ATBUS_ERR_PIPE_LISTEN_FAILED = -502,   // 监听失败
-  EN_ATBUS_ERR_PIPE_CONNECT_FAILED = -503,  // 连接失败
-  EN_ATBUS_ERR_PIPE_ADDR_TOO_LONG = -504,  // 地址路径过长，绝对路径长度要小于 sizeof(sockaddr_un.sun_path) - 1
+  EN_ATBUS_ERR_PIPE_BIND_FAILED = -501,       // 绑定地址或端口失败
+  EN_ATBUS_ERR_PIPE_LISTEN_FAILED = -502,     // 监听失败
+  EN_ATBUS_ERR_PIPE_CONNECT_FAILED = -503,    // 连接失败
+  EN_ATBUS_ERR_PIPE_ADDR_TOO_LONG = -504,     // 地址路径过长，绝对路径长度要小于 sizeof(sockaddr_un.sun_path) - 1
   EN_ATBUS_ERR_PIPE_REMOVE_FAILED = -505,     // 删除老socket失败
   EN_ATBUS_ERR_PIPE_PATH_EXISTS = -506,       // 该地址已被占用
   EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED = -507,  // 锁地址失败
