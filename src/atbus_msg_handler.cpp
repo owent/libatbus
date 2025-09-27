@@ -18,45 +18,45 @@
 #include "detail/libatbus_channel_export.h"
 #include "libatbus_protocol.h"
 
-#define ATBUS_PROTOCOL_MESSAGE_BODY_MAX ::atbus::protocol::msg::kNodePongRsp
-#define ATBUS_PROTOCOL_MESSAGE_BODY_MIN ::atbus::protocol::msg::kCustomCommandReq
+#define ATBUS_PROTOCOL_MESSAGE_BODY_MAX ::atbus::protocol::message_body::kNodePongRsp
+#define ATBUS_PROTOCOL_MESSAGE_BODY_MIN ::atbus::protocol::message_body::kCustomCommandReq
 
 namespace atbus {
 
 namespace detail {
 static const char *get_cmd_name(int cmd) {
   switch (cmd) {
-    case ::atbus::protocol::msg::kCustomCommandReq: {
+    case ::atbus::protocol::message_body::kCustomCommandReq: {
       return "CustomCommandReq";
     }
-    case ::atbus::protocol::msg::kCustomCommandRsp: {
+    case ::atbus::protocol::message_body::kCustomCommandRsp: {
       return "CustomCommandRsp";
     }
-    case ::atbus::protocol::msg::kDataTransformReq: {
+    case ::atbus::protocol::message_body::kDataTransformReq: {
       return "DataTransformReq";
     }
-    case ::atbus::protocol::msg::kDataTransformRsp: {
+    case ::atbus::protocol::message_body::kDataTransformRsp: {
       return "DataTransformRsp";
     }
-    case ::atbus::protocol::msg::kNodeSyncReq: {
+    case ::atbus::protocol::message_body::kNodeSyncReq: {
       return "NodeSyncReq";
     }
-    case ::atbus::protocol::msg::kNodeSyncRsp: {
+    case ::atbus::protocol::message_body::kNodeSyncRsp: {
       return "NodeSyncRsp";
     }
-    case ::atbus::protocol::msg::kNodeRegisterReq: {
+    case ::atbus::protocol::message_body::kNodeRegisterReq: {
       return "NodeRegisterReq";
     }
-    case ::atbus::protocol::msg::kNodeRegisterRsp: {
+    case ::atbus::protocol::message_body::kNodeRegisterRsp: {
       return "NodeRegisterRsp";
     }
-    case ::atbus::protocol::msg::kNodeConnectSync: {
+    case ::atbus::protocol::message_body::kNodeConnectSync: {
       return "NodeConnectSync";
     }
-    case ::atbus::protocol::msg::kNodePingReq: {
+    case ::atbus::protocol::message_body::kNodePingReq: {
       return "NodePingReq";
     }
-    case ::atbus::protocol::msg::kNodePongRsp: {
+    case ::atbus::protocol::message_body::kNodePongRsp: {
       return "NodePongRsp";
     }
     default: {
@@ -113,19 +113,19 @@ ATBUS_MACRO_API int msg_handler::dispatch_msg(node &n, connection *conn, ::atbus
                                               int errcode) {
   static handler_fn_t fns[ATBUS_PROTOCOL_MESSAGE_BODY_MAX + 1] = {nullptr};
   if (nullptr == fns[ATBUS_PROTOCOL_MESSAGE_BODY_MIN] || nullptr == fns[ATBUS_PROTOCOL_MESSAGE_BODY_MAX]) {
-    fns[::atbus::protocol::msg::kDataTransformReq] = msg_handler::on_recv_data_transfer_req;
-    fns[::atbus::protocol::msg::kDataTransformRsp] = msg_handler::on_recv_data_transfer_rsp;
+    fns[::atbus::protocol::message_body::kDataTransformReq] = msg_handler::on_recv_data_transfer_req;
+    fns[::atbus::protocol::message_body::kDataTransformRsp] = msg_handler::on_recv_data_transfer_rsp;
 
-    fns[::atbus::protocol::msg::kCustomCommandReq] = msg_handler::on_recv_custom_cmd_req;
-    fns[::atbus::protocol::msg::kCustomCommandRsp] = msg_handler::on_recv_custom_cmd_rsp;
+    fns[::atbus::protocol::message_body::kCustomCommandReq] = msg_handler::on_recv_custom_cmd_req;
+    fns[::atbus::protocol::message_body::kCustomCommandRsp] = msg_handler::on_recv_custom_cmd_rsp;
 
-    fns[::atbus::protocol::msg::kNodeSyncReq] = msg_handler::on_recv_node_sync_req;
-    fns[::atbus::protocol::msg::kNodeSyncRsp] = msg_handler::on_recv_node_sync_rsp;
-    fns[::atbus::protocol::msg::kNodeRegisterReq] = msg_handler::on_recv_node_reg_req;
-    fns[::atbus::protocol::msg::kNodeRegisterRsp] = msg_handler::on_recv_node_reg_rsp;
-    fns[::atbus::protocol::msg::kNodeConnectSync] = msg_handler::on_recv_node_conn_syn;
-    fns[::atbus::protocol::msg::kNodePingReq] = msg_handler::on_recv_node_ping;
-    fns[::atbus::protocol::msg::kNodePongRsp] = msg_handler::on_recv_node_pong;
+    fns[::atbus::protocol::message_body::kNodeSyncReq] = msg_handler::on_recv_node_sync_req;
+    fns[::atbus::protocol::message_body::kNodeSyncRsp] = msg_handler::on_recv_node_sync_rsp;
+    fns[::atbus::protocol::message_body::kNodeRegisterReq] = msg_handler::on_recv_node_reg_req;
+    fns[::atbus::protocol::message_body::kNodeRegisterRsp] = msg_handler::on_recv_node_reg_rsp;
+    fns[::atbus::protocol::message_body::kNodeConnectSync] = msg_handler::on_recv_node_conn_syn;
+    fns[::atbus::protocol::message_body::kNodePingReq] = msg_handler::on_recv_node_ping;
+    fns[::atbus::protocol::message_body::kNodePongRsp] = msg_handler::on_recv_node_pong;
   }
 
   if (!m.has_head()) {
@@ -154,7 +154,7 @@ ATBUS_MACRO_API const char *msg_handler::get_body_name(int body_case) {
   static std::string atbus_fn_names[ATBUS_PROTOCOL_MESSAGE_BODY_MAX + 1];
   if (atbus_fn_names[0].empty()) {
     atbus_fn_names[0] = "Unknown";
-    const ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Descriptor *msg_desc = atbus::protocol::msg::descriptor();
+    const ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Descriptor *msg_desc = atbus::protocol::message_body::descriptor();
     for (int i = 0; i < msg_desc->field_count(); ++i) {
       const ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::FieldDescriptor *fds = msg_desc->field(i);
       assert(fds->number() <= ATBUS_PROTOCOL_MESSAGE_BODY_MAX);
@@ -291,7 +291,7 @@ ATBUS_MACRO_API int msg_handler::send_ping(node &n, connection &conn, uint64_t m
 
 ATBUS_MACRO_API int msg_handler::send_reg(int32_t msg_id, node &n, connection &conn, int32_t ret_code,
                                           uint64_t msg_seq) {
-  if (msg_id != ::atbus::protocol::msg::kNodeRegisterReq && msg_id != ::atbus::protocol::msg::kNodeRegisterRsp) {
+  if (msg_id != ::atbus::protocol::message_body::kNodeRegisterReq && msg_id != ::atbus::protocol::message_body::kNodeRegisterRsp) {
     return EN_ATBUS_ERR_PARAMS;
   }
 
@@ -307,7 +307,7 @@ ATBUS_MACRO_API int msg_handler::send_reg(int32_t msg_id, node &n, connection &c
 
   ::atbus::protocol::message_head *head = m->mutable_head();
   ::atbus::protocol::register_data *body;
-  if (msg_id == ::atbus::protocol::msg::kNodeRegisterReq) {
+  if (msg_id == ::atbus::protocol::message_body::kNodeRegisterReq) {
     body = m->mutable_node_register_req();
   } else {
     body = m->mutable_node_register_rsp();
@@ -367,14 +367,14 @@ ATBUS_MACRO_API int msg_handler::send_reg(int32_t msg_id, node &n, connection &c
 }
 
 ATBUS_MACRO_API int msg_handler::send_transfer_rsp(node &n, ::atbus::protocol::msg &&m, int32_t ret_code) {
-  if (m.message_body_case() != ::atbus::protocol::msg::kDataTransformReq &&
-      m.message_body_case() != ::atbus::protocol::msg::kDataTransformRsp) {
+  if (m.message_body_case() != ::atbus::protocol::message_body::kDataTransformReq &&
+      m.message_body_case() != ::atbus::protocol::message_body::kDataTransformRsp) {
     ATBUS_FUNC_NODE_ERROR(n, nullptr, nullptr, EN_ATBUS_ERR_BAD_DATA, 0);
     return EN_ATBUS_ERR_BAD_DATA;
   }
 
   ::atbus::protocol::forward_data *fwd_data;
-  if (m.message_body_case() == ::atbus::protocol::msg::kDataTransformReq) {
+  if (m.message_body_case() == ::atbus::protocol::message_body::kDataTransformReq) {
     // move req to rsp
     // Same arena here and so we can use unsafe release and set_allocated
     fwd_data = m.unsafe_arena_release_data_transform_req();
@@ -539,14 +539,14 @@ ATBUS_MACRO_API int msg_handler::send_msg(node &n, connection &conn, const ::atb
 
 ATBUS_MACRO_API int msg_handler::on_recv_data_transfer_req(node &n, connection *conn, ::atbus::protocol::msg &&m,
                                                            int /*status*/, int /*errcode*/) {
-  if (m.message_body_case() != ::atbus::protocol::msg::kDataTransformReq &&
-      m.message_body_case() != ::atbus::protocol::msg::kDataTransformRsp) {
+  if (m.message_body_case() != ::atbus::protocol::message_body::kDataTransformReq &&
+      m.message_body_case() != ::atbus::protocol::message_body::kDataTransformRsp) {
     ATBUS_FUNC_NODE_ERROR(n, nullptr == conn ? nullptr : conn->get_binding(), conn, EN_ATBUS_ERR_BAD_DATA, 0);
     return EN_ATBUS_ERR_BAD_DATA;
   }
 
   ::atbus::protocol::forward_data *fwd_data;
-  if (m.message_body_case() == ::atbus::protocol::msg::kDataTransformReq) {
+  if (m.message_body_case() == ::atbus::protocol::message_body::kDataTransformReq) {
     fwd_data = m.mutable_data_transform_req();
   } else {
     fwd_data = m.mutable_data_transform_rsp();
@@ -643,14 +643,14 @@ ATBUS_MACRO_API int msg_handler::on_recv_data_transfer_req(node &n, connection *
 
 ATBUS_MACRO_API int msg_handler::on_recv_data_transfer_rsp(node &n, connection *conn, ::atbus::protocol::msg &&m,
                                                            int /*status*/, int /*errcode*/) {
-  if (m.message_body_case() != ::atbus::protocol::msg::kDataTransformReq &&
-      m.message_body_case() != ::atbus::protocol::msg::kDataTransformRsp) {
+  if (m.message_body_case() != ::atbus::protocol::message_body::kDataTransformReq &&
+      m.message_body_case() != ::atbus::protocol::message_body::kDataTransformRsp) {
     ATBUS_FUNC_NODE_ERROR(n, nullptr == conn ? nullptr : conn->get_binding(), conn, EN_ATBUS_ERR_BAD_DATA, 0);
     return EN_ATBUS_ERR_BAD_DATA;
   }
 
   const ::atbus::protocol::forward_data *fwd_data;
-  if (m.message_body_case() == ::atbus::protocol::msg::kDataTransformReq) {
+  if (m.message_body_case() == ::atbus::protocol::message_body::kDataTransformReq) {
     fwd_data = &m.data_transform_req();
   } else {
     fwd_data = &m.data_transform_rsp();
@@ -689,14 +689,14 @@ ATBUS_MACRO_API int msg_handler::on_recv_data_transfer_rsp(node &n, connection *
 
 ATBUS_MACRO_API int msg_handler::on_recv_custom_cmd_req(node &n, connection *conn, ::atbus::protocol::msg &&m,
                                                         int /*status*/, int /*errcode*/) {
-  if (m.message_body_case() != ::atbus::protocol::msg::kCustomCommandReq &&
-      m.message_body_case() != ::atbus::protocol::msg::kCustomCommandRsp) {
+  if (m.message_body_case() != ::atbus::protocol::message_body::kCustomCommandReq &&
+      m.message_body_case() != ::atbus::protocol::message_body::kCustomCommandRsp) {
     ATBUS_FUNC_NODE_ERROR(n, nullptr == conn ? nullptr : conn->get_binding(), conn, EN_ATBUS_ERR_BAD_DATA, 0);
     return EN_ATBUS_ERR_BAD_DATA;
   }
 
   const ::atbus::protocol::custom_command_data *cmd_data;
-  if (m.message_body_case() == ::atbus::protocol::msg::kCustomCommandReq) {
+  if (m.message_body_case() == ::atbus::protocol::message_body::kCustomCommandReq) {
     cmd_data = &m.custom_command_req();
   } else {
     cmd_data = &m.custom_command_rsp();
@@ -754,14 +754,14 @@ ATBUS_MACRO_API int msg_handler::on_recv_custom_cmd_req(node &n, connection *con
 
 ATBUS_MACRO_API int msg_handler::on_recv_custom_cmd_rsp(node &n, connection *conn, ::atbus::protocol::msg &&m,
                                                         int /*status*/, int /*errcode*/) {
-  if (m.message_body_case() != ::atbus::protocol::msg::kCustomCommandReq &&
-      m.message_body_case() != ::atbus::protocol::msg::kCustomCommandRsp) {
+  if (m.message_body_case() != ::atbus::protocol::message_body::kCustomCommandReq &&
+      m.message_body_case() != ::atbus::protocol::message_body::kCustomCommandRsp) {
     ATBUS_FUNC_NODE_ERROR(n, nullptr == conn ? nullptr : conn->get_binding(), conn, EN_ATBUS_ERR_BAD_DATA, 0);
     return EN_ATBUS_ERR_BAD_DATA;
   }
 
   const ::atbus::protocol::custom_command_data *cmd_data;
-  if (m.message_body_case() == ::atbus::protocol::msg::kCustomCommandReq) {
+  if (m.message_body_case() == ::atbus::protocol::message_body::kCustomCommandReq) {
     cmd_data = &m.custom_command_req();
   } else {
     cmd_data = &m.custom_command_rsp();
@@ -829,14 +829,14 @@ ATBUS_MACRO_API int msg_handler::on_recv_node_sync_rsp(node &n, connection *conn
 
 ATBUS_MACRO_API int msg_handler::on_recv_node_reg_req(node &n, connection *conn, ::atbus::protocol::msg &&m,
                                                       int /*status*/, int errcode) {
-  if (m.message_body_case() != ::atbus::protocol::msg::kNodeRegisterReq &&
-      m.message_body_case() != ::atbus::protocol::msg::kNodeRegisterRsp) {
+  if (m.message_body_case() != ::atbus::protocol::message_body::kNodeRegisterReq &&
+      m.message_body_case() != ::atbus::protocol::message_body::kNodeRegisterRsp) {
     ATBUS_FUNC_NODE_ERROR(n, nullptr == conn ? nullptr : conn->get_binding(), conn, EN_ATBUS_ERR_BAD_DATA, 0);
     return EN_ATBUS_ERR_BAD_DATA;
   }
 
   const ::atbus::protocol::register_data *reg_data;
-  if (m.message_body_case() == ::atbus::protocol::msg::kNodeRegisterReq) {
+  if (m.message_body_case() == ::atbus::protocol::message_body::kNodeRegisterReq) {
     reg_data = &m.node_register_req();
   } else {
     reg_data = &m.node_register_rsp();
@@ -851,7 +851,7 @@ ATBUS_MACRO_API int msg_handler::on_recv_node_reg_req(node &n, connection *conn,
   // check version
   if (m.head().version() < n.get_protocol_minimal_version()) {
     if (nullptr != conn) {
-      int ret = send_reg(::atbus::protocol::msg::kNodeRegisterRsp, n, *conn, EN_ATBUS_ERR_UNSUPPORTED_VERSION,
+      int ret = send_reg(::atbus::protocol::message_body::kNodeRegisterRsp, n, *conn, EN_ATBUS_ERR_UNSUPPORTED_VERSION,
                          m.head().sequence());
       if (ret < 0) {
         ATBUS_FUNC_NODE_ERROR(n, conn->get_binding(), conn, ret, 0);
@@ -871,7 +871,7 @@ ATBUS_MACRO_API int msg_handler::on_recv_node_reg_req(node &n, connection *conn,
 
     if (nullptr != conn) {
       int ret =
-          send_reg(::atbus::protocol::msg::kNodeRegisterRsp, n, *conn, EN_ATBUS_ERR_ACCESS_DENY, m.head().sequence());
+          send_reg(::atbus::protocol::message_body::kNodeRegisterRsp, n, *conn, EN_ATBUS_ERR_ACCESS_DENY, m.head().sequence());
       if (ret < 0) {
         ATBUS_FUNC_NODE_ERROR(n, conn->get_binding(), conn, ret, 0);
         conn->reset();
@@ -1088,7 +1088,7 @@ ATBUS_MACRO_API int msg_handler::on_recv_node_reg_req(node &n, connection *conn,
 
   // 仅fd连接发回注册回包，否则忽略（内存和共享内存通道为单工通道）
   if (nullptr != conn && conn->check_flag(connection::flag_t::REG_FD)) {
-    int ret = send_reg(::atbus::protocol::msg::kNodeRegisterRsp, n, *conn, rsp_code, m.head().sequence());
+    int ret = send_reg(::atbus::protocol::message_body::kNodeRegisterRsp, n, *conn, rsp_code, m.head().sequence());
     if (rsp_code < 0) {
       ATBUS_FUNC_NODE_ERROR(n, ep, conn, ret, errcode);
       conn->reset();
@@ -1102,14 +1102,14 @@ ATBUS_MACRO_API int msg_handler::on_recv_node_reg_req(node &n, connection *conn,
 
 ATBUS_MACRO_API int msg_handler::on_recv_node_reg_rsp(node &n, connection *conn, ::atbus::protocol::msg &&m,
                                                       int /*status*/, int errcode) {
-  if (m.message_body_case() != ::atbus::protocol::msg::kNodeRegisterReq &&
-      m.message_body_case() != ::atbus::protocol::msg::kNodeRegisterRsp) {
+  if (m.message_body_case() != ::atbus::protocol::message_body::kNodeRegisterReq &&
+      m.message_body_case() != ::atbus::protocol::message_body::kNodeRegisterRsp) {
     ATBUS_FUNC_NODE_ERROR(n, nullptr == conn ? nullptr : conn->get_binding(), conn, EN_ATBUS_ERR_BAD_DATA, 0);
     return EN_ATBUS_ERR_BAD_DATA;
   }
 
   const ::atbus::protocol::register_data *reg_data;
-  if (m.message_body_case() == ::atbus::protocol::msg::kNodeRegisterReq) {
+  if (m.message_body_case() == ::atbus::protocol::message_body::kNodeRegisterReq) {
     reg_data = &m.node_register_req();
   } else {
     reg_data = &m.node_register_rsp();
@@ -1188,7 +1188,7 @@ ATBUS_MACRO_API int msg_handler::on_recv_node_reg_rsp(node &n, connection *conn,
 
 ATBUS_MACRO_API int msg_handler::on_recv_node_conn_syn(node &n, connection *conn, ::atbus::protocol::msg &&m,
                                                        int /*status*/, int /*errcode*/) {
-  if (m.message_body_case() != ::atbus::protocol::msg::kNodeConnectSync) {
+  if (m.message_body_case() != ::atbus::protocol::message_body::kNodeConnectSync) {
     ATBUS_FUNC_NODE_ERROR(n, nullptr == conn ? nullptr : conn->get_binding(), conn, EN_ATBUS_ERR_BAD_DATA, 0);
     return EN_ATBUS_ERR_BAD_DATA;
   }
