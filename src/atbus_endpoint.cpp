@@ -1,4 +1,4 @@
-// Copyright 2023 atframework
+// Copyright 2025 atframework
 
 #include <common/string_oprs.h>
 

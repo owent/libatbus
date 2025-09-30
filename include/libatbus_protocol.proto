@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package atbus.protocol;
 
+option go_package = "github.com/atframework/libatbus-go/protocol";
 option optimize_for = SPEED;
 // option optimize_for = LITE_RUNTIME;
 // option optimize_for = CODE_SIZE;
@@ -149,23 +150,6 @@ message message_head {
 
 message message_body {
   oneof message_type {
-    custom_command_data custom_command_req = 11;
-    custom_command_data custom_command_rsp = 12;
-    forward_data data_transform_req = 13;
-    forward_data data_transform_rsp = 14;
-    node_tree node_sync_req = 15;
-    node_tree node_sync_rsp = 16;
-    register_data node_register_req = 17;
-    register_data node_register_rsp = 18;
-    connection_data node_connect_sync = 20;
-    ping_data node_ping_req = 21;
-    ping_data node_pong_rsp = 22;
-  }
-}
-
-message msg {
-  message_head head = 1;
-  oneof message_body {
     custom_command_data custom_command_req = 11;
     custom_command_data custom_command_rsp = 12;
     forward_data data_transform_req = 13;

@@ -1,3 +1,4 @@
+// Copyright 2025 atframework
 /**
  * @brief 所有channel文件的模式均为 c + channel<br />
  *        使用c的模式是为了简单、结构清晰并且避免异常<br />

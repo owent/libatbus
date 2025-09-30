@@ -1,4 +1,4 @@
-// Copyright 2022 atframework
+// Copyright 2025 atframework
 // Created by owent on on 2015-11-20
 
 #include "atbus_connection.h"  // NOLINT: build/include_subdir
