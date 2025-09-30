@@ -79,3 +79,10 @@
 #    define ATBUS_MACRO_PROTOCOL_API ATBUS_MACRO_API
 #  endif
 #endif
+
+#define ATBUS_MACRO_NAMESPACE_BEGIN namespace atframework { namespace atbus { inline namespace @ATFRAMEWORK_ATBUS_ABI_TAG@ {
+#define ATBUS_MACRO_NAMESPACE_END } } }
+#define ATBUS_MACRO_NAMESPACE_ID atframework::atbus::@ATFRAMEWORK_ATBUS_ABI_TAG@
+#define ATBUS_MACRO_NAMESPACE "atframework::atbus::@ATFRAMEWORK_ATBUS_ABI_TAG@"
+
+namespace atbus = atframework::atbus;
