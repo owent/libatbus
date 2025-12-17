@@ -9,7 +9,9 @@
 
 #include "uv.h"
 
-namespace atbus {
+#include "detail/libatbus_config.h"
+
+ATBUS_MACRO_NAMESPACE_BEGIN
 namespace adapter {
 using loop_t = uv_loop_t;
 using poll_t = uv_poll_t;
@@ -29,6 +31,6 @@ enum run_mode_t {
   RUN_NOWAIT = UV_RUN_NOWAIT,
 };
 }  // namespace adapter
-}  // namespace atbus
+ATBUS_MACRO_NAMESPACE_END
 
 #endif  // LIBATBUS_LIBATBUS_ADAPTER_LIBUV_H

@@ -26,13 +26,10 @@
 #include "detail/libatbus_config.h"
 #include "detail/libatbus_error.h"
 
+#include "atbus_connection_context.h"
 #include "libatbus_protocol.h"  // NOLINT: build/include_subdir
 
-namespace atbus {
-namespace protocol {
-class msg;
-}
-
+ATBUS_MACRO_NAMESPACE_BEGIN
 class node;
 class endpoint;
 
@@ -183,6 +180,8 @@ class connection final : public atfw::util::design_pattern::noncopyable {
 
   ATBUS_MACRO_API void remove_owner_checker(const timer_desc_ls<ptr_t>::type::iterator &v);
 
+  ATBUS_MACRO_API connection_context &get_connection_context() noexcept;
+
  private:
   ATBUS_MACRO_API void set_status(state_t::type v);
 #if !defined(_WIN32)
@@ -231,8 +230,7 @@ class connection final : public atfw::util::design_pattern::noncopyable {
 
   static ATBUS_MACRO_API int ios_push_fn(connection &conn, const void *buffer, size_t s);
 
-  static ATBUS_MACRO_API bool unpack(connection &conn, ::atbus::protocol::msg *&m,
-                                     ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena &arena, gsl::span<const unsigned char> in);
+  static ATBUS_MACRO_API bool unpack(connection &conn, message &m, gsl::span<const unsigned char> in);
 
  private:
   state_t::type state_;
@@ -285,8 +283,9 @@ class connection final : public atfw::util::design_pattern::noncopyable {
     push_fn_t push_fn;
   };
   connection_data_t conn_data_;
+  connection_context::ptr_t conn_context_;
   stat_t stat_;
 
   friend class endpoint;
 };
-}  // namespace atbus
+ATBUS_MACRO_NAMESPACE_END

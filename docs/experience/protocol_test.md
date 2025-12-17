@@ -69,11 +69,11 @@ char test_buffer[] = "hello world!";
     uint32_t flags   = 0;
     flags |= atbus::protocol::ATBUS_FORWARD_DATA_FLAG_TYPE_REQUIRE_RSP;
 
-    fbb.Finish(::atbus::protocol::Createmsg(fbb,
-                                    ::atbus::protocol::Createmessage_head(fbb, ::atbus::protocol::ATBUS_PROTOCOL_CONST_ATBUS_PROTOCOL_VERSION,
+    fbb.Finish(::atframework::atbus::protocol::Createmsg(fbb,
+                                    ::atframework::atbus::protocol::Createmessage_head(fbb, ::atframework::atbus::protocol::ATBUS_PROTOCOL_CONST_ATBUS_PROTOCOL_VERSION,
                                                                     123, 0, 9876543210, self_id),
-                                    ::atbus::protocol::message_body_data_transform_req,
-                                    ::atbus::protocol::Createforward_data(fbb, 0x123456789, 0x987654321, fbb.CreateVector(&self_id, 1),
+                                    ::atframework::atbus::protocol::message_body_data_transform_req,
+                                    ::atframework::atbus::protocol::Createforward_data(fbb, 0x123456789, 0x987654321, fbb.CreateVector(&self_id, 1),
                                                                         fbb.CreateVector(reinterpret_cast<const uint8_t *>(test_buffer), sizeof(test_buffer)),
                                                                         flags)
                                         .Union())
@@ -174,7 +174,7 @@ char test_buffer[] = "hello world!";
     m_src.head.sequence   = 9876543210;
     m_src.head.source_bus_id = 0x12345678;
 
-    m_src.body.forward = new ::atbus::protocol::forward_data();
+    m_src.body.forward = new ::atframework::atbus::protocol::forward_data();
     m_src.body.forward->from = 0x12345678;
     m_src.body.forward->to = 0x987654321;
     m_src.body.forward->content.ptr = test_buffer;

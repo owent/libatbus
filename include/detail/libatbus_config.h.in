@@ -85,4 +85,14 @@
 #define ATBUS_MACRO_NAMESPACE_ID atframework::atbus::@ATFRAMEWORK_ATBUS_ABI_TAG@
 #define ATBUS_MACRO_NAMESPACE "atframework::atbus::@ATFRAMEWORK_ATBUS_ABI_TAG@"
 
+namespace atframework {
+namespace atbus {}
+}  // namespace atframework
+
 namespace atbus = atframework::atbus;
+
+#ifndef ATFRAMEWORK_NAMESPACE_SHORT_ALIAS
+#  define ATFRAMEWORK_NAMESPACE_SHORT_ALIAS
+namespace atfw = atframework;
+#endif
+

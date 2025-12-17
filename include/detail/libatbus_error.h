@@ -3,25 +3,32 @@
 
 #pragma once
 
+#include <string/string_format.h>
+
+#include <string>
+
+#include "detail/libatbus_config.h"
+
 enum ATBUS_ERROR_TYPE {
   EN_ATBUS_ERR_SUCCESS = 0,
 
   EN_ATBUS_ERR_PARAMS = -1,
   EN_ATBUS_ERR_INNER = -2,
-  EN_ATBUS_ERR_NO_DATA = -3,                 // 无数据
-  EN_ATBUS_ERR_BUFF_LIMIT = -4,              // 缓冲区不足
-  EN_ATBUS_ERR_MALLOC = -5,                  // 分配失败
-  EN_ATBUS_ERR_SCHEME = -6,                  // 协议错误
-  EN_ATBUS_ERR_BAD_DATA = -7,                // 数据校验不通过
-  EN_ATBUS_ERR_INVALID_SIZE = -8,            // 数据大小异常
-  EN_ATBUS_ERR_NOT_INITED = -9,              // 未初始化
-  EN_ATBUS_ERR_ALREADY_INITED = -10,         // 已填充初始数据
-  EN_ATBUS_ERR_ACCESS_DENY = -11,            // 不允许的操作
-  EN_ATBUS_ERR_UNPACK = -12,                 // 解包失败
-  EN_ATBUS_ERR_PACK = -13,                   // 打包失败
-  EN_ATBUS_ERR_UNSUPPORTED_VERSION = -14,    // 版本不受支持
-  EN_ATBUS_ERR_CLOSING = -15,                // 正在关闭或已关闭
-  EN_ATBUS_ERR_ALGORITHM_NOT_SUPPORT = -16,  // 算法不受支持
+  EN_ATBUS_ERR_NO_DATA = -3,                  // 无数据
+  EN_ATBUS_ERR_BUFF_LIMIT = -4,               // 缓冲区不足
+  EN_ATBUS_ERR_MALLOC = -5,                   // 分配失败
+  EN_ATBUS_ERR_SCHEME = -6,                   // 协议错误
+  EN_ATBUS_ERR_BAD_DATA = -7,                 // 数据校验不通过
+  EN_ATBUS_ERR_INVALID_SIZE = -8,             // 数据大小异常
+  EN_ATBUS_ERR_NOT_INITED = -9,               // 未初始化
+  EN_ATBUS_ERR_ALREADY_INITED = -10,          // 已填充初始数据
+  EN_ATBUS_ERR_ACCESS_DENY = -11,             // 不允许的操作
+  EN_ATBUS_ERR_UNPACK = -12,                  // 解包失败
+  EN_ATBUS_ERR_PACK = -13,                    // 打包失败
+  EN_ATBUS_ERR_UNSUPPORTED_VERSION = -14,     // 版本不受支持
+  EN_ATBUS_ERR_CLOSING = -15,                 // 正在关闭或已关闭
+  EN_ATBUS_ERR_ALGORITHM_NOT_SUPPORT = -16,   // 算法不受支持
+  EN_ATBUS_ERR_MESSAGE_NOT_FINISH_YET = -17,  // 消息尚未调用finish
 
   EN_ATBUS_ERR_ATNODE_NOT_FOUND = -65,         // 查找不到目标节点
   EN_ATBUS_ERR_ATNODE_INVALID_ID = -66,        // 不可用的ID
@@ -78,5 +85,64 @@ enum ATBUS_ERROR_TYPE {
 
   EN_ATBUS_ERR_MIN = -999,
 };
+
+template <class CharT>
+struct libatbus_strerror_helper;
+
+ATBUS_MACRO_API const std::basic_string<char> &libatbus_strerror(ATBUS_ERROR_TYPE errcode) noexcept;
+template <>
+struct libatbus_strerror_helper<char> {
+  static ATFW_UTIL_FORCEINLINE const std::basic_string<char> &get(ATBUS_ERROR_TYPE errcode) noexcept {
+    return libatbus_strerror(errcode);
+  }
+};
+
+ATBUS_MACRO_API const std::basic_string<wchar_t> &libatbus_wstrerror(ATBUS_ERROR_TYPE errcode) noexcept;
+template <>
+struct libatbus_strerror_helper<wchar_t> {
+  static ATFW_UTIL_FORCEINLINE const std::basic_string<wchar_t> &get(ATBUS_ERROR_TYPE errcode) noexcept {
+    return libatbus_wstrerror(errcode);
+  }
+};
+
+#ifdef __cpp_unicode_characters
+ATBUS_MACRO_API const std::basic_string<char16_t> &libatbus_u16strerror(ATBUS_ERROR_TYPE errcode) noexcept;
+template <>
+struct libatbus_strerror_helper<char16_t> {
+  static ATFW_UTIL_FORCEINLINE const std::basic_string<char16_t> &get(ATBUS_ERROR_TYPE errcode) noexcept {
+    return libatbus_u16strerror(errcode);
+  }
+};
+ATBUS_MACRO_API const std::basic_string<char32_t> &libatbus_u32strerror(ATBUS_ERROR_TYPE errcode) noexcept;
+template <>
+struct libatbus_strerror_helper<char32_t> {
+  static ATFW_UTIL_FORCEINLINE const std::basic_string<char32_t> &get(ATBUS_ERROR_TYPE errcode) noexcept {
+    return libatbus_u32strerror(errcode);
+  }
+};
+#endif
+#ifdef __cpp_char8_t
+ATBUS_MACRO_API const std::basic_string<char8_t> &libatbus_u8strerror(ATBUS_ERROR_TYPE errcode) noexcept;
+template <>
+struct libatbus_strerror_helper<char8_t> {
+  static ATFW_UTIL_FORCEINLINE const std::basic_string<char8_t> &get(ATBUS_ERROR_TYPE errcode) noexcept {
+    return libatbus_u8strerror(errcode);
+  }
+};
+#endif
+
+ATFRAMEWORK_UTILS_STRING_FWAPI_NAMESPACE_BEGIN
+template <class CharT>
+struct ATFW_UTIL_SYMBOL_VISIBLE formatter<::ATBUS_ERROR_TYPE, CharT>
+    : formatter<ATFRAMEWORK_UTILS_STRING_FWAPI_NAMESPACE_ID::basic_string_view<CharT>, CharT> {
+  template <class FormatContext>
+  auto format(ATBUS_ERROR_TYPE const &val, FormatContext &ctx) const -> decltype(ctx.out()) {
+    return formatter<ATFRAMEWORK_UTILS_STRING_FWAPI_NAMESPACE_ID::basic_string_view<CharT>, CharT>::format(
+        ATFRAMEWORK_UTILS_STRING_FWAPI_NAMESPACE_ID::basic_string_view<CharT>{
+            libatbus_strerror_helper<CharT>::get(val)},
+        ctx);
+  }
+};
+ATFRAMEWORK_UTILS_STRING_FWAPI_NAMESPACE_END
 
 #endif

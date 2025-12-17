@@ -12,7 +12,7 @@
 
 #  pragma once
 
-#  include "atbus_msg_handler.h"
+#  include "atbus_message_handler.h"
 #  include "atbus_node.h"
 
 #endif /* LIBATBUS_H_ */
