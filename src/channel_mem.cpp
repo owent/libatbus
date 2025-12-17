@@ -45,7 +45,7 @@
 static_assert(0 == (ATBUS_MACRO_DATA_ALIGN_SIZE & (ATBUS_MACRO_DATA_ALIGN_SIZE - 1)), "data align size must be 2^N");
 #endif
 
-namespace atbus {
+ATBUS_MACRO_NAMESPACE_BEGIN
 namespace channel {
 
 namespace detail {
@@ -991,4 +991,4 @@ ATBUS_MACRO_API void mem_stats_get_error(mem_channel *channel, mem_stats_block_e
 }
 
 }  // namespace channel
-}  // namespace atbus
+ATBUS_MACRO_NAMESPACE_END

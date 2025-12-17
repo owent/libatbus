@@ -11,7 +11,7 @@
 
 #include "detail/libatbus_channel_export.h"
 
-namespace atbus {
+ATBUS_MACRO_NAMESPACE_BEGIN
 namespace channel {
 ATBUS_MACRO_API bool make_address(const char *in, channel_address_t &addr) {
   addr.address = in;
@@ -107,4 +107,4 @@ ATBUS_MACRO_API bool is_local_process_address(const char *in) {
   return false;
 }
 }  // namespace channel
-}  // namespace atbus
+ATBUS_MACRO_NAMESPACE_END

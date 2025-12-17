@@ -17,7 +17,7 @@
 #include "design_pattern/nomovable.h"
 #include "design_pattern/noncopyable.h"
 
-namespace atbus {
+ATBUS_MACRO_NAMESPACE_BEGIN
 namespace detail {
 namespace fn {
 ATBUS_MACRO_API void *buffer_next(void *pointer, size_t step);
@@ -233,6 +233,6 @@ class buffer_manager {
   limit_t limit_;
 };
 }  // namespace detail
-}  // namespace atbus
+ATBUS_MACRO_NAMESPACE_END
 
 #endif  // LIBATBUS_BUFFER_H

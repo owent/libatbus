@@ -31,11 +31,11 @@ CASE_TEST(atbus_node_rela, basic_test) {
         uint32_t flags   = 0;
         flags |= atbus::protocol::ATBUS_FORWARD_DATA_FLAG_TYPE_REQUIRE_RSP;
 
-        fbb.Finish(::atbus::protocol::Createmsg(fbb,
-                                     ::atbus::protocol::Createmsg_head(fbb, ::atbus::protocol::ATBUS_PROTOCOL_CONST_ATBUS_PROTOCOL_VERSION,
+        fbb.Finish(::atframework::atbus::protocol::Createmsg(fbb,
+                                     ::atframework::atbus::protocol::Createmsg_head(fbb, ::atframework::atbus::protocol::ATBUS_PROTOCOL_CONST_ATBUS_PROTOCOL_VERSION,
                                                                        123, 0, 9876543210, self_id),
-                                     ::atbus::protocol::msg_body_data_transform_req,
-                                     ::atbus::protocol::Createforward_data(fbb, 0x123456789, 0x987654321, fbb.CreateVector(&self_id, 1),
+                                     ::atframework::atbus::protocol::msg_body_data_transform_req,
+                                     ::atframework::atbus::protocol::Createforward_data(fbb, 0x123456789, 0x987654321, fbb.CreateVector(&self_id, 1),
                                                                            fbb.CreateVector(reinterpret_cast<const uint8_t *>(test_buffer), sizeof(test_buffer)),
                                                                            flags)
                                          .Union())
@@ -50,10 +50,10 @@ CASE_TEST(atbus_node_rela, basic_test) {
 
     {
         ::flatbuffers::Verifier msg_verify(reinterpret_cast<const uint8_t *>(&packed_buffer[0]), packed_buffer.size());
-        CASE_EXPECT_TRUE(::atbus::protocol::VerifymsgBuffer(msg_verify));
-        const ::atbus::protocol::msg* m = ::atbus::protocol::Getmsg(&packed_buffer[0]);
+        CASE_EXPECT_TRUE(::atframework::atbus::protocol::VerifymsgBuffer(msg_verify));
+        const ::atframework::atbus::protocol::msg* m = ::atframework::atbus::protocol::Getmsg(&packed_buffer[0]);
 
-        CASE_EXPECT_EQ(::atbus::protocol::msg_body_data_transform_req, m->body_type());
+        CASE_EXPECT_EQ(::atframework::atbus::protocol::msg_body_data_transform_req, m->body_type());
         CASE_EXPECT_EQ(123, m->head()->type());
         CASE_EXPECT_EQ(0, m->head()->ret());
         CASE_EXPECT_EQ(9876543210, m->head()->sequence());

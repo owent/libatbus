@@ -15,21 +15,19 @@
 | ------------- | ------------------ | --------------------- |
 | Linux         | GCC                |
 | Linux         | Clang              | With libc++           |
-| Linux         | GCC 4.8            |
 | MinGW64       | GCC                | Dynamic linking       |
 | Windows       | Visual Studio 2022 | Static linking        |
 | Windows       | Visual Studio 2022 | Dynamic linking       |
-| Windows       | Visual Studio 2019 | Static linking        |
 | macOS         | AppleClang         | With libc++           |
 
 ## 依赖
 
-+ 支持c++0x或c++11的编译器(为了代码尽量简洁,特别是少做无意义的平台兼容，依赖部分 C11和C++11的功能，所以不支持过低版本的编译器)
-  > + GCC: 4.8 及以上
-  > + Clang: 3.8 及以上
-  > + VC: 12 及以上
++ 支持c++17的编译器
+  > + GCC: 7.1 及以上
+  > + Clang: 7 及以上
+  > + VC: VS2022 及以上
 
-+ [cmake](https://cmake.org/download/) 3.16.0 以上
++ [cmake](https://cmake.org/download/) 3.24.0 以上
 
 ## 设计初衷和要点
 

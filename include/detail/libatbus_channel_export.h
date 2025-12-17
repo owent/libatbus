@@ -24,7 +24,7 @@
 
 #  include "detail/libatbus_channel_types.h"
 
-namespace atbus {
+ATBUS_MACRO_NAMESPACE_BEGIN
 namespace channel {
 // utility functions
 ATBUS_MACRO_API bool make_address(const char *in, channel_address_t &addr);
@@ -135,6 +135,6 @@ ATBUS_MACRO_API size_t io_stream_get_max_unix_socket_length();
 
 ATBUS_MACRO_API void io_stream_show_channel(io_stream_channel *channel, std::ostream &out);
 }  // namespace channel
-}  // namespace atbus
+ATBUS_MACRO_NAMESPACE_END
 
 #endif /* LIBATBUS_CHANNEL_EXPORT_H_ */

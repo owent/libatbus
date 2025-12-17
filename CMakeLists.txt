@@ -10,7 +10,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 project(
   libatbus
-  VERSION "2.3.1"
+  VERSION "3.0.0"
   HOMEPAGE_URL "https://github.com/atframework/libatbus"
   LANGUAGES C CXX)
 

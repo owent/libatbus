@@ -19,60 +19,23 @@
 
 #include "frame/test_macros.h"
 
-#include <atbus_msg_handler.h>
+#include <atbus_message_handler.h>
 
 #include "atbus_test_utils.h"
 
 #include <stdarg.h>
 
-static void node_msg_test_on_debug(const char *file_path, size_t line, const atbus::node &n, const atbus::endpoint *ep,
-                                   const atbus::connection *conn, const atbus::protocol::msg *, const char *fmt, ...) {
-  size_t offset = 0;
-  for (size_t i = 0; file_path[i]; ++i) {
-    if ('/' == file_path[i] || '\\' == file_path[i]) {
-      offset = i + 1;
-    }
-  }
-  file_path += offset;
-
-  std::streamsize w = std::cout.width();
-  CASE_MSG_INFO() << "[Log Debug][" << std::setw(24) << file_path << ":" << std::setw(4) << line << "] node=0x"
-                  << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x" << std::setw(8)
-                  << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
-                  << std::setw(static_cast<int>(w)) << std::dec << "\t";
-
-  va_list ap;
-  va_start(ap, fmt);
-
-  vprintf(fmt, ap);
-
-  va_end(ap);
-
-  puts("");
-}
-
-static int node_msg_test_on_error(const atbus::node &n, const atbus::endpoint *ep, const atbus::connection *conn,
-                                  int status, int errcode) {
-  if (0 == errcode || UV_EOF == errcode || UV_ECONNRESET == errcode) {
-    return 0;
-  }
-
-  std::streamsize w = std::cout.width();
-  CASE_MSG_INFO() << "[Log Error] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
-                  << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
-                  << std::setw(static_cast<int>(w)) << std::dec << "=> status: " << status << ", errcode: " << errcode
-                  << std::endl;
+static int node_msg_test_on_log(const atfw::util::log::log_formatter::caller_info_t &, const char *content,
+                                size_t content_size) {
+  gsl::string_view log_data{content, content_size};
+  CASE_MSG_INFO() << log_data << std::endl;
   return 0;
 }
 
-static int node_msg_test_on_info_log(const atbus::node &n, const atbus::endpoint *ep, const atbus::connection *conn,
-                                     const char *msg) {
-  std::streamsize w = std::cout.width();
-  CASE_MSG_INFO() << "[Log Info] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
-                  << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
-                  << std::setw(static_cast<int>(w)) << std::dec << "=> message: " << (nullptr == msg ? "" : msg)
-                  << std::endl;
-  return 0;
+static void setup_atbus_node_logger(atbus::node &n) {
+  n.get_logger()->set_level(atfw::util::log::log_formatter::level_t::LOG_LW_DEBUG);
+  n.get_logger()->clear_sinks();
+  n.get_logger()->add_sink(node_msg_test_on_log);
 }
 
 struct node_msg_test_recv_msg_record_t {
@@ -109,19 +72,19 @@ struct node_msg_test_recv_msg_record_t {
 static node_msg_test_recv_msg_record_t recv_msg_history;
 
 static int node_msg_test_recv_msg_test_record_fn(const atbus::node &n, const atbus::endpoint *ep,
-                                                 const atbus::connection *conn, const atbus::protocol::msg &m,
+                                                 const atbus::connection *conn, const atbus::message &m,
                                                  const void *buffer, size_t len) {
   recv_msg_history.n = &n;
   recv_msg_history.ep = ep;
   recv_msg_history.conn = conn;
-  recv_msg_history.status = m.head().ret();
+  recv_msg_history.status = m.get_head() == nullptr ? 0 : m.get_head()->result_code();
   ++recv_msg_history.count;
 
-  const ::atbus::protocol::forward_data *fwd_data = nullptr;
-  if (m.message_body_case() == ::atbus::protocol::msg::kDataTransformReq) {
-    fwd_data = &m.data_transform_req();
-  } else if (m.message_body_case() == ::atbus::protocol::msg::kDataTransformRsp) {
-    fwd_data = &m.data_transform_rsp();
+  const ::atframework::atbus::protocol::forward_data *fwd_data = nullptr;
+  if (m.get_body_type() == ::atframework::atbus::message_body_type::kDataTransformReq) {
+    fwd_data = m.get_body() == nullptr ? nullptr : &m.get_body()->data_transform_req();
+  } else if (m.get_body_type() == ::atframework::atbus::message_body_type::kDataTransformRsp) {
+    fwd_data = m.get_body() == nullptr ? nullptr : &m.get_body()->data_transform_rsp();
   }
 
   if (nullptr != fwd_data) {
@@ -149,19 +112,19 @@ static int node_msg_test_recv_msg_test_record_fn(const atbus::node &n, const atb
 }
 
 static int node_msg_test_send_data_forward_response_fn(const atbus::node &n, const atbus::endpoint *ep,
-                                                       const atbus::connection *conn, const atbus::protocol::msg *m) {
+                                                       const atbus::connection *conn, const atbus::message *m) {
   recv_msg_history.n = &n;
   recv_msg_history.ep = ep;
   recv_msg_history.conn = conn;
-  recv_msg_history.status = nullptr == m ? 0 : m->head().ret();
+  recv_msg_history.status = nullptr == m ? 0 : m->get_head() == nullptr ? 0 : m->get_head()->result_code();
   ++recv_msg_history.failed_count;
 
-  const ::atbus::protocol::forward_data *fwd_data = nullptr;
+  const ::atframework::atbus::protocol::forward_data *fwd_data = nullptr;
   if (nullptr != m) {
-    if (m->message_body_case() == ::atbus::protocol::msg::kDataTransformReq) {
-      fwd_data = &m->data_transform_req();
-    } else if (m->message_body_case() == ::atbus::protocol::msg::kDataTransformRsp) {
-      fwd_data = &m->data_transform_rsp();
+    if (m->get_body_type() == ::atframework::atbus::message_body_type::kDataTransformReq) {
+      fwd_data = m->get_body() == nullptr ? nullptr : &m->get_body()->data_transform_req();
+    } else if (m->get_body_type() == ::atframework::atbus::message_body_type::kDataTransformRsp) {
+      fwd_data = m->get_body() == nullptr ? nullptr : &m->get_body()->data_transform_rsp();
     }
   }
 
@@ -185,8 +148,8 @@ static int node_msg_test_remove_endpoint_fn(const atbus::node &, atbus::endpoint
   return 0;
 }
 
-static int node_msg_test_on_ping(const atbus::node &n, const atbus::endpoint *ep, const ::atbus::protocol::msg &,
-                                 const ::atbus::protocol::ping_data &ping_data) {
+static int node_msg_test_on_ping(const atbus::node &n, const atbus::endpoint *ep, const ::atframework::atbus::message &,
+                                 const ::atframework::atbus::protocol::ping_data &ping_data) {
   std::streamsize w = std::cout.width();
   CASE_MSG_INFO() << "[Ping] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
                   << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", time point=" << ping_data.time_point()
@@ -196,8 +159,8 @@ static int node_msg_test_on_ping(const atbus::node &n, const atbus::endpoint *ep
   return 0;
 }
 
-static int node_msg_test_on_pong(const atbus::node &n, const atbus::endpoint *ep, const ::atbus::protocol::msg &,
-                                 const ::atbus::protocol::ping_data &ping_data) {
+static int node_msg_test_on_pong(const atbus::node &n, const atbus::endpoint *ep, const ::atframework::atbus::message &,
+                                 const ::atframework::atbus::protocol::ping_data &ping_data) {
   std::streamsize w = std::cout.width();
   CASE_MSG_INFO() << "[Pong] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
                   << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", time point=" << ping_data.time_point()
@@ -220,13 +183,8 @@ CASE_TEST(atbus_node_msg, ping_pong) {
   {
     atbus::node::ptr_t node1 = atbus::node::create();
     atbus::node::ptr_t node2 = atbus::node::create();
-    node1->on_debug = node_msg_test_on_debug;
-    node2->on_debug = node_msg_test_on_debug;
-    node1->set_on_error_handle(node_msg_test_on_error);
-    node1->set_on_info_log_handle(node_msg_test_on_info_log);
-    CASE_EXPECT_TRUE(!!node1->get_on_error_handle());
-    node2->set_on_error_handle(node_msg_test_on_error);
-    node2->set_on_info_log_handle(node_msg_test_on_info_log);
+    setup_atbus_node_logger(*node1);
+    setup_atbus_node_logger(*node2);
     node1->set_on_ping_endpoint_handle(node_msg_test_on_ping);
     CASE_EXPECT_TRUE(!!node1->get_on_ping_endpoint_handle());
     node1->set_on_pong_endpoint_handle(node_msg_test_on_pong);
@@ -235,9 +193,7 @@ CASE_TEST(atbus_node_msg, ping_pong) {
     node2->set_on_pong_endpoint_handle(node_msg_test_on_pong);
 
     atbus::node::ptr_t parent = atbus::node::create();
-    parent->on_debug = node_msg_test_on_debug;
-    parent->set_on_error_handle(node_msg_test_on_error);
-    parent->set_on_info_log_handle(node_msg_test_on_info_log);
+    setup_atbus_node_logger(*parent);
     parent->set_on_ping_endpoint_handle(node_msg_test_on_ping);
     parent->set_on_pong_endpoint_handle(node_msg_test_on_pong);
 
@@ -352,12 +308,8 @@ CASE_TEST(atbus_node_msg, custom_cmd) {
   do {
     atbus::node::ptr_t node1 = atbus::node::create();
     atbus::node::ptr_t node2 = atbus::node::create();
-    node1->on_debug = node_msg_test_on_debug;
-    node2->on_debug = node_msg_test_on_debug;
-    node1->set_on_error_handle(node_msg_test_on_error);
-    node2->set_on_error_handle(node_msg_test_on_error);
-    node1->set_on_info_log_handle(node_msg_test_on_info_log);
-    node2->set_on_info_log_handle(node_msg_test_on_info_log);
+    setup_atbus_node_logger(*node1);
+    setup_atbus_node_logger(*node2);
 
     node1->init(0x12345678, &conf);
     node2->init(0x12356789, &conf);
@@ -425,12 +377,8 @@ CASE_TEST(atbus_node_msg, custom_cmd_by_temp_node) {
   do {
     atbus::node::ptr_t node1 = atbus::node::create();
     atbus::node::ptr_t node2 = atbus::node::create();
-    node1->on_debug = node_msg_test_on_debug;
-    node2->on_debug = node_msg_test_on_debug;
-    node1->set_on_error_handle(node_msg_test_on_error);
-    node2->set_on_error_handle(node_msg_test_on_error);
-    node1->set_on_info_log_handle(node_msg_test_on_info_log);
-    node2->set_on_info_log_handle(node_msg_test_on_info_log);
+    setup_atbus_node_logger(*node1);
+    setup_atbus_node_logger(*node2);
 
     node1->init(0x12345678, &conf);
     node2->init(0, &conf);
@@ -498,9 +446,7 @@ CASE_TEST(atbus_node_msg, send_cmd_to_self) {
     const void *cmds_in[] = {cmds[0], cmds[1], cmds[2]};
 
     atbus::node::ptr_t node1 = atbus::node::create();
-    node1->on_debug = node_msg_test_on_debug;
-    node1->set_on_error_handle(node_msg_test_on_error);
-    node1->set_on_info_log_handle(node_msg_test_on_info_log);
+    setup_atbus_node_logger(*node1);
 
     CASE_EXPECT_EQ(EN_ATBUS_ERR_NOT_INITED, node1->send_custom_cmd(node1->get_id(), cmds_in, cmds_len, 3));
 
@@ -552,9 +498,7 @@ CASE_TEST(atbus_node_msg, reset_and_send) {
 
   {
     atbus::node::ptr_t node1 = atbus::node::create();
-    node1->on_debug = node_msg_test_on_debug;
-    node1->set_on_error_handle(node_msg_test_on_error);
-    node1->set_on_info_log_handle(node_msg_test_on_info_log);
+    setup_atbus_node_logger(*node1);
 
     node1->init(0x12345678, &conf);
 
@@ -583,12 +527,11 @@ CASE_TEST(atbus_node_msg, reset_and_send) {
 }
 
 static int node_msg_test_recv_on_forward_response_error_fn(const atbus::node &, const atbus::endpoint *,
-                                                           const atbus::connection *, const atbus::protocol::msg *m) {
+                                                           const atbus::connection *, const atbus::message *m) {
   ++recv_msg_history.count;
   if (nullptr != m) {
-    recv_msg_history.status = m->head().ret();
-    recv_msg_history.data = m->data_transform_rsp().content();
-
+    recv_msg_history.status = m->get_head() == nullptr ? 0 : m->get_head()->result_code();
+    recv_msg_history.data = m->get_body() == nullptr ? std::string() : m->get_body()->data_transform_rsp().content();
     if (0 != recv_msg_history.status) {
       ++recv_msg_history.failed_count;
     }
@@ -608,12 +551,8 @@ CASE_TEST(atbus_node_msg, send_loopback_error) {
   do {
     atbus::node::ptr_t node1 = atbus::node::create();
     atbus::node::ptr_t node2 = atbus::node::create();
-    node1->on_debug = node_msg_test_on_debug;
-    node2->on_debug = node_msg_test_on_debug;
-    node1->set_on_error_handle(node_msg_test_on_error);
-    node2->set_on_error_handle(node_msg_test_on_error);
-    node1->set_on_info_log_handle(node_msg_test_on_info_log);
-    node2->set_on_info_log_handle(node_msg_test_on_info_log);
+    setup_atbus_node_logger(*node1);
+    setup_atbus_node_logger(*node2);
 
     node1->init(0x12345678, &conf);
     node2->init(0x12356789, &conf);
@@ -658,19 +597,20 @@ CASE_TEST(atbus_node_msg, send_loopback_error) {
         break;
       }
 
-      atbus::protocol::msg m;
-      m.mutable_head()->set_version(node1->get_protocol_version());
-      m.mutable_head()->set_type(0);
-      m.mutable_head()->set_ret(0);
-      m.mutable_head()->set_sequence(node1->alloc_msg_seq());
-      m.mutable_head()->set_source_bus_id(0);  // fake bad parameter, this should be reset by receiver
+      ::google::protobuf::ArenaOptions options;
+      atbus::message m{options};
+      m.mutable_head().set_version(node1->get_protocol_version());
+      m.mutable_head().set_type(0);
+      m.mutable_head().set_result_code(0);
+      m.mutable_head().set_sequence(node1->allocate_message_sequence());
+      m.mutable_head().set_source_bus_id(0);  // fake bad parameter, this should be reset by receiver
 
-      m.mutable_data_transform_req()->set_from(node1->get_id());
-      m.mutable_data_transform_req()->set_to(0x12346789);
-      m.mutable_data_transform_req()->add_router(node1->get_id());
-      *m.mutable_data_transform_req()->mutable_content() = send_data;
-      m.mutable_data_transform_req()->set_flags(atbus::protocol::FORWARD_DATA_FLAG_REQUIRE_RSP);
-      CASE_EXPECT_EQ(0, atbus::msg_handler::send_msg(*node1, *target_conn, m));
+      m.mutable_body().mutable_data_transform_req()->set_from(node1->get_id());
+      m.mutable_body().mutable_data_transform_req()->set_to(0x12346789);
+      m.mutable_body().mutable_data_transform_req()->add_router(node1->get_id());
+      *m.mutable_body().mutable_data_transform_req()->mutable_content() = send_data;
+      m.mutable_body().mutable_data_transform_req()->set_flags(atbus::protocol::FORWARD_DATA_FLAG_REQUIRE_RSP);
+      CASE_EXPECT_EQ(0, atbus::message_handler::send_message(*node1, *target_conn, m));
 
     } while (false);
 
@@ -684,19 +624,18 @@ CASE_TEST(atbus_node_msg, send_loopback_error) {
 }
 
 static int node_msg_test_recv_and_send_msg_on_forward_response_fn(const atbus::node &, const atbus::endpoint *,
-                                                                  const atbus::connection *,
-                                                                  const atbus::protocol::msg *) {
+                                                                  const atbus::connection *, const atbus::message *) {
   ++recv_msg_history.count;
   return 0;
 }
 
 static int node_msg_test_recv_and_send_msg_fn(const atbus::node &n, const atbus::endpoint *ep,
-                                              const atbus::connection *conn, const atbus::protocol::msg &m,
+                                              const atbus::connection *conn, const atbus::message &m,
                                               const void *buffer, size_t len) {
   recv_msg_history.n = &n;
   recv_msg_history.ep = ep;
   recv_msg_history.conn = conn;
-  recv_msg_history.status = m.head().ret();
+  recv_msg_history.status = m.get_head() == nullptr ? 0 : m.get_head()->result_code();
   ++recv_msg_history.count;
 
   std::streamsize w = std::cout.width();
@@ -738,9 +677,7 @@ CASE_TEST(atbus_node_msg, send_msg_to_self_and_need_rsp) {
 
   {
     atbus::node::ptr_t node1 = atbus::node::create();
-    node1->on_debug = node_msg_test_on_debug;
-    node1->set_on_error_handle(node_msg_test_on_error);
-    node1->set_on_info_log_handle(node_msg_test_on_info_log);
+    setup_atbus_node_logger(*node1);
 
     node1->init(0x12345678, &conf);
 
@@ -780,12 +717,8 @@ CASE_TEST(atbus_node_msg, parent_and_child) {
   {
     atbus::node::ptr_t node_parent = atbus::node::create();
     atbus::node::ptr_t node_child = atbus::node::create();
-    node_parent->on_debug = node_msg_test_on_debug;
-    node_child->on_debug = node_msg_test_on_debug;
-    node_parent->set_on_error_handle(node_msg_test_on_error);
-    node_child->set_on_error_handle(node_msg_test_on_error);
-    node_parent->set_on_info_log_handle(node_msg_test_on_info_log);
-    node_child->set_on_info_log_handle(node_msg_test_on_info_log);
+    setup_atbus_node_logger(*node_parent);
+    setup_atbus_node_logger(*node_child);
 
     node_parent->init(0x12345678, &conf);
 
@@ -889,15 +822,9 @@ CASE_TEST(atbus_node_msg, transfer_and_connect) {
     atbus::node::ptr_t node_parent = atbus::node::create();
     atbus::node::ptr_t node_child_1 = atbus::node::create();
     atbus::node::ptr_t node_child_2 = atbus::node::create();
-    node_parent->on_debug = node_msg_test_on_debug;
-    node_child_1->on_debug = node_msg_test_on_debug;
-    node_child_2->on_debug = node_msg_test_on_debug;
-    node_parent->set_on_error_handle(node_msg_test_on_error);
-    node_child_1->set_on_error_handle(node_msg_test_on_error);
-    node_child_2->set_on_error_handle(node_msg_test_on_error);
-    node_parent->set_on_info_log_handle(node_msg_test_on_info_log);
-    node_child_1->set_on_info_log_handle(node_msg_test_on_info_log);
-    node_child_1->set_on_info_log_handle(node_msg_test_on_info_log);
+    setup_atbus_node_logger(*node_parent);
+    setup_atbus_node_logger(*node_child_1);
+    setup_atbus_node_logger(*node_child_2);
 
     node_parent->init(0x12345678, &conf);
 
@@ -969,18 +896,10 @@ CASE_TEST(atbus_node_msg, transfer_only) {
     atbus::node::ptr_t node_parent_2 = atbus::node::create();
     atbus::node::ptr_t node_child_1 = atbus::node::create();
     atbus::node::ptr_t node_child_2 = atbus::node::create();
-    node_parent_1->on_debug = node_msg_test_on_debug;
-    node_parent_2->on_debug = node_msg_test_on_debug;
-    node_child_1->on_debug = node_msg_test_on_debug;
-    node_child_2->on_debug = node_msg_test_on_debug;
-    node_parent_1->set_on_error_handle(node_msg_test_on_error);
-    node_parent_2->set_on_error_handle(node_msg_test_on_error);
-    node_child_1->set_on_error_handle(node_msg_test_on_error);
-    node_child_2->set_on_error_handle(node_msg_test_on_error);
-    node_parent_1->set_on_info_log_handle(node_msg_test_on_info_log);
-    node_parent_2->set_on_info_log_handle(node_msg_test_on_info_log);
-    node_child_1->set_on_info_log_handle(node_msg_test_on_info_log);
-    node_child_1->set_on_info_log_handle(node_msg_test_on_info_log);
+    setup_atbus_node_logger(*node_parent_1);
+    setup_atbus_node_logger(*node_parent_2);
+    setup_atbus_node_logger(*node_child_1);
+    setup_atbus_node_logger(*node_child_2);
 
     node_parent_1->init(0x12345678, &conf);
     node_parent_2->init(0x12356789, &conf);
@@ -1059,9 +978,7 @@ CASE_TEST(atbus_node_msg, send_failed) {
 
   {
     atbus::node::ptr_t node_parent = atbus::node::create();
-    node_parent->on_debug = node_msg_test_on_debug;
-    node_parent->set_on_error_handle(node_msg_test_on_error);
-    node_parent->set_on_info_log_handle(node_msg_test_on_info_log);
+    setup_atbus_node_logger(*node_parent);
     node_parent->init(0x12345678, &conf);
 
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_parent->listen("ipv4://127.0.0.1:16387"));
@@ -1098,12 +1015,8 @@ CASE_TEST(atbus_node_msg, transfer_failed) {
   {
     atbus::node::ptr_t node_parent = atbus::node::create();
     atbus::node::ptr_t node_child_1 = atbus::node::create();
-    node_parent->on_debug = node_msg_test_on_debug;
-    node_child_1->on_debug = node_msg_test_on_debug;
-    node_parent->set_on_error_handle(node_msg_test_on_error);
-    node_child_1->set_on_error_handle(node_msg_test_on_error);
-    node_parent->set_on_info_log_handle(node_msg_test_on_info_log);
-    node_child_1->set_on_info_log_handle(node_msg_test_on_info_log);
+    setup_atbus_node_logger(*node_parent);
+    setup_atbus_node_logger(*node_child_1);
 
     node_parent->init(0x12345678, &conf);
 
@@ -1172,15 +1085,9 @@ CASE_TEST(atbus_node_msg, transfer_failed_cross_parents) {
     atbus::node::ptr_t node_parent_1 = atbus::node::create();
     atbus::node::ptr_t node_parent_2 = atbus::node::create();
     atbus::node::ptr_t node_child_1 = atbus::node::create();
-    node_parent_1->on_debug = node_msg_test_on_debug;
-    node_parent_2->on_debug = node_msg_test_on_debug;
-    node_child_1->on_debug = node_msg_test_on_debug;
-    node_parent_1->set_on_error_handle(node_msg_test_on_error);
-    node_child_1->set_on_error_handle(node_msg_test_on_error);
-    node_parent_2->set_on_error_handle(node_msg_test_on_error);
-    node_parent_1->set_on_info_log_handle(node_msg_test_on_info_log);
-    node_child_1->set_on_info_log_handle(node_msg_test_on_info_log);
-    node_parent_2->set_on_info_log_handle(node_msg_test_on_info_log);
+    setup_atbus_node_logger(*node_parent_1);
+    setup_atbus_node_logger(*node_parent_2);
+    setup_atbus_node_logger(*node_child_1);
 
     node_parent_1->init(0x12345678, &conf);
     node_parent_1->set_on_remove_endpoint_handle(node_msg_test_remove_endpoint_fn);
@@ -1256,11 +1163,12 @@ CASE_TEST(atbus_node_msg, transfer_failed_cross_parents) {
 }
 
 CASE_TEST(atbus_node_msg, msg_handler_get_body_name) {
-  CASE_EXPECT_EQ(0, UTIL_STRFUNC_STRCASE_CMP("Unknown", atbus::msg_handler::get_body_name(0)));
-  CASE_EXPECT_EQ(0, UTIL_STRFUNC_STRCASE_CMP("Unknown", atbus::msg_handler::get_body_name(1000000)));
+  CASE_EXPECT_EQ(0, UTIL_STRFUNC_STRCASE_CMP("Unknown", atbus::message_handler::get_body_name(0)));
+  CASE_EXPECT_EQ(0, UTIL_STRFUNC_STRCASE_CMP("Unknown", atbus::message_handler::get_body_name(1000000)));
 
-  CASE_EXPECT_EQ(0, UTIL_STRFUNC_STRCASE_CMP("Unknown", atbus::msg_handler::get_body_name(0)));
-  CASE_EXPECT_EQ(
-      atbus::protocol::msg::descriptor()->FindFieldByNumber(atbus::protocol::msg::kDataTransformReq)->full_name(),
-      std::string(atbus::msg_handler::get_body_name(atbus::protocol::msg::kDataTransformReq)));
+  CASE_EXPECT_EQ(0, UTIL_STRFUNC_STRCASE_CMP("Unknown", atbus::message_handler::get_body_name(0)));
+  CASE_EXPECT_EQ(atbus::protocol::message_body::descriptor()
+                     ->FindFieldByNumber(atbus::protocol::message_body::kDataTransformReq)
+                     ->full_name(),
+                 std::string(atbus::message_handler::get_body_name(atbus::protocol::message_body::kDataTransformReq)));
 }

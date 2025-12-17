@@ -64,7 +64,7 @@
 #endif
 #ifdef ATBUS_CHANNEL_SHM
 
-namespace atbus {
+ATBUS_MACRO_NAMESPACE_BEGIN
 namespace channel {
 
 struct shm_channel {};
@@ -507,6 +507,6 @@ ATBUS_MACRO_API void shm_stats_get_error(shm_channel *channel, shm_stats_block_e
 }
 
 }  // namespace channel
-}  // namespace atbus
+ATBUS_MACRO_NAMESPACE_END
 
 #endif

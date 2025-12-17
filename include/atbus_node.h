@@ -14,6 +14,8 @@
 #include <design_pattern/noncopyable.h>
 #include <nostd/string_view.h>
 
+#include <log/log_wrapper.h>
+
 #include <stdint.h>
 #include <bitset>
 #include <cstddef>
@@ -38,7 +40,7 @@
 
 #include "atbus_endpoint.h"
 
-namespace atbus {
+ATBUS_MACRO_NAMESPACE_BEGIN
 
 class node;
 class node_access_controller {
@@ -53,7 +55,7 @@ class node_access_controller {
 class node final : public atfw::util::design_pattern::noncopyable {
  public:
   using ptr_t = std::shared_ptr<node>;
-  using msg_builder_ref_t = ::atbus::protocol::msg &;
+  using message_builder_ref_t = ::atframework::atbus::message &;
 
   using bus_id_t = ATBUS_MACRO_BUSID_TYPE;
   struct conf_flag_t {
@@ -121,7 +123,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
     bool overwrite_listen_path;                             /** 是否覆盖已存在的listen path(unix socket) **/
 
     // ===== 缓冲区配置 =====
-    size_t msg_size;           /** max message size **/
+    size_t message_size;       /** max message size **/
     size_t recv_buffer_size;   /** 接收缓冲区，和数据包大小有关 **/
     size_t send_buffer_size;   /** 发送缓冲区限制 **/
     size_t send_buffer_number; /** 发送缓冲区静态Buffer数量限制，0则为动态缓冲区 **/
@@ -141,17 +143,13 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   struct evt_msg_t {
     // 接收消息事件回调 => 参数列表: 发起节点，来源对端，来源连接，消息体，数据地址，数据长度
-    using on_recv_msg_fn_t = std::function<int(const node &, const endpoint *, const connection *,
-                                               const ::atbus::protocol::msg &, const void *, size_t)>;
+    using on_recv_msg_fn_t =
+        std::function<int(const node &, const endpoint *, const connection *, const message &, const void *, size_t)>;
     // 发送消息失败事件或成功通知回调 => 参数列表: 发起节点，来源对端，来源连接，消息体
     // @note
     // 除非发送时标记atbus::protocol::FORWARD_DATA_FLAG_REQUIRE_RSP为true(即需要通知)，否则成功发送消息默认不回发通知
     using on_forward_response_fn_t =
-        std::function<int(const node &, const endpoint *, const connection *, const ::atbus::protocol::msg *m)>;
-    // 错误回调 => 参数列表: 发起节点，来源对端，来源连接，状态码（通常来自libuv），错误码
-    using on_error_fn_t = std::function<int(const node &, const endpoint *, const connection *, int, int)>;
-    // INFO日志回调 => 参数列表: 发起节点，来源对端，来源连接，Message
-    using on_info_log_fn_t = std::function<int(const node &, const endpoint *, const connection *, const char *)>;
+        std::function<int(const node &, const endpoint *, const connection *, const message *m)>;
     // 新对端注册事件回调 => 参数列表: 发起节点，来源对端，来源连接，返回码（通常来自libuv）
     using on_reg_fn_t = std::function<int(const node &, const endpoint *, const connection *, int)>;
     // 节点关闭事件回调 => 参数列表: 发起节点，下线原因
@@ -175,13 +173,11 @@ class node final : public atfw::util::design_pattern::noncopyable {
     // 对端离线事件回调 => 参数列表: 发起节点，新增的对端，错误码，通常是 EN_ATBUS_ERR_SUCCESS
     using on_remove_endpoint_fn_t = std::function<int(const node &, endpoint *, int)>;
     // 对端ping/pong事件回调 => 参数列表: 发起节点，ping/pong的对端，消息体，ping_data
-    using on_ping_pong_endpoint_fn_t = std::function<int(const node &, const endpoint *, const ::atbus::protocol::msg &,
-                                                         const ::atbus::protocol::ping_data &)>;
+    using on_ping_pong_endpoint_fn_t = std::function<int(const node &, const endpoint *, const message &,
+                                                         const ::atframework::atbus::protocol::ping_data &)>;
 
     on_recv_msg_fn_t on_recv_msg;
     on_forward_response_fn_t on_forward_response;
-    on_error_fn_t on_error;
-    on_info_log_fn_t on_info_log;
     on_reg_fn_t on_reg;
     on_node_down_fn_t on_node_down;
     on_node_up_fn_t on_node_up;
@@ -407,7 +403,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
    * @param conn 关联的连接
    * @return 没有检查通过的access token则返回false
    */
-  ATBUS_MACRO_API bool check_access_hash(const ::atbus::protocol::access_data &access_key,
+  ATBUS_MACRO_API bool check_access_hash(const ::atframework::atbus::protocol::access_data &access_key,
                                          atfw::util::nostd::string_view plaintext, connection *conn) const;
 
   ATBUS_MACRO_API const std::string &get_hash_code() const;
@@ -436,7 +432,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
    * @param msg_builder 消息构建器
    * @return 0或错误码
    */
-  int send_data_msg(bus_id_t tid, msg_builder_ref_t mb);
+  int send_data_message(bus_id_t tid, message_builder_ref_t mb);
 
   /**
    * @brief 发送数据消息
@@ -446,7 +442,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
    * @param conn_out 如果发送成功，导出发送连接
    * @return 0或错误码
    */
-  int send_data_msg(bus_id_t tid, msg_builder_ref_t mb, endpoint **ep_out, connection **conn_out);
+  int send_data_message(bus_id_t tid, message_builder_ref_t mb, endpoint **ep_out, connection **conn_out);
 
   /**
    * @brief 发送控制消息
@@ -454,7 +450,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
    * @param msg_builder 消息构建器
    * @return 0或错误码
    */
-  int send_ctrl_msg(bus_id_t tid, msg_builder_ref_t mb);
+  int send_ctrl_message(bus_id_t tid, message_builder_ref_t mb);
 
   /**
    * @brief 发送控制消息
@@ -464,7 +460,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
    * @param conn_out 如果发送成功，导出发送连接
    * @return 0或错误码
    */
-  int send_ctrl_msg(bus_id_t tid, msg_builder_ref_t mb, endpoint **ep_out, connection **conn_out);
+  int send_ctrl_message(bus_id_t tid, message_builder_ref_t mb, endpoint **ep_out, connection **conn_out);
 
   /**
    * @brief 发送消息
@@ -475,8 +471,8 @@ class node final : public atfw::util::design_pattern::noncopyable {
    * @param conn_out 如果发送成功，导出发送连接
    * @return 0或错误码
    */
-  int send_msg(bus_id_t tid, msg_builder_ref_t msg_builder, endpoint::get_connection_fn_t fn, endpoint **ep_out,
-               connection **conn_out);
+  int send_message(bus_id_t tid, message_builder_ref_t msg_builder, endpoint::get_connection_fn_t fn, endpoint **ep_out,
+                   connection **conn_out);
 
   channel::io_stream_conf *get_iostream_conf();
 
@@ -522,17 +518,13 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   ATBUS_MACRO_API time_t get_timer_usec() const;
 
-  ATBUS_MACRO_API void on_recv(connection *conn, ::atbus::protocol::msg &&m, int status, int errcode);
+  ATBUS_MACRO_API void on_recv(connection *conn, message &&m, int status, int errcode);
 
-  ATBUS_MACRO_API void on_recv_data(const endpoint *ep, connection *conn, const ::atbus::protocol::msg &m,
-                                    const void *buffer, size_t s) const;
+  ATBUS_MACRO_API void on_recv_data(const endpoint *ep, connection *conn, const message &m, const void *buffer,
+                                    size_t s) const;
 
-  ATBUS_MACRO_API void on_recv_forward_response(const endpoint *, const connection *, const ::atbus::protocol::msg *m);
+  ATBUS_MACRO_API void on_recv_forward_response(const endpoint *, const connection *, const message *m);
 
-  ATBUS_MACRO_API int on_error(const char *file_path, size_t line, const endpoint *, const connection *, int,
-                               int) const;
-  ATBUS_MACRO_API void on_info_log(const char *file_path, size_t line, const endpoint *, const connection *,
-                                   const char *) const;
   ATBUS_MACRO_API int on_disconnect(const connection *);
   ATBUS_MACRO_API int on_new_connection(connection *);
   ATBUS_MACRO_API int on_shutdown(int reason);
@@ -545,10 +537,10 @@ class node final : public atfw::util::design_pattern::noncopyable {
   ATBUS_MACRO_API int on_custom_rsp(const endpoint *, const connection *, bus_id_t from,
                                     const std::vector<std::pair<const void *, size_t> > &cmd_args, uint64_t seq);
 
-  ATBUS_MACRO_API int on_ping(const endpoint *ep, const ::atbus::protocol::msg &m,
-                              const ::atbus::protocol::ping_data &body);
-  ATBUS_MACRO_API int on_pong(const endpoint *ep, const ::atbus::protocol::msg &m,
-                              const ::atbus::protocol::ping_data &body);
+  ATBUS_MACRO_API int on_ping(const endpoint *ep, const message &m,
+                              const ::atframework::atbus::protocol::ping_data &body);
+  ATBUS_MACRO_API int on_pong(const endpoint *ep, const message &m,
+                              const ::atframework::atbus::protocol::ping_data &body);
 
   /**
    * @brief 关闭node
@@ -578,7 +570,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
         ATBUS_MACRO_API int pull_node_sync();
 #endif
 
-  ATBUS_MACRO_API uint64_t alloc_msg_seq();
+  ATBUS_MACRO_API uint64_t allocate_message_sequence();
 
   ATBUS_MACRO_API void add_endpoint_gc_list(const endpoint::ptr_t &ep);
 
@@ -592,12 +584,6 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   ATBUS_MACRO_API void set_on_forward_response_handle(evt_msg_t::on_forward_response_fn_t fn);
   ATBUS_MACRO_API const evt_msg_t::on_forward_response_fn_t &get_on_forward_response_handle() const;
-
-  ATBUS_MACRO_API void set_on_error_handle(evt_msg_t::on_error_fn_t fn);
-  ATBUS_MACRO_API const evt_msg_t::on_error_fn_t &get_on_error_handle() const;
-
-  ATBUS_MACRO_API void set_on_info_log_handle(evt_msg_t::on_info_log_fn_t fn);
-  ATBUS_MACRO_API const evt_msg_t::on_info_log_fn_t &get_on_info_log_handle() const;
 
   ATBUS_MACRO_API void set_on_register_handle(evt_msg_t::on_reg_fn_t fn);
   ATBUS_MACRO_API const evt_msg_t::on_reg_fn_t &get_on_register_handle() const;
@@ -631,6 +617,18 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   ATBUS_MACRO_API void set_on_pong_endpoint_handle(evt_msg_t::on_ping_pong_endpoint_fn_t fn);
   ATBUS_MACRO_API const evt_msg_t::on_ping_pong_endpoint_fn_t &get_on_pong_endpoint_handle() const;
+
+  ATFW_UTIL_FORCEINLINE const atfw::util::log::log_wrapper::ptr_t &get_logger() const noexcept { return logger_; }
+
+  ATBUS_MACRO_API void set_logger(atfw::util::log::log_wrapper::ptr_t logger) noexcept;
+
+  ATFW_UTIL_FORCEINLINE bool is_debug_message_verbose_enabled() const noexcept {
+    return logger_enable_debug_message_verbose_;
+  }
+
+  ATFW_UTIL_FORCEINLINE void enable_debug_message_verbose() noexcept { logger_enable_debug_message_verbose_ = true; }
+
+  ATFW_UTIL_FORCEINLINE void disable_debug_message_verbose() noexcept { logger_enable_debug_message_verbose_ = false; }
 
   // inner API, please don't use it if you don't known what will happen
   ATBUS_MACRO_API void ref_object(void *);
@@ -701,10 +699,10 @@ class node final : public atfw::util::design_pattern::noncopyable {
   std::unique_ptr<channel::io_stream_channel, io_stream_channel_del> iostream_channel_;
   std::unique_ptr<channel::io_stream_conf> iostream_conf_;
   evt_msg_t event_msg_;
-  using self_data_msgs_t = std::list<std::vector<unsigned char> >;
-  using self_cmd_msgs_t = std::list<std::vector<unsigned char> >;
-  self_data_msgs_t self_data_msgs_;
-  self_cmd_msgs_t self_cmd_msgs_;
+  using self_data_messages_t = std::list<message>;
+  using self_command_messages_t = std::list<message>;
+  self_data_messages_t self_data_messages_;
+  self_command_messages_t self_command_messages_;
 
   // ============ 定时器 ============
   struct evt_timer_t {
@@ -746,29 +744,109 @@ class node final : public atfw::util::design_pattern::noncopyable {
   stat_info_t stat_;
   ::atfw::util::random::xoshiro256_starstar random_engine_;
 
-  // 调试辅助函数
- public:
-  void (*on_debug)(const char *file_path, size_t line, const node &, const endpoint *, const connection *,
-                   const ::atbus::protocol::msg *, const char *fmt, ...);
-  friend struct msg_handler;
-};
-}  // namespace atbus
+  atfw::util::log::log_wrapper::ptr_t logger_;
+  bool logger_enable_debug_message_verbose_;
 
-#define ATBUS_FUNC_NODE_ERROR(n, ep, conn, status, errorcode) \
-  (n).on_error(__FILE__, __LINE__, (ep), (conn), (status), (errorcode))
-#define ATBUS_FUNC_NODE_INFO(n, ep, conn, msg) (n).on_info_log(__FILE__, __LINE__, (ep), (conn), (msg))
+ public:
+  friend struct message_handler;
+};
+
+namespace details {
+ATFW_UTIL_FORCEINLINE uint64_t __log_get_node_id(const node &n) noexcept { return n.get_id(); }
+ATFW_UTIL_FORCEINLINE uint64_t __log_get_endpoint_id(const endpoint *ep) noexcept {
+  if (ep == nullptr) {
+    return 0;
+  }
+
+  return ep->get_id();
+}
+ATFW_UTIL_FORCEINLINE std::string __log_get_message_debug_head(const message *m) noexcept {
+  if (m == nullptr) {
+    return {};
+  }
+
+  return m->get_head_debug_string();
+}
+
+ATFW_UTIL_FORCEINLINE std::string __log_get_message_debug_body(const message *m) noexcept {
+  if (m == nullptr) {
+    return {};
+  }
+
+  return m->get_body_debug_string();
+}
+}  // namespace details
+ATBUS_MACRO_NAMESPACE_END
+
 #define ATBUS_FUNC_NODE_FATAL_SHUTDOWN(n, ep, conn, status, errorcode) \
   (n).fatal_shutdown(__FILE__, __LINE__, (ep), (conn), (status), (errorcode))
 
 #ifdef _MSC_VER
-#  define ATBUS_FUNC_NODE_DEBUG(n, ep, conn, m, fmt, ...)                         \
-    if ((n).on_debug) {                                                           \
-      (n).on_debug(__FILE__, __LINE__, (n), (ep), (conn), (m), fmt, __VA_ARGS__); \
+#  define ATBUS_FUNC_NODE_ERROR(n, ep, conn, status, errorcode, fmt, ...)                                              \
+    if ((n).get_logger()) {                                                                                            \
+      FWINSTLOGERROR(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}, status: {}, error_code: {}: " fmt, \
+                     ::atframework::atbus::details::__log_get_node_id(n),                                              \
+                     ::atframework::atbus::details::__log_get_endpoint_id(ep), reinterpret_cast<const void *>(conn),   \
+                     (status), (errorcode), __VA_ARGS__)                                                               \
+    }
+
+#  define ATBUS_FUNC_NODE_INFO(n, ep, conn, fmt, ...)                                                               \
+    if ((n).get_logger()) {                                                                                         \
+      FWINSTLOGINFO(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}: " fmt,                           \
+                    ::atframework::atbus::details::__log_get_node_id(n),                                            \
+                    ::atframework::atbus::details::__log_get_endpoint_id(ep), reinterpret_cast<const void *>(conn), \
+                    __VA_ARGS__)                                                                                    \
+    }
+
+#  define ATBUS_FUNC_NODE_DEBUG(n, ep, conn, m, fmt, ...)                                                              \
+    if ((n).get_logger()) {                                                                                            \
+      if ((n).is_debug_message_verbose_enabled()) {                                                                    \
+        FWINSTLOGDEBUG(*(n).get_logger(),                                                                              \
+                       "node={:#x}, endpoint={:#x}, connection={}: " fmt "\n\tmessage head: {}\n\tmessage body: {}",   \
+                       ::atframework::atbus::details::__log_get_node_id(n),                                            \
+                       ::atframework::atbus::details::__log_get_endpoint_id(ep), reinterpret_cast<const void *>(conn), \
+                       __VA_ARGS__, ::atframework::atbus::details::__log_get_message_debug_head(m),                    \
+                       ::atframework::atbus::details::__log_get_message_debug_body(m))                                 \
+      } else {                                                                                                         \
+        FWINSTLOGDEBUG(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}: " fmt,                           \
+                       ::atframework::atbus::details::__log_get_node_id((n)),                                          \
+                       ::atframework::atbus::details::__log_get_endpoint_id((ep)),                                     \
+                       reinterpret_cast<const void *>(conn), fmt, __VA_ARGS__)                                         \
+      }                                                                                                                \
     }
 #else
-#  define ATBUS_FUNC_NODE_DEBUG(n, ep, conn, m, fmt, args...)                \
-    if ((n).on_debug) {                                                      \
-      (n).on_debug(__FILE__, __LINE__, (n), (ep), (conn), (m), fmt, ##args); \
+
+#  define ATBUS_FUNC_NODE_ERROR(n, ep, conn, status, errorcode, fmt, args...)                                          \
+    if ((n).get_logger()) {                                                                                            \
+      FWINSTLOGERROR(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}, status: {}, error_code: {}: " fmt, \
+                     ::atframework::atbus::details::__log_get_node_id(n),                                              \
+                     ::atframework::atbus::details::__log_get_endpoint_id(ep), reinterpret_cast<const void *>(conn),   \
+                     (status), (errorcode), ##args)                                                                    \
+    }
+
+#  define ATBUS_FUNC_NODE_INFO(n, ep, conn, fmt, args...)                                                           \
+    if ((n).get_logger()) {                                                                                         \
+      FWINSTLOGINFO(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}: " fmt,                           \
+                    ::atframework::atbus::details::__log_get_node_id(n),                                            \
+                    ::atframework::atbus::details::__log_get_endpoint_id(ep), reinterpret_cast<const void *>(conn), \
+                    ##args)                                                                                         \
+    }
+
+#  define ATBUS_FUNC_NODE_DEBUG(n, ep, conn, m, fmt, args...)                                                          \
+    if ((n).get_logger()) {                                                                                            \
+      if ((n).is_debug_message_verbose_enabled()) {                                                                    \
+        FWINSTLOGDEBUG(*(n).get_logger(),                                                                              \
+                       "node={:#x}, endpoint={:#x}, connection={}: " fmt "\n\tmessage head: {}\n\tmessage body: {}",   \
+                       ::atframework::atbus::details::__log_get_node_id(n),                                            \
+                       ::atframework::atbus::details::__log_get_endpoint_id(ep), reinterpret_cast<const void *>(conn), \
+                       ##args, ::atframework::atbus::details::__log_get_message_debug_head(m),                         \
+                       ::atframework::atbus::details::__log_get_message_debug_body(m))                                 \
+      } else {                                                                                                         \
+        FWINSTLOGDEBUG(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}: " fmt,                           \
+                       ::atframework::atbus::details::__log_get_node_id((n)),                                          \
+                       ::atframework::atbus::details::__log_get_endpoint_id((ep)),                                     \
+                       reinterpret_cast<const void *>(conn), ##args)                                                   \
+      }                                                                                                                \
     }
 #endif
 

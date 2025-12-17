@@ -50,7 +50,8 @@
 
 #if !(defined(ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD) && ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD) && \
     defined(UTIL_CONFIG_THREAD_LOCAL)
-namespace atbus {
+
+ATBUS_MACRO_NAMESPACE_BEGIN
 namespace channel {
 namespace detail {
 static char *io_stream_get_msg_buffer() {
@@ -59,11 +60,11 @@ static char *io_stream_get_msg_buffer() {
 }
 }  // namespace detail
 }  // namespace channel
-}  // namespace atbus
+ATBUS_MACRO_NAMESPACE_END
 #else
 
 #  include <pthread.h>
-namespace atbus {
+ATBUS_MACRO_NAMESPACE_BEGIN
 namespace channel {
 namespace detail {
 static pthread_once_t gt_io_stream_get_msg_buffer_tls_once = PTHREAD_ONCE_INIT;
@@ -102,11 +103,11 @@ struct gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t {
 static gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t gt_io_stream_get_msg_buffer_tls_main_thread_dtor;
 }  // namespace detail
 }  // namespace channel
-}  // namespace atbus
+ATBUS_MACRO_NAMESPACE_END
 
 #endif
 
-namespace atbus {
+ATBUS_MACRO_NAMESPACE_BEGIN
 namespace channel {
 
 #ifdef ATBUS_MACRO_ENABLE_STATIC_ASSERT
@@ -325,8 +326,8 @@ void io_stream_init_configure(io_stream_conf *conf) {
 
   conf->send_buffer_max_size = 0;
   conf->send_buffer_limit_size =
-      ATBUS_MACRO_MESSAGE_LIMIT +
-      ::atbus::detail::buffer_block::padding_size(sizeof(uv_write_t) + sizeof(uint32_t) + 16);  // 预留header长度
+      ATBUS_MACRO_MESSAGE_LIMIT + ::atframework::atbus::detail::buffer_block::padding_size(
+                                      sizeof(uv_write_t) + sizeof(uint32_t) + 16);  // 预留header长度
 
   conf->recv_buffer_max_size =
       ATBUS_MACRO_MESSAGE_LIMIT * 2;  // 最大接收缓冲区2个最大包体够了，一般一个正在处理的和一个正在接收的
@@ -555,8 +556,8 @@ static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const 
     while (buff_left_len > sizeof(uint32_t)) {
       uint64_t msg_len = 0;
       // 前4 字节为32位hash
-      size_t vint_len =
-          ::atbus::detail::fn::read_vint(msg_len, buff_start + sizeof(uint32_t), buff_left_len - sizeof(uint32_t));
+      size_t vint_len = ::atframework::atbus::detail::fn::read_vint(msg_len, buff_start + sizeof(uint32_t),
+                                                                    buff_left_len - sizeof(uint32_t));
 
       // 剩余数据不足以解动态长度整数，直接中断退出
       if (0 == vint_len) {
@@ -634,7 +635,7 @@ static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const 
   conn_raw_ptr->read_buffers.front(data, sread, swrite);
   if (nullptr != data && 0 == swrite) {
     channel->error_code = 0;
-    data = ::atbus::detail::fn::buffer_prev(data, sread);
+    data = ::atframework::atbus::detail::fn::buffer_prev(data, sread);
 
     // 32位Hash校验和
     uint32_t check_hash = atfw::util::hash::murmur_hash3_x86_32(reinterpret_cast<char *>(data) + sizeof(uint32_t),
@@ -1742,7 +1743,7 @@ static void io_stream_on_written_fn(uv_write_t *req, int status) {
       // skip 32bits hash
       buff_start += sizeof(uint32_t);
       uint64_t out;
-      size_t vint_len = ::atbus::detail::fn::read_vint(out, buff_start, left_length - sizeof(uint32_t));
+      size_t vint_len = ::atframework::atbus::detail::fn::read_vint(out, buff_start, left_length - sizeof(uint32_t));
       // skip varint
       buff_start += vint_len;
 
@@ -1802,7 +1803,7 @@ int io_stream_try_write(io_stream_connection *connection) {
   // If this connection is closing, it's maybe reset by peer, write data may cause SIGPIPE
   if (ATBUS_CHANNEL_IOS_CHECK_FLAG(connection->flags, io_stream_connection::EN_CF_CLOSING)) {
     while (!connection->write_buffers.empty()) {
-      ::atbus::detail::buffer_block *bb = connection->write_buffers.front();
+      ::atframework::atbus::detail::buffer_block *bb = connection->write_buffers.front();
       size_t nwrite = bb->raw_size();
       // nwrite = sizeof(uv_write_t) + [data block...]
       // data block = 32bits hash+vint+data length
@@ -1812,7 +1813,7 @@ int io_stream_try_write(io_stream_connection *connection) {
         // skip 32bits hash
         buff_start += sizeof(uint32_t);
         uint64_t out;
-        size_t vint_len = ::atbus::detail::fn::read_vint(out, buff_start, left_length - sizeof(uint32_t));
+        size_t vint_len = ::atframework::atbus::detail::fn::read_vint(out, buff_start, left_length - sizeof(uint32_t));
         // skip varint
         buff_start += vint_len;
 
@@ -1842,12 +1843,12 @@ int io_stream_try_write(io_stream_connection *connection) {
   if (connection->write_buffers.limit().cost_number_ > 1 &&
       connection->write_buffers.front()->raw_size() <= ATBUS_MACRO_DATA_SMALL_SIZE) {
     size_t available_bytes = ATBUS_MACRO_TLS_MERGE_BUFFER_LEN;
-    char *buffer_start = ::atbus::channel::detail::io_stream_get_msg_buffer();
+    char *buffer_start = ::atframework::atbus::channel::detail::io_stream_get_msg_buffer();
     char *free_buffer = buffer_start;
 
-    ::atbus::detail::buffer_block *preview_bb = nullptr;
+    ::atframework::atbus::detail::buffer_block *preview_bb = nullptr;
     while (!connection->write_buffers.empty() && available_bytes > 0) {
-      ::atbus::detail::buffer_block *bb = connection->write_buffers.front();
+      ::atframework::atbus::detail::buffer_block *bb = connection->write_buffers.front();
       if (nullptr == bb || bb->raw_size() > available_bytes) {
         break;
       }
@@ -1860,7 +1861,7 @@ int io_stream_try_write(io_stream_connection *connection) {
 
       // first sizeof(uv_write_t) is req, the rest is 32bits hash+varint+len
       size_t bb_size = bb->raw_size() - sizeof(uv_write_t);
-      memcpy(free_buffer, ::atbus::detail::fn::buffer_next(bb->raw_data(), sizeof(uv_write_t)), bb_size);
+      memcpy(free_buffer, ::atframework::atbus::detail::fn::buffer_next(bb->raw_data(), sizeof(uv_write_t)), bb_size);
       free_buffer += bb_size;
       available_bytes -= bb_size;
 
@@ -1877,12 +1878,12 @@ int io_stream_try_write(io_stream_connection *connection) {
     assert(free_buffer > buffer_start);
     assert(static_cast<size_t>(free_buffer - buffer_start) <= ATBUS_MACRO_TLS_MERGE_BUFFER_LEN);
 
-    data = ::atbus::detail::fn::buffer_next(data, sizeof(uv_write_t));
+    data = ::atframework::atbus::detail::fn::buffer_next(data, sizeof(uv_write_t));
     // copy back merged data
     memcpy(data, buffer_start, static_cast<size_t>(free_buffer - buffer_start));
   }
 
-  ::atbus::detail::buffer_block *writing_block = connection->write_buffers.front();
+  ::atframework::atbus::detail::buffer_block *writing_block = connection->write_buffers.front();
 
   // should always exist, empty will cause return before
   if (nullptr == writing_block) {
@@ -1935,7 +1936,7 @@ int io_stream_send(io_stream_connection *connection, const void *buf, size_t len
   // push back message
   if (nullptr != buf && len > 0) {
     char vint[16];
-    size_t vint_len = ::atbus::detail::fn::write_vint(len, vint, sizeof(vint));
+    size_t vint_len = ::atframework::atbus::detail::fn::write_vint(len, vint, sizeof(vint));
     // 计算需要的内存块大小（uv_write_t的大小+32bits hash+vint的大小+len）
     size_t total_buffer_size = sizeof(uv_write_t) + sizeof(uint32_t) + vint_len + len;
 
@@ -2011,4 +2012,4 @@ void io_stream_show_channel(io_stream_channel *channel, std::ostream &out) {
   }
 }
 }  // namespace channel
-}  // namespace atbus
+ATBUS_MACRO_NAMESPACE_END

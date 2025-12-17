@@ -23,9 +23,10 @@
 #include "atbus_node.h"  // NOLINT: build/include_subdir
 #include "detail/buffer.h"
 
-#include "libatbus_protocol.h"  // NOLINT: build/include_subdir
+#include "atbus_message_handler.h"  // NOLINT: build/include_subdir
+#include "libatbus_protocol.h"      // NOLINT: build/include_subdir
 
-namespace atbus {
+ATBUS_MACRO_NAMESPACE_BEGIN
 namespace detail {
 
 #if !defined(_WIN32)
@@ -102,7 +103,8 @@ connection::connection()
       address_lock_(0),
 #endif
       owner_(nullptr),
-      binding_(nullptr) {
+      binding_(nullptr),
+      conn_context_(connection_context::create()) {
   flags_.reset();
   memset(&conn_data_, 0, sizeof(conn_data_));
   memset(&stat_, 0, sizeof(stat_));
@@ -210,7 +212,7 @@ ATBUS_MACRO_API int connection::listen(const char *addr_str) {
     }
 
     if (res < 0) {
-      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, 0);
+      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, 0, "listen to mem address {} failed", addr_str);
       return res;
     }
 
@@ -239,7 +241,7 @@ ATBUS_MACRO_API int connection::listen(const char *addr_str) {
     }
 
     if (res < 0) {
-      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, 0);
+      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, 0, "listen to shm address {} failed", addr_str);
       return res;
     }
 
@@ -266,7 +268,7 @@ ATBUS_MACRO_API int connection::listen(const char *addr_str) {
     if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix", address_.scheme.c_str(), 4)) {
       if (false == atfw::util::file_system::is_abs_path(address_.host.c_str())) {
         std::string abs_host_path = atfw::util::file_system::get_abs_path(address_.host.c_str());
-        size_t max_addr_size = ::atbus::channel::io_stream_get_max_unix_socket_length();
+        size_t max_addr_size = ::atframework::atbus::channel::io_stream_get_max_unix_socket_length();
         if (max_addr_size > 0 && abs_host_path.size() <= max_addr_size) {
           address_.host = abs_host_path;
         }
@@ -282,7 +284,8 @@ ATBUS_MACRO_API int connection::listen(const char *addr_str) {
         std::string lock_path = address_.host + ".lock";
         int lock_fd = detail::try_flock_file(lock_path);
         if (lock_fd < 0) {
-          ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED, errno);
+          ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED, errno,
+                                "listen {} and lock {} failed", addr_str, lock_path.c_str());
           return EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED;
         }
 
@@ -293,7 +296,8 @@ ATBUS_MACRO_API int connection::listen(const char *addr_str) {
 
       if (atfw::util::file_system::is_exist(address_.host.c_str())) {
         if (false == atfw::util::file_system::remove(address_.host.c_str())) {
-          ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_PIPE_REMOVE_FAILED, 0);
+          ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_PIPE_REMOVE_FAILED, 0,
+                                "listen {} and remove old file {} failed", addr_str, address_.host.c_str());
           return EN_ATBUS_ERR_PIPE_REMOVE_FAILED;
         }
       }
@@ -301,7 +305,8 @@ ATBUS_MACRO_API int connection::listen(const char *addr_str) {
 
     detail::connection_async_data *async_data = new detail::connection_async_data(owner_);
     if (nullptr == async_data) {
-      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_MALLOC, 0);
+      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_MALLOC, 0,
+                            "listen {} but malloc async data failed", addr_str);
       return EN_ATBUS_ERR_MALLOC;
     }
     connection::ptr_t self = watch();
@@ -310,7 +315,8 @@ ATBUS_MACRO_API int connection::listen(const char *addr_str) {
     set_status(state_t::CONNECTING);
     int res = channel::io_stream_listen(owner_->get_iostream_channel(), address_, iostream_on_listen_cb, async_data, 0);
     if (res < 0) {
-      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, owner_->get_iostream_channel()->error_code);
+      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, owner_->get_iostream_channel()->error_code,
+                            "listen {} failed", addr_str);
       delete async_data;
     }
 
@@ -342,7 +348,7 @@ ATBUS_MACRO_API int connection::connect(const char *addr_str) {
     }
 
     if (res < 0) {
-      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, 0);
+      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, 0, "connect to address {} failed", addr_str);
       return res;
     }
 
@@ -379,7 +385,7 @@ ATBUS_MACRO_API int connection::connect(const char *addr_str) {
     }
 
     if (res < 0) {
-      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, 0);
+      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, 0, "connect to address {} failed", addr_str);
       return res;
     }
 
@@ -421,7 +427,8 @@ ATBUS_MACRO_API int connection::connect(const char *addr_str) {
 
     detail::connection_async_data *async_data = new detail::connection_async_data(owner_);
     if (nullptr == async_data) {
-      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_MALLOC, 0);
+      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_MALLOC, 0,
+                            "connect {} but malloc async data failed", addr_str);
       return EN_ATBUS_ERR_MALLOC;
     }
     connection::ptr_t self = watch();
@@ -431,7 +438,8 @@ ATBUS_MACRO_API int connection::connect(const char *addr_str) {
     int res =
         channel::io_stream_connect(owner_->get_iostream_channel(), address_, iostream_on_connected_cb, async_data, 0);
     if (res < 0) {
-      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, owner_->get_iostream_channel()->error_code);
+      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, owner_->get_iostream_channel()->error_code,
+                            "connect {} failed", addr_str);
       delete async_data;
     }
 
@@ -453,7 +461,7 @@ ATBUS_MACRO_API int connection::disconnect() {
     if (nullptr != owner_) {
       int res = conn_data_.free_fn(*owner_, *this);
       if (res < 0) {
-        ATBUS_FUNC_NODE_DEBUG(*owner_, get_binding(), this, nullptr, "destroy connection failed, res: %d", res);
+        ATBUS_FUNC_NODE_DEBUG(*owner_, get_binding(), this, nullptr, "destroy connection failed, res: {}", res);
       }
     }
   }
@@ -540,6 +548,8 @@ ATBUS_MACRO_API void connection::remove_owner_checker(const timer_desc_ls<ptr_t>
   }
 }
 
+ATBUS_MACRO_API connection_context &connection::get_connection_context() noexcept { return *conn_context_; }
+
 ATBUS_MACRO_API void connection::set_status(state_t::type v) {
   if (state_ == v) {
     return;
@@ -577,9 +587,14 @@ ATBUS_MACRO_API void connection::iostream_on_listen_cb(channel::io_stream_channe
     return;
   }
 
+  gsl::string_view addr_str;
+  if (nullptr != connection) {
+    addr_str = connection->addr.address;
+  }
+
   if (status < 0) {
     ATBUS_FUNC_NODE_ERROR(*async_data->owner_node, async_data->conn->binding_, async_data->conn.get(), status,
-                          channel->error_code);
+                          channel->error_code, "channel listen to {} failed", addr_str);
     async_data->conn->set_status(state_t::DISCONNECTED);
     ATBUS_FUNC_NODE_INFO(*async_data->conn->owner_, async_data->conn->binding_, async_data->conn.get(),
                          "channel disconnected(listen failed)");
@@ -611,9 +626,13 @@ ATBUS_MACRO_API void connection::iostream_on_connected_cb(channel::io_stream_cha
     return;
   }
 
+  gsl::string_view addr_str;
+  if (nullptr != connection) {
+    addr_str = connection->addr.address;
+  }
   if (status < 0) {
     ATBUS_FUNC_NODE_ERROR(*async_data->owner_node, async_data->conn->binding_, async_data->conn.get(), status,
-                          channel->error_code);
+                          channel->error_code, "channel connect to {} failed", addr_str);
     // 连接失败，重置连接
     async_data->conn->reset();
 
@@ -662,14 +681,16 @@ ATBUS_MACRO_API void connection::iostream_on_recv_cb(channel::io_stream_channel 
     if (nullptr != conn && (UV_EOF == channel->error_code || UV_ECONNRESET == channel->error_code)) {
       conn->flags_.set(flag_t::PEER_CLOSED, true);
     }
-    ::atbus::protocol::msg m;
+
+    ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
+    arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
+    message m{arena_options};
     _this->on_recv(conn, std::move(m), status, channel->error_code);
     return;
   }
 
   // connection 已经释放并解除绑定，这时候会先把剩下未处理的消息处理完再关闭
   if (nullptr == conn) {
-    // ATBUS_FUNC_NODE_ERROR(*_this, nullptr, conn, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_PARAMS);
     return;
   }
 
@@ -679,19 +700,16 @@ ATBUS_MACRO_API void connection::iostream_on_recv_cb(channel::io_stream_channel 
 
   // unpack
   gsl::span<const unsigned char> msg_buffer{static_cast<const unsigned char *>(buffer), s};
-  protocol::msg *m;
   ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
   arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
-  ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena arena(arena_options);
+  message m{arena_options};
 
-  if (false == unpack(*conn, m, arena, msg_buffer)) {
+  if (false == unpack(*conn, m, msg_buffer)) {
     return;
   }
 
-  assert(m);
-
   if (nullptr != _this) {
-    _this->on_recv(conn, std::move(*m), status, channel->error_code);
+    _this->on_recv(conn, std::move(m), status, channel->error_code);
   }
 }
 
@@ -763,22 +781,24 @@ ATBUS_MACRO_API void connection::iostream_on_written(channel::io_stream_channel 
       ++conn->stat_.push_failed_times;
       conn->stat_.push_failed_size += s;
 
-      ATBUS_FUNC_NODE_DEBUG(*n, conn->get_binding(), conn, nullptr, "write data to %p failed, err=%d, status=%d",
-                            conn_ios, channel->error_code, status);
+      ATBUS_FUNC_NODE_DEBUG(*n, conn->get_binding(), conn, nullptr, "write data to {} failed, err={}, status={}",
+                            reinterpret_cast<void *>(conn_ios), channel->error_code, status);
     } else {
-      ATBUS_FUNC_NODE_DEBUG(*n, nullptr, conn, nullptr, "write data to %p failed, err=%d, status=%d", conn_ios,
-                            channel->error_code, status);
+      ATBUS_FUNC_NODE_DEBUG(*n, nullptr, conn, nullptr, "write data to {} failed, err={}, status={}",
+                            reinterpret_cast<void *>(conn_ios), channel->error_code, status);
     }
 
-    ATBUS_FUNC_NODE_ERROR(*n, nullptr, conn, status, channel->error_code);
+    ATBUS_FUNC_NODE_ERROR(*n, nullptr, conn, status, channel->error_code, "write data to {} failed",
+                          conn_ios->addr.address);
   } else {
     if (nullptr != conn) {
       ++conn->stat_.push_success_times;
       conn->stat_.push_success_size += s;
 
-      ATBUS_FUNC_NODE_DEBUG(*n, conn->get_binding(), conn, nullptr, "write data to %p success", conn_ios);
+      ATBUS_FUNC_NODE_DEBUG(*n, conn->get_binding(), conn, nullptr, "write data to {} success",
+                            reinterpret_cast<void *>(conn_ios));
     } else {
-      ATBUS_FUNC_NODE_DEBUG(*n, nullptr, conn, nullptr, "write data to %p success", conn_ios);
+      ATBUS_FUNC_NODE_DEBUG(*n, nullptr, conn, nullptr, "write data to {} success", reinterpret_cast<void *>(conn_ios));
     }
   }
 }
@@ -789,7 +809,8 @@ ATBUS_MACRO_API int connection::shm_proc_fn(node &n, connection &conn, time_t /*
   size_t left_times = static_cast<size_t>(n.get_conf().loop_times);
   detail::buffer_block *static_buffer = n.get_temp_static_buffer();
   if (nullptr == static_buffer) {
-    return ATBUS_FUNC_NODE_ERROR(n, nullptr, &conn, EN_ATBUS_ERR_NOT_INITED, 0);
+    ATBUS_FUNC_NODE_ERROR(n, nullptr, &conn, static_cast<int>(EN_ATBUS_ERR_NOT_INITED), 0, "node not inited");
+    return EN_ATBUS_ERR_NOT_INITED;
   }
 
   while (left_times-- > 0) {
@@ -804,7 +825,10 @@ ATBUS_MACRO_API int connection::shm_proc_fn(node &n, connection &conn, time_t /*
     // 回调收到数据事件
     if (res < 0) {
       ret = res;
-      ::atbus::protocol::msg m;
+      ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
+      arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
+      message m{arena_options};
+
       n.on_recv(&conn, std::move(m), res, res);
       break;
     } else {
@@ -814,17 +838,15 @@ ATBUS_MACRO_API int connection::shm_proc_fn(node &n, connection &conn, time_t /*
 
       // unpack
       gsl::span<const unsigned char> msg_buffer{static_cast<const unsigned char *>(static_buffer->data()), recv_len};
-      protocol::msg *m;
       ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
       arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
-      ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena arena(arena_options);
-      if (false == unpack(conn, m, arena, msg_buffer)) {
+      message m{arena_options};
+
+      if (false == unpack(conn, m, msg_buffer)) {
         continue;
       }
 
-      assert(m);
-
-      n.on_recv(&conn, std::move(*m), res, res);
+      n.on_recv(&conn, std::move(m), res, res);
       ++ret;
     }
   }
@@ -855,7 +877,8 @@ ATBUS_MACRO_API int connection::mem_proc_fn(node &n, connection &conn, time_t /*
   size_t left_times = static_cast<size_t>(n.get_conf().loop_times);
   detail::buffer_block *static_buffer = n.get_temp_static_buffer();
   if (nullptr == static_buffer) {
-    return ATBUS_FUNC_NODE_ERROR(n, nullptr, &conn, EN_ATBUS_ERR_NOT_INITED, 0);
+    ATBUS_FUNC_NODE_ERROR(n, nullptr, &conn, EN_ATBUS_ERR_NOT_INITED, 0, "node not inited");
+    return EN_ATBUS_ERR_NOT_INITED;
   }
 
   while (left_times-- > 0) {
@@ -870,7 +893,10 @@ ATBUS_MACRO_API int connection::mem_proc_fn(node &n, connection &conn, time_t /*
     // 回调收到数据事件
     if (res < 0) {
       ret = res;
-      ::atbus::protocol::msg m;
+      ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
+      arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
+      message m{arena_options};
+
       n.on_recv(&conn, std::move(m), res, res);
       break;
     } else {
@@ -880,16 +906,14 @@ ATBUS_MACRO_API int connection::mem_proc_fn(node &n, connection &conn, time_t /*
 
       // unpack
       gsl::span<const unsigned char> msg_buffer{static_cast<const unsigned char *>(static_buffer->data()), recv_len};
-      protocol::msg *m;
       ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
       arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
-      ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena arena(arena_options);
-      if (false == unpack(conn, m, arena, msg_buffer)) {
+      message m{arena_options};
+      if (false == unpack(conn, m, msg_buffer)) {
         continue;
       }
 
-      assert(m);
-      n.on_recv(&conn, std::move(*m), res, res);
+      n.on_recv(&conn, std::move(m), res, res);
       ++ret;
     }
   }
@@ -929,35 +953,29 @@ ATBUS_MACRO_API int connection::ios_push_fn(connection &conn, const void *buffer
   return ret;
 }
 
-ATBUS_MACRO_API bool connection::unpack(connection &conn, ::atbus::msg_t *&m,
-                                        ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena &arena,
-                                        gsl::span<const unsigned char> in) {
-#if defined(PROTOBUF_VERSION) && PROTOBUF_VERSION >= 5027000
-  m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::Create<atbus::protocol::msg>(&arena);
-#else
-  m = ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena::CreateMessage<atbus::protocol::msg>(&arena);
-#endif
-  if (nullptr == m) {
-    ATBUS_FUNC_NODE_ERROR(*conn.owner_, conn.binding_, &conn, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC);
-    return false;
-  }
-
+ATBUS_MACRO_API bool connection::unpack(connection &conn, message &m, gsl::span<const unsigned char> in) {
   // unpack
-  if (false == m->ParseFromArray(reinterpret_cast<const void *>(&in[0]), static_cast<int>(in.size()))) {
-    ATBUS_FUNC_NODE_DEBUG(*conn.owner_, conn.binding_, &conn, m, "%s", m->InitializationErrorString().c_str());
-    ATBUS_FUNC_NODE_ERROR(*conn.owner_, conn.binding_, &conn, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_UNPACK);
+  int res = message_handler::unpack_message(conn.get_connection_context(), m, in);
+  if (res != EN_ATBUS_ERR_SUCCESS) {
+    if (res == EN_ATBUS_ERR_UNPACK) {
+      ATBUS_FUNC_NODE_DEBUG(*conn.owner_, conn.binding_, &conn, &m, "{}", m.get_unpack_error_message());
+    }
+
+    ATBUS_FUNC_NODE_ERROR(*conn.owner_, conn.binding_, &conn, EN_ATBUS_ERR_UNPACK, res, "unpack message failed: {}",
+                          m.get_unpack_error_message());
     return false;
   }
 
-  if (false == m->has_head() || atbus::protocol::msg::MESSAGE_BODY_NOT_SET == m->message_body_case()) {
-    ATBUS_FUNC_NODE_ERROR(*conn.owner_, conn.binding_, &conn, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_BAD_DATA);
+  if (message_body_type::MESSAGE_TYPE_NOT_SET == m.get_body_type()) {
+    ATBUS_FUNC_NODE_ERROR(*conn.owner_, conn.binding_, &conn, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_BAD_DATA,
+                          "unpack message failed: {}", "body type not set");
     return false;
   }
 
   if (nullptr != conn.binding_ && 0 != conn.binding_->get_id()) {
-    m->mutable_head()->set_source_bus_id(conn.binding_->get_id());
+    m.mutable_head().set_source_bus_id(conn.binding_->get_id());
   }
 
   return true;
 }
-}  // namespace atbus
+ATBUS_MACRO_NAMESPACE_END

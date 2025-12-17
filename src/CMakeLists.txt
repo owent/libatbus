@@ -10,19 +10,23 @@ set(PROJECT_LIB_SRC_LIST
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/detail/libatbus_error.h"
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/atbus_connection.h"
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/atbus_endpoint.h"
-    "${PROJECT_LIBATBUS_ROOT_INC_DIR}/atbus_msg_handler.h"
+    "${PROJECT_LIBATBUS_ROOT_INC_DIR}/atbus_message_handler.h"
+    "${PROJECT_LIBATBUS_ROOT_INC_DIR}/atbus_connection_context.h"
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/atbus_node.h"
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/libatbus.h"
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/libatbus_protocol.h"
     "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/detail/buffer.cpp"
+    "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/detail/libatbus_error.cpp"
     "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/atbus_connection.cpp"
     "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/atbus_endpoint.cpp"
-    "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/atbus_msg_handler.cpp"
+    "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/atbus_message_handler.cpp"
+    "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/atbus_connection_context.cpp"
     "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/atbus_node.cpp"
     "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/channel_io_stream.cpp"
     "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/channel_mem.cpp"
     "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/channel_shm.cpp"
-    "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/channel_utility.cpp")
+    "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/channel_utility.cpp"
+    "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/libatbus_protocol.cpp")
 
 source_group(TREE "${PROJECT_SOURCE_DIR}" FILES ${PROJECT_LIB_SRC_LIST})
 

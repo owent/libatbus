@@ -17,7 +17,7 @@
 
 #include "libatbus_protocol.h"  // NOLINT: build/include_subdir
 
-namespace atbus {
+ATBUS_MACRO_NAMESPACE_BEGIN
 ATBUS_MACRO_API endpoint_subnet_conf::endpoint_subnet_conf() : id_prefix(0), mask_bits(0) {}
 ATBUS_MACRO_API endpoint_subnet_conf::endpoint_subnet_conf(ATBUS_MACRO_BUSID_TYPE a, uint32_t b)
     : id_prefix(a), mask_bits(b) {}
@@ -844,4 +844,4 @@ ATBUS_MACRO_API bool endpoint::contain(const std::vector<endpoint_subnet_conf> &
 
   return false;
 }
-}  // namespace atbus
+ATBUS_MACRO_NAMESPACE_END

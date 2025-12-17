@@ -1,5 +1,5 @@
-//
-// Created by 欧文韬 on 2015/8/11.
+// Copyright 2025 atframework
+// Created by owent on 2015/8/11.
 //
 
 #include <assert.h>
@@ -25,7 +25,7 @@ static_assert(std::is_pod<atbus::detail::buffer_block>::value, "buffer_block mus
 #  endif
 #endif
 
-namespace atbus {
+ATBUS_MACRO_NAMESPACE_BEGIN
 namespace detail {
 
 namespace fn {
@@ -980,4 +980,4 @@ ATBUS_MACRO_API void buffer_manager::set_mode(size_t max_size, size_t max_number
 ATBUS_MACRO_API bool buffer_manager::is_static_mode() const { return nullptr != static_buffer_.buffer_; }
 ATBUS_MACRO_API bool buffer_manager::is_dynamic_mode() const { return nullptr == static_buffer_.buffer_; }
 }  // namespace detail
-}  // namespace atbus
+ATBUS_MACRO_NAMESPACE_END

@@ -44,7 +44,7 @@
 #  define ATBUS_CHANNEL_SHM 1
 #endif
 
-namespace atbus {
+ATBUS_MACRO_NAMESPACE_BEGIN
 namespace channel {
 // utility functions
 struct ATBUS_MACRO_API_HEAD_ONLY channel_address_t {
@@ -127,17 +127,19 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_connection {
   io_stream_callback_t act_disc_cbk;  // 主动关闭连接的回调（为了减少额外分配而采用的缓存策略）
 
   // 数据区域
-  ::atbus::detail::buffer_manager read_buffers;  // 读数据缓冲区(两种Buffer管理方式，一种动态，一种静态)
-                                                 /**
-                                                  * @brief 由于大多数数据包都比较小
-                                                  *        当数据包比较小时和动态直接放在动态int的数据包一起，这样可以减少内存拷贝次数
-                                                  */
+  // 读数据缓冲区(两种Buffer管理方式，一种动态，一种静态)
+  /**
+   * @note 由于大多数数据包都比较小
+   *        当数据包比较小时和动态直接放在动态int的数据包一起，这样可以减少内存拷贝次数
+   */
+  ::atframework::atbus::detail::buffer_manager read_buffers;
+
   struct read_head_t {
     char buffer[ATBUS_MACRO_DATA_SMALL_SIZE];  // varint数据暂存区和小数据包存储区
     size_t len;                                // varint数据暂存区和小数据包存储区已使用长度
   };
   read_head_t read_head;
-  ::atbus::detail::buffer_manager write_buffers;  // 写数据缓冲区(两种Buffer管理方式，一种动态，一种静态)
+  ::atframework::atbus::detail::buffer_manager write_buffers;  // 写数据缓冲区(两种Buffer管理方式，一种动态，一种静态)
 
   // 自定义数据区域
   void *data;
@@ -207,6 +209,6 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_channel {
   assert(ATBUS_CHANNEL_REQ_ACTIVE(channel)); \
   (channel)->active_reqs.dec()
 }  // namespace channel
-}  // namespace atbus
+ATBUS_MACRO_NAMESPACE_END
 
 #endif /* LIBATBUS_CHANNEL_EXPORT_H_ */

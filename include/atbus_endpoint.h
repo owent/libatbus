@@ -1,11 +1,4 @@
-/**
- * atbus_endpoint.h
- *
- *  Created on: 2015年11月20日
- *      Author: owent
- */
-#ifndef LIBATBUS_ENDPOINT_H
-#define LIBATBUS_ENDPOINT_H
+// Copyright 2026 Atframework.
 
 #pragma once
 
@@ -32,7 +25,7 @@
 
 #include "atbus_connection.h"
 
-namespace atbus {
+ATBUS_MACRO_NAMESPACE_BEGIN
 namespace detail {
 template <typename TKey, typename TVal>
 struct auto_select_map {
@@ -111,7 +104,7 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
     };
   };
 
-  using get_connection_fn_t = connection *(endpoint::*)(endpoint *ep) const;
+  using get_connection_fn_t = connection *(endpoint::*)(endpoint * ep) const;
 
   UTIL_DESIGN_PATTERN_NOCOPYABLE(endpoint)
   UTIL_DESIGN_PATTERN_NOMOVABLE(endpoint)
@@ -268,6 +261,4 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
   };
   stat_t stat_;
 };
-}  // namespace atbus
-
-#endif /* LIBATBUS_ENDPOINT_H_ */
+ATBUS_MACRO_NAMESPACE_END
