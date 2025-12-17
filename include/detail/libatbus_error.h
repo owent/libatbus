@@ -92,7 +92,7 @@ struct libatbus_strerror_helper;
 ATBUS_MACRO_API const std::basic_string<char> &libatbus_strerror(ATBUS_ERROR_TYPE errcode) noexcept;
 template <>
 struct libatbus_strerror_helper<char> {
-  static ATFW_UTIL_FORCEINLINE const std::basic_string<char> &get(ATBUS_ERROR_TYPE errcode) noexcept {
+  ATFW_UTIL_FORCEINLINE static const std::basic_string<char> &get(ATBUS_ERROR_TYPE errcode) noexcept {
     return libatbus_strerror(errcode);
   }
 };
@@ -100,7 +100,7 @@ struct libatbus_strerror_helper<char> {
 ATBUS_MACRO_API const std::basic_string<wchar_t> &libatbus_wstrerror(ATBUS_ERROR_TYPE errcode) noexcept;
 template <>
 struct libatbus_strerror_helper<wchar_t> {
-  static ATFW_UTIL_FORCEINLINE const std::basic_string<wchar_t> &get(ATBUS_ERROR_TYPE errcode) noexcept {
+  ATFW_UTIL_FORCEINLINE static const std::basic_string<wchar_t> &get(ATBUS_ERROR_TYPE errcode) noexcept {
     return libatbus_wstrerror(errcode);
   }
 };
@@ -109,14 +109,14 @@ struct libatbus_strerror_helper<wchar_t> {
 ATBUS_MACRO_API const std::basic_string<char16_t> &libatbus_u16strerror(ATBUS_ERROR_TYPE errcode) noexcept;
 template <>
 struct libatbus_strerror_helper<char16_t> {
-  static ATFW_UTIL_FORCEINLINE const std::basic_string<char16_t> &get(ATBUS_ERROR_TYPE errcode) noexcept {
+  ATFW_UTIL_FORCEINLINE static const std::basic_string<char16_t> &get(ATBUS_ERROR_TYPE errcode) noexcept {
     return libatbus_u16strerror(errcode);
   }
 };
 ATBUS_MACRO_API const std::basic_string<char32_t> &libatbus_u32strerror(ATBUS_ERROR_TYPE errcode) noexcept;
 template <>
 struct libatbus_strerror_helper<char32_t> {
-  static ATFW_UTIL_FORCEINLINE const std::basic_string<char32_t> &get(ATBUS_ERROR_TYPE errcode) noexcept {
+  ATFW_UTIL_FORCEINLINE static const std::basic_string<char32_t> &get(ATBUS_ERROR_TYPE errcode) noexcept {
     return libatbus_u32strerror(errcode);
   }
 };
@@ -125,7 +125,7 @@ struct libatbus_strerror_helper<char32_t> {
 ATBUS_MACRO_API const std::basic_string<char8_t> &libatbus_u8strerror(ATBUS_ERROR_TYPE errcode) noexcept;
 template <>
 struct libatbus_strerror_helper<char8_t> {
-  static ATFW_UTIL_FORCEINLINE const std::basic_string<char8_t> &get(ATBUS_ERROR_TYPE errcode) noexcept {
+  ATFW_UTIL_FORCEINLINE static const std::basic_string<char8_t> &get(ATBUS_ERROR_TYPE errcode) noexcept {
     return libatbus_u8strerror(errcode);
   }
 };
