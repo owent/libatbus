@@ -760,6 +760,9 @@ ATFW_UTIL_FORCEINLINE uint64_t __log_get_endpoint_id(const endpoint *ep) noexcep
 
   return ep->get_id();
 }
+ATFW_UTIL_FORCEINLINE const void *__log_get_connection_fmt_ptr(const connection *c) noexcept {
+  return reinterpret_cast<const void *>(c);
+}
 ATFW_UTIL_FORCEINLINE std::string __log_get_message_debug_head(const message *m) noexcept {
   if (m == nullptr) {
     return {};
@@ -786,33 +789,35 @@ ATBUS_MACRO_NAMESPACE_END
     if ((n).get_logger()) {                                                                                            \
       FWINSTLOGERROR(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}, status: {}, error_code: {}: " fmt, \
                      ::atframework::atbus::details::__log_get_node_id(n),                                              \
-                     ::atframework::atbus::details::__log_get_endpoint_id(ep), reinterpret_cast<const void *>(conn),   \
-                     (status), (errorcode), __VA_ARGS__)                                                               \
+                     ::atframework::atbus::details::__log_get_endpoint_id(ep),                                         \
+                     ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), (status), (errorcode),         \
+                     __VA_ARGS__)                                                                                      \
     }
 
-#  define ATBUS_FUNC_NODE_INFO(n, ep, conn, fmt, ...)                                                               \
-    if ((n).get_logger()) {                                                                                         \
-      FWINSTLOGINFO(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}: " fmt,                           \
-                    ::atframework::atbus::details::__log_get_node_id(n),                                            \
-                    ::atframework::atbus::details::__log_get_endpoint_id(ep), reinterpret_cast<const void *>(conn), \
-                    __VA_ARGS__)                                                                                    \
+#  define ATBUS_FUNC_NODE_INFO(n, ep, conn, fmt, ...)                                               \
+    if ((n).get_logger()) {                                                                         \
+      FWINSTLOGINFO(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}: " fmt,           \
+                    ::atframework::atbus::details::__log_get_node_id(n),                            \
+                    ::atframework::atbus::details::__log_get_endpoint_id(ep),                       \
+                    ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), __VA_ARGS__) \
     }
 
-#  define ATBUS_FUNC_NODE_DEBUG(n, ep, conn, m, fmt, ...)                                                              \
-    if ((n).get_logger()) {                                                                                            \
-      if ((n).is_debug_message_verbose_enabled()) {                                                                    \
-        FWINSTLOGDEBUG(*(n).get_logger(),                                                                              \
-                       "node={:#x}, endpoint={:#x}, connection={}: " fmt "\n\tmessage head: {}\n\tmessage body: {}",   \
-                       ::atframework::atbus::details::__log_get_node_id(n),                                            \
-                       ::atframework::atbus::details::__log_get_endpoint_id(ep), reinterpret_cast<const void *>(conn), \
-                       __VA_ARGS__, ::atframework::atbus::details::__log_get_message_debug_head(m),                    \
-                       ::atframework::atbus::details::__log_get_message_debug_body(m))                                 \
-      } else {                                                                                                         \
-        FWINSTLOGDEBUG(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}: " fmt,                           \
-                       ::atframework::atbus::details::__log_get_node_id((n)),                                          \
-                       ::atframework::atbus::details::__log_get_endpoint_id((ep)),                                     \
-                       reinterpret_cast<const void *>(conn), fmt, __VA_ARGS__)                                         \
-      }                                                                                                                \
+#  define ATBUS_FUNC_NODE_DEBUG(n, ep, conn, m, fmt, ...)                                                            \
+    if ((n).get_logger()) {                                                                                          \
+      if ((n).is_debug_message_verbose_enabled()) {                                                                  \
+        FWINSTLOGDEBUG(*(n).get_logger(),                                                                            \
+                       "node={:#x}, endpoint={:#x}, connection={}: " fmt "\n\tmessage head: {}\n\tmessage body: {}", \
+                       ::atframework::atbus::details::__log_get_node_id(n),                                          \
+                       ::atframework::atbus::details::__log_get_endpoint_id(ep),                                     \
+                       ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), __VA_ARGS__,               \
+                       ::atframework::atbus::details::__log_get_message_debug_head(m),                               \
+                       ::atframework::atbus::details::__log_get_message_debug_body(m))                               \
+      } else {                                                                                                       \
+        FWINSTLOGDEBUG(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}: " fmt,                         \
+                       ::atframework::atbus::details::__log_get_node_id((n)),                                        \
+                       ::atframework::atbus::details::__log_get_endpoint_id((ep)),                                   \
+                       ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), fmt, __VA_ARGS__)          \
+      }                                                                                                              \
     }
 #else
 
@@ -820,33 +825,34 @@ ATBUS_MACRO_NAMESPACE_END
     if ((n).get_logger()) {                                                                                            \
       FWINSTLOGERROR(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}, status: {}, error_code: {}: " fmt, \
                      ::atframework::atbus::details::__log_get_node_id(n),                                              \
-                     ::atframework::atbus::details::__log_get_endpoint_id(ep), reinterpret_cast<const void *>(conn),   \
-                     (status), (errorcode), ##args)                                                                    \
+                     ::atframework::atbus::details::__log_get_endpoint_id(ep),                                         \
+                     ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), (status), (errorcode), ##args) \
     }
 
-#  define ATBUS_FUNC_NODE_INFO(n, ep, conn, fmt, args...)                                                           \
-    if ((n).get_logger()) {                                                                                         \
-      FWINSTLOGINFO(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}: " fmt,                           \
-                    ::atframework::atbus::details::__log_get_node_id(n),                                            \
-                    ::atframework::atbus::details::__log_get_endpoint_id(ep), reinterpret_cast<const void *>(conn), \
-                    ##args)                                                                                         \
+#  define ATBUS_FUNC_NODE_INFO(n, ep, conn, fmt, args...)                                      \
+    if ((n).get_logger()) {                                                                    \
+      FWINSTLOGINFO(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}: " fmt,      \
+                    ::atframework::atbus::details::__log_get_node_id(n),                       \
+                    ::atframework::atbus::details::__log_get_endpoint_id(ep),                  \
+                    ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), ##args) \
     }
 
-#  define ATBUS_FUNC_NODE_DEBUG(n, ep, conn, m, fmt, args...)                                                          \
-    if ((n).get_logger()) {                                                                                            \
-      if ((n).is_debug_message_verbose_enabled()) {                                                                    \
-        FWINSTLOGDEBUG(*(n).get_logger(),                                                                              \
-                       "node={:#x}, endpoint={:#x}, connection={}: " fmt "\n\tmessage head: {}\n\tmessage body: {}",   \
-                       ::atframework::atbus::details::__log_get_node_id(n),                                            \
-                       ::atframework::atbus::details::__log_get_endpoint_id(ep), reinterpret_cast<const void *>(conn), \
-                       ##args, ::atframework::atbus::details::__log_get_message_debug_head(m),                         \
-                       ::atframework::atbus::details::__log_get_message_debug_body(m))                                 \
-      } else {                                                                                                         \
-        FWINSTLOGDEBUG(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}: " fmt,                           \
-                       ::atframework::atbus::details::__log_get_node_id((n)),                                          \
-                       ::atframework::atbus::details::__log_get_endpoint_id((ep)),                                     \
-                       reinterpret_cast<const void *>(conn), ##args)                                                   \
-      }                                                                                                                \
+#  define ATBUS_FUNC_NODE_DEBUG(n, ep, conn, m, fmt, args...)                                                        \
+    if ((n).get_logger()) {                                                                                          \
+      if ((n).is_debug_message_verbose_enabled()) {                                                                  \
+        FWINSTLOGDEBUG(*(n).get_logger(),                                                                            \
+                       "node={:#x}, endpoint={:#x}, connection={}: " fmt "\n\tmessage head: {}\n\tmessage body: {}", \
+                       ::atframework::atbus::details::__log_get_node_id(n),                                          \
+                       ::atframework::atbus::details::__log_get_endpoint_id(ep),                                     \
+                       ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), ##args,                    \
+                       ::atframework::atbus::details::__log_get_message_debug_head(m),                               \
+                       ::atframework::atbus::details::__log_get_message_debug_body(m))                               \
+      } else {                                                                                                       \
+        FWINSTLOGDEBUG(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}: " fmt,                         \
+                       ::atframework::atbus::details::__log_get_node_id((n)),                                        \
+                       ::atframework::atbus::details::__log_get_endpoint_id((ep)),                                   \
+                       ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), ##args)                    \
+      }                                                                                                              \
     }
 #endif
 
