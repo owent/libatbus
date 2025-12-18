@@ -1222,7 +1222,7 @@ ATBUS_MACRO_API bool node::check_access_hash(const ::atframework::atbus::protoco
 
   for (const auto &access_token : conf_.access_tokens) {
     std::string real_signature = message_handler::calculate_access_data_signature(
-        access_key, gsl::make_span(access_token.data(), static_cast<int>(access_token.size())), plaintext);
+        access_key, gsl::make_span(access_token.data(), access_token.size()), plaintext);
     for (const auto &expect_signature : access_key.signature()) {
       if (real_signature == expect_signature) {
         return true;
@@ -1713,14 +1713,19 @@ ATBUS_MACRO_API int node::shutdown(int reason) {
   return on_shutdown(reason);
 }
 
-ATBUS_MACRO_API int node::fatal_shutdown(const char *file_path, size_t line, const endpoint *ep, const connection *conn,
-                                         int status, int errcode) {
+ATBUS_MACRO_API int node::fatal_shutdown(const atfw::util::log::log_wrapper::caller_info_t &caller, const endpoint *ep,
+                                         const connection *conn, int status, int errcode) {
   if (flags_.test(flag_t::EN_FT_SHUTDOWN)) {
     return 0;
   }
 
   shutdown(status);
-  ATBUS_FUNC_NODE_ERROR(*this, ep, conn, status, errcode, "fatal shutdown");
+  if (logger_ && logger_->check_level(caller.level_id)) {
+    logger_->format_log(caller, "node={:#x}, endpoint={:#x}, connection={}, status: {}, error_code: {}: ",
+                        ::atframework::atbus::details::__log_get_node_id(*this),
+                        ::atframework::atbus::details::__log_get_endpoint_id(ep),
+                        ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), status, errcode);
+  }
   return 0;
 }
 

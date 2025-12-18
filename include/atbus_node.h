@@ -553,8 +553,8 @@ class node final : public atfw::util::design_pattern::noncopyable {
   ATBUS_MACRO_API int shutdown(int reason);
 
   /** do not use this directly **/
-  ATBUS_MACRO_API int fatal_shutdown(const char *file_path, size_t line, const endpoint *, const connection *,
-                                     int status, int errcode);
+  ATBUS_MACRO_API int fatal_shutdown(const atfw::util::log::log_wrapper::caller_info_t &caller, const endpoint *,
+                                     const connection *, int status, int errcode);
 
   /** dispatch all self messages **/
   ATBUS_MACRO_API int dispatch_all_self_msgs();
@@ -781,8 +781,9 @@ ATFW_UTIL_FORCEINLINE std::string __log_get_message_debug_body(const message *m)
 }  // namespace details
 ATBUS_MACRO_NAMESPACE_END
 
-#define ATBUS_FUNC_NODE_FATAL_SHUTDOWN(n, ep, conn, status, errorcode) \
-  (n).fatal_shutdown(__FILE__, __LINE__, (ep), (conn), (status), (errorcode))
+#define ATBUS_FUNC_NODE_FATAL_SHUTDOWN(n, ep, conn, status, errorcode)                                              \
+  (n).fatal_shutdown(WDTLOGFILENF(atfw::util::log::log_wrapper::level_t::LOG_LW_ERROR, {}), (ep), (conn), (status), \
+                     (errorcode))
 
 #ifdef _MSC_VER
 #  define ATBUS_FUNC_NODE_ERROR(n, ep, conn, status, errorcode, fmt, ...)                                              \
