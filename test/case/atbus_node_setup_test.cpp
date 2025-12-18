@@ -53,29 +53,16 @@ CASE_TEST_EVENT_ON_EXIT(unit_test_event_on_exit_close_libuv) {
 }
 
 #ifndef _WIN32
-static int node_setup_test_on_error(const atbus::node &n, const atbus::endpoint *ep, const atbus::connection *conn,
-                                    int status, int errcode) {
-  if ((0 == status && 0 == errcode) || UV_EOF == errcode || UV_ECONNRESET == errcode) {
-    return 0;
-  }
-
-  std::streamsize w = std::cout.width();
-  CASE_MSG_INFO() << "[Log Error] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
-                  << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
-                  << std::setw(static_cast<int>(w)) << std::dec << "=> status: " << status << ", errcode: " << errcode
-                  << std::endl;
+static int node_msg_test_on_log(const atfw::util::log::log_formatter::caller_info_t &, const char *content,
+                                size_t content_size) {
+  gsl::string_view log_data{content, content_size};
+  CASE_MSG_INFO() << log_data << std::endl;
   return 0;
 }
-
-static int node_setup_test_on_info_log(const atbus::node &n, const atbus::endpoint *ep, const atbus::connection *conn,
-                                       const char *msg) {
-  std::streamsize w = std::cout.width();
-  CASE_MSG_INFO() << "[Log Info] node=0x" << std::setfill('0') << std::hex << std::setw(8) << n.get_id() << ", ep=0x"
-                  << std::setw(8) << (nullptr == ep ? 0 : ep->get_id()) << ", c=" << conn << std::setfill(' ')
-                  << std::setw(static_cast<int>(w)) << std::dec << "=> message: " << (nullptr == msg ? "" : msg)
-                  << std::endl;
-
-  return 0;
+static void setup_atbus_node_logger(atbus::node &n) {
+  n.get_logger()->set_level(atfw::util::log::log_formatter::level_t::LOG_LW_DEBUG);
+  n.get_logger()->clear_sinks();
+  n.get_logger()->add_sink(node_msg_test_on_log);
 }
 
 // 主动reset流程测试
@@ -94,12 +81,9 @@ CASE_TEST(atbus_node_setup, override_listen_path) {
     atbus::node::ptr_t node1 = atbus::node::create();
     atbus::node::ptr_t node2 = atbus::node::create();
     atbus::node::ptr_t node3 = atbus::node::create();
-    node1->set_on_error_handle(node_setup_test_on_error);
-    node2->set_on_error_handle(node_setup_test_on_error);
-    node3->set_on_error_handle(node_setup_test_on_error);
-    node1->set_on_info_log_handle(node_setup_test_on_info_log);
-    node2->set_on_info_log_handle(node_setup_test_on_info_log);
-    node3->set_on_info_log_handle(node_setup_test_on_info_log);
+    setup_atbus_node_logger(*node1);
+    setup_atbus_node_logger(*node2);
+    setup_atbus_node_logger(*node3);
 
     CASE_EXPECT_EQ(EN_ATBUS_ERR_NOT_INITED, node1->start());
     CASE_EXPECT_EQ(EN_ATBUS_ERR_NOT_INITED, node2->start());
