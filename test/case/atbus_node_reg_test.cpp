@@ -78,7 +78,7 @@ static int node_reg_test_on_error(const atfw::util::log::log_formatter::caller_i
   size_t pos = log_data.find("status:");
   if (gsl::string_view::npos != pos) {
     for (; pos < log_data.size(); ++pos) {
-      if (log_data[pos] >= '0' && log_data[pos] <= '9' || log_data[pos] == '-') {
+      if ((log_data[pos] >= '0' && log_data[pos] <= '9') || log_data[pos] == '-') {
         break;
       }
     }
@@ -127,8 +127,8 @@ static void setup_atbus_node_logger(atbus::node &n) {
                            atfw::util::log::log_formatter::level_t::LOG_LW_ERROR);
 }
 
-static int node_reg_test_recv_msg_test_record_fn(const atbus::node &n, const atbus::endpoint *ep,
-                                                 const atbus::connection *conn, const atbus::message &m,
+static int node_reg_test_recv_msg_test_record_fn(const atbus::node & /*n*/, const atbus::endpoint * /*ep*/,
+                                                 const atbus::connection * /*conn*/, const atbus::message &m,
                                                  const void *buffer, size_t len) {
   recv_msg_history.status = m.get_head() == nullptr ? 0 : m.get_head()->result_code();
   ++recv_msg_history.count;
