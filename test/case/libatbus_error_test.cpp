@@ -38,8 +38,20 @@ CASE_TEST(libatbus_error, strerror_known_samples) {
 }
 
 CASE_TEST(libatbus_error, strerror_unknown_thread_local_cache) {
+#if defined(__GNUC__) && !defined(__clang__) && !defined(__apple_build_version__)
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wconversion"
+#elif defined(__clang__) || defined(__apple_build_version__)
+#  pragma clang diagnostic push
+#  pragma clang diagnostic ignored "-Wconversion"
+#endif
   const ATBUS_ERROR_TYPE code1 = static_cast<ATBUS_ERROR_TYPE>(12345);
   const ATBUS_ERROR_TYPE code2 = static_cast<ATBUS_ERROR_TYPE>(12346);
+#if defined(__GNUC__) && !defined(__clang__) && !defined(__apple_build_version__)
+#  pragma GCC diagnostic pop
+#elif defined(__clang__) || defined(__apple_build_version__)
+#  pragma clang diagnostic pop
+#endif
 
   const std::string &msg1 = libatbus_strerror(code1);
   CASE_EXPECT_EQ(std::string("ATBUS_ERROR_TYPE(12345): unknown"), msg1);
