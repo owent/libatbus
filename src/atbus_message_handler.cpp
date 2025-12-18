@@ -202,7 +202,7 @@ ATBUS_MACRO_API int message_handler::unpack_message(connection_context &conn_ctx
   return EN_ATBUS_ERR_SUCCESS;
 }
 
-ATBUS_MACRO_API void message_handler::finish_message(connection_context &conn_ctx, message &source,
+ATBUS_MACRO_API void message_handler::finish_message(connection_context & /*conn_ctx*/, message &source,
                                                      int32_t protocol_version) {
   auto &head = source.mutable_head();
 
@@ -393,7 +393,7 @@ ATBUS_MACRO_API std::string message_handler::make_access_data_plaintext(
 }
 
 ATBUS_MACRO_API std::string message_handler::calculate_access_data_signature(
-    const ::atframework::atbus::protocol::access_data &ad, gsl::span<const unsigned char> access_token,
+    const ::atframework::atbus::protocol::access_data & /*ad*/, gsl::span<const unsigned char> access_token,
     atfw::util::nostd::string_view plaintext) {
   const EVP_MD *evp_md = EVP_sha256();
   if (nullptr == evp_md) {
