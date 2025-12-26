@@ -5,6 +5,7 @@
  *        附带c++的部分是为了避免命名空间污染并且c++的跨平台适配更加简单
  */
 
+#include <algorithm>
 #include <cstdio>
 
 #include "common/string_oprs.h"
@@ -13,8 +14,8 @@
 
 ATBUS_MACRO_NAMESPACE_BEGIN
 namespace channel {
-ATBUS_MACRO_API bool make_address(const char *in, channel_address_t &addr) {
-  addr.address = in;
+ATBUS_MACRO_API bool make_address(gsl::string_view in, channel_address_t &addr) {
+  addr.address = std::string(in);
 
   // 获取协议
   size_t scheme_end = addr.address.find_first_of("://");
@@ -23,6 +24,8 @@ ATBUS_MACRO_API bool make_address(const char *in, channel_address_t &addr) {
   }
 
   addr.scheme = addr.address.substr(0, scheme_end);
+  std::transform(addr.scheme.begin(), addr.scheme.end(), addr.scheme.begin(), ::atfw::util::string::tolower<char>);
+
   size_t port_end = addr.address.find_last_of(":");
   addr.port = 0;
   if (addr.address.npos != port_end && port_end >= scheme_end + 3) {
@@ -36,9 +39,11 @@ ATBUS_MACRO_API bool make_address(const char *in, channel_address_t &addr) {
   return true;
 }
 
-ATBUS_MACRO_API void make_address(const char *scheme, const char *host, int port, channel_address_t &addr) {
-  addr.scheme = scheme;
-  addr.host = host;
+ATBUS_MACRO_API void make_address(gsl::string_view scheme, gsl::string_view host, int port, channel_address_t &addr) {
+  addr.scheme = std::string(scheme);
+  std::transform(addr.scheme.begin(), addr.scheme.end(), addr.scheme.begin(), ::atfw::util::string::tolower<char>);
+
+  addr.host = std::string(host);
   addr.port = port;
   addr.address.reserve(addr.scheme.size() + addr.host.size() + 4 + 8);
   addr.address = addr.scheme + "://" + addr.host;
@@ -51,32 +56,32 @@ ATBUS_MACRO_API void make_address(const char *scheme, const char *host, int port
   }
 }
 
-ATBUS_MACRO_API bool is_duplex_address(const char *in) {
-  if (nullptr == in || !(*in)) {
+ATBUS_MACRO_API bool is_duplex_address(gsl::string_view in) {
+  if (in.empty()) {
     return false;
   }
 
   return false == is_simplex_address(in);
 }
 
-ATBUS_MACRO_API bool is_simplex_address(const char *in) {
-  if (nullptr == in || !(*in)) {
+ATBUS_MACRO_API bool is_simplex_address(gsl::string_view in) {
+  if (in.empty()) {
     return false;
   }
 
-  if (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", in, 4)) {
+  if (in.size() >= 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", in.data(), 4)) {
     return true;
   }
 
-  if (0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", in, 4)) {
+  if (in.size() >= 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", in.data(), 4)) {
     return true;
   }
 
   return false;
 }
 
-ATBUS_MACRO_API bool is_local_host_address(const char *in) {
-  if (nullptr == in || !(*in)) {
+ATBUS_MACRO_API bool is_local_host_address(gsl::string_view in) {
+  if (in.empty()) {
     return false;
   }
 
@@ -84,23 +89,32 @@ ATBUS_MACRO_API bool is_local_host_address(const char *in) {
     return true;
   }
 
-  if (0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", in, 4)) {
+  if (in.size() >= 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", in.data(), 4)) {
     return true;
   }
 
-  if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix:", in, 5)) {
+  if (in.size() >= 5 && (0 == UTIL_STRFUNC_STRNCASE_CMP("unix:", in.data(), 5) ||
+                         0 == UTIL_STRFUNC_STRNCASE_CMP("pipe:", in.data(), 5))) {
+    return true;
+  }
+
+  if (in.size() >= 16 && 0 == UTIL_STRFUNC_STRNCASE_CMP("ipv4://127.0.0.1", in.data(), 16)) {
+    return true;
+  }
+
+  if (in.size() >= 10 && 0 == UTIL_STRFUNC_STRNCASE_CMP("ipv6://::1", in.data(), 10)) {
     return true;
   }
 
   return false;
 }
 
-ATBUS_MACRO_API bool is_local_process_address(const char *in) {
-  if (nullptr == in || !(*in)) {
+ATBUS_MACRO_API bool is_local_process_address(gsl::string_view in) {
+  if (in.empty()) {
     return false;
   }
 
-  if (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", in, 4)) {
+  if (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", in.data(), std::min<size_t>(4, in.size()))) {
     return true;
   }
 

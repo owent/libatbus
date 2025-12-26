@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <design_pattern/result_type.h>
 #include <gsl/select-gsl.h>
 #include <nostd/string_view.h>
 
@@ -10,17 +11,10 @@
 #include <list>
 #include <string>
 
+#include "atbus_connection_context.h"
+#include "detail/buffer.h"
 #include "detail/libatbus_config.h"
-
-namespace atframework {
-namespace atbus {
-namespace protocol {
-class access_data;
-class crypto_handshake_data;
-class custom_command_data;
-}  // namespace protocol
-}  // namespace atbus
-}  // namespace atframework
+#include "detail/libatbus_error.h"
 
 ATBUS_MACRO_NAMESPACE_BEGIN
 
@@ -33,14 +27,14 @@ class connection;
 
 struct message_handler {
   using handler_fn_t = int (*)(node &n, connection *conn, message &&, int status, int errcode);
+  using buffer_result_t = ::atfw::util::design_pattern::result_type<static_buffer_block, ATBUS_ERROR_TYPE>;
 
   static ATBUS_MACRO_API int unpack_message(connection_context &conn_ctx, message &target,
-                                            gsl::span<const unsigned char> data);
+                                            gsl::span<const unsigned char> data, size_t max_body_size);
 
-  static ATBUS_MACRO_API void finish_message(connection_context &conn_ctx, message &source, int32_t protocol_version);
-
-  static ATBUS_MACRO_API int pack_message(connection_context &conn_ctx, const message &source,
-                                          gsl::span<unsigned char> buffer, size_t &used_size);
+  static ATBUS_MACRO_API buffer_result_t pack_message(connection_context &conn_ctx, message &m,
+                                                      int32_t protocol_version, random_engine_t &random_engine,
+                                                      size_t max_body_size);
 
   static ATBUS_MACRO_API int dispatch_message(node &n, connection *conn, message &&, int status, int errcode);
 

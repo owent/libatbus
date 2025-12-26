@@ -202,7 +202,7 @@ struct io_stream_channel {
 连接协议使用类似zeromq的方式。具体实施规则如下:
 
 + TCP网络连接: ipv4://IP:端口, ipv6://IP:端口, dns://域名或IP:端口
-+ Unix Socket连接: unix://文件名路径 （如果是绝对路径，比如/tmp/atbus.sock的完整路径是 unit:///tmp/atbus.sock）
++ Unix Socket/Pipe连接: unix://文件名路径 或 pipe://文件名路径 （如果是绝对路径，比如/tmp/atbus.sock的完整路径是 unix:///tmp/atbus.sock）
 + 共享内存连接: shm://共享内存Key
 + 堆内存连接: mem://名称
 

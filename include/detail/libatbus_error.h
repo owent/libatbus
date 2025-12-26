@@ -57,6 +57,21 @@ enum ATBUS_ERROR_TYPE {
 
   EN_ATBUS_ERR_NODE_TIMEOUT = -211,  // 操作超时
 
+  EN_ATBUS_ERR_CRYPTO_DECRYPT = -231,                           // 解密失败
+  EN_ATBUS_ERR_CRYPTO_ENCRYPT = -232,                           // 加密失败
+  EN_ATBUS_ERR_CRYPTO_ALGORITHM_NOT_SUPPORT = -233,             // 加密算法不支持
+  EN_ATBUS_ERR_CRYPTO_ALGORITHM_NOT_MATCH = -234,               // 加密算法不匹配
+  EN_ATBUS_ERR_CRYPTO_INVALID_IV = -235,                        // 不合法的IV/nonce
+  EN_ATBUS_ERR_CRYPTO_HANDSHAKE_MAKE_KEY_PAIR = -236,           // 加密握手生成密钥对失败
+  EN_ATBUS_ERR_CRYPTO_HANDSHAKE_READ_PEER_KEY = -237,           // 加密握手读取对方公钥失败
+  EN_ATBUS_ERR_CRYPTO_HANDSHAKE_MAKE_SECRET = -238,             // 加密握手生成密钥失败
+  EN_ATBUS_ERR_CRYPTO_HANDSHAKE_SEQUENCE_EXPIRED = -239,        // 加密握手序列过期
+  EN_ATBUS_ERR_CRYPTO_HANDSHAKE_NO_AVAILABLE_ALGORITHM = -240,  // 加密握手没有可用的加密算法
+  EN_ATBUS_ERR_CRYPTO_HANDSHAKE_KDF_ERROR = -241,               // 加密握手KDF错误
+  EN_ATBUS_ERR_CRYPTO_HANDSHAKE_KDF_NOT_SUPPORT = -242,         // 加密握手KDF不支持
+
+  EN_ATBUS_ERR_COMPRESSION_ALGORITHM_NOT_SUPPORT = -251,  // 压缩算法不支持
+
   EN_ATBUS_ERR_SHM_GET_FAILED = -301,    // 连接共享内存出错，具体错误原因可以查看errno或类似的位置
   EN_ATBUS_ERR_SHM_NOT_FOUND = -302,     // 共享内存未找到
   EN_ATBUS_ERR_SHM_CLOSE_FAILED = -303,  // 移除共享内存出错，具体错误原因可以查看errno或类似的位置

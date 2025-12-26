@@ -6,12 +6,14 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <string>
 
 #include <atbus_node.h>
 #include <libatbus_protocol.h>
 
 #include <common/file_system.h>
 #include <common/string_oprs.h>
+#include <log/log_wrapper.h>
 #include <std/explicit_declare.h>
 
 #include <algorithm/crypto_cipher.h>
@@ -21,7 +23,14 @@
 
 #include <stdarg.h>
 
-#ifdef CRYPTO_CIPHER_ENABLED
+CASE_TEST_EVENT_ON_START(unit_test_event_on_start_setup_project_directory) {
+  std::string project_dir;
+  if (atfw::util::file_system::dirname(__FILE__, 0, project_dir, 3)) {
+    atfw::util::log::log_formatter::set_project_directory(project_dir.c_str(), project_dir.size());
+  }
+}
+
+#ifdef ATFW_UTIL_MACRO_CRYPTO_CIPHER_ENABLED
 CASE_TEST_EVENT_ON_START(unit_test_event_on_start_setup_openssl) {
   atfw::util::crypto::cipher::init_global_algorithm();
 }
@@ -96,10 +105,58 @@ CASE_TEST(atbus_node_setup, override_listen_path) {
 
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->listen("unix:///tmp/atbus-unit-test-overwrite-unix.sock"));
     CASE_EXPECT_EQ(EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED,
-                   node2->listen("unix:///tmp/atbus-unit-test-overwrite-unix.sock"));
+                   node2->listen("pipe:///tmp/atbus-unit-test-overwrite-unix.sock"));
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node3->listen("unix:///tmp/atbus-unit-test-overwrite-unix.sock"));
   }
 
   unit_test_setup_exit(&ev_loop);
 }
 #endif
+
+#ifdef ATFW_UTIL_MACRO_CRYPTO_CIPHER_ENABLED
+CASE_TEST(atbus_node_setup, crypto_algorithms) {
+  std::string algorithms[] = {"xxtea",
+                              "chacha20",
+                              "chacha20-poly1305-ietf",
+                              "xchacha20-poly1305-ietf",
+                              "aes-128-cbc",
+                              "aes-128-gcm",
+                              "aes-192-cbc",
+                              "aes-192-gcm",
+                              "aes-256-cbc",
+                              "aes-256-gcm"};
+
+  std::unordered_set<std::string> cipher_support_algorithms;
+  for (auto &name : atfw::util::crypto::cipher::get_all_cipher_names()) {
+    cipher_support_algorithms.insert(name);
+  }
+
+  size_t count = 0;
+  for (auto &test_algorithm_name : algorithms) {
+    if (cipher_support_algorithms.find(test_algorithm_name) == cipher_support_algorithms.end()) {
+      continue;
+    }
+
+    ++count;
+    ::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_TYPE algo_type =
+        ::atbus::node::parse_crypto_algorithm_name(test_algorithm_name);
+    CASE_EXPECT_NE(algo_type, ::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_NONE);
+  }
+
+  CASE_EXPECT_GT(count, 0);
+}
+#endif
+
+CASE_TEST(atbus_node_setup, compression_algorithms) {
+  std::string algorithms[] = {"zstd", "lz4", "zlib", "snappy"};
+
+  size_t count = 0;
+  for (auto &test_algorithm_name : algorithms) {
+    ++count;
+    ::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE algo_type =
+        ::atbus::node::parse_compression_algorithm_name(test_algorithm_name);
+    CASE_EXPECT_NE(algo_type, ::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_NONE);
+  }
+
+  CASE_EXPECT_GT(count, 0);
+}

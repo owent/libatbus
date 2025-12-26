@@ -501,15 +501,16 @@ CASE_TEST(atbus_channel, address) {
   atbus::channel::channel_address_t addr;
   CASE_EXPECT_FALSE(atbus::channel::make_address("", addr));
 
-  CASE_EXPECT_FALSE(atbus::channel::is_duplex_address(nullptr));
-  CASE_EXPECT_FALSE(atbus::channel::is_simplex_address(nullptr));
+  CASE_EXPECT_FALSE(atbus::channel::is_duplex_address({}));
+  CASE_EXPECT_FALSE(atbus::channel::is_simplex_address({}));
 
   CASE_EXPECT_TRUE(atbus::channel::is_simplex_address("mem://0x1234"));
   CASE_EXPECT_TRUE(atbus::channel::is_simplex_address("shm://0x1234"));
 
-  CASE_EXPECT_FALSE(atbus::channel::is_local_host_address(nullptr));
+  CASE_EXPECT_FALSE(atbus::channel::is_local_host_address({}));
   CASE_EXPECT_TRUE(atbus::channel::is_local_host_address("unix:///tmp/abc.sock"));
+  CASE_EXPECT_TRUE(atbus::channel::is_local_host_address("pipe:///tmp/abc.sock"));
 
-  CASE_EXPECT_FALSE(atbus::channel::is_local_process_address(nullptr));
+  CASE_EXPECT_FALSE(atbus::channel::is_local_process_address({}));
   CASE_EXPECT_TRUE(atbus::channel::is_local_process_address("mem://0x1234"));
 }

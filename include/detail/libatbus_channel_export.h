@@ -12,6 +12,8 @@
 
 #  pragma once
 
+#  include <gsl/select-gsl.h>
+
 #  include <stdint.h>
 #  include <cstddef>
 #  include <ostream>
@@ -27,36 +29,36 @@
 ATBUS_MACRO_NAMESPACE_BEGIN
 namespace channel {
 // utility functions
-ATBUS_MACRO_API bool make_address(const char *in, channel_address_t &addr);
-ATBUS_MACRO_API void make_address(const char *scheme, const char *host, int port, channel_address_t &addr);
+ATBUS_MACRO_API bool make_address(gsl::string_view in, channel_address_t &addr);
+ATBUS_MACRO_API void make_address(gsl::string_view scheme, gsl::string_view host, int port, channel_address_t &addr);
 
 /**
  * @brief If it's a duplex address, means both enpoint has a connection to receive and send data
- * @param in address , start with unix:/ipv4:/ipv6:/dns:/shm: and etc.
+ * @param in address , start with unix:/pipe:/ipv4:/ipv6:/dns:/shm: and etc.
  * @return true if it's a duplex address
  */
-ATBUS_MACRO_API bool is_duplex_address(const char *in);
+ATBUS_MACRO_API bool is_duplex_address(gsl::string_view in);
 
 /**
  * @brief If it's a simplex address, means the other node has no connection and can only receive data
- * @param in address , start with unix:/ipv4:/ipv6:/dns:/shm: and etc.
+ * @param in address , start with unix:/pipe:/ipv4:/ipv6:/dns:/shm: and etc.
  * @return true if it's a simplex address
  */
-ATBUS_MACRO_API bool is_simplex_address(const char *in);
+ATBUS_MACRO_API bool is_simplex_address(gsl::string_view in);
 
 /**
  * @brief If it's a address that can only be connected by nodes on the same machine
- * @param in address , start with unix:/ipv4:/ipv6:/dns:/shm: and etc.
+ * @param in address , start with unix:/pipe:/ipv4:/ipv6:/dns:/shm: and etc.
  * @return true if it's a address that can only be connected by nodes on the same machine
  */
-ATBUS_MACRO_API bool is_local_host_address(const char *in);
+ATBUS_MACRO_API bool is_local_host_address(gsl::string_view in);
 
 /**
  * @brief If it's a address that can only be connected by nodes on the same process
- * @param in address , start with unix:/ipv4:/ipv6:/dns:/shm: and etc.
+ * @param in address , start with unix:/pipe:/ipv4:/ipv6:/dns:/shm: and etc.
  * @return true it's a address that can only be connected by nodes on the same process
  */
-ATBUS_MACRO_API bool is_local_process_address(const char *in);
+ATBUS_MACRO_API bool is_local_process_address(gsl::string_view in);
 
 // memory channel
 ATBUS_MACRO_API int mem_configure_set_write_timeout(mem_channel *channel, uint64_t ms);

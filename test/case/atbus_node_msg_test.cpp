@@ -36,6 +36,7 @@ static void setup_atbus_node_logger(atbus::node &n) {
   n.get_logger()->set_level(atfw::util::log::log_formatter::level_t::LOG_LW_DEBUG);
   n.get_logger()->clear_sinks();
   n.get_logger()->add_sink(node_msg_test_on_log);
+  n.enable_debug_message_verbose();
 }
 
 struct node_msg_test_recv_msg_record_t {
@@ -875,6 +876,10 @@ CASE_TEST(atbus_node_msg, transfer_and_connect) {
     UNITTEST_WAIT_UNTIL(conf.ev_loop, node_child_1->is_endpoint_available(node_child_2->get_id()), 8000, 0) {}
     atbus::endpoint *ep1 = node_child_1->get_endpoint(node_child_2->get_id());
     CASE_EXPECT_NE(nullptr, ep1);
+
+    UNITTEST_WAIT_UNTIL(conf.ev_loop, node_child_2->is_endpoint_available(node_child_1->get_id()), 8000, 0) {}
+    atbus::endpoint *ep2 = node_child_2->get_endpoint(node_child_1->get_id());
+    CASE_EXPECT_NE(nullptr, ep2);
   }
 
   unit_test_setup_exit(&ev_loop);

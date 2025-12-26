@@ -2,8 +2,11 @@
 
 #pragma once
 
+#include <gsl/select-gsl.h>
+
 #include <list>
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -104,7 +107,7 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
     };
   };
 
-  using get_connection_fn_t = connection *(endpoint::*)(endpoint * ep) const;
+  using get_connection_fn_t = connection *(endpoint::*)(const endpoint *ep) const;
 
   UTIL_DESIGN_PATTERN_NOCOPYABLE(endpoint)
   UTIL_DESIGN_PATTERN_NOMOVABLE(endpoint)
@@ -117,7 +120,7 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
    * @brief 创建端点
    */
   static ATBUS_MACRO_API ptr_t create(node *owner, bus_id_t id, const std::vector<endpoint_subnet_conf> &subnets,
-                                      int32_t pid, const std::string &hn);
+                                      int32_t pid, gsl::string_view hn);
   ATBUS_MACRO_API ~endpoint();
 
   ATBUS_MACRO_API void reset();
@@ -128,7 +131,7 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
   ATBUS_MACRO_API int32_t get_pid() const;
   ATBUS_MACRO_API const std::string &get_hostname() const;
   ATBUS_MACRO_API const std::string &get_hash_code() const;
-  ATBUS_MACRO_API void update_hash_code(const std::string &);
+  ATBUS_MACRO_API void update_hash_code(gsl::string_view);
 
   ATBUS_MACRO_API bool is_child_node(bus_id_t id) const;
 
@@ -175,9 +178,12 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
    */
   ATBUS_MACRO_API ptr_t watch() const;
 
-  ATBUS_MACRO_API const std::list<std::string> &get_listen() const;
+  ATBUS_MACRO_API const std::list<channel::channel_address_t> &get_listen() const;
 
-  ATBUS_MACRO_API void add_listen(const std::string &addr);
+  ATBUS_MACRO_API void clear_listen();
+  ATBUS_MACRO_API void add_listen(gsl::string_view addr);
+  ATBUS_MACRO_API void update_supported_schemas(const std::unordered_set<std::string> &&schemas);
+  ATBUS_MACRO_API bool is_schema_supported(const std::string &checked) const noexcept;
 
   ATBUS_MACRO_API void add_ping_timer();
   ATBUS_MACRO_API void clear_ping_timer();
@@ -186,10 +192,11 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
   static bool sort_connection_cmp_fn(const connection::ptr_t &left, const connection::ptr_t &right);
 
  public:
-  ATBUS_MACRO_API connection *get_ctrl_connection(endpoint *ep) const;
+  ATBUS_MACRO_API connection *get_ctrl_connection(const endpoint *ep) const;
 
-  ATBUS_MACRO_API connection *get_data_connection(endpoint *ep) const;
-  ATBUS_MACRO_API connection *get_data_connection(endpoint *ep, bool enable_fallback_ctrl) const;
+  ATBUS_MACRO_API connection *get_data_connection(const endpoint *ep) const;
+  ATBUS_MACRO_API connection *get_data_connection(const endpoint *ep, bool enable_fallback_ctrl) const;
+  ATBUS_MACRO_API size_t get_data_connection_count(bool enable_fallback_ctrl) const noexcept;
 
   /** 增加错误计数 **/
   ATBUS_MACRO_API size_t add_stat_fault();
@@ -245,7 +252,8 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
   timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator ping_timer_;
   std::weak_ptr<endpoint> watcher_;
 
-  std::list<std::string> listen_address_;
+  std::list<channel::channel_address_t> listen_address_;
+  std::unordered_set<std::string> supported_schemas_;
   connection::ptr_t ctrl_conn_;
   std::list<connection::ptr_t> data_conn_;
 

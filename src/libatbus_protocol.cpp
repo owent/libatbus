@@ -2,6 +2,16 @@
 
 #include "libatbus_protocol.h"
 
+// clang-format off
+#include <config/compiler/protobuf_prefix.h>
+// clang-format on
+
+#include <google/protobuf/text_format.h>
+
+// clang-format off
+#include <config/compiler/protobuf_suffix.h>
+// clang-format on
+
 #include <memory>
 
 ATBUS_MACRO_NAMESPACE_BEGIN
@@ -102,19 +112,47 @@ ATBUS_MACRO_API const ::atframework::atbus::protocol::message_body& message::bod
 }
 
 ATBUS_MACRO_API std::string message::get_head_debug_string() const {
-  if (head_ != nullptr) {
-    return head_->DebugString();
+  if (head_ == nullptr) {
+    return {};
   }
 
-  return {};
+  std::string debug_string;
+  // 16K is in bin of tcache in jemalloc, and MEDIUM_PAGE in mimalloc
+  debug_string.reserve(16 * 1024);
+
+  ::google::protobuf::TextFormat::Printer printer;
+  printer.SetUseUtf8StringEscaping(true);
+  // printer.SetExpandAny(true);
+  printer.SetUseShortRepeatedPrimitives(true);
+  printer.SetSingleLineMode(false);
+  printer.SetTruncateStringFieldLongerThan(2048);
+  printer.SetPrintMessageFieldsInIndexOrder(false);
+
+  printer.PrintToString(*head_, &debug_string);
+
+  return debug_string;
 }
 
 ATBUS_MACRO_API std::string message::get_body_debug_string() const {
-  if (body_ != nullptr) {
-    return body_->DebugString();
+  if (body_ == nullptr) {
+    return {};
   }
 
-  return {};
+  std::string debug_string;
+  // 16K is in bin of tcache in jemalloc, and MEDIUM_PAGE in mimalloc
+  debug_string.reserve(16 * 1024);
+
+  ::google::protobuf::TextFormat::Printer printer;
+  printer.SetUseUtf8StringEscaping(true);
+  // printer.SetExpandAny(true);
+  printer.SetUseShortRepeatedPrimitives(true);
+  printer.SetSingleLineMode(false);
+  printer.SetTruncateStringFieldLongerThan(2048);
+  printer.SetPrintMessageFieldsInIndexOrder(false);
+
+  printer.PrintToString(*body_, &debug_string);
+
+  return debug_string;
 }
 
 ATBUS_MACRO_API message_body_type message::get_body_type() const noexcept {

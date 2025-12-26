@@ -139,7 +139,7 @@ ATBUS_MACRO_API bool endpoint_subnet_range::lower_bound_by_max_id(const endpoint
 
 ATBUS_MACRO_API endpoint::ptr_t endpoint::create(node *owner, bus_id_t id,
                                                  const std::vector<endpoint_subnet_conf> &subnets, int32_t pid,
-                                                 const std::string &hn) {
+                                                 gsl::string_view hn) {
   if (nullptr == owner) {
     return endpoint::ptr_t();
   }
@@ -151,7 +151,7 @@ ATBUS_MACRO_API endpoint::ptr_t endpoint::create(node *owner, bus_id_t id,
 
   ret->id_ = id;
   ret->pid_ = pid;
-  ret->hostname_ = hn;
+  ret->hostname_ = std::string(hn);
 
   ret->owner_ = owner;
   if (node_access_controller::add_ping_timer(*owner, ret, ret->ping_timer_)) {
@@ -239,12 +239,12 @@ ATBUS_MACRO_API const std::vector<endpoint_subnet_range> &endpoint::get_subnets(
 ATBUS_MACRO_API int32_t endpoint::get_pid() const { return pid_; }
 ATBUS_MACRO_API const std::string &endpoint::get_hostname() const { return hostname_; }
 ATBUS_MACRO_API const std::string &endpoint::get_hash_code() const { return hash_code_; }
-ATBUS_MACRO_API void endpoint::update_hash_code(const std::string &in) {
+ATBUS_MACRO_API void endpoint::update_hash_code(gsl::string_view in) {
   if (in.empty()) {
     return;
   }
 
-  hash_code_ = in;
+  hash_code_ = std::string(in);
 }
 
 ATBUS_MACRO_API bool endpoint::is_child_node(bus_id_t id) const {
@@ -401,21 +401,38 @@ ATBUS_MACRO_API endpoint::ptr_t endpoint::watch() const {
   return watcher_.lock();
 }
 
-ATBUS_MACRO_API const std::list<std::string> &endpoint::get_listen() const { return listen_address_; }
+ATBUS_MACRO_API const std::list<channel::channel_address_t> &endpoint::get_listen() const { return listen_address_; }
 
-ATBUS_MACRO_API void endpoint::add_listen(const std::string &addr) {
+ATBUS_MACRO_API void endpoint::clear_listen() {
+  listen_address_.clear();
+  flags_.set(flag_t::HAS_LISTEN_PORC, false);
+  flags_.set(flag_t::HAS_LISTEN_FD, false);
+}
+
+ATBUS_MACRO_API void endpoint::add_listen(gsl::string_view addr) {
   if (addr.empty()) {
     return;
   }
 
-  if (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr.c_str(), 4) ||
-      0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr.c_str(), 4)) {
+  if (addr.size() >= 4 && (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr.data(), 4) ||
+                           0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr.data(), 4))) {
     flags_.set(flag_t::HAS_LISTEN_PORC, true);
   } else {
     flags_.set(flag_t::HAS_LISTEN_FD, true);
   }
 
-  listen_address_.push_back(addr);
+  channel::channel_address_t parsed_addr;
+  if (channel::make_address(addr, parsed_addr)) {
+    listen_address_.push_back(std::move(parsed_addr));
+  }
+}
+
+ATBUS_MACRO_API void endpoint::update_supported_schemas(const std::unordered_set<std::string> &&schemas) {
+  supported_schemas_ = std::move(schemas);
+}
+
+ATBUS_MACRO_API bool endpoint::is_schema_supported(const std::string &checked) const noexcept {
+  return supported_schemas_.find(checked) != supported_schemas_.end();
 }
 
 ATBUS_MACRO_API void endpoint::add_ping_timer() {
@@ -462,7 +479,7 @@ bool endpoint::sort_connection_cmp_fn(const connection::ptr_t &left, const conne
   return lscore < rscore;
 }
 
-ATBUS_MACRO_API connection *endpoint::get_ctrl_connection(endpoint *ep) const {
+ATBUS_MACRO_API connection *endpoint::get_ctrl_connection(const endpoint *ep) const {
   if (nullptr == ep) {
     return nullptr;
   }
@@ -478,9 +495,11 @@ ATBUS_MACRO_API connection *endpoint::get_ctrl_connection(endpoint *ep) const {
   return nullptr;
 }
 
-ATBUS_MACRO_API connection *endpoint::get_data_connection(endpoint *ep) const { return get_data_connection(ep, true); }
+ATBUS_MACRO_API connection *endpoint::get_data_connection(const endpoint *ep) const {
+  return get_data_connection(ep, true);
+}
 
-ATBUS_MACRO_API connection *endpoint::get_data_connection(endpoint *ep, bool enable_fallback_ctrl) const {
+ATBUS_MACRO_API connection *endpoint::get_data_connection(const endpoint *ep, bool enable_fallback_ctrl) const {
   if (nullptr == ep) {
     return nullptr;
   }
@@ -499,25 +518,25 @@ ATBUS_MACRO_API connection *endpoint::get_data_connection(endpoint *ep, bool ena
 
   // 按性能优先级排序mem>shm>fd
   if (false == ep->flags_.test(flag_t::CONNECTION_SORTED)) {
-    ep->data_conn_.sort(sort_connection_cmp_fn);
-    ep->flags_.set(flag_t::CONNECTION_SORTED, true);
+    const_cast<endpoint *>(ep)->data_conn_.sort(sort_connection_cmp_fn);
+    const_cast<endpoint *>(ep)->flags_.set(flag_t::CONNECTION_SORTED, true);
   }
 
-  for (std::list<connection::ptr_t>::iterator iter = ep->data_conn_.begin(); iter != ep->data_conn_.end(); ++iter) {
-    if (connection::state_t::CONNECTED != (*iter)->get_status()) {
+  for (auto &conn : ep->data_conn_) {
+    if (connection::state_t::CONNECTED != conn->get_status()) {
       continue;
     }
 
-    if (share_pid && (*iter)->check_flag(connection::flag_t::ACCESS_SHARE_ADDR)) {
-      return (*iter).get();
+    if (share_pid && conn->check_flag(connection::flag_t::ACCESS_SHARE_ADDR)) {
+      return conn.get();
     }
 
-    if (share_host && (*iter)->check_flag(connection::flag_t::ACCESS_SHARE_HOST)) {
-      return (*iter).get();
+    if (share_host && conn->check_flag(connection::flag_t::ACCESS_SHARE_HOST)) {
+      return conn.get();
     }
 
-    if (!(*iter)->check_flag(connection::flag_t::ACCESS_SHARE_HOST)) {
-      return (*iter).get();
+    if (!conn->check_flag(connection::flag_t::ACCESS_SHARE_HOST)) {
+      return conn.get();
     }
   }
 
@@ -526,6 +545,27 @@ ATBUS_MACRO_API connection *endpoint::get_data_connection(endpoint *ep, bool ena
   } else {
     return nullptr;
   }
+}
+
+ATBUS_MACRO_API size_t endpoint::get_data_connection_count(bool enable_fallback_ctrl) const noexcept {
+  size_t count = 0;
+  for (auto &conn : data_conn_) {
+    if (connection::state_t::DISCONNECTING == conn->get_status() ||
+        connection::state_t::DISCONNECTED == conn->get_status()) {
+      continue;
+    }
+
+    ++count;
+  }
+
+  if (ctrl_conn_ == 0 && enable_fallback_ctrl) {
+    if (ctrl_conn_ && connection::state_t::DISCONNECTING != ctrl_conn_->get_status() ||
+        connection::state_t::DISCONNECTED != ctrl_conn_->get_status()) {
+      ++count;
+    }
+  }
+
+  return count;
 }
 
 endpoint::stat_t::stat_t()

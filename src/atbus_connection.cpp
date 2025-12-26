@@ -97,14 +97,15 @@ struct connection_async_data {
 };
 }  // namespace detail
 
-connection::connection()
+connection::connection(protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE crypto_algorithm,
+                       const ::atfw::util::crypto::dh::shared_context::ptr_t &shared_dh_context)
     : state_(state_t::DISCONNECTED),
 #if !defined(_WIN32)
       address_lock_(0),
 #endif
       owner_(nullptr),
       binding_(nullptr),
-      conn_context_(connection_context::create()) {
+      conn_context_(connection_context::create(crypto_algorithm, shared_dh_context)) {
   flags_.reset();
   memset(&conn_data_, 0, sizeof(conn_data_));
   memset(&stat_, 0, sizeof(stat_));
@@ -115,7 +116,8 @@ ATBUS_MACRO_API connection::ptr_t connection::create(node *owner) {
     return connection::ptr_t();
   }
 
-  connection::ptr_t ret(new connection());
+  connection::ptr_t ret(
+      new connection(owner->get_crypto_key_exchange_type(), owner->get_crypto_key_exchange_context()));
   if (!ret) {
     return ret;
   }
@@ -188,7 +190,7 @@ ATBUS_MACRO_API int connection::proc(node &n, time_t sec, time_t usec) {
   return 0;
 }
 
-ATBUS_MACRO_API int connection::listen(const char *addr_str) {
+ATBUS_MACRO_API int connection::listen(gsl::string_view addr_str) {
   if (state_t::DISCONNECTED != state_) {
     return EN_ATBUS_ERR_ALREADY_INITED;
   }
@@ -227,6 +229,7 @@ ATBUS_MACRO_API int connection::listen(const char *addr_str) {
     flags_.set(flag_t::REG_PROC, true);
     flags_.set(flag_t::ACCESS_SHARE_ADDR, true);
     flags_.set(flag_t::ACCESS_SHARE_HOST, true);
+    flags_.set(flag_t::SERVER_MODE, true);
     set_status(state_t::CONNECTED);
     ATBUS_FUNC_NODE_INFO(*owner_, get_binding(), this, "channel connected(listen)");
 
@@ -254,6 +257,7 @@ ATBUS_MACRO_API int connection::listen(const char *addr_str) {
     owner_->add_proc_connection(watch());
     flags_.set(flag_t::REG_PROC, true);
     flags_.set(flag_t::ACCESS_SHARE_HOST, true);
+    flags_.set(flag_t::SERVER_MODE, true);
     set_status(state_t::CONNECTED);
     ATBUS_FUNC_NODE_INFO(*owner_, get_binding(), this, "channel connected(listen)");
 
@@ -265,7 +269,8 @@ ATBUS_MACRO_API int connection::listen(const char *addr_str) {
   } else {
     // Unix sock的listen的地址应该转为绝对地址，方便跨组连接时可以不依赖相对目录
     // Unix sock也必须共享Host
-    if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix", address_.scheme.c_str(), 4)) {
+    if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix", address_.scheme.c_str(), 4) ||
+        0 == UTIL_STRFUNC_STRNCASE_CMP("pipe", address_.scheme.c_str(), 4)) {
       if (false == atfw::util::file_system::is_abs_path(address_.host.c_str())) {
         std::string abs_host_path = atfw::util::file_system::get_abs_path(address_.host.c_str());
         size_t max_addr_size = ::atframework::atbus::channel::io_stream_get_max_unix_socket_length();
@@ -324,7 +329,7 @@ ATBUS_MACRO_API int connection::listen(const char *addr_str) {
   }
 }
 
-ATBUS_MACRO_API int connection::connect(const char *addr_str) {
+ATBUS_MACRO_API int connection::connect(gsl::string_view addr_str) {
   if (state_t::DISCONNECTED != state_) {
     return EN_ATBUS_ERR_ALREADY_INITED;
   }
@@ -365,6 +370,7 @@ ATBUS_MACRO_API int connection::connect(const char *addr_str) {
     // flags_.set(flag_t::REG_PROC, true);
     flags_.set(flag_t::ACCESS_SHARE_ADDR, true);
     flags_.set(flag_t::ACCESS_SHARE_HOST, true);
+    flags_.set(flag_t::CLIENT_MODE, true);
 
     if (nullptr == binding_) {
       set_status(state_t::HANDSHAKING);
@@ -401,6 +407,7 @@ ATBUS_MACRO_API int connection::connect(const char *addr_str) {
     // 仅在listen时要设置proc,否则同机器的同名通道离线会导致proc中断
     // flags_.set(flag_t::REG_PROC, true);
     flags_.set(flag_t::ACCESS_SHARE_HOST, true);
+    flags_.set(flag_t::CLIENT_MODE, true);
 
     if (nullptr == binding_) {
       set_status(state_t::HANDSHAKING);
@@ -421,7 +428,8 @@ ATBUS_MACRO_API int connection::connect(const char *addr_str) {
       make_address("ipv4", "127.0.0.1", address_.port, address_);
     } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("ipv6", address_.scheme.c_str(), 4) && "::" == address_.host) {
       make_address("ipv6", "::1", address_.port, address_);
-    } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix", address_.scheme.c_str(), 4)) {
+    } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix", address_.scheme.c_str(), 4) ||
+               0 == UTIL_STRFUNC_STRNCASE_CMP("pipe", address_.scheme.c_str(), 4)) {
       flags_.set(flag_t::ACCESS_SHARE_HOST, true);
     }
 
@@ -602,6 +610,7 @@ ATBUS_MACRO_API void connection::iostream_on_listen_cb(channel::io_stream_channe
   } else {
     async_data->conn->flags_.set(flag_t::REG_FD, true);
     async_data->conn->flags_.set(flag_t::LISTEN_FD, true);
+    async_data->conn->flags_.set(flag_t::SERVER_MODE, true);
     async_data->conn->set_status(state_t::CONNECTED);
     ATBUS_FUNC_NODE_INFO(*async_data->conn->owner_, async_data->conn->binding_, async_data->conn.get(),
                          "channel connected(listen callback)");
@@ -638,6 +647,7 @@ ATBUS_MACRO_API void connection::iostream_on_connected_cb(channel::io_stream_cha
 
   } else {
     async_data->conn->flags_.set(flag_t::REG_FD, true);
+    async_data->conn->flags_.set(flag_t::CLIENT_MODE, true);
     if (nullptr == async_data->conn->binding_) {
       async_data->conn->set_status(state_t::HANDSHAKING);
       ATBUS_FUNC_NODE_INFO(*async_data->conn->owner_, async_data->conn->binding_, async_data->conn.get(),
@@ -734,6 +744,7 @@ ATBUS_MACRO_API void connection::iostream_on_accepted(channel::io_stream_channel
   ptr_t conn = create(n);
   conn->set_status(state_t::HANDSHAKING);
   conn->flags_.set(flag_t::REG_FD, true);
+  conn->flags_.set(flag_t::SERVER_MODE, true);
 
   conn->conn_data_.free_fn = ios_free_fn;
   conn->conn_data_.push_fn = ios_push_fn;
@@ -745,7 +756,7 @@ ATBUS_MACRO_API void connection::iostream_on_accepted(channel::io_stream_channel
   // copy address
   conn->address_ = conn_ios->addr;
 
-  ATBUS_FUNC_NODE_INFO(*n, nullptr, conn.get(), "connection accepted");
+  ATBUS_FUNC_NODE_INFO(*n, nullptr, conn.get(), "channel handshaking(accepted callback)");
   n->on_new_connection(conn.get());
 }
 
@@ -780,25 +791,20 @@ ATBUS_MACRO_API void connection::iostream_on_written(channel::io_stream_channel 
     if (nullptr != conn) {
       ++conn->stat_.push_failed_times;
       conn->stat_.push_failed_size += s;
-
-      ATBUS_FUNC_NODE_DEBUG(*n, conn->get_binding(), conn, nullptr, "write data to {} failed, err={}, status={}",
-                            reinterpret_cast<void *>(conn_ios), channel->error_code, status);
-    } else {
-      ATBUS_FUNC_NODE_DEBUG(*n, nullptr, conn, nullptr, "write data to {} failed, err={}, status={}",
-                            reinterpret_cast<void *>(conn_ios), channel->error_code, status);
     }
 
-    ATBUS_FUNC_NODE_ERROR(*n, nullptr, conn, status, channel->error_code, "write data to {} failed",
-                          conn_ios->addr.address);
+    ATBUS_FUNC_NODE_ERROR(*n, conn->get_binding(), conn, status, channel->error_code,
+                          "write data({} bytes) to {} failed", s, conn_ios->addr.address);
   } else {
     if (nullptr != conn) {
       ++conn->stat_.push_success_times;
       conn->stat_.push_success_size += s;
 
-      ATBUS_FUNC_NODE_DEBUG(*n, conn->get_binding(), conn, nullptr, "write data to {} success",
+      ATBUS_FUNC_NODE_DEBUG(*n, conn->get_binding(), conn, nullptr, "write data({} bytes) to {} success", s,
                             reinterpret_cast<void *>(conn_ios));
     } else {
-      ATBUS_FUNC_NODE_DEBUG(*n, nullptr, conn, nullptr, "write data to {} success", reinterpret_cast<void *>(conn_ios));
+      ATBUS_FUNC_NODE_DEBUG(*n, nullptr, conn, nullptr, "write data({} bytes) to {} success", s,
+                            reinterpret_cast<void *>(conn_ios));
     }
   }
 }
@@ -955,7 +961,7 @@ ATBUS_MACRO_API int connection::ios_push_fn(connection &conn, const void *buffer
 
 ATBUS_MACRO_API bool connection::unpack(connection &conn, message &m, gsl::span<const unsigned char> in) {
   // unpack
-  int res = message_handler::unpack_message(conn.get_connection_context(), m, in);
+  int res = message_handler::unpack_message(conn.get_connection_context(), m, in, conn.owner_->get_conf().message_size);
   if (res != EN_ATBUS_ERR_SUCCESS) {
     if (res == EN_ATBUS_ERR_UNPACK) {
       ATBUS_FUNC_NODE_DEBUG(*conn.owner_, conn.binding_, &conn, &m, "{}", m.get_unpack_error_message());

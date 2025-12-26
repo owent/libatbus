@@ -13,69 +13,82 @@
 namespace {
 
 // Maintain a single source of truth for known errors.
-#define LIBATBUS_ERROR_MESSAGE_MAP(XX)                                                   \
-  XX(EN_ATBUS_ERR_SUCCESS, "success")                                                    \
-  XX(EN_ATBUS_ERR_PARAMS, "ATBUS parameter error")                                       \
-  XX(EN_ATBUS_ERR_INNER, "ATBUS inner error")                                            \
-  XX(EN_ATBUS_ERR_NO_DATA, "no data")                                                    \
-  XX(EN_ATBUS_ERR_BUFF_LIMIT, "buffer limit")                                            \
-  XX(EN_ATBUS_ERR_MALLOC, "memory allocation failed")                                    \
-  XX(EN_ATBUS_ERR_SCHEME, "protocol error")                                              \
-  XX(EN_ATBUS_ERR_BAD_DATA, "bad data")                                                  \
-  XX(EN_ATBUS_ERR_INVALID_SIZE, "invalid size")                                          \
-  XX(EN_ATBUS_ERR_NOT_INITED, "not initialized")                                         \
-  XX(EN_ATBUS_ERR_ALREADY_INITED, "already initialized")                                 \
-  XX(EN_ATBUS_ERR_ACCESS_DENY, "access denied")                                          \
-  XX(EN_ATBUS_ERR_UNPACK, "unpack failed")                                               \
-  XX(EN_ATBUS_ERR_PACK, "pack failed")                                                   \
-  XX(EN_ATBUS_ERR_UNSUPPORTED_VERSION, "unsupported version")                            \
-  XX(EN_ATBUS_ERR_CLOSING, "closing")                                                    \
-  XX(EN_ATBUS_ERR_ALGORITHM_NOT_SUPPORT, "algorithm not supported")                      \
-  XX(EN_ATBUS_ERR_MESSAGE_NOT_FINISH_YET, "message not finished yet")                    \
-  XX(EN_ATBUS_ERR_ATNODE_NOT_FOUND, "target node not found")                             \
-  XX(EN_ATBUS_ERR_ATNODE_INVALID_ID, "invalid node id")                                  \
-  XX(EN_ATBUS_ERR_ATNODE_NO_CONNECTION, "no connection")                                 \
-  XX(EN_ATBUS_ERR_ATNODE_FAULT_TOLERANT, "exceeded fault tolerant")                      \
-  XX(EN_ATBUS_ERR_ATNODE_INVALID_MSG, "invalid message")                                 \
-  XX(EN_ATBUS_ERR_ATNODE_BUS_ID_NOT_MATCH, "bus id not match")                           \
-  XX(EN_ATBUS_ERR_ATNODE_TTL, "ttl limited")                                             \
-  XX(EN_ATBUS_ERR_ATNODE_MASK_CONFLICT, "mask conflict")                                 \
-  XX(EN_ATBUS_ERR_ATNODE_ID_CONFLICT, "id conflict")                                     \
-  XX(EN_ATBUS_ERR_ATNODE_SRC_DST_IS_SAME, "source and destination are the same")         \
-  XX(EN_ATBUS_ERR_CHANNEL_SIZE_TOO_SMALL, "channel size too small")                      \
-  XX(EN_ATBUS_ERR_CHANNEL_BUFFER_INVALID, "channel buffer invalid")                      \
-  XX(EN_ATBUS_ERR_CHANNEL_ADDR_INVALID, "channel address invalid")                       \
-  XX(EN_ATBUS_ERR_CHANNEL_CLOSING, "channel closing")                                    \
-  XX(EN_ATBUS_ERR_CHANNEL_NOT_SUPPORT, "channel not supported")                          \
-  XX(EN_ATBUS_ERR_CHANNEL_UNSUPPORTED_VERSION, "channel unsupported version")            \
-  XX(EN_ATBUS_ERR_CHANNEL_ALIGN_SIZE_MISMATCH, "channel align size mismatch")            \
-  XX(EN_ATBUS_ERR_CHANNEL_ARCH_SIZE_T_MISMATCH, "channel architecture size_t mismatch")  \
-  XX(EN_ATBUS_ERR_NODE_BAD_BLOCK_NODE_NUM, "corrupted node block - node count error")    \
-  XX(EN_ATBUS_ERR_NODE_BAD_BLOCK_BUFF_SIZE, "corrupted node block - buffer size error")  \
-  XX(EN_ATBUS_ERR_NODE_BAD_BLOCK_WSEQ_ID, "corrupted node block - write sequence error") \
-  XX(EN_ATBUS_ERR_NODE_BAD_BLOCK_CSEQ_ID, "corrupted node block - check sequence error") \
-  XX(EN_ATBUS_ERR_NODE_TIMEOUT, "operation timeout")                                     \
-  XX(EN_ATBUS_ERR_SHM_GET_FAILED, "shared memory get failed")                            \
-  XX(EN_ATBUS_ERR_SHM_NOT_FOUND, "shared memory not found")                              \
-  XX(EN_ATBUS_ERR_SHM_CLOSE_FAILED, "shared memory close failed")                        \
-  XX(EN_ATBUS_ERR_SHM_PATH_INVALID, "shared memory path invalid")                        \
-  XX(EN_ATBUS_ERR_SHM_MAP_FAILED, "shared memory map failed")                            \
-  XX(EN_ATBUS_ERR_SOCK_BIND_FAILED, "socket bind failed")                                \
-  XX(EN_ATBUS_ERR_SOCK_LISTEN_FAILED, "socket listen failed")                            \
-  XX(EN_ATBUS_ERR_SOCK_CONNECT_FAILED, "socket connect failed")                          \
-  XX(EN_ATBUS_ERR_PIPE_BIND_FAILED, "pipe bind failed")                                  \
-  XX(EN_ATBUS_ERR_PIPE_LISTEN_FAILED, "pipe listen failed")                              \
-  XX(EN_ATBUS_ERR_PIPE_CONNECT_FAILED, "pipe connect failed")                            \
-  XX(EN_ATBUS_ERR_PIPE_ADDR_TOO_LONG, "pipe address too long")                           \
-  XX(EN_ATBUS_ERR_PIPE_REMOVE_FAILED, "pipe remove old socket failed")                   \
-  XX(EN_ATBUS_ERR_PIPE_PATH_EXISTS, "pipe path already exists")                          \
-  XX(EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED, "pipe lock path failed")                        \
-  XX(EN_ATBUS_ERR_DNS_GETADDR_FAILED, "dns getaddr failed")                              \
-  XX(EN_ATBUS_ERR_CONNECTION_NOT_FOUND, "connection not found")                          \
-  XX(EN_ATBUS_ERR_WRITE_FAILED, "write failed")                                          \
-  XX(EN_ATBUS_ERR_READ_FAILED, "read failed")                                            \
-  XX(EN_ATBUS_ERR_EV_RUN, "event loop run failed")                                       \
-  XX(EN_ATBUS_ERR_NO_LISTEN, "no listen")                                                \
+#define LIBATBUS_ERROR_MESSAGE_MAP(XX)                                                                \
+  XX(EN_ATBUS_ERR_SUCCESS, "success")                                                                 \
+  XX(EN_ATBUS_ERR_PARAMS, "ATBUS parameter error")                                                    \
+  XX(EN_ATBUS_ERR_INNER, "ATBUS inner error")                                                         \
+  XX(EN_ATBUS_ERR_NO_DATA, "no data")                                                                 \
+  XX(EN_ATBUS_ERR_BUFF_LIMIT, "buffer limit")                                                         \
+  XX(EN_ATBUS_ERR_MALLOC, "memory allocation failed")                                                 \
+  XX(EN_ATBUS_ERR_SCHEME, "protocol error")                                                           \
+  XX(EN_ATBUS_ERR_BAD_DATA, "bad data")                                                               \
+  XX(EN_ATBUS_ERR_INVALID_SIZE, "invalid size")                                                       \
+  XX(EN_ATBUS_ERR_NOT_INITED, "not initialized")                                                      \
+  XX(EN_ATBUS_ERR_ALREADY_INITED, "already initialized")                                              \
+  XX(EN_ATBUS_ERR_ACCESS_DENY, "access denied")                                                       \
+  XX(EN_ATBUS_ERR_UNPACK, "unpack failed")                                                            \
+  XX(EN_ATBUS_ERR_PACK, "pack failed")                                                                \
+  XX(EN_ATBUS_ERR_UNSUPPORTED_VERSION, "unsupported version")                                         \
+  XX(EN_ATBUS_ERR_CLOSING, "closing")                                                                 \
+  XX(EN_ATBUS_ERR_ALGORITHM_NOT_SUPPORT, "algorithm not supported")                                   \
+  XX(EN_ATBUS_ERR_MESSAGE_NOT_FINISH_YET, "message not finished yet")                                 \
+  XX(EN_ATBUS_ERR_ATNODE_NOT_FOUND, "target node not found")                                          \
+  XX(EN_ATBUS_ERR_ATNODE_INVALID_ID, "invalid node id")                                               \
+  XX(EN_ATBUS_ERR_ATNODE_NO_CONNECTION, "no connection")                                              \
+  XX(EN_ATBUS_ERR_ATNODE_FAULT_TOLERANT, "exceeded fault tolerant")                                   \
+  XX(EN_ATBUS_ERR_ATNODE_INVALID_MSG, "invalid message")                                              \
+  XX(EN_ATBUS_ERR_ATNODE_BUS_ID_NOT_MATCH, "bus id not match")                                        \
+  XX(EN_ATBUS_ERR_ATNODE_TTL, "ttl limited")                                                          \
+  XX(EN_ATBUS_ERR_ATNODE_MASK_CONFLICT, "mask conflict")                                              \
+  XX(EN_ATBUS_ERR_ATNODE_ID_CONFLICT, "id conflict")                                                  \
+  XX(EN_ATBUS_ERR_ATNODE_SRC_DST_IS_SAME, "source and destination are the same")                      \
+  XX(EN_ATBUS_ERR_CHANNEL_SIZE_TOO_SMALL, "channel size too small")                                   \
+  XX(EN_ATBUS_ERR_CHANNEL_BUFFER_INVALID, "channel buffer invalid")                                   \
+  XX(EN_ATBUS_ERR_CHANNEL_ADDR_INVALID, "channel address invalid")                                    \
+  XX(EN_ATBUS_ERR_CHANNEL_CLOSING, "channel closing")                                                 \
+  XX(EN_ATBUS_ERR_CHANNEL_NOT_SUPPORT, "channel not supported")                                       \
+  XX(EN_ATBUS_ERR_CHANNEL_UNSUPPORTED_VERSION, "channel unsupported version")                         \
+  XX(EN_ATBUS_ERR_CHANNEL_ALIGN_SIZE_MISMATCH, "channel align size mismatch")                         \
+  XX(EN_ATBUS_ERR_CHANNEL_ARCH_SIZE_T_MISMATCH, "channel architecture size_t mismatch")               \
+  XX(EN_ATBUS_ERR_NODE_BAD_BLOCK_NODE_NUM, "corrupted node block - node count error")                 \
+  XX(EN_ATBUS_ERR_NODE_BAD_BLOCK_BUFF_SIZE, "corrupted node block - buffer size error")               \
+  XX(EN_ATBUS_ERR_NODE_BAD_BLOCK_WSEQ_ID, "corrupted node block - write sequence error")              \
+  XX(EN_ATBUS_ERR_NODE_BAD_BLOCK_CSEQ_ID, "corrupted node block - check sequence error")              \
+  XX(EN_ATBUS_ERR_NODE_TIMEOUT, "operation timeout")                                                  \
+  XX(EN_ATBUS_ERR_CRYPTO_DECRYPT, "decryption failed")                                                \
+  XX(EN_ATBUS_ERR_CRYPTO_ENCRYPT, "encryption failed")                                                \
+  XX(EN_ATBUS_ERR_CRYPTO_ALGORITHM_NOT_SUPPORT, "crypto algorithm not supported")                     \
+  XX(EN_ATBUS_ERR_CRYPTO_ALGORITHM_NOT_MATCH, "crypto algorithm not match")                           \
+  XX(EN_ATBUS_ERR_CRYPTO_INVALID_IV, "invalid iv/nonce")                                              \
+  XX(EN_ATBUS_ERR_CRYPTO_HANDSHAKE_MAKE_KEY_PAIR, "crypto handshake make key pair failed")            \
+  XX(EN_ATBUS_ERR_CRYPTO_HANDSHAKE_READ_PEER_KEY, "crypto handshake read peer key failed")            \
+  XX(EN_ATBUS_ERR_CRYPTO_HANDSHAKE_MAKE_SECRET, "crypto handshake make secret failed")                \
+  XX(EN_ATBUS_ERR_CRYPTO_HANDSHAKE_SEQUENCE_EXPIRED, "crypto handshake sequence expired")             \
+  XX(EN_ATBUS_ERR_CRYPTO_HANDSHAKE_NO_AVAILABLE_ALGORITHM, "crypto handshake no available algorithm") \
+  XX(EN_ATBUS_ERR_CRYPTO_HANDSHAKE_KDF_ERROR, "crypto handshake kdf error")                           \
+  XX(EN_ATBUS_ERR_CRYPTO_HANDSHAKE_KDF_NOT_SUPPORT, "crypto handshake kdf not supported")             \
+  XX(EN_ATBUS_ERR_COMPRESSION_ALGORITHM_NOT_SUPPORT, "compression algorithm not supported")           \
+  XX(EN_ATBUS_ERR_SHM_GET_FAILED, "shared memory get failed")                                         \
+  XX(EN_ATBUS_ERR_SHM_NOT_FOUND, "shared memory not found")                                           \
+  XX(EN_ATBUS_ERR_SHM_CLOSE_FAILED, "shared memory close failed")                                     \
+  XX(EN_ATBUS_ERR_SHM_PATH_INVALID, "shared memory path invalid")                                     \
+  XX(EN_ATBUS_ERR_SHM_MAP_FAILED, "shared memory map failed")                                         \
+  XX(EN_ATBUS_ERR_SOCK_BIND_FAILED, "socket bind failed")                                             \
+  XX(EN_ATBUS_ERR_SOCK_LISTEN_FAILED, "socket listen failed")                                         \
+  XX(EN_ATBUS_ERR_SOCK_CONNECT_FAILED, "socket connect failed")                                       \
+  XX(EN_ATBUS_ERR_PIPE_BIND_FAILED, "pipe bind failed")                                               \
+  XX(EN_ATBUS_ERR_PIPE_LISTEN_FAILED, "pipe listen failed")                                           \
+  XX(EN_ATBUS_ERR_PIPE_CONNECT_FAILED, "pipe connect failed")                                         \
+  XX(EN_ATBUS_ERR_PIPE_ADDR_TOO_LONG, "pipe address too long")                                        \
+  XX(EN_ATBUS_ERR_PIPE_REMOVE_FAILED, "pipe remove old socket failed")                                \
+  XX(EN_ATBUS_ERR_PIPE_PATH_EXISTS, "pipe path already exists")                                       \
+  XX(EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED, "pipe lock path failed")                                     \
+  XX(EN_ATBUS_ERR_DNS_GETADDR_FAILED, "dns getaddr failed")                                           \
+  XX(EN_ATBUS_ERR_CONNECTION_NOT_FOUND, "connection not found")                                       \
+  XX(EN_ATBUS_ERR_WRITE_FAILED, "write failed")                                                       \
+  XX(EN_ATBUS_ERR_READ_FAILED, "read failed")                                                         \
+  XX(EN_ATBUS_ERR_EV_RUN, "event loop run failed")                                                    \
+  XX(EN_ATBUS_ERR_NO_LISTEN, "no listen")                                                             \
   XX(EN_ATBUS_ERR_NOT_READY, "not ready")
 
 inline const char *libatbus_error_name(ATBUS_ERROR_TYPE errcode) noexcept {

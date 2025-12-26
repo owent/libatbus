@@ -125,6 +125,8 @@ static void setup_atbus_node_logger(atbus::node &n) {
                            atfw::util::log::log_formatter::level_t::LOG_LW_INFO);
   n.get_logger()->add_sink(node_reg_test_on_error, atfw::util::log::log_formatter::level_t::LOG_LW_ERROR,
                            atfw::util::log::log_formatter::level_t::LOG_LW_ERROR);
+
+  n.enable_debug_message_verbose();
 }
 
 static int node_reg_test_recv_msg_test_record_fn(const atbus::node & /*n*/, const atbus::endpoint * /*ep*/,
@@ -687,7 +689,7 @@ CASE_TEST(atbus_node_reg, reg_failed_with_unsupported) {
     CASE_EXPECT_LE(check_ep_count + 1, recv_msg_history.register_failed_count);
 
     CASE_EXPECT_EQ(nullptr, node2->get_endpoint(node1->get_id()));
-    CASE_EXPECT_NE(nullptr, node1->get_endpoint(node2->get_id()));
+    CASE_EXPECT_EQ(nullptr, node1->get_endpoint(node2->get_id()));
 
     CASE_EXPECT_EQ(EN_ATBUS_ERR_UNSUPPORTED_VERSION, recv_msg_history.status);
   }

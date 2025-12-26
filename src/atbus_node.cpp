@@ -17,6 +17,7 @@
 
 #  include <algorithm>
 #  include <string>
+#  include <unordered_set>
 #  include <vector>
 
 #  include <sys/types.h>
@@ -107,6 +108,12 @@ ATBUS_MACRO_API node::conf_t &node::conf_t::operator=(const conf_t &other) {
   access_tokens = other.access_tokens;
   overwrite_listen_path = other.overwrite_listen_path;
 
+  crypto_key_exchange_type = other.crypto_key_exchange_type;
+  crypto_key_refresh_interval = other.crypto_key_refresh_interval;
+  crypto_allow_algorithms = other.crypto_allow_algorithms;
+
+  compression_allow_algorithms = other.compression_allow_algorithms;
+
   message_size = other.message_size;
   recv_buffer_size = other.recv_buffer_size;
   send_buffer_size = other.send_buffer_size;
@@ -145,9 +152,12 @@ ATBUS_MACRO_API node::send_data_options_t &node::send_data_options_t::operator=(
 
 node::node()
     : state_(state_t::CREATED),
+      crypto_key_exchange_type_(protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE),
       ev_loop_(nullptr),
       static_buffer_(nullptr),
       logger_enable_debug_message_verbose_(false) {
+  ::atfw::util::time::time_utility::update();
+
   event_timer_.sec = 0;
   event_timer_.usec = 0;
   event_timer_.node_sync_push = 0;
@@ -211,6 +221,40 @@ ATBUS_MACRO_API void node::default_conf(conf_t *conf) {
 
   conf->message_size = ATBUS_MACRO_MESSAGE_LIMIT;
 
+  // 加密算法
+  conf->crypto_key_exchange_type = protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE;
+  conf->crypto_key_refresh_interval = std::chrono::microseconds(3600000000 * 3);  // 默认3小时重新协商一次
+  conf->crypto_allow_algorithms.clear();
+#if defined(ATFW_UTIL_MACRO_CRYPTO_CIPHER_ENABLED)
+  std::unordered_set<protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> algorithm;
+  algorithm.reserve(8);
+  for (auto &name : ::atfw::util::crypto::cipher::get_all_cipher_names()) {
+    protocol::ATBUS_CRYPTO_ALGORITHM_TYPE algo = parse_crypto_algorithm_name(name);
+    if (algo != protocol::ATBUS_CRYPTO_ALGORITHM_NONE) {
+      algorithm.insert(algo);
+      continue;
+    }
+  }
+  conf->crypto_allow_algorithms.reserve(algorithm.size());
+  conf->crypto_allow_algorithms.assign(algorithm.begin(), algorithm.end());
+#endif
+
+  // 压缩算法
+  conf->compression_allow_algorithms.clear();
+  conf->compression_allow_algorithms.reserve(4);
+#if defined(ATBUS_MACRO_COMPRESSION_ZSTD) && ATBUS_MACRO_COMPRESSION_ZSTD
+  conf->compression_allow_algorithms.push_back(protocol::ATBUS_COMPRESSION_ALGORITHM_ZSTD);
+#endif
+#if defined(ATBUS_MACRO_COMPRESSION_LZ4) && ATBUS_MACRO_COMPRESSION_LZ4
+  conf->compression_allow_algorithms.push_back(protocol::ATBUS_COMPRESSION_ALGORITHM_LZ4);
+#endif
+#if defined(ATBUS_MACRO_COMPRESSION_SNAPPY) && ATBUS_MACRO_COMPRESSION_SNAPPY
+  conf->compression_allow_algorithms.push_back(protocol::ATBUS_COMPRESSION_ALGORITHM_SNAPPY);
+#endif
+#if defined(ATBUS_MACRO_COMPRESSION_ZLIB) && ATBUS_MACRO_COMPRESSION_ZLIB
+  conf->compression_allow_algorithms.push_back(protocol::ATBUS_COMPRESSION_ALGORITHM_ZLIB);
+#endif
+
   // recv_buffer_size 用于内存/共享内存通道的缓冲区长度，因为本机节点一般数量少所以默认设的大一点
   conf->recv_buffer_size = ATBUS_MACRO_SHM_MEM_CHANNEL_LENGTH;
 
@@ -258,6 +302,13 @@ ATBUS_MACRO_API int node::init(bus_id_t id, const conf_t *conf) {
     conf_ = *conf;
   }
 
+  // 加载加密和压缩配置
+  reload_crypto(conf_.crypto_key_exchange_type, conf_.crypto_key_refresh_interval,
+                gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE>(conf_.crypto_allow_algorithms.data(),
+                                                                       conf_.crypto_allow_algorithms.size()));
+  reload_compression(gsl::span<const protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE>(
+      conf_.compression_allow_algorithms.data(), conf_.compression_allow_algorithms.size()));
+
   if (conf_.access_tokens.size() > conf_.access_token_max_number) {
     conf_.access_tokens.resize(conf_.access_token_max_number);
   }
@@ -281,6 +332,84 @@ ATBUS_MACRO_API int node::init(bus_id_t id, const conf_t *conf) {
 
   state_ = state_t::INITED;
   return EN_ATBUS_ERR_SUCCESS;
+}
+
+ATBUS_MACRO_API void node::reload_crypto(
+    protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE crypto_key_exchange_type,
+    std::chrono::microseconds crypto_key_refresh_interval,
+    gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> crypto_allow_algorithms) {
+  conf_.crypto_key_refresh_interval = crypto_key_refresh_interval;
+
+  if (crypto_key_exchange_type_ == crypto_key_exchange_type) {
+    return;
+  }
+
+  if (crypto_key_exchange_type_ != crypto_key_exchange_type) {
+    bool is_success = false;
+    ::atfw::util::crypto::dh::shared_context::ptr_t new_dh_ctx;
+    switch (crypto_key_exchange_type) {
+      case protocol::ATBUS_CRYPTO_KEY_EXCHANGE_X25519:
+        new_dh_ctx = ::atfw::util::crypto::dh::shared_context::create();
+        if (!new_dh_ctx || new_dh_ctx->init("ecdh:x25519") < 0) {
+          break;
+        }
+        is_success = true;
+        break;
+      case protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP256R1:
+        new_dh_ctx = ::atfw::util::crypto::dh::shared_context::create();
+        if (!new_dh_ctx || new_dh_ctx->init("ecdh:p-256") < 0) {
+          break;
+        }
+        is_success = true;
+        break;
+      case protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP384R1:
+        new_dh_ctx = ::atfw::util::crypto::dh::shared_context::create();
+        if (!new_dh_ctx || new_dh_ctx->init("ecdh:p-384") < 0) {
+          break;
+        }
+        is_success = true;
+        break;
+      case protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP521R1:
+        new_dh_ctx = ::atfw::util::crypto::dh::shared_context::create();
+        if (!new_dh_ctx || new_dh_ctx->init("ecdh:p-521") < 0) {
+          break;
+        }
+        is_success = true;
+        break;
+      default:
+        crypto_key_exchange_type = protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE;
+        is_success = true;
+        break;
+    }
+
+    if (is_success) {
+      crypto_key_exchange_type_ = crypto_key_exchange_type;
+      crypto_key_exchange_context_ = new_dh_ctx;
+    }
+  }
+
+  conf_.crypto_key_exchange_type = crypto_key_exchange_type_;
+  if (crypto_allow_algorithms.data() == conf_.crypto_allow_algorithms.data()) {
+    return;
+  }
+  conf_.crypto_allow_algorithms.reserve(crypto_allow_algorithms.size());
+  conf_.crypto_allow_algorithms.clear();
+  for (auto &alg : crypto_allow_algorithms) {
+    if (alg == protocol::ATBUS_CRYPTO_ALGORITHM_NONE) {
+      continue;
+    }
+    conf_.crypto_allow_algorithms.push_back(alg);
+  }
+}
+
+ATBUS_MACRO_API void node::reload_compression(
+    gsl::span<const protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> compression_allow_algorithms) {
+  if (compression_allow_algorithms.data() == conf_.compression_allow_algorithms.data()) {
+    return;
+  }
+
+  conf_.compression_allow_algorithms.reserve(compression_allow_algorithms.size());
+  conf_.compression_allow_algorithms.assign(compression_allow_algorithms.begin(), compression_allow_algorithms.end());
 }
 
 ATBUS_MACRO_API int node::start(const start_conf_t &start_conf) {
@@ -732,7 +861,7 @@ ATBUS_MACRO_API int node::poll() {
   return ret;
 }
 
-ATBUS_MACRO_API int node::listen(const char *addr_str) {
+ATBUS_MACRO_API int node::listen(gsl::string_view addr_str) {
   if (state_t::CREATED == state_) {
     return EN_ATBUS_ERR_NOT_INITED;
   }
@@ -764,7 +893,7 @@ ATBUS_MACRO_API int node::listen(const char *addr_str) {
   return EN_ATBUS_ERR_SUCCESS;
 }
 
-ATBUS_MACRO_API int node::connect(const char *addr_str) {
+ATBUS_MACRO_API int node::connect(gsl::string_view addr_str) {
   if (state_t::CREATED == state_) {
     return EN_ATBUS_ERR_NOT_INITED;
   }
@@ -776,7 +905,8 @@ ATBUS_MACRO_API int node::connect(const char *addr_str) {
       continue;
     }
 
-    if (0 == UTIL_STRFUNC_STRNCASE_CMP(addr_str, iter->second->get_address().address.c_str(),
+    if (addr_str.size() == iter->second->get_address().address.size() &&
+        0 == UTIL_STRFUNC_STRNCASE_CMP(addr_str.data(), iter->second->get_address().address.c_str(),
                                        iter->second->get_address().address.size())) {
       return EN_ATBUS_ERR_SUCCESS;
     }
@@ -788,9 +918,9 @@ ATBUS_MACRO_API int node::connect(const char *addr_str) {
   }
 
   // 内存通道和共享内存通道不允许协商握手，必须直接指定endpoint
-  if (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr_str, 4)) {
+  if (addr_str.size() >= 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr_str.data(), 4)) {
     return EN_ATBUS_ERR_ACCESS_DENY;
-  } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr_str, 4)) {
+  } else if (addr_str.size() >= 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr_str.data(), 4)) {
     return EN_ATBUS_ERR_ACCESS_DENY;
   }
 
@@ -804,7 +934,7 @@ ATBUS_MACRO_API int node::connect(const char *addr_str) {
   return EN_ATBUS_ERR_SUCCESS;
 }
 
-ATBUS_MACRO_API int node::connect(const char *addr_str, endpoint *ep) {
+ATBUS_MACRO_API int node::connect(gsl::string_view addr_str, endpoint *ep) {
   if (state_t::CREATED == state_) {
     return EN_ATBUS_ERR_NOT_INITED;
   }
@@ -821,7 +951,8 @@ ATBUS_MACRO_API int node::connect(const char *addr_str, endpoint *ep) {
     }
 
     if (iter->second->get_binding() == ep) {
-      if (0 == UTIL_STRFUNC_STRNCASE_CMP(addr_str, iter->second->get_address().address.c_str(),
+      if (addr_str.size() == iter->second->get_address().address.size() &&
+          0 == UTIL_STRFUNC_STRNCASE_CMP(addr_str.data(), iter->second->get_address().address.c_str(),
                                          iter->second->get_address().address.size())) {
         return EN_ATBUS_ERR_SUCCESS;
       }
@@ -841,7 +972,8 @@ ATBUS_MACRO_API int node::connect(const char *addr_str, endpoint *ep) {
   ATBUS_FUNC_NODE_DEBUG(*this, ep, conn.get(), nullptr, "connect to {} and bind to a endpoint, result_code: {}",
                         addr_str, ret);
 
-  if (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr_str, 4) || 0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr_str, 4)) {
+  if (addr_str.size() >= 4 && (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr_str.data(), 4) ||
+                               0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr_str.data(), 4))) {
     if (ep->add_connection(conn.get(), true)) {
       return EN_ATBUS_ERR_SUCCESS;
     }
@@ -881,6 +1013,15 @@ ATBUS_MACRO_API int node::disconnect(bus_id_t id) {
   }
 
   return EN_ATBUS_ERR_ATNODE_NOT_FOUND;
+}
+
+ATBUS_MACRO_API protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE node::get_crypto_key_exchange_type() const noexcept {
+  return crypto_key_exchange_type_;
+}
+
+ATBUS_MACRO_API const ::atfw::util::crypto::dh::shared_context::ptr_t &node::get_crypto_key_exchange_context()
+    const noexcept {
+  return crypto_key_exchange_context_;
 }
 
 ATBUS_MACRO_API int node::send_data(bus_id_t tid, int type, const void *buffer, size_t s, bool require_rsp) {
@@ -1214,6 +1355,8 @@ ATBUS_MACRO_API bool node::check_access_hash(const ::atframework::atbus::protoco
     return false;
   }
 
+  // TODO(owent): 如果要阻挡重放攻击，需要验证和记录近期的nonce重复，也需要保证生成nonce的算法保证在一段时间内不重复
+
   const EVP_MD *evp_md = EVP_sha256();
   if (nullptr == evp_md) {
     ATBUS_FUNC_NODE_ERROR(*this, ep, conn, EN_ATBUS_ERR_NOT_INITED, EN_ATBUS_ERR_NOT_INITED, "sha256 unavailabled.");
@@ -1405,10 +1548,10 @@ ATBUS_MACRO_API const std::string &node::get_hostname() {
   return hn;
 }
 
-ATBUS_MACRO_API bool node::set_hostname(const std::string &hn, bool force) {
+ATBUS_MACRO_API bool node::set_hostname(gsl::string_view hn, bool force) {
   std::string &h = host_name_buffer();
   if (force || h.empty()) {
-    h = hn;
+    h = std::string(hn);
     return true;
   }
 
@@ -1419,12 +1562,12 @@ ATBUS_MACRO_API int32_t node::get_protocol_version() const { return conf_.protoc
 
 ATBUS_MACRO_API int32_t node::get_protocol_minimal_version() const { return conf_.protocol_minimal_version; }
 
-ATBUS_MACRO_API const std::list<std::string> &node::get_listen_list() const {
+ATBUS_MACRO_API const std::list<channel::channel_address_t> &node::get_listen_list() const {
   UTIL_LIKELY_IF (self_) {
     return self_->get_listen();
   }
 
-  static std::list<std::string> empty;
+  static std::list<channel::channel_address_t> empty;
   return empty;
 }
 
@@ -1603,7 +1746,8 @@ ATBUS_MACRO_API int node::on_new_connection(connection *conn) {
 
   // 如果ID有效，且是IO流连接，则发送注册协议
   // ID为0则是临时节点，不需要注册
-  if (conn->check_flag(connection::flag_t::REG_FD) && false == conn->check_flag(connection::flag_t::LISTEN_FD)) {
+  if (conn->check_flag(connection::flag_t::REG_FD) && false == conn->check_flag(connection::flag_t::LISTEN_FD) &&
+      conn->check_flag(connection::flag_t::CLIENT_MODE)) {
     int ret =
         message_handler::send_reg(message_body_type::kNodeRegisterReq, *this, *conn, 0, allocate_message_sequence());
     if (ret < 0) {
@@ -1992,6 +2136,51 @@ ATBUS_MACRO_API bool node::check_conflict(endpoint_collection_t &coll,
   return false;
 }
 
+ATBUS_MACRO_API protocol::ATBUS_CRYPTO_ALGORITHM_TYPE node::parse_crypto_algorithm_name(
+    gsl::string_view name) noexcept {
+#if defined(ATFW_UTIL_MACRO_CRYPTO_CIPHER_ENABLED)
+  if (name.size() == 8 && 0 == UTIL_STRFUNC_STRNCASE_CMP("chacha20", name.data(), name.size())) {
+    return protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20;
+  } else if (name.size() == 22 && 0 == UTIL_STRFUNC_STRNCASE_CMP("chacha20-poly1305-ietf", name.data(), name.size())) {
+    return protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20_POLY1305_IETF;
+  } else if (name.size() == 23 && 0 == UTIL_STRFUNC_STRNCASE_CMP("xchacha20-poly1305-ietf", name.data(), name.size())) {
+    return protocol::ATBUS_CRYPTO_ALGORITHM_XCHACHA20_POLY1305_IETF;
+  } else if (name.size() == 11 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-256-gcm", name.data(), name.size())) {
+    return protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM;
+  } else if (name.size() == 11 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-256-cbc", name.data(), name.size())) {
+    return protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_CBC;
+  } else if (name.size() == 10 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-192-gcm", name.data(), name.size())) {
+    return protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_GCM;
+  } else if (name.size() == 10 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-192-cbc", name.data(), name.size())) {
+    return protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_CBC;
+  } else if (name.size() == 10 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-128-gcm", name.data(), name.size())) {
+    return protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_GCM;
+  } else if (name.size() == 10 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-128-cbc", name.data(), name.size())) {
+    return protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_CBC;
+  } else if (name.size() == 5 && 0 == UTIL_STRFUNC_STRNCASE_CMP("xxtea", name.data(), name.size())) {
+    return protocol::ATBUS_CRYPTO_ALGORITHM_XXTEA;
+  }
+  return protocol::ATBUS_CRYPTO_ALGORITHM_NONE;
+#else
+  return protocol::ATBUS_CRYPTO_ALGORITHM_NONE;
+#endif
+}
+
+ATBUS_MACRO_API protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE node::parse_compression_algorithm_name(
+    gsl::string_view name) noexcept {
+  if (name.size() == 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("zstd", name.data(), name.size())) {
+    return protocol::ATBUS_COMPRESSION_ALGORITHM_ZSTD;
+  } else if (name.size() == 3 && 0 == UTIL_STRFUNC_STRNCASE_CMP("lz4", name.data(), name.size())) {
+    return protocol::ATBUS_COMPRESSION_ALGORITHM_LZ4;
+  } else if (name.size() == 3 && 0 == UTIL_STRFUNC_STRNCASE_CMP("zlib", name.data(), name.size())) {
+    return protocol::ATBUS_COMPRESSION_ALGORITHM_ZLIB;
+  } else if (name.size() == 6 && 0 == UTIL_STRFUNC_STRNCASE_CMP("snappy", name.data(), name.size())) {
+    return protocol::ATBUS_COMPRESSION_ALGORITHM_SNAPPY;
+  }
+
+  return protocol::ATBUS_COMPRESSION_ALGORITHM_NONE;
+}
+
 endpoint *node::find_route(endpoint_collection_t &coll, bus_id_t id) {
   endpoint_collection_t::iterator iter = coll.lower_bound(endpoint_subnet_range(id, 0));
   if (iter == coll.end()) {
@@ -2181,8 +2370,8 @@ void node::init_hash_code() {
 
   // hash hostname
   {
-    const std::string &hostname = get_hostname();
-    sha256.update(reinterpret_cast<const unsigned char *>(hostname.c_str()), hostname.size());
+    gsl::string_view hostname = get_hostname();
+    sha256.update(reinterpret_cast<const unsigned char *>(hostname.data()), hostname.size());
   }
 
   // hash pid

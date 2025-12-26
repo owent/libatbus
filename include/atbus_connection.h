@@ -27,7 +27,6 @@
 #include "detail/libatbus_error.h"
 
 #include "atbus_connection_context.h"
-#include "libatbus_protocol.h"  // NOLINT: build/include_subdir
 
 ATBUS_MACRO_NAMESPACE_BEGIN
 class node;
@@ -65,6 +64,8 @@ class connection final : public atfw::util::design_pattern::noncopyable {
       LISTEN_FD,         /** 是否是用于listen的连接 **/
       TEMPORARY,         /** 是否是临时连接 **/
       PEER_CLOSED,       /** 对端已关闭 **/
+      SERVER_MODE,       /** 连接处于服务端模式 **/
+      CLIENT_MODE,       /** 连接处于客户端模式 **/
       MAX
     };
   };
@@ -87,7 +88,8 @@ class connection final : public atfw::util::design_pattern::noncopyable {
   UTIL_DESIGN_PATTERN_NOMOVABLE(connection)
 
  private:
-  connection();
+  connection(protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE crypto_algorithm,
+             const ::atfw::util::crypto::dh::shared_context::ptr_t &shared_dh_context);
 
  public:
   static ATBUS_MACRO_API ptr_t create(node *owner);
@@ -110,14 +112,14 @@ class connection final : public atfw::util::design_pattern::noncopyable {
    * @param is_caddr 是否是控制节点
    * @return 0或错误码
    */
-  ATBUS_MACRO_API int listen(const char *addr);
+  ATBUS_MACRO_API int listen(gsl::string_view addr);
 
   /**
    * @brief 连接到目标地址
    * @param addr 连接目标地址
    * @return 0或错误码
    */
-  ATBUS_MACRO_API int connect(const char *addr);
+  ATBUS_MACRO_API int connect(gsl::string_view addr);
 
   /**
    * @brief 断开连接

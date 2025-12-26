@@ -1,10 +1,19 @@
 
 #include "atbus_test_utils.h"
+
+#include <time/time_utility.h>
+
 #include "frame/test_macros.h"
 
-void unit_test_tick_handle(uv_timer_t *handle) { uv_stop(handle->loop); }
+void unit_test_tick_handle(uv_timer_t *handle) {
+  atfw::util::time::time_utility::update();
+
+  uv_stop(handle->loop);
+}
 
 void unit_test_timeout_handle(uv_timer_t *handle) {
+  atfw::util::time::time_utility::update();
+
   uv_stop(handle->loop);
 
   unit_test_libuv_wait_manager *mgr = reinterpret_cast<unit_test_libuv_wait_manager *>(handle->data);

@@ -53,7 +53,7 @@ struct channel_ios_unix_addr_holder {
       file_path = "unix://" + prefix;
     }
 #else
-    file_path = "unix://\\\\.\\pipe\\unit_test.sock";
+    file_path = "pipe://\\\\.\\pipe\\unit_test.sock";
 #endif
   }
   ~channel_ios_unix_addr_holder() {
@@ -75,7 +75,7 @@ static std::pair<size_t, size_t> g_recv_rec = std::make_pair(0, 0);
 static std::list<std::pair<size_t, size_t> > g_check_buff_sequence;
 
 #  ifdef _WIN32
-#    define UNIT_TEST_INVALID_ADDR "unix://\\\\.\\pipe\\unit_test.invalid.sock"
+#    define UNIT_TEST_INVALID_ADDR "pipe://\\\\.\\pipe\\unit_test.invalid.sock"
 #  else
 #    define UNIT_TEST_INVALID_ADDR "unix://unit_test.invalid.sock"
 #  endif

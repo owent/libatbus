@@ -7,9 +7,12 @@
 
 #pragma once
 
+#include <gsl/select-gsl.h>
+
 #include <stdint.h>
 #include <algorithm>
 #include <list>
+#include <memory>
 #include <vector>
 
 #include "detail/libatbus_config.h"
@@ -233,6 +236,76 @@ class buffer_manager {
   limit_t limit_;
 };
 }  // namespace detail
+
+/**
+ * @brief static buffer block, not thread safe
+ */
+class ATFW_UTIL_SYMBOL_VISIBLE static_buffer_block {
+ private:
+  UTIL_DESIGN_PATTERN_NOCOPYABLE(static_buffer_block)
+
+ public:
+  ATFW_UTIL_FORCEINLINE static_buffer_block() noexcept : data_(nullptr), size_(0), used_(0) {}
+  ATFW_UTIL_FORCEINLINE static_buffer_block(std::unique_ptr<unsigned char[]> &&in, size_t s, size_t used = 0) noexcept
+      : data_(std::move(in)), size_(s), used_(used) {}
+
+  ATFW_UTIL_FORCEINLINE ~static_buffer_block() = default;
+
+  ATFW_UTIL_FORCEINLINE static_buffer_block(static_buffer_block &&other)
+      : data_(std::move(other.data_)), size_(other.size_), used_(other.used_) {
+    other.size_ = 0;
+    other.used_ = 0;
+  }
+
+  ATFW_UTIL_FORCEINLINE static_buffer_block &operator=(static_buffer_block &&other) {
+    if (this != &other) {
+      data_ = std::move(other.data_);
+      size_ = other.size_;
+      used_ = other.used_;
+      other.size_ = 0;
+      other.used_ = 0;
+    }
+
+    return *this;
+  }
+
+  ATFW_UTIL_FORCEINLINE unsigned char *data() noexcept { return data_.get(); }
+
+  ATFW_UTIL_FORCEINLINE const unsigned char *data() const noexcept { return data_.get(); }
+
+  ATFW_UTIL_FORCEINLINE size_t size() const noexcept { return size_; }
+
+  ATFW_UTIL_FORCEINLINE size_t used() const noexcept { return used_; }
+
+  ATFW_UTIL_FORCEINLINE void set_used(size_t used) noexcept {
+    if (used > size_) {
+      used = size_;
+    }
+    used_ = used;
+  }
+
+  ATFW_UTIL_FORCEINLINE gsl::span<unsigned char> max_span() noexcept UTIL_ATTRIBUTE_LIFETIME_BOUND {
+    return gsl::span<unsigned char>{data_.get(), size_};
+  }
+
+  ATFW_UTIL_FORCEINLINE gsl::span<const unsigned char> max_span() const noexcept UTIL_ATTRIBUTE_LIFETIME_BOUND {
+    return gsl::span<const unsigned char>{data_.get(), size_};
+  }
+
+  ATFW_UTIL_FORCEINLINE gsl::span<unsigned char> used_span() noexcept UTIL_ATTRIBUTE_LIFETIME_BOUND {
+    return gsl::span<unsigned char>{data_.get(), used_};
+  }
+
+  ATFW_UTIL_FORCEINLINE gsl::span<const unsigned char> used_span() const noexcept UTIL_ATTRIBUTE_LIFETIME_BOUND {
+    return gsl::span<const unsigned char>{data_.get(), used_};
+  }
+
+ private:
+  std::unique_ptr<unsigned char[]> data_;
+  size_t size_;
+  size_t used_;
+};
+
 ATBUS_MACRO_NAMESPACE_END
 
 #endif  // LIBATBUS_BUFFER_H

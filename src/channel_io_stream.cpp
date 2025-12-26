@@ -1114,7 +1114,11 @@ static void io_stream_pipe_connection_cb(uv_stream_t *req, int status) {
     } else {
       pipe_path[sizeof(pipe_path) - 1] = 0;
     }
+#if defined(_WIN32) || defined(__CYGWIN__)
+    make_address("pipe", pipe_path, 0, conn->addr);
+#else
     make_address("unix", pipe_path, 0, conn->addr);
+#endif
 
   } while (false);
 
@@ -1294,7 +1298,9 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
       io_stream_shutdown_ev_handle(listen_conn);
     }
     return ret;
-  } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix", addr.scheme.c_str(), 4)) {
+  } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix", addr.scheme.c_str(), 4) ||
+             0 == UTIL_STRFUNC_STRNCASE_CMP("pipe", addr.scheme.c_str(), 4)) {
+    // check path length
     if (0 != io_stream_get_max_unix_socket_length() && addr.host.size() >= io_stream_get_max_unix_socket_length()) {
       return EN_ATBUS_ERR_PIPE_ADDR_TOO_LONG;
     }
@@ -1584,7 +1590,9 @@ int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr,
     // 回收关闭
     io_stream_shutdown_async_data(async_data);
     return ret;
-  } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix", addr.scheme.c_str(), 4)) {
+  } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix", addr.scheme.c_str(), 4) ||
+             0 == UTIL_STRFUNC_STRNCASE_CMP("pipe", addr.scheme.c_str(), 4)) {
+    // check path length
     std::shared_ptr<adapter::stream_t> pipe_conn;
     adapter::pipe_t *handle = io_stream_make_stream_ptr<adapter::pipe_t>(pipe_conn);
     if (nullptr == handle) {
