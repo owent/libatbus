@@ -824,6 +824,14 @@ ATFW_UTIL_FORCEINLINE std::string __log_get_message_debug_body(const message *m)
 
   return m->get_body_debug_string();
 }
+
+ATFW_UTIL_FORCEINLINE bool __log_has_message_data(const message *m) noexcept {
+  if (m == nullptr) {
+    return false;
+  }
+
+  return m->get_head() != nullptr || m->get_body() != nullptr;
+}
 }  // namespace details
 ATBUS_MACRO_NAMESPACE_END
 
@@ -849,17 +857,17 @@ ATBUS_MACRO_NAMESPACE_END
                     ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), __VA_ARGS__) \
     }
 
-#  define ATBUS_FUNC_NODE_DEBUG(n, ep, conn, m, fmt, ...)                                            \
-    if ((n).get_logger()) {                                                                          \
-      FWINSTLOGDEBUG(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}: " fmt,           \
-                     ::atframework::atbus::details::__log_get_node_id((n)),                          \
-                     ::atframework::atbus::details::__log_get_endpoint_id((ep)),                     \
-                     ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), __VA_ARGS__) \
-      if ((n).is_debug_message_verbose_enabled() && (m)) {                                           \
-        FWINSTLOGDEBUG(*(n).get_logger(), "\tmessage head: {}\n\tmessage body: {}",                  \
-                       ::atframework::atbus::details::__log_get_message_debug_head(m),               \
-                       ::atframework::atbus::details::__log_get_message_debug_body(m))               \
-      }                                                                                              \
+#  define ATBUS_FUNC_NODE_DEBUG(n, ep, conn, m, fmt, ...)                                                       \
+    if ((n).get_logger()) {                                                                                     \
+      FWINSTLOGDEBUG(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}: " fmt,                      \
+                     ::atframework::atbus::details::__log_get_node_id((n)),                                     \
+                     ::atframework::atbus::details::__log_get_endpoint_id((ep)),                                \
+                     ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), __VA_ARGS__)            \
+      if ((n).is_debug_message_verbose_enabled() && ::atframework::atbus::details::__log_has_message_data(m)) { \
+        FWINSTLOGDEBUG(*(n).get_logger(), "\tmessage head: {}\n\tmessage body: {}",                             \
+                       ::atframework::atbus::details::__log_get_message_debug_head(m),                          \
+                       ::atframework::atbus::details::__log_get_message_debug_body(m))                          \
+      }                                                                                                         \
     }
 #else
 
@@ -879,17 +887,17 @@ ATBUS_MACRO_NAMESPACE_END
                     ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), ##args) \
     }
 
-#  define ATBUS_FUNC_NODE_DEBUG(n, ep, conn, m, fmt, args...)                                   \
-    if ((n).get_logger()) {                                                                     \
-      FWINSTLOGDEBUG(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}: " fmt,      \
-                     ::atframework::atbus::details::__log_get_node_id((n)),                     \
-                     ::atframework::atbus::details::__log_get_endpoint_id((ep)),                \
-                     ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), ##args) \
-      if ((n).is_debug_message_verbose_enabled() && (m)) {                                      \
-        FWINSTLOGDEBUG(*(n).get_logger(), "\tmessage head: {}\n\tmessage body: {}",             \
-                       ::atframework::atbus::details::__log_get_message_debug_head(m),          \
-                       ::atframework::atbus::details::__log_get_message_debug_body(m))          \
-      }                                                                                         \
+#  define ATBUS_FUNC_NODE_DEBUG(n, ep, conn, m, fmt, args...)                                                   \
+    if ((n).get_logger()) {                                                                                     \
+      FWINSTLOGDEBUG(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}: " fmt,                      \
+                     ::atframework::atbus::details::__log_get_node_id((n)),                                     \
+                     ::atframework::atbus::details::__log_get_endpoint_id((ep)),                                \
+                     ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), ##args)                 \
+      if ((n).is_debug_message_verbose_enabled() && ::atframework::atbus::details::__log_has_message_data(m)) { \
+        FWINSTLOGDEBUG(*(n).get_logger(), "\tmessage head: {}\n\tmessage body: {}",                             \
+                       ::atframework::atbus::details::__log_get_message_debug_head(m),                          \
+                       ::atframework::atbus::details::__log_get_message_debug_body(m))                          \
+      }                                                                                                         \
     }
 #endif
 
