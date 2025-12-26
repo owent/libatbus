@@ -79,17 +79,29 @@ static bool test_cipher_encrypt_decrypt(const char* cipher_name) {
     }
   }
 
-  // Test encryption
-  const std::string plaintext = "Hello, encrypted world!";
+  // Prepare plaintext - for block ciphers with no padding (like CBC mode in this library),
+  // the input must be a multiple of the block size. We use PKCS7-style padding.
+  std::string plaintext_str = "Hello, encrypted world!";
+  std::vector<unsigned char> plaintext(plaintext_str.begin(), plaintext_str.end());
+
+  // Apply PKCS7 padding for non-AEAD block ciphers (CBC, ECB modes need block-aligned input)
+  uint32_t block_size = ci.get_block_size();
+  if (block_size > 1 && !ci.is_aead()) {
+    size_t padding_needed = block_size - (plaintext.size() % block_size);
+    if (padding_needed == 0) {
+      padding_needed = block_size;
+    }
+    plaintext.insert(plaintext.end(), padding_needed, static_cast<unsigned char>(padding_needed));
+  }
+
   size_t out_size = plaintext.size() + ci.get_block_size() + ci.get_tag_size();
   std::vector<unsigned char> ciphertext(out_size);
 
   int encrypt_res;
   if (ci.is_aead()) {
     const std::string aad = "additional-data";
-    encrypt_res =
-        ci.encrypt_aead(reinterpret_cast<const unsigned char*>(plaintext.data()), plaintext.size(), ciphertext.data(),
-                        &out_size, reinterpret_cast<const unsigned char*>(aad.data()), aad.size());
+    encrypt_res = ci.encrypt_aead(plaintext.data(), plaintext.size(), ciphertext.data(), &out_size,
+                                  reinterpret_cast<const unsigned char*>(aad.data()), aad.size());
     if (encrypt_res != 0) {
       CASE_MSG_INFO() << "encrypt_aead failed: " << encrypt_res << ", errno: " << ci.get_last_errno()
                       << ", is_aead: " << ci.is_aead() << ", tag_size: " << ci.get_tag_size()
@@ -97,8 +109,7 @@ static bool test_cipher_encrypt_decrypt(const char* cipher_name) {
       return false;
     }
   } else {
-    encrypt_res = ci.encrypt(reinterpret_cast<const unsigned char*>(plaintext.data()), plaintext.size(),
-                             ciphertext.data(), &out_size);
+    encrypt_res = ci.encrypt(plaintext.data(), plaintext.size(), ciphertext.data(), &out_size);
     if (encrypt_res != 0) {
       CASE_MSG_INFO() << "encrypt failed: " << encrypt_res << ", errno: " << ci.get_last_errno() << std::endl;
       return false;
@@ -139,17 +150,30 @@ static bool test_cipher_encrypt_only_mode(const char* cipher_name) {
     }
   }
 
-  // Test encryption with AEAD if applicable
-  const std::string plaintext = "Hello, encrypted world!";
+  // Prepare plaintext - for block ciphers with no padding (like CBC mode in this library),
+  // the input must be a multiple of the block size. We use PKCS7-style padding.
+  std::string plaintext_str = "Hello, encrypted world!";
+  std::vector<unsigned char> plaintext(plaintext_str.begin(), plaintext_str.end());
+
+  // Apply PKCS7 padding for non-AEAD block ciphers (CBC, ECB modes need block-aligned input)
+  uint32_t block_size = ci.get_block_size();
+  if (block_size > 1 && !ci.is_aead()) {
+    // PKCS7 padding: pad to block size with bytes indicating padding length
+    size_t padding_needed = block_size - (plaintext.size() % block_size);
+    if (padding_needed == 0) {
+      padding_needed = block_size;  // Always add at least one block of padding
+    }
+    plaintext.insert(plaintext.end(), padding_needed, static_cast<unsigned char>(padding_needed));
+  }
+
   size_t out_size = plaintext.size() + ci.get_block_size() + ci.get_tag_size();
   std::vector<unsigned char> ciphertext(out_size);
 
   int encrypt_res;
   if (ci.is_aead()) {
     const std::string aad = "additional-data";
-    encrypt_res =
-        ci.encrypt_aead(reinterpret_cast<const unsigned char*>(plaintext.data()), plaintext.size(), ciphertext.data(),
-                        &out_size, reinterpret_cast<const unsigned char*>(aad.data()), aad.size());
+    encrypt_res = ci.encrypt_aead(plaintext.data(), plaintext.size(), ciphertext.data(), &out_size,
+                                  reinterpret_cast<const unsigned char*>(aad.data()), aad.size());
     if (encrypt_res != 0) {
       CASE_MSG_INFO() << "[SINGLE MODE] encrypt_aead failed: " << encrypt_res << ", errno: " << ci.get_last_errno()
                       << ", is_aead: " << ci.is_aead() << ", tag_size: " << ci.get_tag_size()
@@ -157,11 +181,10 @@ static bool test_cipher_encrypt_only_mode(const char* cipher_name) {
       return false;
     }
   } else {
-    encrypt_res = ci.encrypt(reinterpret_cast<const unsigned char*>(plaintext.data()), plaintext.size(),
-                             ciphertext.data(), &out_size);
+    encrypt_res = ci.encrypt(plaintext.data(), plaintext.size(), ciphertext.data(), &out_size);
     if (encrypt_res != 0) {
       CASE_MSG_INFO() << "[SINGLE MODE] encrypt failed: " << encrypt_res << ", errno: " << ci.get_last_errno()
-                      << std::endl;
+                      << ", block_size: " << block_size << ", input_size: " << plaintext.size() << std::endl;
       return false;
     }
   }
