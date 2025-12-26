@@ -115,32 +115,34 @@ CASE_TEST(atbus_node_setup, override_listen_path) {
 
 #ifdef ATFW_UTIL_MACRO_CRYPTO_CIPHER_ENABLED
 CASE_TEST(atbus_node_setup, crypto_algorithms) {
-  std::string algorithms[] = {"xxtea",
-                              "chacha20",
-                              "chacha20-poly1305-ietf",
-                              "xchacha20-poly1305-ietf",
-                              "aes-128-cbc",
-                              "aes-128-gcm",
-                              "aes-192-cbc",
-                              "aes-192-gcm",
-                              "aes-256-cbc",
-                              "aes-256-gcm"};
-
+  std::pair<std::string, ::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> algorithms[] = {
+      {"xxtea", ::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_XXTEA},
+      {"chacha20", ::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20},
+      {"chacha20-poly1305-ietf", ::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20_POLY1305_IETF},
+      {"xchacha20-poly1305-ietf", ::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_XCHACHA20_POLY1305_IETF},
+      {"aes-128-cbc", ::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_CBC},
+      {"aes-128-gcm", ::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_GCM},
+      {"aes-192-cbc", ::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_CBC},
+      {"aes-192-gcm", ::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_GCM},
+      {"aes-256-cbc", ::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_CBC},
+      {"aes-256-gcm", ::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM}};
   std::unordered_set<std::string> cipher_support_algorithms;
   for (auto &name : atfw::util::crypto::cipher::get_all_cipher_names()) {
     cipher_support_algorithms.insert(name);
   }
 
   size_t count = 0;
-  for (auto &test_algorithm_name : algorithms) {
-    if (cipher_support_algorithms.find(test_algorithm_name) == cipher_support_algorithms.end()) {
+  for (auto &test_algorithm : algorithms) {
+    if (cipher_support_algorithms.find(test_algorithm.first) == cipher_support_algorithms.end()) {
       continue;
     }
 
-    ++count;
     ::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_TYPE algo_type =
-        ::atbus::node::parse_crypto_algorithm_name(test_algorithm_name);
-    CASE_EXPECT_NE(algo_type, ::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_NONE);
+        ::atbus::node::parse_crypto_algorithm_name(test_algorithm.first);
+    CASE_EXPECT_EQ(algo_type, test_algorithm.second);
+    if (algo_type == test_algorithm.second) {
+      ++count;
+    }
   }
 
   CASE_EXPECT_GT(count, 0);
@@ -148,14 +150,22 @@ CASE_TEST(atbus_node_setup, crypto_algorithms) {
 #endif
 
 CASE_TEST(atbus_node_setup, compression_algorithms) {
-  std::string algorithms[] = {"zstd", "lz4", "zlib", "snappy"};
+  std::pair<std::string, ::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> algorithms[] = {
+      {"zstd", ::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_ZSTD},
+      {"lz4", ::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_LZ4},
+      {"snappy", ::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_SNAPPY},
+      {"zlib", ::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_ZLIB},
+  };
 
   size_t count = 0;
-  for (auto &test_algorithm_name : algorithms) {
+  for (auto &test_algorithm : algorithms) {
     ++count;
     ::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE algo_type =
-        ::atbus::node::parse_compression_algorithm_name(test_algorithm_name);
-    CASE_EXPECT_NE(algo_type, ::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_NONE);
+        ::atbus::node::parse_compression_algorithm_name(test_algorithm.first);
+    CASE_EXPECT_EQ(algo_type, test_algorithm.second);
+    if (algo_type == test_algorithm.second) {
+      ++count;
+    }
   }
 
   CASE_EXPECT_GT(count, 0);

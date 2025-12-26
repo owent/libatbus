@@ -107,6 +107,68 @@ static bool test_cipher_encrypt_decrypt(const char* cipher_name) {
 
   return true;
 }
+
+// Helper function to test cipher with ENCRYPT mode only (like _create_crypto_cipher does for send_cipher_)
+static bool test_cipher_encrypt_only_mode(const char* cipher_name) {
+  atfw::util::crypto::cipher ci;
+  // Use ONLY encrypt mode, just like _create_crypto_cipher does for send_cipher_
+  int init_res = ci.init(cipher_name, atfw::util::crypto::cipher::mode_t::EN_CMODE_ENCRYPT);
+  if (init_res != 0) {
+    CASE_MSG_INFO() << "[SINGLE MODE] cipher init failed: " << init_res << ", errno: " << ci.get_last_errno()
+                    << std::endl;
+    return false;
+  }
+
+  // Set a test key (use correct bit count)
+  uint32_t key_bits = ci.get_key_bits();
+  std::vector<unsigned char> key(key_bits / 8, 0x42);
+  int key_res = ci.set_key(key.data(), key_bits);
+  if (key_res != 0) {
+    CASE_MSG_INFO() << "[SINGLE MODE] set_key failed: " << key_res << ", errno: " << ci.get_last_errno() << std::endl;
+    return false;
+  }
+
+  // Set IV
+  uint32_t iv_size = ci.get_iv_size();
+  if (iv_size > 0) {
+    std::vector<unsigned char> iv(iv_size, 0x24);
+    int iv_res = ci.set_iv(iv.data(), iv_size);
+    if (iv_res != 0) {
+      CASE_MSG_INFO() << "[SINGLE MODE] set_iv failed: " << iv_res << ", errno: " << ci.get_last_errno() << std::endl;
+      return false;
+    }
+  }
+
+  // Test encryption with AEAD if applicable
+  const std::string plaintext = "Hello, encrypted world!";
+  size_t out_size = plaintext.size() + ci.get_block_size() + ci.get_tag_size();
+  std::vector<unsigned char> ciphertext(out_size);
+
+  int encrypt_res;
+  if (ci.is_aead()) {
+    const std::string aad = "additional-data";
+    encrypt_res =
+        ci.encrypt_aead(reinterpret_cast<const unsigned char*>(plaintext.data()), plaintext.size(), ciphertext.data(),
+                        &out_size, reinterpret_cast<const unsigned char*>(aad.data()), aad.size());
+    if (encrypt_res != 0) {
+      CASE_MSG_INFO() << "[SINGLE MODE] encrypt_aead failed: " << encrypt_res << ", errno: " << ci.get_last_errno()
+                      << ", is_aead: " << ci.is_aead() << ", tag_size: " << ci.get_tag_size()
+                      << ", block_size: " << ci.get_block_size() << std::endl;
+      return false;
+    }
+  } else {
+    encrypt_res = ci.encrypt(reinterpret_cast<const unsigned char*>(plaintext.data()), plaintext.size(),
+                             ciphertext.data(), &out_size);
+    if (encrypt_res != 0) {
+      CASE_MSG_INFO() << "[SINGLE MODE] encrypt failed: " << encrypt_res << ", errno: " << ci.get_last_errno()
+                      << std::endl;
+      return false;
+    }
+  }
+
+  CASE_MSG_INFO() << "[SINGLE MODE] cipher encrypt test PASSED for " << cipher_name << std::endl;
+  return true;
+}
 #endif
 
 }  // namespace
@@ -786,6 +848,13 @@ CASE_TEST(atbus_connection_context, pack_unpack_message_with_encryption) {
     return;
   }
 
+  // Also test with single ENCRYPT mode (like _create_crypto_cipher uses)
+  if (!test_cipher_encrypt_only_mode("aes-256-gcm")) {
+    CASE_MSG_INFO() << "AES-256-GCM single mode test failed, this indicates _create_crypto_cipher may have issues"
+                    << std::endl;
+    return;
+  }
+
   auto server_dh_ctx = create_test_dh_context("ecdh:P-256");
   auto client_dh_ctx = create_test_dh_context("ecdh:P-256");
 
@@ -868,6 +937,43 @@ CASE_TEST(atbus_connection_context, pack_unpack_message_with_encryption) {
 
   atfw::atbus::random_engine_t random_engine;
   random_engine.init_seed(static_cast<uint64_t>(time(nullptr)));
+
+  // Additional debug: test cipher encryption directly with the same setup pattern as connection_context
+  {
+    atfw::util::crypto::cipher test_ci;
+    int init_res = test_ci.init("aes-256-gcm", atfw::util::crypto::cipher::mode_t::EN_CMODE_ENCRYPT);
+    CASE_MSG_INFO() << "Direct cipher init result: " << init_res << std::endl;
+    if (init_res == 0) {
+      // Use the exact same key size as connection_context would
+      uint32_t key_bits = test_ci.get_key_bits();
+      uint32_t key_size = key_bits / 8;
+      uint32_t iv_size = test_ci.get_iv_size();
+      std::vector<unsigned char> key_iv(key_size + iv_size, 0x42);
+
+      // This is what connection_context does: set_key(key_iv.data(), key_size * 8)
+      int key_res = test_ci.set_key(key_iv.data(), key_size * 8);
+      CASE_MSG_INFO() << "Direct cipher set_key result: " << key_res << ", key_size: " << key_size
+                      << ", key_bits: " << (key_size * 8) << std::endl;
+
+      if (key_res == 0 && iv_size > 0) {
+        int iv_res = test_ci.set_iv(key_iv.data() + key_size, iv_size);
+        CASE_MSG_INFO() << "Direct cipher set_iv result: " << iv_res << ", iv_size: " << iv_size << std::endl;
+
+        if (iv_res == 0) {
+          const std::string plaintext = "Hello, encrypted world!";
+          size_t out_size = plaintext.size() + test_ci.get_block_size() + test_ci.get_tag_size();
+          std::vector<unsigned char> ciphertext(out_size);
+          const std::string aad = "test-aad";
+
+          int enc_res = test_ci.encrypt_aead(reinterpret_cast<const unsigned char*>(plaintext.data()), plaintext.size(),
+                                             ciphertext.data(), &out_size,
+                                             reinterpret_cast<const unsigned char*>(aad.data()), aad.size());
+          CASE_MSG_INFO() << "Direct cipher encrypt_aead result: " << enc_res
+                          << ", last_errno: " << test_ci.get_last_errno() << std::endl;
+        }
+      }
+    }
+  }
 
   // Pack message from client
   auto pack_result = client_ctx->pack_message(send_msg, atframework::atbus::protocol::ATBUS_PROTOCOL_VERSION,

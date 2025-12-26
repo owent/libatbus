@@ -127,7 +127,8 @@ static ::atfw::util::memory::strong_rc_ptr<::atfw::util::crypto::cipher> _create
     }
     case protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM: {
       auto cipher_ptr = ::atfw::util::memory::make_strong_rc<::atfw::util::crypto::cipher>();
-      if (cipher_ptr->init("aes-256-gcm", mode) != ::atfw::util::crypto::cipher::error_code_t::OK) {
+      auto init_ret = cipher_ptr->init("aes-256-gcm", mode);
+      if (init_ret != ::atfw::util::crypto::cipher::error_code_t::OK) {
         return nullptr;
       }
       return cipher_ptr;
@@ -159,7 +160,7 @@ static ::atfw::util::memory::strong_rc_ptr<::atfw::util::crypto::cipher> _create
 }
 
 static int _generate_key_iv(protocol::ATBUS_CRYPTO_KDF_TYPE /*type*/, std::vector<unsigned char> &shared_secret,
-                            size_t key_iv_size, std::vector<unsigned char>& key_iv) {
+                            size_t key_iv_size, std::vector<unsigned char> &key_iv) {
   // FIXME: 目前只支持ATBUS_CRYPTO_KDF_HKDF_SHA256
   key_iv.resize(key_iv_size);
 
@@ -174,8 +175,7 @@ static int _generate_key_iv(protocol::ATBUS_CRYPTO_KDF_TYPE /*type*/, std::vecto
   OSSL_PARAM *p = params;
 
   char sn_sha256_name[] = SN_sha256;
-  *p++ = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_DIGEST,
-                                        sn_sha256_name, strlen(sn_sha256_name));
+  *p++ = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_DIGEST, sn_sha256_name, strlen(sn_sha256_name));
   *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_KEY, reinterpret_cast<void *>(shared_secret.data()),
                                            static_cast<size_t>(shared_secret.size()));
 
@@ -325,7 +325,37 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
   }
 
   if (body_size > max_body_size) {
-    return buffer_result_t::make_error(EN_ATBUS_ERR_INVALID_SIZE);
+    if (body_size > max_body_size + ATBUS_MACRO_MAX_FRAME_HEADER) {
+      return buffer_result_t::make_error(EN_ATBUS_ERR_INVALID_SIZE);
+    }
+
+    size_t check_user_body_size = body_size;
+    switch (body->message_type_case()) {
+      case protocol::message_body::kDataTransformReq:
+        check_user_body_size = body->data_transform_req().content().size();
+        break;
+      case protocol::message_body::kDataTransformRsp:
+        check_user_body_size = body->data_transform_rsp().content().size();
+        break;
+      case protocol::message_body::kCustomCommandReq:
+        check_user_body_size = 0;
+        for (auto &cmd : body->custom_command_req().commands()) {
+          check_user_body_size += cmd.arg().size();
+        }
+        break;
+      case protocol::message_body::kCustomCommandRsp:
+        check_user_body_size = 0;
+        for (auto &cmd : body->custom_command_rsp().commands()) {
+          check_user_body_size += cmd.arg().size();
+        }
+        break;
+      default:
+        break;
+    }
+
+    if (check_user_body_size > max_body_size) {
+      return buffer_result_t::make_error(EN_ATBUS_ERR_INVALID_SIZE);
+    }
   }
 
   auto &head = m.mutable_head();
@@ -370,7 +400,7 @@ ATBUS_MACRO_API int connection_context::unpack_message(message &m, gsl::span<con
     return EN_ATBUS_ERR_SUCCESS;
   }
 
-  if (max_body_size > 0 && head.body_size() > max_body_size) {
+  if (max_body_size > 0 && head.body_size() > max_body_size + ATBUS_MACRO_MAX_FRAME_HEADER) {
     return EN_ATBUS_ERR_INVALID_SIZE;
   }
 
@@ -547,26 +577,24 @@ ATBUS_MACRO_API int connection_context::handshake_read_peer_key(
     // TODO: 初始化加密和解密cipher
     send_cipher_ = _create_crypto_cipher(crypto_select_algorithm_, true);
     receive_cipher_ = _create_crypto_cipher(crypto_select_algorithm_, false);
-
     if (!send_cipher_ || !receive_cipher_) {
       ret = EN_ATBUS_ERR_CRYPTO_HANDSHAKE_NO_AVAILABLE_ALGORITHM;
       break;
     }
-
     // 如果对方传来了iv size，以协商对方的为准
     // 否则本地创建cipher后以cipher的默认值为准
     uint32_t iv_size = peer_pub_key.iv_size();
     if (iv_size == 0) {
       iv_size = send_cipher_->get_iv_size();
     }
-    uint32_t key_size = send_cipher_->get_key_bits() / 8;
+    uint32_t key_bits = send_cipher_->get_key_bits();
+    uint32_t key_size = key_bits / 8;
     std::vector<unsigned char> key_iv;
     ret = _generate_key_iv(crypto_select_kdf_type_, shared_secret, iv_size + key_size, key_iv);
     if (ret != 0) {
       break;
     }
-
-    if (send_cipher_->set_key(key_iv.data(), key_size) != 0) {
+    if (send_cipher_->set_key(key_iv.data(), key_bits) != 0) {
       ret = EN_ATBUS_ERR_CRYPTO_ENCRYPT;
       break;
     }
@@ -574,7 +602,7 @@ ATBUS_MACRO_API int connection_context::handshake_read_peer_key(
       ret = EN_ATBUS_ERR_CRYPTO_INVALID_IV;
       break;
     }
-    if (receive_cipher_->set_key(key_iv.data(), key_size) != 0) {
+    if (receive_cipher_->set_key(key_iv.data(), key_bits) != 0) {
       ret = EN_ATBUS_ERR_CRYPTO_ENCRYPT;
       break;
     }
@@ -740,9 +768,14 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
     memcpy(final_buffer.data(), head_len_buffer, head_vint_size);
     head.SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t *>(final_buffer.data() + head_vint_size));
 
+    int encrypt_result = send_cipher_->encrypt_aead(
+        body_data_span.data(), body_data_span.size(), final_buffer.data() + head_vint_size + head_size,
+        &body_at_least_size, reinterpret_cast<const unsigned char *>(crypto_info->aad().data()),
+        crypto_info->aad().size());
     if (encrypt_result < 0) {
       return buffer_result_t::make_error(EN_ATBUS_ERR_CRYPTO_ENCRYPT);
     }
+    final_buffer.set_used(head_vint_size + head_size + body_at_least_size);
   } else {
     size_t body_at_least_size = body_data_span.size() + send_cipher_->get_block_size();
     // 这时候header数据已经固定，可以计算长度了
@@ -760,13 +793,10 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
                               final_buffer.data() + head_vint_size + head_size, &body_at_least_size) < 0) {
       return buffer_result_t::make_error(EN_ATBUS_ERR_CRYPTO_ENCRYPT);
     }
+    final_buffer.set_used(head_vint_size + head_size + body_at_least_size);
   }
 
   return buffer_result_t::make_success(std::move(final_buffer));
 }
 
 ATBUS_MACRO_NAMESPACE_END
-
-
-
-

@@ -7,6 +7,7 @@
 
 #include "atbus_node.h"
 
+#include <algorithm/crypto_cipher.h>
 #include <algorithm/murmur_hash.h>
 #include <algorithm/sha.h>
 #include <common/string_oprs.h>
@@ -2149,13 +2150,13 @@ ATBUS_MACRO_API protocol::ATBUS_CRYPTO_ALGORITHM_TYPE node::parse_crypto_algorit
     return protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM;
   } else if (name.size() == 11 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-256-cbc", name.data(), name.size())) {
     return protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_CBC;
-  } else if (name.size() == 10 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-192-gcm", name.data(), name.size())) {
+  } else if (name.size() == 11 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-192-gcm", name.data(), name.size())) {
     return protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_GCM;
-  } else if (name.size() == 10 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-192-cbc", name.data(), name.size())) {
+  } else if (name.size() == 11 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-192-cbc", name.data(), name.size())) {
     return protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_CBC;
-  } else if (name.size() == 10 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-128-gcm", name.data(), name.size())) {
+  } else if (name.size() == 11 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-128-gcm", name.data(), name.size())) {
     return protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_GCM;
-  } else if (name.size() == 10 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-128-cbc", name.data(), name.size())) {
+  } else if (name.size() == 11 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-128-cbc", name.data(), name.size())) {
     return protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_CBC;
   } else if (name.size() == 5 && 0 == UTIL_STRFUNC_STRNCASE_CMP("xxtea", name.data(), name.size())) {
     return protocol::ATBUS_CRYPTO_ALGORITHM_XXTEA;
@@ -2172,7 +2173,7 @@ ATBUS_MACRO_API protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE node::parse_compressi
     return protocol::ATBUS_COMPRESSION_ALGORITHM_ZSTD;
   } else if (name.size() == 3 && 0 == UTIL_STRFUNC_STRNCASE_CMP("lz4", name.data(), name.size())) {
     return protocol::ATBUS_COMPRESSION_ALGORITHM_LZ4;
-  } else if (name.size() == 3 && 0 == UTIL_STRFUNC_STRNCASE_CMP("zlib", name.data(), name.size())) {
+  } else if (name.size() == 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("zlib", name.data(), name.size())) {
     return protocol::ATBUS_COMPRESSION_ALGORITHM_ZLIB;
   } else if (name.size() == 6 && 0 == UTIL_STRFUNC_STRNCASE_CMP("snappy", name.data(), name.size())) {
     return protocol::ATBUS_COMPRESSION_ALGORITHM_SNAPPY;
