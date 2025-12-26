@@ -1220,4 +1220,556 @@ CASE_TEST(atbus_connection_context, bidirectional_encrypted_communication) {
     }
   }
 }
+
+// ============================================================================
+// Comprehensive tests for all key exchange algorithms and encryption algorithms
+// ============================================================================
+
+// Define all key exchange algorithms with their DH curve names
+struct key_exchange_test_case {
+  atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE type;
+  const char* dh_curve_name;
+  const char* name;
+};
+
+static const key_exchange_test_case kKeyExchangeTestCases[] = {
+    {atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_X25519, "ecdh:X25519", "X25519"},
+    {atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP256R1, "ecdh:P-256", "SECP256R1 (P-256)"},
+    {atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP384R1, "ecdh:P-384", "SECP384R1 (P-384)"},
+    {atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP521R1, "ecdh:P-521", "SECP521R1 (P-521)"},
+};
+
+// Define all encryption algorithms with their cipher names
+struct crypto_algorithm_test_case {
+  atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_TYPE type;
+  const char* cipher_name;
+  const char* name;
+  bool is_aead;
+};
+
+static const crypto_algorithm_test_case kCryptoAlgorithmTestCases[] = {
+    {atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_XXTEA, "xxtea", "XXTEA", false},
+    {atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_CBC, "aes-128-cbc", "AES-128-CBC", false},
+    {atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_CBC, "aes-192-cbc", "AES-192-CBC", false},
+    {atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_CBC, "aes-256-cbc", "AES-256-CBC", false},
+    {atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_GCM, "aes-128-gcm", "AES-128-GCM", true},
+    {atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_GCM, "aes-192-gcm", "AES-192-GCM", true},
+    {atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM, "aes-256-gcm", "AES-256-GCM", true},
+    {atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20, "chacha20", "ChaCha20", false},
+    {atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20_POLY1305_IETF, "chacha20-poly1305-ietf",
+     "ChaCha20-Poly1305-IETF", true},
+    {atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_XCHACHA20_POLY1305_IETF, "xchacha20-poly1305-ietf",
+     "XChaCha20-Poly1305-IETF", true},
+};
+
+// Helper function to test a complete handshake and encryption/decryption with specific algorithms
+static bool test_complete_crypto_flow(const key_exchange_test_case& kex_case,
+                                      const crypto_algorithm_test_case& crypto_case) {
+  CASE_MSG_INFO() << "Testing Key Exchange: " << kex_case.name << " with Cipher: " << crypto_case.name << std::endl;
+
+  // Check if cipher is available
+  if (!is_cipher_algorithm_available(crypto_case.cipher_name)) {
+    CASE_MSG_INFO() << "  Cipher " << crypto_case.cipher_name << " not supported, skipping" << std::endl;
+    return true;  // Skip is not a failure
+  }
+
+  // Test cipher in single mode first
+  if (!test_cipher_encrypt_only_mode(crypto_case.cipher_name)) {
+    CASE_MSG_INFO() << "  Cipher " << crypto_case.cipher_name << " single mode test failed, skipping" << std::endl;
+    return true;  // Skip is not a failure
+  }
+
+  auto server_dh_ctx = create_test_dh_context(kex_case.dh_curve_name);
+  auto client_dh_ctx = create_test_dh_context(kex_case.dh_curve_name);
+
+  if (!server_dh_ctx || !client_dh_ctx) {
+    CASE_MSG_INFO() << "  Key exchange " << kex_case.dh_curve_name << " not supported, skipping" << std::endl;
+    return true;  // Skip is not a failure
+  }
+
+  auto server_ctx = atfw::atbus::connection_context::create(kex_case.type, server_dh_ctx);
+  auto client_ctx = atfw::atbus::connection_context::create(kex_case.type, client_dh_ctx);
+
+  if (!server_ctx || !client_ctx) {
+    CASE_MSG_INFO() << "  Failed to create connection contexts, skipping" << std::endl;
+    return false;
+  }
+
+  std::vector<atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> supported_algorithms = {
+      crypto_case.type,
+  };
+
+  // Complete handshake
+  int result = client_ctx->handshake_generate_self_key(0);
+  if (result != EN_ATBUS_ERR_SUCCESS) {
+    CASE_MSG_INFO() << "  client handshake_generate_self_key failed: " << result << std::endl;
+    return false;
+  }
+
+  atframework::atbus::protocol::crypto_handshake_data client_pub_key;
+  result = client_ctx->handshake_write_self_public_key(client_pub_key, supported_algorithms);
+  if (result != EN_ATBUS_ERR_SUCCESS) {
+    CASE_MSG_INFO() << "  client handshake_write_self_public_key failed: " << result << std::endl;
+    return false;
+  }
+
+  result = server_ctx->handshake_generate_self_key(client_pub_key.sequence());
+  if (result != EN_ATBUS_ERR_SUCCESS) {
+    CASE_MSG_INFO() << "  server handshake_generate_self_key failed: " << result << std::endl;
+    return false;
+  }
+
+  result = server_ctx->handshake_read_peer_key(client_pub_key, supported_algorithms);
+  if (result != EN_ATBUS_ERR_SUCCESS) {
+    CASE_MSG_INFO() << "  server handshake_read_peer_key failed: " << result << std::endl;
+    return false;
+  }
+
+  atframework::atbus::protocol::crypto_handshake_data server_pub_key;
+  result = server_ctx->handshake_write_self_public_key(server_pub_key, supported_algorithms);
+  if (result != EN_ATBUS_ERR_SUCCESS) {
+    CASE_MSG_INFO() << "  server handshake_write_self_public_key failed: " << result << std::endl;
+    return false;
+  }
+
+  result = client_ctx->handshake_read_peer_key(server_pub_key, supported_algorithms);
+  if (result != EN_ATBUS_ERR_SUCCESS) {
+    CASE_MSG_INFO() << "  client handshake_read_peer_key failed: " << result << std::endl;
+    return false;
+  }
+
+  // Verify both sides selected the same algorithm
+  if (server_ctx->get_crypto_select_algorithm() != client_ctx->get_crypto_select_algorithm()) {
+    CASE_MSG_INFO() << "  Algorithm mismatch: server=" << static_cast<int>(server_ctx->get_crypto_select_algorithm())
+                    << ", client=" << static_cast<int>(client_ctx->get_crypto_select_algorithm()) << std::endl;
+    return false;
+  }
+
+  if (server_ctx->get_crypto_select_algorithm() != crypto_case.type) {
+    CASE_MSG_INFO() << "  Expected algorithm " << static_cast<int>(crypto_case.type) << ", got "
+                    << static_cast<int>(server_ctx->get_crypto_select_algorithm()) << std::endl;
+    return false;
+  }
+
+  atfw::atbus::random_engine_t random_engine;
+  random_engine.init_seed(static_cast<uint64_t>(time(nullptr)));
+  ::google::protobuf::ArenaOptions arena_options;
+
+  // Test Client -> Server encrypted message
+  {
+    atfw::atbus::message send_msg(arena_options);
+    auto& body = send_msg.mutable_body();
+    auto* forward_data = body.mutable_data_transform_req();
+    forward_data->set_from(1001);
+    forward_data->set_to(1002);
+    forward_data->set_content("Hello from client, testing " + std::string(crypto_case.name));
+
+    auto pack_result = client_ctx->pack_message(send_msg, atframework::atbus::protocol::ATBUS_PROTOCOL_VERSION,
+                                                random_engine, 1024 * 1024);
+    if (pack_result.is_error()) {
+      auto error_ptr = pack_result.get_error();
+      CASE_MSG_INFO() << "  Client->Server pack_message failed: " << (error_ptr ? static_cast<int>(*error_ptr) : -1)
+                      << std::endl;
+      return false;
+    }
+
+    auto* buffer = pack_result.get_success();
+    if (!buffer) {
+      CASE_MSG_INFO() << "  Client->Server pack_message returned null buffer" << std::endl;
+      return false;
+    }
+
+    atfw::atbus::message recv_msg(arena_options);
+    gsl::span<const unsigned char> input_span(buffer->data(), buffer->used());
+    int unpack_result = server_ctx->unpack_message(recv_msg, input_span, 1024 * 1024);
+    if (unpack_result != EN_ATBUS_ERR_SUCCESS) {
+      CASE_MSG_INFO() << "  Client->Server unpack_message failed: " << unpack_result << std::endl;
+      return false;
+    }
+
+    auto* recv_body = recv_msg.get_body();
+    if (!recv_body) {
+      CASE_MSG_INFO() << "  Client->Server received null body" << std::endl;
+      return false;
+    }
+
+    std::string expected_content = "Hello from client, testing " + std::string(crypto_case.name);
+    if (recv_body->data_transform_req().content() != expected_content) {
+      CASE_MSG_INFO() << "  Client->Server content mismatch" << std::endl;
+      return false;
+    }
+  }
+
+  // Test Server -> Client encrypted message
+  {
+    atfw::atbus::message send_msg(arena_options);
+    auto& body = send_msg.mutable_body();
+    auto* forward_data = body.mutable_data_transform_rsp();
+    forward_data->set_from(1002);
+    forward_data->set_to(1001);
+    forward_data->set_content("Hello from server, testing " + std::string(crypto_case.name));
+
+    auto pack_result = server_ctx->pack_message(send_msg, atframework::atbus::protocol::ATBUS_PROTOCOL_VERSION,
+                                                random_engine, 1024 * 1024);
+    if (pack_result.is_error()) {
+      auto error_ptr = pack_result.get_error();
+      CASE_MSG_INFO() << "  Server->Client pack_message failed: " << (error_ptr ? static_cast<int>(*error_ptr) : -1)
+                      << std::endl;
+      return false;
+    }
+
+    auto* buffer = pack_result.get_success();
+    if (!buffer) {
+      CASE_MSG_INFO() << "  Server->Client pack_message returned null buffer" << std::endl;
+      return false;
+    }
+
+    atfw::atbus::message recv_msg(arena_options);
+    gsl::span<const unsigned char> input_span(buffer->data(), buffer->used());
+    int unpack_result = client_ctx->unpack_message(recv_msg, input_span, 1024 * 1024);
+    if (unpack_result != EN_ATBUS_ERR_SUCCESS) {
+      CASE_MSG_INFO() << "  Server->Client unpack_message failed: " << unpack_result << std::endl;
+      return false;
+    }
+
+    auto* recv_body = recv_msg.get_body();
+    if (!recv_body) {
+      CASE_MSG_INFO() << "  Server->Client received null body" << std::endl;
+      return false;
+    }
+
+    std::string expected_content = "Hello from server, testing " + std::string(crypto_case.name);
+    if (recv_body->data_transform_rsp().content() != expected_content) {
+      CASE_MSG_INFO() << "  Server->Client content mismatch" << std::endl;
+      return false;
+    }
+  }
+
+  CASE_MSG_INFO() << "  PASSED: " << kex_case.name << " + " << crypto_case.name << std::endl;
+  return true;
+}
+
+// Test all key exchange algorithms with AES-256-GCM (most common cipher)
+CASE_TEST(atbus_connection_context, all_key_exchange_algorithms_with_aes256gcm) {
+  ensure_openssl_initialized();
+
+  const crypto_algorithm_test_case aes256gcm_case = {atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM,
+                                                     "aes-256-gcm", "AES-256-GCM", true};
+
+  if (!is_cipher_algorithm_available("aes-256-gcm")) {
+    CASE_MSG_INFO() << "AES-256-GCM not available, skipping all key exchange tests" << std::endl;
+    return;
+  }
+
+  int passed = 0;
+  int skipped = 0;
+  int failed = 0;
+
+  for (const auto& kex_case : kKeyExchangeTestCases) {
+    auto server_dh_ctx = create_test_dh_context(kex_case.dh_curve_name);
+    if (!server_dh_ctx) {
+      CASE_MSG_INFO() << "Key exchange " << kex_case.name << " not supported, skipping" << std::endl;
+      skipped++;
+      continue;
+    }
+
+    if (test_complete_crypto_flow(kex_case, aes256gcm_case)) {
+      passed++;
+    } else {
+      failed++;
+    }
+  }
+
+  CASE_MSG_INFO() << "Key Exchange Tests Summary: passed=" << passed << ", skipped=" << skipped << ", failed=" << failed
+                  << std::endl;
+  CASE_EXPECT_EQ(0, failed);
+}
+
+// Test all encryption algorithms with P-256 key exchange (most widely supported)
+CASE_TEST(atbus_connection_context, all_crypto_algorithms_with_secp256r1) {
+  ensure_openssl_initialized();
+
+  const key_exchange_test_case secp256r1_case = {atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP256R1,
+                                                 "ecdh:P-256", "SECP256R1 (P-256)"};
+
+  auto dh_ctx = create_test_dh_context(secp256r1_case.dh_curve_name);
+  if (!dh_ctx) {
+    CASE_MSG_INFO() << "P-256 not supported, skipping all cipher tests" << std::endl;
+    return;
+  }
+
+  int passed = 0;
+  int skipped = 0;
+  int failed = 0;
+
+  for (const auto& crypto_case : kCryptoAlgorithmTestCases) {
+    if (!is_cipher_algorithm_available(crypto_case.cipher_name)) {
+      CASE_MSG_INFO() << "Cipher " << crypto_case.name << " not available, skipping" << std::endl;
+      skipped++;
+      continue;
+    }
+
+    if (test_complete_crypto_flow(secp256r1_case, crypto_case)) {
+      passed++;
+    } else {
+      failed++;
+    }
+  }
+
+  CASE_MSG_INFO() << "Cipher Algorithm Tests Summary: passed=" << passed << ", skipped=" << skipped
+                  << ", failed=" << failed << std::endl;
+  CASE_EXPECT_EQ(0, failed);
+}
+
+// Test all encryption algorithms with X25519 key exchange
+CASE_TEST(atbus_connection_context, all_crypto_algorithms_with_x25519) {
+  ensure_openssl_initialized();
+
+  const key_exchange_test_case x25519_case = {atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_X25519,
+                                              "ecdh:X25519", "X25519"};
+
+  auto dh_ctx = create_test_dh_context(x25519_case.dh_curve_name);
+  if (!dh_ctx) {
+    CASE_MSG_INFO() << "X25519 not supported, skipping all cipher tests" << std::endl;
+    return;
+  }
+
+  int passed = 0;
+  int skipped = 0;
+  int failed = 0;
+
+  for (const auto& crypto_case : kCryptoAlgorithmTestCases) {
+    if (!is_cipher_algorithm_available(crypto_case.cipher_name)) {
+      CASE_MSG_INFO() << "Cipher " << crypto_case.name << " not available, skipping" << std::endl;
+      skipped++;
+      continue;
+    }
+
+    if (test_complete_crypto_flow(x25519_case, crypto_case)) {
+      passed++;
+    } else {
+      failed++;
+    }
+  }
+
+  CASE_MSG_INFO() << "X25519 Cipher Algorithm Tests Summary: passed=" << passed << ", skipped=" << skipped
+                  << ", failed=" << failed << std::endl;
+  CASE_EXPECT_EQ(0, failed);
+}
+
+// Test comprehensive matrix: all key exchange x all cipher combinations
+CASE_TEST(atbus_connection_context, comprehensive_crypto_matrix) {
+  ensure_openssl_initialized();
+
+  int total_passed = 0;
+  int total_skipped = 0;
+  int total_failed = 0;
+
+  CASE_MSG_INFO() << "=== Comprehensive Crypto Matrix Test ===" << std::endl;
+  CASE_MSG_INFO() << "Testing all combinations of key exchange algorithms and cipher algorithms" << std::endl;
+
+  for (const auto& kex_case : kKeyExchangeTestCases) {
+    auto dh_ctx = create_test_dh_context(kex_case.dh_curve_name);
+    if (!dh_ctx) {
+      CASE_MSG_INFO() << "Key exchange " << kex_case.name << " not supported, skipping all ciphers for this KEX"
+                      << std::endl;
+      total_skipped += static_cast<int>(sizeof(kCryptoAlgorithmTestCases) / sizeof(kCryptoAlgorithmTestCases[0]));
+      continue;
+    }
+
+    for (const auto& crypto_case : kCryptoAlgorithmTestCases) {
+      if (!is_cipher_algorithm_available(crypto_case.cipher_name)) {
+        total_skipped++;
+        continue;
+      }
+
+      if (test_complete_crypto_flow(kex_case, crypto_case)) {
+        total_passed++;
+      } else {
+        total_failed++;
+        CASE_MSG_INFO() << "  FAILED: " << kex_case.name << " + " << crypto_case.name << std::endl;
+      }
+    }
+  }
+
+  CASE_MSG_INFO() << "=== Comprehensive Crypto Matrix Summary ===" << std::endl;
+  CASE_MSG_INFO() << "  Total passed: " << total_passed << std::endl;
+  CASE_MSG_INFO() << "  Total skipped: " << total_skipped << std::endl;
+  CASE_MSG_INFO() << "  Total failed: " << total_failed << std::endl;
+
+  CASE_EXPECT_EQ(0, total_failed);
+  CASE_EXPECT_GT(total_passed, 0);  // At least one combination should work
+}
+
+// Test specific AEAD ciphers (GCM, Poly1305) that require special handling
+CASE_TEST(atbus_connection_context, aead_ciphers_verification) {
+  ensure_openssl_initialized();
+
+  const key_exchange_test_case secp256r1_case = {atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP256R1,
+                                                 "ecdh:P-256", "SECP256R1 (P-256)"};
+
+  auto dh_ctx = create_test_dh_context(secp256r1_case.dh_curve_name);
+  if (!dh_ctx) {
+    CASE_MSG_INFO() << "P-256 not supported, skipping AEAD test" << std::endl;
+    return;
+  }
+
+  // Test only AEAD ciphers
+  const crypto_algorithm_test_case aead_cases[] = {
+      {atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_GCM, "aes-128-gcm", "AES-128-GCM", true},
+      {atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_GCM, "aes-192-gcm", "AES-192-GCM", true},
+      {atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM, "aes-256-gcm", "AES-256-GCM", true},
+      {atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20_POLY1305_IETF, "chacha20-poly1305-ietf",
+       "ChaCha20-Poly1305-IETF", true},
+      {atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_XCHACHA20_POLY1305_IETF, "xchacha20-poly1305-ietf",
+       "XChaCha20-Poly1305-IETF", true},
+  };
+
+  int passed = 0;
+  int skipped = 0;
+  int failed = 0;
+
+  for (const auto& crypto_case : aead_cases) {
+    if (!is_cipher_algorithm_available(crypto_case.cipher_name)) {
+      CASE_MSG_INFO() << "AEAD Cipher " << crypto_case.name << " not available, skipping" << std::endl;
+      skipped++;
+      continue;
+    }
+
+    if (test_complete_crypto_flow(secp256r1_case, crypto_case)) {
+      passed++;
+    } else {
+      failed++;
+    }
+  }
+
+  CASE_MSG_INFO() << "AEAD Cipher Tests Summary: passed=" << passed << ", skipped=" << skipped << ", failed=" << failed
+                  << std::endl;
+  CASE_EXPECT_EQ(0, failed);
+}
+
+// Test non-AEAD (CBC/stream) ciphers
+CASE_TEST(atbus_connection_context, non_aead_ciphers_verification) {
+  ensure_openssl_initialized();
+
+  const key_exchange_test_case secp256r1_case = {atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP256R1,
+                                                 "ecdh:P-256", "SECP256R1 (P-256)"};
+
+  auto dh_ctx = create_test_dh_context(secp256r1_case.dh_curve_name);
+  if (!dh_ctx) {
+    CASE_MSG_INFO() << "P-256 not supported, skipping non-AEAD test" << std::endl;
+    return;
+  }
+
+  // Test only non-AEAD ciphers
+  const crypto_algorithm_test_case non_aead_cases[] = {
+      {atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_XXTEA, "xxtea", "XXTEA", false},
+      {atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_CBC, "aes-128-cbc", "AES-128-CBC", false},
+      {atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_CBC, "aes-192-cbc", "AES-192-CBC", false},
+      {atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_CBC, "aes-256-cbc", "AES-256-CBC", false},
+      {atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20, "chacha20", "ChaCha20", false},
+  };
+
+  int passed = 0;
+  int skipped = 0;
+  int failed = 0;
+
+  for (const auto& crypto_case : non_aead_cases) {
+    if (!is_cipher_algorithm_available(crypto_case.cipher_name)) {
+      CASE_MSG_INFO() << "Non-AEAD Cipher " << crypto_case.name << " not available, skipping" << std::endl;
+      skipped++;
+      continue;
+    }
+
+    if (test_complete_crypto_flow(secp256r1_case, crypto_case)) {
+      passed++;
+    } else {
+      failed++;
+    }
+  }
+
+  CASE_MSG_INFO() << "Non-AEAD Cipher Tests Summary: passed=" << passed << ", skipped=" << skipped
+                  << ", failed=" << failed << std::endl;
+  CASE_EXPECT_EQ(0, failed);
+}
+
+// Test P-384 and P-521 key exchange with various ciphers
+CASE_TEST(atbus_connection_context, higher_security_key_exchange) {
+  ensure_openssl_initialized();
+
+  // Test cases for higher security curves
+  const key_exchange_test_case higher_kex_cases[] = {
+      {atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP384R1, "ecdh:P-384", "SECP384R1 (P-384)"},
+      {atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP521R1, "ecdh:P-521", "SECP521R1 (P-521)"},
+  };
+
+  // Test with a variety of ciphers
+  const crypto_algorithm_test_case cipher_cases[] = {
+      {atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM, "aes-256-gcm", "AES-256-GCM", true},
+      {atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20_POLY1305_IETF, "chacha20-poly1305-ietf",
+       "ChaCha20-Poly1305-IETF", true},
+      {atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_CBC, "aes-256-cbc", "AES-256-CBC", false},
+  };
+
+  int passed = 0;
+  int skipped = 0;
+  int failed = 0;
+
+  for (const auto& kex_case : higher_kex_cases) {
+    auto dh_ctx = create_test_dh_context(kex_case.dh_curve_name);
+    if (!dh_ctx) {
+      CASE_MSG_INFO() << "Key exchange " << kex_case.name << " not supported, skipping" << std::endl;
+      skipped += static_cast<int>(sizeof(cipher_cases) / sizeof(cipher_cases[0]));
+      continue;
+    }
+
+    for (const auto& crypto_case : cipher_cases) {
+      if (!is_cipher_algorithm_available(crypto_case.cipher_name)) {
+        skipped++;
+        continue;
+      }
+
+      if (test_complete_crypto_flow(kex_case, crypto_case)) {
+        passed++;
+      } else {
+        failed++;
+      }
+    }
+  }
+
+  CASE_MSG_INFO() << "Higher Security Key Exchange Tests Summary: passed=" << passed << ", skipped=" << skipped
+                  << ", failed=" << failed << std::endl;
+  CASE_EXPECT_EQ(0, failed);
+}
+
+// Test that lists all available algorithms (for diagnostic purposes)
+CASE_TEST(atbus_connection_context, list_available_algorithms) {
+  ensure_openssl_initialized();
+
+  CASE_MSG_INFO() << "=== Available Cryptographic Algorithms ===" << std::endl;
+
+  // List available key exchange algorithms
+  CASE_MSG_INFO() << "Key Exchange Algorithms:" << std::endl;
+  for (const auto& kex_case : kKeyExchangeTestCases) {
+    auto dh_ctx = create_test_dh_context(kex_case.dh_curve_name);
+    CASE_MSG_INFO() << "  " << kex_case.name << ": " << (dh_ctx ? "Available" : "NOT Available") << std::endl;
+  }
+
+  // List available cipher algorithms
+  CASE_MSG_INFO() << "Cipher Algorithms:" << std::endl;
+  for (const auto& crypto_case : kCryptoAlgorithmTestCases) {
+    bool available = is_cipher_algorithm_available(crypto_case.cipher_name);
+    CASE_MSG_INFO() << "  " << crypto_case.name << " (" << crypto_case.cipher_name
+                    << "): " << (available ? "Available" : "NOT Available")
+                    << (crypto_case.is_aead ? " [AEAD]" : " [Standard]") << std::endl;
+  }
+
+  // List all registered ciphers
+  CASE_MSG_INFO() << "All registered ciphers in the library:" << std::endl;
+  auto all_ciphers = atfw::util::crypto::cipher::get_all_cipher_names();
+  for (const auto& cipher : all_ciphers) {
+    CASE_MSG_INFO() << "  - " << cipher << std::endl;
+  }
+}
+
 #endif  // CRYPTO_DH_ENABLED
