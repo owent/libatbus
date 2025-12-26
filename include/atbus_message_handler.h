@@ -41,12 +41,12 @@ struct message_handler {
   static ATBUS_MACRO_API const char *get_body_name(int body_case);
 
   static ATBUS_MACRO_API void generate_access_data(::atframework::atbus::protocol::access_data &ad, uint64_t bus_id,
-                                                   uint64_t nince1, uint64_t nince2,
+                                                   uint64_t nonce1, uint64_t nonce2,
                                                    gsl::span<const std::vector<unsigned char>> access_tokens,
                                                    const ::atframework::atbus::protocol::crypto_handshake_data &hd);
 
   static ATBUS_MACRO_API void generate_access_data(::atframework::atbus::protocol::access_data &ad, uint64_t bus_id,
-                                                   uint64_t nince1, uint64_t nince2,
+                                                   uint64_t nonce1, uint64_t nonce2,
                                                    gsl::span<const std::vector<unsigned char>> access_tokens,
                                                    const ::atframework::atbus::protocol::custom_command_data &csarg);
 

@@ -2,10 +2,8 @@
 
 #include "atbus_connection_context.h"
 
-#include <openssl/core_names.h>
-#include <openssl/kdf.h>
-
 #include <algorithm/bit.h>
+#include <algorithm/crypto_hmac.h>
 #include <time/time_utility.h>
 
 #include <algorithm>
@@ -73,7 +71,7 @@ static uint64_t _build_handshake_sequence_init_id() {
   uint64_t us = static_cast<uint64_t>(
       std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch())
           .count());
-  us -= 1735689600ULL * 1000000;
+  us -= 1735689600ULL * 1000000;  // 2025-01-01 00:00:00 UTC in microseconds
 
   return us;
 }
@@ -164,30 +162,12 @@ static int _generate_key_iv(protocol::ATBUS_CRYPTO_KDF_TYPE /*type*/, std::vecto
   // FIXME: 目前只支持ATBUS_CRYPTO_KDF_HKDF_SHA256
   key_iv.resize(key_iv_size);
 
-  EVP_KDF *kdf = EVP_KDF_fetch(nullptr, "HKDF", nullptr);
-  if (kdf == nullptr) {
-    return EN_ATBUS_ERR_CRYPTO_HANDSHAKE_KDF_NOT_SUPPORT;
+  if (::atfw::util::crypto::hkdf::derive(atfw::util::crypto::digest_type_t::kSha256, nullptr, 0, shared_secret.data(),
+                                         shared_secret.size(), nullptr, 0, key_iv.data(), key_iv.size()) != 0) {
+    key_iv.clear();
+    return EN_ATBUS_ERR_CRYPTO_HANDSHAKE_KDF_ERROR;
   }
-  EVP_KDF_CTX *kctx = EVP_KDF_CTX_new(kdf);
-  EVP_KDF_free(kdf);
-
-  OSSL_PARAM params[4];
-  OSSL_PARAM *p = params;
-
-  char sn_sha256_name[] = SN_sha256;
-  *p++ = OSSL_PARAM_construct_utf8_string(OSSL_KDF_PARAM_DIGEST, sn_sha256_name, strlen(sn_sha256_name));
-  *p++ = OSSL_PARAM_construct_octet_string(OSSL_KDF_PARAM_KEY, reinterpret_cast<void *>(shared_secret.data()),
-                                           static_cast<size_t>(shared_secret.size()));
-
-  // No Info or Salt parameter
-  *p = OSSL_PARAM_construct_end();
-  int ret = 0;
-  if (EVP_KDF_derive(kctx, key_iv.data(), key_iv.size(), params) <= 0) {
-    ret = EN_ATBUS_ERR_CRYPTO_HANDSHAKE_KDF_ERROR;
-  }
-
-  EVP_KDF_CTX_free(kctx);
-  return ret;
+  return 0;
 }
 
 static uint64_t _generate_handshake_sequence_id() {
@@ -233,7 +213,7 @@ static size_t _padding_temporary_buffer_block(size_t size) noexcept {
 
     // Use compiler intrinsic to find highest bit position - O(1) on modern CPUs
     // bit_width returns the number of bits needed to represent wsize
-    size_t b = ::atfw::util::bit::bit_width(wsize - 1);
+    size_t b = static_cast<size_t>(::atfw::util::bit::bit_width(wsize - 1));
 
     // Calculate bin using top 2 bits after the highest bit
     // This gives ~12.5% size class spacing
@@ -714,8 +694,11 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
     protocol::ATBUS_CRYPTO_ALGORITHM_TYPE crypto_algorithm, random_engine_t &random_engine) noexcept {
   auto &head = m.mutable_head();
   size_t body_size = static_cast<size_t>(head.body_size());
-  static_buffer_block origin_buffer = _allocate_temporary_buffer_block(body_size);
-  gsl::span<unsigned char> body_data_span = origin_buffer.used_span();
+  size_t block_size = 0;
+  if (send_cipher_) {
+    block_size = send_cipher_->get_block_size();
+  }
+  static_buffer_block origin_buffer = _allocate_temporary_buffer_block(body_size + block_size);
 
   if (crypto_algorithm != protocol::ATBUS_CRYPTO_ALGORITHM_NONE &&
       (!send_cipher_ || crypto_algorithm != crypto_select_algorithm_)) {
@@ -737,6 +720,21 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
     // TODO: 压缩算法接入
     // TODO: 如果仅压缩，不加密，可以直接压缩到 final_buffer, 少一次copy
     return buffer_result_t::make_error(EN_ATBUS_ERR_COMPRESSION_ALGORITHM_NOT_SUPPORT);
+  }
+
+  // 对齐到加密算法的block size，有些套件需要我们手动对齐
+  gsl::span<unsigned char> body_data_span;
+  if (block_size > 1 && send_cipher_ && !send_cipher_->is_aead()) {
+    // 对于非AEAD加密算法（如CBC），需要对齐到block size
+    size_t padded_size = ((body_size + block_size - 1) / block_size) * block_size;
+    // 填充字节使用 PKCS#7 padding
+    if (padded_size > body_size) {
+      unsigned char padding_value = static_cast<unsigned char>(padded_size - body_size);
+      memset(origin_buffer.data() + body_size, padding_value, padded_size - body_size);
+    }
+    body_data_span = gsl::span<unsigned char>{origin_buffer.data(), padded_size};
+  } else {
+    body_data_span = gsl::span<unsigned char>{origin_buffer.data(), body_size};
   }
 
   // Step - 2: body加密

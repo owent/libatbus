@@ -558,8 +558,8 @@ ATBUS_MACRO_API size_t endpoint::get_data_connection_count(bool enable_fallback_
     ++count;
   }
 
-  if (ctrl_conn_ == 0 && enable_fallback_ctrl) {
-    if (ctrl_conn_ && connection::state_t::DISCONNECTING != ctrl_conn_->get_status() ||
+  if (count == 0 && enable_fallback_ctrl) {
+    if (ctrl_conn_ && connection::state_t::DISCONNECTING != ctrl_conn_->get_status() &&
         connection::state_t::DISCONNECTED != ctrl_conn_->get_status()) {
       ++count;
     }

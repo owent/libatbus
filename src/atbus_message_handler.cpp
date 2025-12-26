@@ -1,7 +1,5 @@
 // Copyright 2025 atframework
 
-#include <openssl/hmac.h>
-
 #include <algorithm>
 #include <sstream>
 #include <string>
@@ -11,6 +9,7 @@
 
 #include <std/thread.h>
 
+#include "algorithm/crypto_hmac.h"
 #include "algorithm/sha.h"
 #include "common/string_oprs.h"
 #include "nostd/string_view.h"
@@ -324,21 +323,26 @@ ATBUS_MACRO_API std::string message_handler::make_access_data_plaintext(
 ATBUS_MACRO_API std::string message_handler::calculate_access_data_signature(
     const ::atframework::atbus::protocol::access_data & /*ad*/, gsl::span<const unsigned char> access_token,
     atfw::util::nostd::string_view plaintext) {
-  const EVP_MD *evp_md = EVP_sha256();
-  if (nullptr == evp_md) {
-    return "sha256 unavailabled";
-  }
-  unsigned char md_buffer[EVP_MAX_MD_SIZE + 1];
-  unsigned int md_len = EVP_MAX_MD_SIZE;
   int access_token_len;
   if (access_token.size() > 32868) {
     access_token_len = 32868;
   } else {
     access_token_len = static_cast<int>(access_token.size());
   }
-  HMAC(evp_md, access_token.data(), access_token_len,  // NOLINT
-       reinterpret_cast<const unsigned char *>(plaintext.data()), plaintext.size(), md_buffer, &md_len);
-  return std::string(reinterpret_cast<const char *>(md_buffer), md_len);
+
+  ::atfw::util::crypto::hmac hmac_algo;
+  std::string ret;
+
+  // Must call init() before get_output_length() to properly initialize the context
+  hmac_algo.init(atfw::util::crypto::digest_type_t::kSha256, access_token.data(),
+                 static_cast<size_t>(access_token_len));
+  size_t output_length = hmac_algo.get_output_length();
+  ret.resize(output_length);
+
+  hmac_algo.update(reinterpret_cast<const unsigned char *>(plaintext.data()), plaintext.size());
+  hmac_algo.final(reinterpret_cast<unsigned char *>(ret.data()), &output_length);
+
+  return ret;
 }
 
 ATBUS_MACRO_API int message_handler::send_ping(node &n, connection &conn, uint64_t msg_seq) {

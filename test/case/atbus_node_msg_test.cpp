@@ -1177,3 +1177,738 @@ CASE_TEST(atbus_node_msg, msg_handler_get_body_name) {
                      ->full_name(),
                  std::string(atbus::message_handler::get_body_name(atbus::protocol::message_body::kDataTransformReq)));
 }
+
+// ============ Crypto Configuration Tests ============
+#ifdef ATFW_UTIL_MACRO_CRYPTO_CIPHER_ENABLED
+#  include <algorithm/crypto_cipher.h>
+#  include <algorithm/crypto_dh.h>
+#  include <unordered_set>
+
+// Helper: Get available cipher algorithms
+static std::unordered_set<std::string> get_available_cipher_algorithms() {
+  std::unordered_set<std::string> result;
+  for (auto &name : atfw::util::crypto::cipher::get_all_cipher_names()) {
+    result.insert(name);
+  }
+  return result;
+}
+
+// Helper: Get available DH algorithms
+static std::unordered_set<std::string> get_available_dh_algorithms() {
+  std::unordered_set<std::string> result;
+  for (auto &name : atfw::util::crypto::dh::get_all_curve_names()) {
+    result.insert(name);
+  }
+  return result;
+}
+
+// Helper: Check if a key exchange algorithm is available
+static bool is_key_exchange_available(atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE type) {
+  auto available = get_available_dh_algorithms();
+  switch (type) {
+    case atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_X25519:
+      return available.find("x25519") != available.end() || available.find("ecdh:x25519") != available.end();
+    case atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP256R1:
+      return available.find("secp256r1") != available.end() || available.find("prime256v1") != available.end() ||
+             available.find("ecdh:secp256r1") != available.end() ||
+             available.find("ecdh:prime256v1") != available.end();
+    case atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP384R1:
+      return available.find("secp384r1") != available.end() || available.find("ecdh:secp384r1") != available.end();
+    case atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP521R1:
+      return available.find("secp521r1") != available.end() || available.find("ecdh:secp521r1") != available.end();
+    default:
+      return false;
+  }
+}
+
+// Helper: Check if a cipher algorithm is available
+static bool is_cipher_available(atbus::protocol::ATBUS_CRYPTO_ALGORITHM_TYPE type) {
+  auto available = get_available_cipher_algorithms();
+  switch (type) {
+    case atbus::protocol::ATBUS_CRYPTO_ALGORITHM_XXTEA:
+      return available.find("xxtea") != available.end();
+    case atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_CBC:
+      return available.find("aes-128-cbc") != available.end();
+    case atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_CBC:
+      return available.find("aes-192-cbc") != available.end();
+    case atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_CBC:
+      return available.find("aes-256-cbc") != available.end();
+    case atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_GCM:
+      return available.find("aes-128-gcm") != available.end();
+    case atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_GCM:
+      return available.find("aes-192-gcm") != available.end();
+    case atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM:
+      return available.find("aes-256-gcm") != available.end();
+    case atbus::protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20:
+      return available.find("chacha20") != available.end();
+    case atbus::protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20_POLY1305_IETF:
+      return available.find("chacha20-poly1305-ietf") != available.end();
+    case atbus::protocol::ATBUS_CRYPTO_ALGORITHM_XCHACHA20_POLY1305_IETF:
+      return available.find("xchacha20-poly1305-ietf") != available.end();
+    default:
+      return false;
+  }
+}
+
+// Helper: Get key exchange algorithm name
+static const char *get_key_exchange_name(atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE type) {
+  switch (type) {
+    case atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_X25519:
+      return "X25519";
+    case atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP256R1:
+      return "SECP256R1";
+    case atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP384R1:
+      return "SECP384R1";
+    case atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP521R1:
+      return "SECP521R1";
+    default:
+      return "Unknown";
+  }
+}
+
+// Helper: Get cipher algorithm name
+static const char *get_cipher_name(atbus::protocol::ATBUS_CRYPTO_ALGORITHM_TYPE type) {
+  switch (type) {
+    case atbus::protocol::ATBUS_CRYPTO_ALGORITHM_XXTEA:
+      return "XXTEA";
+    case atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_CBC:
+      return "AES-128-CBC";
+    case atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_CBC:
+      return "AES-192-CBC";
+    case atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_CBC:
+      return "AES-256-CBC";
+    case atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_GCM:
+      return "AES-128-GCM";
+    case atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_GCM:
+      return "AES-192-GCM";
+    case atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM:
+      return "AES-256-GCM";
+    case atbus::protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20:
+      return "ChaCha20";
+    case atbus::protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20_POLY1305_IETF:
+      return "ChaCha20-Poly1305-IETF";
+    case atbus::protocol::ATBUS_CRYPTO_ALGORITHM_XCHACHA20_POLY1305_IETF:
+      return "XChaCha20-Poly1305-IETF";
+    default:
+      return "None";
+  }
+}
+
+// Helper: Send encrypted message between two nodes and verify
+static bool test_encrypted_message_between_nodes(atbus::node::ptr_t &node1, atbus::node::ptr_t &node2,
+                                                 uv_loop_t *ev_loop, const std::string &test_message,
+                                                 atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE key_exchange,
+                                                 atbus::protocol::ATBUS_CRYPTO_ALGORITHM_TYPE cipher) {
+  recv_msg_history.data.clear();
+  recv_msg_history.count = 0;
+
+  node1->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
+  node2->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
+
+  int initial_count = recv_msg_history.count;
+  int send_result = node1->send_data(node2->get_id(), 0, test_message.data(), test_message.size());
+  if (send_result != EN_ATBUS_ERR_SUCCESS) {
+    CASE_MSG_INFO() << "  [FAILED] send_data returned error: " << send_result
+                    << " (KeyExchange: " << get_key_exchange_name(key_exchange)
+                    << ", Cipher: " << get_cipher_name(cipher) << ")" << std::endl;
+    return false;
+  }
+
+  UNITTEST_WAIT_UNTIL(ev_loop, recv_msg_history.count > initial_count && !recv_msg_history.data.empty(), 5000, 0) {}
+
+  if (recv_msg_history.data != test_message) {
+    CASE_MSG_INFO() << "  [FAILED] Message mismatch. Expected: " << test_message << ", Got: " << recv_msg_history.data
+                    << " (KeyExchange: " << get_key_exchange_name(key_exchange)
+                    << ", Cipher: " << get_cipher_name(cipher) << ")" << std::endl;
+    return false;
+  }
+
+  return true;
+}
+
+// Test: Send messages with different key exchange algorithms (using AES-256-GCM as cipher)
+CASE_TEST(atbus_node_msg, crypto_config_key_exchange_algorithms) {
+  std::pair<atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE, const char *> key_exchange_algorithms[] = {
+      {atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_X25519, "X25519"},
+      {atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP256R1, "SECP256R1"},
+      {atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP384R1, "SECP384R1"},
+      {atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP521R1, "SECP521R1"},
+  };
+
+  // Use AES-256-GCM as the default cipher for key exchange tests
+  atbus::protocol::ATBUS_CRYPTO_ALGORITHM_TYPE default_cipher = atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM;
+
+  if (!is_cipher_available(default_cipher)) {
+    CASE_MSG_INFO() << "[SKIP] AES-256-GCM not available, skipping key exchange tests" << std::endl;
+    return;
+  }
+
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+
+  size_t passed_count = 0;
+  size_t skipped_count = 0;
+  size_t total_count = sizeof(key_exchange_algorithms) / sizeof(key_exchange_algorithms[0]);
+
+  for (auto &kex : key_exchange_algorithms) {
+    if (!is_key_exchange_available(kex.first)) {
+      CASE_MSG_INFO() << "[SKIP] Key exchange algorithm " << kex.second << " not available" << std::endl;
+      ++skipped_count;
+      continue;
+    }
+
+    CASE_MSG_INFO() << "[TEST] Testing key exchange: " << kex.second << " with AES-256-GCM" << std::endl;
+
+    atbus::node::conf_t conf;
+    atbus::node::default_conf(&conf);
+    conf.ev_loop = &ev_loop;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
+
+    // Configure crypto
+    conf.crypto_key_exchange_type = kex.first;
+    conf.crypto_allow_algorithms.clear();
+    conf.crypto_allow_algorithms.push_back(default_cipher);
+
+    do {
+      atbus::node::ptr_t node1 = atbus::node::create();
+      atbus::node::ptr_t node2 = atbus::node::create();
+      setup_atbus_node_logger(*node1);
+      setup_atbus_node_logger(*node2);
+
+      node1->init(0x12345678, &conf);
+      node2->init(0x12356789, &conf);
+
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->listen("ipv4://127.0.0.1:16387"));
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->listen("ipv4://127.0.0.1:16388"));
+
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
+
+      time_t proc_t = time(nullptr) + 1;
+      node1->poll();
+      node2->poll();
+      node1->proc(proc_t, 0);
+      node2->proc(proc_t, 0);
+
+      node1->connect("ipv4://127.0.0.1:16388");
+
+      UNITTEST_WAIT_UNTIL(
+          &ev_loop, node1->is_endpoint_available(node2->get_id()) && node2->is_endpoint_available(node1->get_id()),
+          8000, 0) {}
+
+      std::string test_message = "Encrypted message with ";
+      test_message += kex.second;
+      test_message += " key exchange!";
+
+      bool success =
+          test_encrypted_message_between_nodes(node1, node2, &ev_loop, test_message, kex.first, default_cipher);
+
+      if (success) {
+        ++passed_count;
+        CASE_MSG_INFO() << "  [PASS] " << kex.second << " key exchange test passed" << std::endl;
+      } else {
+        CASE_MSG_INFO() << "  [FAIL] " << kex.second << " key exchange test failed" << std::endl;
+      }
+    } while (false);
+  }
+
+  unit_test_setup_exit(&ev_loop);
+
+  CASE_MSG_INFO() << "[SUMMARY] Key exchange tests: " << passed_count << "/" << (total_count - skipped_count)
+                  << " passed, " << skipped_count << " skipped" << std::endl;
+  CASE_EXPECT_GT(passed_count, 0);
+}
+
+// Test: Send messages with different cipher algorithms (using X25519 as key exchange)
+CASE_TEST(atbus_node_msg, crypto_config_cipher_algorithms) {
+  std::pair<atbus::protocol::ATBUS_CRYPTO_ALGORITHM_TYPE, const char *> cipher_algorithms[] = {
+      {atbus::protocol::ATBUS_CRYPTO_ALGORITHM_XXTEA, "XXTEA"},
+      {atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_CBC, "AES-128-CBC"},
+      {atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_CBC, "AES-192-CBC"},
+      {atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_CBC, "AES-256-CBC"},
+      {atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_GCM, "AES-128-GCM"},
+      {atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_GCM, "AES-192-GCM"},
+      {atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM, "AES-256-GCM"},
+      {atbus::protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20, "ChaCha20"},
+      {atbus::protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20_POLY1305_IETF, "ChaCha20-Poly1305-IETF"},
+      {atbus::protocol::ATBUS_CRYPTO_ALGORITHM_XCHACHA20_POLY1305_IETF, "XChaCha20-Poly1305-IETF"},
+  };
+
+  // Use X25519 as default key exchange for cipher tests
+  atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE default_kex = atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_X25519;
+
+  if (!is_key_exchange_available(default_kex)) {
+    // Fallback to SECP256R1 if X25519 not available
+    default_kex = atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP256R1;
+    if (!is_key_exchange_available(default_kex)) {
+      CASE_MSG_INFO() << "[SKIP] No key exchange algorithm available, skipping cipher tests" << std::endl;
+      return;
+    }
+  }
+
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+
+  size_t passed_count = 0;
+  size_t skipped_count = 0;
+  size_t total_count = sizeof(cipher_algorithms) / sizeof(cipher_algorithms[0]);
+
+  for (auto &cipher : cipher_algorithms) {
+    if (!is_cipher_available(cipher.first)) {
+      CASE_MSG_INFO() << "[SKIP] Cipher algorithm " << cipher.second << " not available" << std::endl;
+      ++skipped_count;
+      continue;
+    }
+
+    CASE_MSG_INFO() << "[TEST] Testing cipher: " << cipher.second << " with " << get_key_exchange_name(default_kex)
+                    << std::endl;
+
+    atbus::node::conf_t conf;
+    atbus::node::default_conf(&conf);
+    conf.ev_loop = &ev_loop;
+    conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
+
+    // Configure crypto
+    conf.crypto_key_exchange_type = default_kex;
+    conf.crypto_allow_algorithms.clear();
+    conf.crypto_allow_algorithms.push_back(cipher.first);
+
+    do {
+      atbus::node::ptr_t node1 = atbus::node::create();
+      atbus::node::ptr_t node2 = atbus::node::create();
+      setup_atbus_node_logger(*node1);
+      setup_atbus_node_logger(*node2);
+
+      node1->init(0x12345678, &conf);
+      node2->init(0x12356789, &conf);
+
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->listen("ipv4://127.0.0.1:16387"));
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->listen("ipv4://127.0.0.1:16388"));
+
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
+
+      time_t proc_t = time(nullptr) + 1;
+      node1->poll();
+      node2->poll();
+      node1->proc(proc_t, 0);
+      node2->proc(proc_t, 0);
+
+      node1->connect("ipv4://127.0.0.1:16388");
+
+      UNITTEST_WAIT_UNTIL(
+          &ev_loop, node1->is_endpoint_available(node2->get_id()) && node2->is_endpoint_available(node1->get_id()),
+          8000, 0) {}
+
+      std::string test_message = "Encrypted message with ";
+      test_message += cipher.second;
+      test_message += " cipher!";
+
+      bool success =
+          test_encrypted_message_between_nodes(node1, node2, &ev_loop, test_message, default_kex, cipher.first);
+      if (success) {
+        ++passed_count;
+        CASE_MSG_INFO() << "  [PASS] " << cipher.second << " cipher test passed" << std::endl;
+      } else {
+        CASE_MSG_INFO() << "  [FAIL] " << cipher.second << " cipher test failed" << std::endl;
+      }
+      CASE_EXPECT_TRUE(success);
+    } while (false);
+  }
+
+  unit_test_setup_exit(&ev_loop);
+
+  CASE_MSG_INFO() << "[SUMMARY] Cipher tests: " << passed_count << "/" << (total_count - skipped_count) << " passed, "
+                  << skipped_count << " skipped" << std::endl;
+  CASE_EXPECT_GT(passed_count, 0);
+}
+
+// Test: Comprehensive crypto matrix - test all combinations of key exchange and cipher algorithms
+CASE_TEST(atbus_node_msg, crypto_config_comprehensive_matrix) {
+  std::pair<atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE, const char *> key_exchange_algorithms[] = {
+      {atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_X25519, "X25519"},
+      {atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP256R1, "SECP256R1"},
+      {atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP384R1, "SECP384R1"},
+      {atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP521R1, "SECP521R1"},
+  };
+
+  std::pair<atbus::protocol::ATBUS_CRYPTO_ALGORITHM_TYPE, const char *> cipher_algorithms[] = {
+      {atbus::protocol::ATBUS_CRYPTO_ALGORITHM_XXTEA, "XXTEA"},
+      {atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_CBC, "AES-128-CBC"},
+      {atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_CBC, "AES-192-CBC"},
+      {atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_CBC, "AES-256-CBC"},
+      {atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_GCM, "AES-128-GCM"},
+      {atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_GCM, "AES-192-GCM"},
+      {atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM, "AES-256-GCM"},
+      {atbus::protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20, "ChaCha20"},
+      {atbus::protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20_POLY1305_IETF, "ChaCha20-Poly1305-IETF"},
+      {atbus::protocol::ATBUS_CRYPTO_ALGORITHM_XCHACHA20_POLY1305_IETF, "XChaCha20-Poly1305-IETF"},
+  };
+
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+
+  size_t passed_count = 0;
+  size_t skipped_count = 0;
+  size_t failed_count = 0;
+
+  for (auto &kex : key_exchange_algorithms) {
+    if (!is_key_exchange_available(kex.first)) {
+      CASE_MSG_INFO() << "[SKIP] Key exchange " << kex.second << " not available, skipping all combinations"
+                      << std::endl;
+      skipped_count += sizeof(cipher_algorithms) / sizeof(cipher_algorithms[0]);
+      continue;
+    }
+
+    for (auto &cipher : cipher_algorithms) {
+      if (!is_cipher_available(cipher.first)) {
+        ++skipped_count;
+        continue;
+      }
+
+      atbus::node::conf_t conf;
+      atbus::node::default_conf(&conf);
+      conf.ev_loop = &ev_loop;
+      conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
+
+      // Configure crypto
+      conf.crypto_key_exchange_type = kex.first;
+      conf.crypto_allow_algorithms.clear();
+      conf.crypto_allow_algorithms.push_back(cipher.first);
+
+      do {
+        atbus::node::ptr_t node1 = atbus::node::create();
+        atbus::node::ptr_t node2 = atbus::node::create();
+        setup_atbus_node_logger(*node1);
+        setup_atbus_node_logger(*node2);
+
+        node1->init(0x12345678, &conf);
+        node2->init(0x12356789, &conf);
+
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->listen("ipv4://127.0.0.1:16387"));
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->listen("ipv4://127.0.0.1:16388"));
+
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
+
+        time_t proc_t = time(nullptr) + 1;
+        node1->poll();
+        node2->poll();
+        node1->proc(proc_t, 0);
+        node2->proc(proc_t, 0);
+
+        node1->connect("ipv4://127.0.0.1:16388");
+
+        UNITTEST_WAIT_UNTIL(
+            &ev_loop, node1->is_endpoint_available(node2->get_id()) && node2->is_endpoint_available(node1->get_id()),
+            8000, 0) {}
+
+        std::string test_message = "Matrix test: ";
+        test_message += kex.second;
+        test_message += " + ";
+        test_message += cipher.second;
+
+        bool success =
+            test_encrypted_message_between_nodes(node1, node2, &ev_loop, test_message, kex.first, cipher.first);
+
+        if (success) {
+          ++passed_count;
+          CASE_MSG_INFO() << "[PASS] " << kex.second << " + " << cipher.second << std::endl;
+        } else {
+          ++failed_count;
+          CASE_MSG_INFO() << "[FAIL] " << kex.second << " + " << cipher.second << std::endl;
+        }
+        CASE_EXPECT_TRUE(success);
+      } while (false);
+    }
+  }
+
+  unit_test_setup_exit(&ev_loop);
+
+  CASE_MSG_INFO() << "[SUMMARY] Comprehensive matrix: " << passed_count << " passed, " << failed_count << " failed, "
+                  << skipped_count << " skipped" << std::endl;
+  CASE_EXPECT_GT(passed_count, 0);
+  CASE_EXPECT_EQ(0, failed_count);
+}
+
+// Test: Multiple allowed algorithms (algorithm negotiation)
+CASE_TEST(atbus_node_msg, crypto_config_multiple_algorithms) {
+  atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE default_kex = atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_X25519;
+
+  if (!is_key_exchange_available(default_kex)) {
+    default_kex = atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP256R1;
+    if (!is_key_exchange_available(default_kex)) {
+      CASE_MSG_INFO() << "[SKIP] No key exchange algorithm available" << std::endl;
+      return;
+    }
+  }
+
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+  conf.ev_loop = &ev_loop;
+  conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
+
+  // Configure crypto with multiple allowed algorithms
+  conf.crypto_key_exchange_type = default_kex;
+  conf.crypto_allow_algorithms.clear();
+
+  // Add multiple cipher algorithms in priority order
+  if (is_cipher_available(atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM)) {
+    conf.crypto_allow_algorithms.push_back(atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM);
+  }
+  if (is_cipher_available(atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_GCM)) {
+    conf.crypto_allow_algorithms.push_back(atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_GCM);
+  }
+  if (is_cipher_available(atbus::protocol::ATBUS_CRYPTO_ALGORITHM_XXTEA)) {
+    conf.crypto_allow_algorithms.push_back(atbus::protocol::ATBUS_CRYPTO_ALGORITHM_XXTEA);
+  }
+
+  if (conf.crypto_allow_algorithms.empty()) {
+    CASE_MSG_INFO() << "[SKIP] No cipher algorithms available" << std::endl;
+    unit_test_setup_exit(&ev_loop);
+    return;
+  }
+
+  CASE_MSG_INFO() << "[TEST] Testing with " << conf.crypto_allow_algorithms.size() << " allowed cipher algorithms"
+                  << std::endl;
+
+  do {
+    atbus::node::ptr_t node1 = atbus::node::create();
+    atbus::node::ptr_t node2 = atbus::node::create();
+    setup_atbus_node_logger(*node1);
+    setup_atbus_node_logger(*node2);
+
+    node1->init(0x12345678, &conf);
+    node2->init(0x12356789, &conf);
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->listen("ipv4://127.0.0.1:16387"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->listen("ipv4://127.0.0.1:16388"));
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
+
+    time_t proc_t = time(nullptr) + 1;
+    node1->poll();
+    node2->poll();
+    node1->proc(proc_t, 0);
+    node2->proc(proc_t, 0);
+
+    node1->connect("ipv4://127.0.0.1:16388");
+
+    UNITTEST_WAIT_UNTIL(&ev_loop,
+                        node1->is_endpoint_available(node2->get_id()) && node2->is_endpoint_available(node1->get_id()),
+                        8000, 0) {}
+
+    std::string test_message = "Test message with multiple allowed algorithms!";
+
+    recv_msg_history.data.clear();
+    recv_msg_history.count = 0;
+    node1->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
+    node2->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
+
+    int initial_count = recv_msg_history.count;
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS,
+                   node1->send_data(node2->get_id(), 0, test_message.data(), test_message.size()));
+
+    UNITTEST_WAIT_UNTIL(&ev_loop, recv_msg_history.count > initial_count && !recv_msg_history.data.empty(), 5000, 0) {}
+
+    CASE_EXPECT_EQ(test_message, recv_msg_history.data);
+    CASE_MSG_INFO() << "[PASS] Multiple algorithms test passed" << std::endl;
+  } while (false);
+
+  unit_test_setup_exit(&ev_loop);
+}
+
+// Test: Parent-child nodes with crypto configuration
+CASE_TEST(atbus_node_msg, crypto_config_parent_child) {
+  atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE default_kex = atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_X25519;
+
+  if (!is_key_exchange_available(default_kex)) {
+    default_kex = atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP256R1;
+    if (!is_key_exchange_available(default_kex)) {
+      CASE_MSG_INFO() << "[SKIP] No key exchange algorithm available" << std::endl;
+      return;
+    }
+  }
+
+  atbus::protocol::ATBUS_CRYPTO_ALGORITHM_TYPE default_cipher = atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM;
+  if (!is_cipher_available(default_cipher)) {
+    default_cipher = atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_GCM;
+    if (!is_cipher_available(default_cipher)) {
+      CASE_MSG_INFO() << "[SKIP] No GCM cipher available" << std::endl;
+      return;
+    }
+  }
+
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+  conf.ev_loop = &ev_loop;
+  conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
+
+  // Configure crypto
+  conf.crypto_key_exchange_type = default_kex;
+  conf.crypto_allow_algorithms.clear();
+  conf.crypto_allow_algorithms.push_back(default_cipher);
+
+  CASE_MSG_INFO() << "[TEST] Testing parent-child nodes with " << get_key_exchange_name(default_kex) << " + "
+                  << get_cipher_name(default_cipher) << std::endl;
+
+  do {
+    atbus::node::ptr_t node_parent = atbus::node::create();
+    atbus::node::ptr_t node_child = atbus::node::create();
+    setup_atbus_node_logger(*node_parent);
+    setup_atbus_node_logger(*node_child);
+
+    node_parent->init(0x12345678, &conf);
+
+    atbus::node::conf_t child_conf = conf;
+    child_conf.subnets.clear();
+    child_conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 8));
+    child_conf.parent_address = "ipv4://127.0.0.1:16387";
+    node_child->init(0x12346789, &child_conf);
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_parent->listen("ipv4://127.0.0.1:16387"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_child->listen("ipv4://127.0.0.1:16388"));
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_parent->start());
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_child->start());
+
+    time_t proc_t = time(nullptr) + 1;
+
+    UNITTEST_WAIT_UNTIL(&ev_loop,
+                        node_child->is_endpoint_available(node_parent->get_id()) &&
+                            node_parent->is_endpoint_available(node_child->get_id()),
+                        8000, 64) {
+      node_parent->proc(proc_t, 0);
+      node_child->proc(proc_t, 0);
+      ++proc_t;
+    }
+
+    node_child->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
+    node_parent->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
+
+    // Parent to child
+    {
+      std::string send_data = "Encrypted parent to child message!";
+      recv_msg_history.data.clear();
+      int count = recv_msg_history.count;
+
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS,
+                     node_parent->send_data(node_child->get_id(), 0, send_data.data(), send_data.size()));
+      UNITTEST_WAIT_UNTIL(&ev_loop, count != recv_msg_history.count, 3000, 0) {}
+
+      CASE_EXPECT_EQ(send_data, recv_msg_history.data);
+      CASE_MSG_INFO() << "  [PASS] Parent to child encrypted message" << std::endl;
+    }
+
+    // Child to parent
+    {
+      std::string send_data = "Encrypted child to parent message!";
+      recv_msg_history.data.clear();
+      int count = recv_msg_history.count;
+
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS,
+                     node_child->send_data(node_parent->get_id(), 0, send_data.data(), send_data.size()));
+      UNITTEST_WAIT_UNTIL(&ev_loop, count != recv_msg_history.count, 3000, 0) {}
+
+      CASE_EXPECT_EQ(send_data, recv_msg_history.data);
+      CASE_MSG_INFO() << "  [PASS] Child to parent encrypted message" << std::endl;
+    }
+  } while (false);
+
+  unit_test_setup_exit(&ev_loop);
+}
+
+// Test: No encryption (crypto disabled)
+CASE_TEST(atbus_node_msg, crypto_config_disabled) {
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+  conf.ev_loop = &ev_loop;
+  conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
+
+  // Explicitly disable crypto
+  conf.crypto_key_exchange_type = atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE;
+  conf.crypto_allow_algorithms.clear();
+
+  CASE_MSG_INFO() << "[TEST] Testing with crypto disabled" << std::endl;
+
+  do {
+    atbus::node::ptr_t node1 = atbus::node::create();
+    atbus::node::ptr_t node2 = atbus::node::create();
+    setup_atbus_node_logger(*node1);
+    setup_atbus_node_logger(*node2);
+
+    node1->init(0x12345678, &conf);
+    node2->init(0x12356789, &conf);
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->listen("ipv4://127.0.0.1:16387"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->listen("ipv4://127.0.0.1:16388"));
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
+
+    time_t proc_t = time(nullptr) + 1;
+    node1->poll();
+    node2->poll();
+    node1->proc(proc_t, 0);
+    node2->proc(proc_t, 0);
+
+    node1->connect("ipv4://127.0.0.1:16388");
+
+    UNITTEST_WAIT_UNTIL(&ev_loop,
+                        node1->is_endpoint_available(node2->get_id()) && node2->is_endpoint_available(node1->get_id()),
+                        8000, 0) {}
+
+    std::string test_message = "Plain text message without encryption!";
+
+    recv_msg_history.data.clear();
+    recv_msg_history.count = 0;
+    node1->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
+    node2->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
+
+    int initial_count = recv_msg_history.count;
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS,
+                   node1->send_data(node2->get_id(), 0, test_message.data(), test_message.size()));
+
+    UNITTEST_WAIT_UNTIL(&ev_loop, recv_msg_history.count > initial_count && !recv_msg_history.data.empty(), 5000, 0) {}
+
+    CASE_EXPECT_EQ(test_message, recv_msg_history.data);
+    CASE_MSG_INFO() << "[PASS] No encryption test passed" << std::endl;
+  } while (false);
+
+  unit_test_setup_exit(&ev_loop);
+}
+
+// Test: List available crypto algorithms
+CASE_TEST(atbus_node_msg, crypto_list_available_algorithms) {
+  CASE_MSG_INFO() << "=== Available Crypto Algorithms ===" << std::endl;
+
+  CASE_MSG_INFO() << "Key Exchange Algorithms:" << std::endl;
+  auto dh_algorithms = get_available_dh_algorithms();
+  for (auto &alg : dh_algorithms) {
+    CASE_MSG_INFO() << "  - " << alg << std::endl;
+  }
+
+  CASE_MSG_INFO() << "Cipher Algorithms:" << std::endl;
+  auto cipher_algorithms = get_available_cipher_algorithms();
+  for (auto &alg : cipher_algorithms) {
+    CASE_MSG_INFO() << "  - " << alg << std::endl;
+  }
+
+  CASE_MSG_INFO() << "==================================" << std::endl;
+
+  // Check at least some algorithms are available
+  CASE_EXPECT_GT(dh_algorithms.size(), 0);
+  CASE_EXPECT_GT(cipher_algorithms.size(), 0);
+}
+
+#endif  // ATFW_UTIL_MACRO_CRYPTO_CIPHER_ENABLED
