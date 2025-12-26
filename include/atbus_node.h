@@ -855,7 +855,7 @@ ATBUS_MACRO_NAMESPACE_END
                      ::atframework::atbus::details::__log_get_node_id((n)),                          \
                      ::atframework::atbus::details::__log_get_endpoint_id((ep)),                     \
                      ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), __VA_ARGS__) \
-      if ((n).is_debug_message_verbose_enabled() && (m) != nullptr) {                                \
+      if ((n).is_debug_message_verbose_enabled() && (m)) {                                           \
         FWINSTLOGDEBUG(*(n).get_logger(), "\tmessage head: {}\n\tmessage body: {}",                  \
                        ::atframework::atbus::details::__log_get_message_debug_head(m),               \
                        ::atframework::atbus::details::__log_get_message_debug_body(m))               \
@@ -885,7 +885,7 @@ ATBUS_MACRO_NAMESPACE_END
                      ::atframework::atbus::details::__log_get_node_id((n)),                     \
                      ::atframework::atbus::details::__log_get_endpoint_id((ep)),                \
                      ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), ##args) \
-      if ((n).is_debug_message_verbose_enabled() && (m) != nullptr) {                           \
+      if ((n).is_debug_message_verbose_enabled() && (m)) {                                      \
         FWINSTLOGDEBUG(*(n).get_logger(), "\tmessage head: {}\n\tmessage body: {}",             \
                        ::atframework::atbus::details::__log_get_message_debug_head(m),          \
                        ::atframework::atbus::details::__log_get_message_debug_body(m))          \
