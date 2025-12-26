@@ -65,6 +65,7 @@ else()
     target_compile_definitions("${PROJECT_LIBATBUS_LIB_LINK}-protocol" PUBLIC "ATBUS_MACRO_PROTOCOL_API=")
   endif()
 endif()
+project_build_tools_patch_protobuf_targets("${PROJECT_LIBATBUS_LIB_LINK}-protocol")
 if(NOT APPLE)
   set_target_properties("${PROJECT_LIBATBUS_LIB_LINK}-protocol" PROPERTIES C_VISIBILITY_PRESET "hidden"
                                                                            CXX_VISIBILITY_PRESET "hidden")
