@@ -312,9 +312,6 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
   size_t body_size = 0;
   protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE compression_algorithm = protocol::ATBUS_COMPRESSION_ALGORITHM_NONE;
   protocol::ATBUS_CRYPTO_ALGORITHM_TYPE crypto_algorithm = protocol::ATBUS_CRYPTO_ALGORITHM_NONE;
-  std::cerr << "[DEBUG] pack_message:\n");
-  std::cerr << "  send_cipher_ = %p\n", send_cipher_.get());
-  std::cerr << "  crypto_select_algorithm_ = %d\n", static_cast<int>(crypto_select_algorithm_));
   auto body = m.get_body();
   if (body != nullptr) {
     body_size = static_cast<size_t>(body->ByteSizeLong());
@@ -675,9 +672,6 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
   static_buffer_block buffer = _allocate_temporary_buffer_block(total_size);
   memcpy(buffer.data(), head_len_buffer, head_vint_size);
   head.SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t *>(buffer.data() + head_vint_size));
-  std::cerr << "[DEBUG] pack_message:\n");
-  std::cerr << "  send_cipher_ = %p\n", send_cipher_.get());
-  std::cerr << "  crypto_select_algorithm_ = %d\n", static_cast<int>(crypto_select_algorithm_));
   auto body = m.get_body();
   if (body != nullptr && body_size > 0) {
     body->SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t *>(buffer.data() + head_vint_size + head_size));
@@ -700,9 +694,6 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
     return buffer_result_t::make_error(EN_ATBUS_ERR_CRYPTO_ALGORITHM_NOT_MATCH);
   }
 
-  std::cerr << "[DEBUG] pack_message:\n");
-  std::cerr << "  send_cipher_ = %p\n", send_cipher_.get());
-  std::cerr << "  crypto_select_algorithm_ = %d\n", static_cast<int>(crypto_select_algorithm_));
   auto body = m.get_body();
   if (body != nullptr && body_size > 0) {
     body->SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t *>(origin_buffer.data()));
@@ -726,15 +717,6 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
     return buffer_result_t::make_error(EN_ATBUS_ERR_MALLOC);
   }
 
-  std::cerr << "[DEBUG] pack_message_with entered\n");
-  std::cerr << "  crypto_algorithm = %d\n", static_cast<int>(crypto_algorithm));
-  std::cerr << "  send_cipher_ = %p\n", send_cipher_.get());
-  if (send_cipher_) {
-    std::cerr << "  is_aead = %d\n", send_cipher_->is_aead() ? 1 : 0);
-    std::cerr << "  iv_size = %u\n", send_cipher_->get_iv_size());
-    auto iv_span = send_cipher_->get_iv();
-    std::cerr << "  iv.size() = %zu\n", iv_span.size());
-  }
   crypto_info->set_algorithm(crypto_algorithm);
   gsl::span<const unsigned char> iv = send_cipher_->get_iv();
   // 必须先写入，因为执行加密后iv会变更
@@ -758,21 +740,6 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
     memcpy(final_buffer.data(), head_len_buffer, head_vint_size);
     head.SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t *>(final_buffer.data() + head_vint_size));
 
-    // Debug: check cipher state before encryption
-    std::cerr << "[DEBUG] Before encrypt_aead:\n");
-    std::cerr << "  body_data_span.size() = %zu\n", body_data_span.size());
-    std::cerr << "  body_at_least_size = %zu\n", body_at_least_size);
-    std::cerr << "  block_size = %u, tag_size = %u\n", send_cipher_->get_block_size(), send_cipher_->get_tag_size());
-    std::cerr << "  iv_size = %u, key_bits = %u\n", send_cipher_->get_iv_size(), send_cipher_->get_key_bits());
-    std::cerr << "  is_aead = %d\n", send_cipher_->is_aead() ? 1 : 0);
-    auto iv_span = send_cipher_->get_iv();
-    std::cerr << "  iv.size() = %zu\n", iv_span.size());
-    std::cerr << "  aad.size() = %zu\n", crypto_info->aad().size());
-    int encrypt_result = send_cipher_->encrypt_aead(body_data_span.data(), body_data_span.size(),
-                               final_buffer.data() + head_vint_size + head_size, &body_at_least_size,
-                               reinterpret_cast<const unsigned char *>(crypto_info->aad().data()),
-                               crypto_info->aad().size());
-    std::cerr << "  encrypt_aead result = %d, last_errno = %lld\n", encrypt_result, (long long)send_cipher_->get_last_errno());
     if (encrypt_result < 0) {
       return buffer_result_t::make_error(EN_ATBUS_ERR_CRYPTO_ENCRYPT);
     }
