@@ -189,7 +189,7 @@ node::node()
 
         default_cat->write_log(caller, content, content_size);
       },
-      atfw::util::log::log_formatter::level_t::LOG_LW_FATAL, atfw::util::log::log_formatter::level_t::LOG_LW_DEBUG);
+      atfw::util::log::log_formatter::level_t::LOG_LW_DEBUG, atfw::util::log::log_formatter::level_t::LOG_LW_FATAL);
 }
 
 void node::io_stream_channel_del::operator()(channel::io_stream_channel *p) const {
