@@ -6,7 +6,6 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
-#include <map>
 #include <memory>
 
 #include <config/atframe_utils_build_feature.h>

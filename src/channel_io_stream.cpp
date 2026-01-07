@@ -33,6 +33,7 @@
 #include "config/atframe_utils_build_feature.h"
 #include "config/compile_optimize.h"
 #include "config/compiler_features.h"
+#include "memory/rc_ptr.h"
 
 #include "algorithm/murmur_hash.h"
 
@@ -193,7 +194,7 @@ struct UTIL_SYMBOL_LOCAL io_stream_connect_async_data {
   channel_address_t addr;
   io_stream_channel *channel;
   io_stream_callback_t callback;
-  std::shared_ptr<adapter::stream_t> stream;
+  ::atfw::util::memory::strong_rc_ptr<adapter::stream_t> stream;
   bool pipe;
   void *priv_data;
   size_t priv_size;
@@ -211,7 +212,7 @@ struct UTIL_SYMBOL_LOCAL io_stream_dns_async_data {
 
 struct UTIL_SYMBOL_LOCAL io_stream_handle_private_data {
   io_stream_connection *connection = nullptr;
-  std::shared_ptr<adapter::stream_t> stream_lifetime;
+  ::atfw::util::memory::strong_rc_ptr<adapter::stream_t> stream_lifetime;
   std::unique_ptr<io_stream_connect_async_data> connect_async_lifetime;
 
   inline io_stream_handle_private_data() noexcept {}
@@ -850,7 +851,7 @@ static int io_stream_shutdown_async_data(io_stream_connect_async_data *async_dat
 }
 
 // 删除函数，stream绑定在shared_ptr上
-static int io_stream_shutdown_ev_handle(std::shared_ptr<adapter::stream_t> &stream) {
+static int io_stream_shutdown_ev_handle(::atfw::util::memory::strong_rc_ptr<adapter::stream_t> &stream) {
   io_stream_handle_private_data *private_data = io_stream_handle_mutable_private_data(stream.get());
   assert(private_data);
   private_data->stream_lifetime = stream;
@@ -877,14 +878,14 @@ static int io_stream_shutdown_ev_handle(std::shared_ptr<adapter::stream_t> &stre
   return 0;
 }
 
-static std::shared_ptr<io_stream_connection> io_stream_make_connection(io_stream_channel *channel,
-                                                                       std::shared_ptr<adapter::stream_t> handle) {
-  std::shared_ptr<io_stream_connection> ret;
+static ::atfw::util::memory::strong_rc_ptr<io_stream_connection> io_stream_make_connection(
+    io_stream_channel *channel, ::atfw::util::memory::strong_rc_ptr<adapter::stream_t> handle) {
+  ::atfw::util::memory::strong_rc_ptr<io_stream_connection> ret;
   if (nullptr == channel) {
     return ret;
   }
 
-  ret = std::make_shared<io_stream_connection>();
+  ret = ::atfw::util::memory::make_strong_rc<io_stream_connection>();
   if (!ret) {
     return ret;
   }
@@ -940,18 +941,18 @@ static void io_stream_delete_stream_fn(adapter::stream_t *handle) {
 }
 
 template <typename T>
-static T *io_stream_make_stream_ptr(std::shared_ptr<adapter::stream_t> &res) {
+static T *io_stream_make_stream_ptr(::atfw::util::memory::strong_rc_ptr<adapter::stream_t> &res) {
   T *real_conn = new T();
   adapter::stream_t *stream_conn = reinterpret_cast<adapter::stream_t *>(real_conn);
-  res = std::shared_ptr<adapter::stream_t>(stream_conn, io_stream_delete_stream_fn<T>);
+  res = ::atfw::util::memory::strong_rc_ptr<adapter::stream_t>(stream_conn, io_stream_delete_stream_fn<T>);
   stream_conn->data = nullptr;
   return real_conn;
 }
 
 // tcp 收到连接通用逻辑
-static adapter::tcp_t *io_stream_tcp_connection_common(std::shared_ptr<io_stream_connection> &conn,
-                                                       std::shared_ptr<adapter::stream_t> &recv_conn, uv_stream_t *req,
-                                                       int &status) {
+static adapter::tcp_t *io_stream_tcp_connection_common(
+    ::atfw::util::memory::strong_rc_ptr<io_stream_connection> &conn,
+    ::atfw::util::memory::strong_rc_ptr<adapter::stream_t> &recv_conn, uv_stream_t *req, int &status) {
   io_stream_connection *conn_raw_ptr = io_stream_handle_get_connection(req);
   assert(conn_raw_ptr);
   io_stream_channel *channel = conn_raw_ptr->channel;
@@ -1000,8 +1001,8 @@ static void io_stream_tcp_connection_cb(uv_stream_t *req, int status) {
   channel->error_code = status;
   int res = EN_ATBUS_ERR_SUCCESS;
 
-  std::shared_ptr<adapter::stream_t> recv_conn;
-  std::shared_ptr<io_stream_connection> conn;
+  ::atfw::util::memory::strong_rc_ptr<adapter::stream_t> recv_conn;
+  ::atfw::util::memory::strong_rc_ptr<io_stream_connection> conn;
 
   do {
     adapter::tcp_t *tcp_conn = io_stream_tcp_connection_common(conn, recv_conn, req, status);
@@ -1061,8 +1062,8 @@ static void io_stream_pipe_connection_cb(uv_stream_t *req, int status) {
   channel->error_code = status;
   int res = EN_ATBUS_ERR_SUCCESS;
 
-  std::shared_ptr<io_stream_connection> conn;
-  std::shared_ptr<adapter::stream_t> recv_conn;
+  ::atfw::util::memory::strong_rc_ptr<io_stream_connection> conn;
+  ::atfw::util::memory::strong_rc_ptr<adapter::stream_t> recv_conn;
 
   do {
     if (0 != status || nullptr == channel) {
@@ -1226,8 +1227,8 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
   // socket
   if (0 == UTIL_STRFUNC_STRNCASE_CMP("ipv4", addr.scheme.c_str(), 4) ||
       0 == UTIL_STRFUNC_STRNCASE_CMP("ipv6", addr.scheme.c_str(), 4)) {
-    std::shared_ptr<adapter::stream_t> listen_conn;
-    std::shared_ptr<io_stream_connection> conn;
+    ::atfw::util::memory::strong_rc_ptr<adapter::stream_t> listen_conn;
+    ::atfw::util::memory::strong_rc_ptr<io_stream_connection> conn;
     adapter::tcp_t *handle = io_stream_make_stream_ptr<adapter::tcp_t>(listen_conn);
     if (nullptr == handle) {
       return EN_ATBUS_ERR_MALLOC;
@@ -1314,8 +1315,8 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
         }
       }
     }
-    std::shared_ptr<adapter::stream_t> listen_conn;
-    std::shared_ptr<io_stream_connection> conn;
+    ::atfw::util::memory::strong_rc_ptr<adapter::stream_t> listen_conn;
+    ::atfw::util::memory::strong_rc_ptr<io_stream_connection> conn;
     adapter::pipe_t *handle = io_stream_make_stream_ptr<adapter::pipe_t>(listen_conn);
     // Only a connected pipe that will be passing the handles should have this flag set, not the listening pipe that
     // uv_accept is called on.
@@ -1396,7 +1397,7 @@ static void io_stream_all_connected_cb(uv_connect_t *req, int status) {
 
   int errcode = EN_ATBUS_ERR_SUCCESS;
   async_data->channel->error_code = status;
-  std::shared_ptr<io_stream_connection> conn;
+  ::atfw::util::memory::strong_rc_ptr<io_stream_connection> conn;
   do {
     if (0 != status) {
       if (async_data->pipe) {
@@ -1535,7 +1536,7 @@ int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr,
   // socket
   if (0 == UTIL_STRFUNC_STRNCASE_CMP("ipv4", addr.scheme.c_str(), 4) ||
       0 == UTIL_STRFUNC_STRNCASE_CMP("ipv6", addr.scheme.c_str(), 4)) {
-    std::shared_ptr<adapter::stream_t> sock_conn;
+    ::atfw::util::memory::strong_rc_ptr<adapter::stream_t> sock_conn;
     adapter::tcp_t *handle = io_stream_make_stream_ptr<adapter::tcp_t>(sock_conn);
     if (nullptr == handle) {
       return EN_ATBUS_ERR_MALLOC;
@@ -1593,7 +1594,7 @@ int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr,
   } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix", addr.scheme.c_str(), 4) ||
              0 == UTIL_STRFUNC_STRNCASE_CMP("pipe", addr.scheme.c_str(), 4)) {
     // check path length
-    std::shared_ptr<adapter::stream_t> pipe_conn;
+    ::atfw::util::memory::strong_rc_ptr<adapter::stream_t> pipe_conn;
     adapter::pipe_t *handle = io_stream_make_stream_ptr<adapter::pipe_t>(pipe_conn);
     if (nullptr == handle) {
       return EN_ATBUS_ERR_MALLOC;

@@ -44,7 +44,7 @@ struct timer_desc_ls {
 
 class connection final : public atfw::util::design_pattern::noncopyable {
  public:
-  using ptr_t = std::shared_ptr<connection>;
+  using ptr_t = ::atfw::util::memory::strong_rc_ptr<connection>;
 
   /** 并没有非常复杂的状态切换，所以没有引入状态机 **/
   struct state_t {
@@ -253,7 +253,7 @@ class connection final : public atfw::util::design_pattern::noncopyable {
   node *owner_;
   timer_desc_ls<std::string, ptr_t>::type::iterator owner_checker_;
   endpoint *binding_;
-  std::weak_ptr<connection> watcher_;
+  ::atfw::util::memory::weak_rc_ptr<connection> watcher_;
 
   struct conn_data_mem {
     channel::mem_channel *channel;

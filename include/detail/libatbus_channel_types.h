@@ -9,6 +9,9 @@
 
 #pragma once
 
+#include <lock/seq_alloc.h>
+#include <memory/rc_ptr.h>
+
 #include <stdint.h>
 #include <cstddef>
 #include <map>
@@ -17,8 +20,6 @@
 #include <string>
 #include <unordered_map>
 #include <utility>
-
-#include "lock/seq_alloc.h"
 
 #include "detail/libatbus_config.h"
 
@@ -114,8 +115,8 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_connection {
   };
 
   channel_address_t addr;
-  std::shared_ptr<adapter::stream_t> handle;  // 流设备
-  adapter::fd_t fd;                           // 文件描述符
+  ::atfw::util::memory::strong_rc_ptr<adapter::stream_t> handle;  // 流设备
+  adapter::fd_t fd;                                               // 文件描述符
 
   enum status_t { EN_ST_CREATED = 0, EN_ST_CONNECTED, EN_ST_DISCONNECTING, EN_ST_DISCONNECTED };
   status_t status;  // 状态
@@ -178,9 +179,9 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_channel {
 
   io_stream_conf conf;
 
-  using conn_pool_t = std::unordered_map<adapter::fd_t, std::shared_ptr<io_stream_connection>>;
+  using conn_pool_t = std::unordered_map<adapter::fd_t, ::atfw::util::memory::strong_rc_ptr<io_stream_connection>>;
   conn_pool_t conn_pool;
-  using conn_gc_pool_t = std::unordered_map<uintptr_t, std::shared_ptr<io_stream_connection>>;
+  using conn_gc_pool_t = std::unordered_map<uintptr_t, ::atfw::util::memory::strong_rc_ptr<io_stream_connection>>;
   conn_gc_pool_t conn_gc_pool;
 
   // 事件响应

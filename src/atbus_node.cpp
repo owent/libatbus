@@ -522,7 +522,8 @@ ATBUS_MACRO_API int node::reset() {
     std::vector<endpoint::ptr_t> force_clear_endpoint;
     force_clear_endpoint.reserve(event_timer_.ping_list.size());
     // 清理ping定时器
-    for (timer_desc_ls<const endpoint *, std::weak_ptr<endpoint>>::type::iterator iter = event_timer_.ping_list.begin();
+    for (timer_desc_ls<const endpoint *, ::atfw::util::memory::weak_rc_ptr<endpoint>>::type::iterator iter =
+             event_timer_.ping_list.begin();
          iter != event_timer_.ping_list.end(); ++iter) {
       if (iter->second && iter->second->second.expired()) {
         continue;
@@ -697,7 +698,7 @@ ATBUS_MACRO_API int node::proc(time_t sec, time_t usec) {
         break;
       }
 
-      timer_desc_ls<const endpoint *, std::weak_ptr<endpoint>>::type::iterator timer_iter =
+      timer_desc_ls<const endpoint *, ::atfw::util::memory::weak_rc_ptr<endpoint>>::type::iterator timer_iter =
           event_timer_.ping_list.begin();
       if (!timer_iter->second) {
         event_timer_.ping_list.pop_front();
