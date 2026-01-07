@@ -1281,7 +1281,10 @@ CASE_TEST(atbus_access_data_crosslang, verify_access_data_from_generated_files) 
         bool all_match = true;
         for (int i = 0; i < 3; ++i) {
           std::string sig = atfw::atbus::message_handler::calculate_access_data_signature(
-              ad, gsl::span<const unsigned char>{tokens[i].data(), tokens[i].size()}, plaintext);
+              ad,
+              gsl::span<const unsigned char>{tokens[static_cast<size_t>(i)].data(),
+                                             tokens[static_cast<size_t>(i)].size()},
+              plaintext);
           if (ad.signature(i) != sig) {
             CASE_MSG_INFO() << "[FAIL] " << test_name << ": signature " << i << " mismatch" << std::endl;
             all_match = false;
