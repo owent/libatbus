@@ -1137,7 +1137,7 @@ static int accept_node_registration_step_make_endpoint(node &n, connection &conn
     return result;
   }
 
-  ATBUS_FUNC_NODE_DEBUG(n, ep, &conn, &m, "node add a new endpoint success");
+  ATBUS_FUNC_NODE_DEBUG(n, ep, &conn, nullptr, "node add a new endpoint success");
   // 新的endpoint第一个连接为控制连接，后续的为数据连接
   ep->add_connection(&conn, false);
   return result;

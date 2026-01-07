@@ -1,0 +1,21 @@
+{
+  "name": "enc_aes_192_gcm_data_transform_req",
+  "description": "Data transform request with aes_192_gcm encryption",
+  "protocol_version": 3,
+  "body_type": "data_transform_req",
+  "body_type_case": 13,
+  "crypto_algorithm": "aes_192_gcm",
+  "crypto_algorithm_type": 15,
+  "key_hex": "000102030405060708090a0b0c0d0e0f1011121314151617",
+  "key_size": 24,
+  "iv_hex": "b0b1b2b3b4b5b6b7b8b9babb",
+  "iv_size": 12,
+  "packed_size": 127,
+  "packed_hex": "3d08033237080f120cb0b1b2b3b4b5b6b7b8b9babb5a25307836393565303638662e307861616164642d3078616138653635646438623638303430654831d6c95ba7b5a5089cd8830c1498e1e3872eba00afc612a061219b37d9415f9a7af9f567a2c73f69e302758e3e3b4059419b6721ac15019edc8c40795593aa8a343f",
+  "expected": {
+    "from": 1311768467463790320,
+    "to": 1147797409030816545,
+    "content": "Hello, encrypted atbus!",
+    "flags": 1
+  }
+}

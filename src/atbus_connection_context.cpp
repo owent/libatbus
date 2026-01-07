@@ -688,6 +688,51 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
   return buffer_result_t::make_success(std::move(buffer));
 }
 
+ATBUS_MACRO_API int connection_context::setup_crypto_with_key(protocol::ATBUS_CRYPTO_ALGORITHM_TYPE algorithm,
+                                                              const unsigned char *key, size_t key_size,
+                                                              const unsigned char *iv, size_t iv_size) {
+  if (algorithm == protocol::ATBUS_CRYPTO_ALGORITHM_NONE) {
+    send_cipher_.reset();
+    receive_cipher_.reset();
+    crypto_select_algorithm_ = protocol::ATBUS_CRYPTO_ALGORITHM_NONE;
+    return EN_ATBUS_ERR_SUCCESS;
+  }
+
+  send_cipher_ = _create_crypto_cipher(algorithm, true);
+  receive_cipher_ = _create_crypto_cipher(algorithm, false);
+  if (!send_cipher_ || !receive_cipher_) {
+    return EN_ATBUS_ERR_CRYPTO_HANDSHAKE_NO_AVAILABLE_ALGORITHM;
+  }
+
+  uint32_t key_bits = static_cast<uint32_t>(key_size * 8);
+  if (send_cipher_->set_key(key, key_bits) != 0) {
+    send_cipher_.reset();
+    receive_cipher_.reset();
+    return EN_ATBUS_ERR_CRYPTO_ENCRYPT;
+  }
+  if (receive_cipher_->set_key(key, key_bits) != 0) {
+    send_cipher_.reset();
+    receive_cipher_.reset();
+    return EN_ATBUS_ERR_CRYPTO_ENCRYPT;
+  }
+
+  if (iv != nullptr && iv_size > 0) {
+    if (send_cipher_->set_iv(iv, iv_size) != 0) {
+      send_cipher_.reset();
+      receive_cipher_.reset();
+      return EN_ATBUS_ERR_CRYPTO_INVALID_IV;
+    }
+    if (receive_cipher_->set_iv(iv, iv_size) != 0) {
+      send_cipher_.reset();
+      receive_cipher_.reset();
+      return EN_ATBUS_ERR_CRYPTO_INVALID_IV;
+    }
+  }
+
+  crypto_select_algorithm_ = algorithm;
+  return EN_ATBUS_ERR_SUCCESS;
+}
+
 // Message帧层: vint(header长度) + header + body + padding
 ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_message_with(
     message &m, protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE compression_algorithm,

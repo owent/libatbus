@@ -47,9 +47,8 @@ class node_access_controller {
  private:
   friend class endpoint;
 
-  static bool add_ping_timer(node &n, const endpoint::ptr_t &ep,
-                             timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator &out);
-  static void remove_ping_timer(node &n, timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator &inout);
+  static bool add_ping_timer(node &n, const endpoint::ptr_t &ep);
+  static void remove_ping_timer(node &n, const endpoint *ep);
 };
 
 class node final : public atfw::util::design_pattern::noncopyable {
@@ -119,8 +118,8 @@ class node final : public atfw::util::design_pattern::noncopyable {
     time_t retry_interval;          /** 重试包间隔，秒 **/
     size_t fault_tolerant;          /** 容错次数，次 **/
     size_t access_token_max_number; /** 最大access token数量，请不要设置的太大，验证次数最大可能是N^2 **/
-    std::vector<std::vector<unsigned char> > access_tokens; /** access token列表 **/
-    bool overwrite_listen_path;                             /** 是否覆盖已存在的listen path(unix/pipe socket) **/
+    std::vector<std::vector<unsigned char>> access_tokens; /** access token列表 **/
+    bool overwrite_listen_path;                            /** 是否覆盖已存在的listen path(unix/pipe socket) **/
 
     // ===== 加密算法配置 =====
     protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE crypto_key_exchange_type;
@@ -171,10 +170,10 @@ class node final : public atfw::util::design_pattern::noncopyable {
     //      发起节点，来源对端，来源连接，来源节点ID，命令参数列表，返回信息列表（跨节点的共享内存和内存通道的返回消息将被忽略）
     using on_custom_cmd_fn_t =
         std::function<int(const node &, const endpoint *, const connection *, bus_id_t,
-                          const std::vector<std::pair<const void *, size_t> > &, std::list<std::string> &)>;
+                          const std::vector<std::pair<const void *, size_t>> &, std::list<std::string> &)>;
     // 接收到命令回包事件回调 => 参数列表: 发起节点，来源对端，来源连接，来源节点ID，回包数据列表，对应请求包的sequence
     using on_custom_rsp_fn_t = std::function<int(const node &, const endpoint *, const connection *, bus_id_t,
-                                                 const std::vector<std::pair<const void *, size_t> > &, uint64_t)>;
+                                                 const std::vector<std::pair<const void *, size_t>> &, uint64_t)>;
 
     // 对端上线事件回调 => 参数列表: 发起节点，新增的对端，错误码，通常是 EN_ATBUS_ERR_SUCCESS
     using on_add_endpoint_fn_t = std::function<int(const node &, endpoint *, int)>;
@@ -544,9 +543,9 @@ class node final : public atfw::util::design_pattern::noncopyable {
   ATBUS_MACRO_API bool remove_proc_connection(const std::string &conn_key);
 
   ATBUS_MACRO_API bool add_connection_timer(connection::ptr_t conn,
-                                            timer_desc_ls<connection::ptr_t>::type::iterator &out);
+                                            timer_desc_ls<std::string, connection::ptr_t>::type::iterator &out);
 
-  ATBUS_MACRO_API bool remove_connection_timer(timer_desc_ls<connection::ptr_t>::type::iterator &out);
+  ATBUS_MACRO_API bool remove_connection_timer(timer_desc_ls<std::string, connection::ptr_t>::type::iterator &out);
 
   ATBUS_MACRO_API size_t get_connection_timer_size() const;
 
@@ -568,10 +567,10 @@ class node final : public atfw::util::design_pattern::noncopyable {
   ATBUS_MACRO_API int on_actived();
   ATBUS_MACRO_API int on_parent_reg_done();
   ATBUS_MACRO_API int on_custom_cmd(const endpoint *, const connection *, bus_id_t from,
-                                    const std::vector<std::pair<const void *, size_t> > &cmd_args,
+                                    const std::vector<std::pair<const void *, size_t>> &cmd_args,
                                     std::list<std::string> &rsp);
   ATBUS_MACRO_API int on_custom_rsp(const endpoint *, const connection *, bus_id_t from,
-                                    const std::vector<std::pair<const void *, size_t> > &cmd_args, uint64_t seq);
+                                    const std::vector<std::pair<const void *, size_t>> &cmd_args, uint64_t seq);
 
   ATBUS_MACRO_API int on_ping(const endpoint *ep, const message &m,
                               const ::atframework::atbus::protocol::ping_data &body);
@@ -705,12 +704,12 @@ class node final : public atfw::util::design_pattern::noncopyable {
   /**
    * @brief 添加到ping timer列表
    */
-  bool add_ping_timer(const endpoint::ptr_t &ep, timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator &out);
+  bool add_ping_timer(const endpoint::ptr_t &ep);
 
   /**
    * @brief 从ping timer列表中移除
    */
-  void remove_ping_timer(timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator &inout);
+  void remove_ping_timer(const endpoint *ep);
 
   friend class node_access_controller;
 
@@ -755,12 +754,12 @@ class node final : public atfw::util::design_pattern::noncopyable {
     time_t sec;
     time_t usec;
 
-    time_t node_sync_push;                                    // 节点变更推送
-    time_t parent_opr_time_point;                             // 父节点操作时间（断线重连或Ping）
-    timer_desc_ls<std::weak_ptr<endpoint> >::type ping_list;  // 定时ping
-    timer_desc_ls<connection::ptr_t>::type connecting_list;   // 未完成连接（正在网络连接或握手）
-    std::list<endpoint::ptr_t> pending_endpoint_gc_list;      // 待检测GC的endpoint列表
-    std::list<connection::ptr_t> pending_connection_gc_list;  // 待检测GC的connection列表
+    time_t node_sync_push;                                                     // 节点变更推送
+    time_t parent_opr_time_point;                                              // 父节点操作时间（断线重连或Ping）
+    timer_desc_ls<const endpoint *, std::weak_ptr<endpoint>>::type ping_list;  // 定时ping
+    timer_desc_ls<std::string, connection::ptr_t>::type connecting_list;       // 未完成连接（正在网络连接或握手）
+    std::list<endpoint::ptr_t> pending_endpoint_gc_list;                       // 待检测GC的endpoint列表
+    std::list<connection::ptr_t> pending_connection_gc_list;                   // 待检测GC的connection列表
   };
   evt_timer_t event_timer_;
 

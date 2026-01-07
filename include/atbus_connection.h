@@ -11,6 +11,8 @@
 #include <design_pattern/noncopyable.h>
 #include <gsl/select-gsl.h>
 
+#include <memory/lru_map.h>
+
 #include <bitset>
 #include <ctime>
 #include <list>
@@ -32,10 +34,12 @@ ATBUS_MACRO_NAMESPACE_BEGIN
 class node;
 class endpoint;
 
-template <typename TObj>
+template <class TKey, class TObj>
 struct timer_desc_ls {
   using pair_type = std::pair<time_t, TObj>;
-  using type = std::list<pair_type>;
+  using type = ::atfw::util::memory::lru_map<
+      TKey, pair_type, std::hash<TKey>, std::equal_to<TKey>,
+      ::atfw::util::memory::lru_map_option<::atfw::util::memory::compat_strong_ptr_mode::kStrongRc>>;
 };
 
 class connection final : public atfw::util::design_pattern::noncopyable {
@@ -88,11 +92,16 @@ class connection final : public atfw::util::design_pattern::noncopyable {
   UTIL_DESIGN_PATTERN_NOMOVABLE(connection)
 
  private:
-  connection(protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE crypto_algorithm,
-             const ::atfw::util::crypto::dh::shared_context::ptr_t &shared_dh_context);
+  struct ctor_guard_t {
+    gsl::string_view addr;
+    protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE crypto_algorithm;
+    ::atfw::util::crypto::dh::shared_context::ptr_t shared_dh_context;
+  };
 
  public:
-  static ATBUS_MACRO_API ptr_t create(node *owner);
+  connection(ctor_guard_t &guard);
+
+  static ATBUS_MACRO_API ptr_t create(node *owner, gsl::string_view addr);
 
   ATBUS_MACRO_API ~connection();
 
@@ -108,18 +117,15 @@ class connection final : public atfw::util::design_pattern::noncopyable {
 
   /**
    * @brief 监听数据接收地址
-   * @param addr 监听地址
-   * @param is_caddr 是否是控制节点
    * @return 0或错误码
    */
-  ATBUS_MACRO_API int listen(gsl::string_view addr);
+  ATBUS_MACRO_API int listen();
 
   /**
    * @brief 连接到目标地址
-   * @param addr 连接目标地址
    * @return 0或错误码
    */
-  ATBUS_MACRO_API int connect(gsl::string_view addr);
+  ATBUS_MACRO_API int connect();
 
   /**
    * @brief 断开连接
@@ -180,7 +186,7 @@ class connection final : public atfw::util::design_pattern::noncopyable {
 
   ATBUS_MACRO_API const stat_t &get_statistic() const;
 
-  ATBUS_MACRO_API void remove_owner_checker(const timer_desc_ls<ptr_t>::type::iterator &v);
+  ATBUS_MACRO_API void remove_owner_checker(const timer_desc_ls<std::string, ptr_t>::type::iterator &v);
 
   ATBUS_MACRO_API connection_context &get_connection_context() noexcept;
 
@@ -245,7 +251,7 @@ class connection final : public atfw::util::design_pattern::noncopyable {
 
   // 这里不用智能指针是为了该值在上层对象（node或者endpoint）析构时仍然可用
   node *owner_;
-  timer_desc_ls<ptr_t>::type::iterator owner_checker_;
+  timer_desc_ls<std::string, ptr_t>::type::iterator owner_checker_;
   endpoint *binding_;
   std::weak_ptr<connection> watcher_;
 

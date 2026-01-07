@@ -1,0 +1,16 @@
+{
+  "name": "no_enc_node_register_rsp",
+  "description": "Node registration response message",
+  "protocol_version": 3,
+  "body_type": "node_register_rsp",
+  "body_type_case": 18,
+  "crypto_algorithm": "NONE",
+  "packed_size": 53,
+  "packed_hex": "040803483092012d0882801010ba601a09706565722d686f737422190a17697076343a2f2f3139322e3136382e312e313a38383030",
+  "expected": {
+    "bus_id": 262146,
+    "pid": 12346,
+    "hostname": "peer-host",
+    "channels": ["ipv4://192.168.1.1:8800"]
+  }
+}

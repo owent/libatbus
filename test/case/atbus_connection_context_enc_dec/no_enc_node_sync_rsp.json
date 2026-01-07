@@ -1,0 +1,13 @@
+{
+  "name": "no_enc_node_sync_rsp",
+  "description": "Node tree sync response",
+  "protocol_version": 3,
+  "body_type": "node_sync_rsp",
+  "body_type_case": 16,
+  "crypto_algorithm": "NONE",
+  "packed_size": 20,
+  "packed_hex": "040803480f82010c0a04088180180a0408828018",
+  "expected": {
+    "node_bus_ids": [393217, 393218]
+  }
+}

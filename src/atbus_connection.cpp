@@ -97,27 +97,33 @@ struct connection_async_data {
 };
 }  // namespace detail
 
-connection::connection(protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE crypto_algorithm,
-                       const ::atfw::util::crypto::dh::shared_context::ptr_t &shared_dh_context)
+connection::connection(ctor_guard_t &guard)
     : state_(state_t::DISCONNECTED),
 #if !defined(_WIN32)
       address_lock_(0),
 #endif
       owner_(nullptr),
       binding_(nullptr),
-      conn_context_(connection_context::create(crypto_algorithm, shared_dh_context)) {
+      conn_context_(connection_context::create(guard.crypto_algorithm, guard.shared_dh_context)) {
+
+  channel::make_address(guard.addr, address_);
+
   flags_.reset();
   memset(&conn_data_, 0, sizeof(conn_data_));
   memset(&stat_, 0, sizeof(stat_));
 }
 
-ATBUS_MACRO_API connection::ptr_t connection::create(node *owner) {
-  if (!owner) {
+ATBUS_MACRO_API connection::ptr_t connection::create(node *owner, gsl::string_view addr) {
+  if (!owner || addr.empty()) {
     return connection::ptr_t();
   }
 
-  connection::ptr_t ret(
-      new connection(owner->get_crypto_key_exchange_type(), owner->get_crypto_key_exchange_context()));
+  ctor_guard_t guard;
+  guard.addr = addr;
+  guard.crypto_algorithm = owner->get_crypto_key_exchange_type();
+  guard.shared_dh_context = owner->get_crypto_key_exchange_context();
+
+  connection::ptr_t ret = std::make_shared<connection>(guard);
   if (!ret) {
     return ret;
   }
@@ -190,7 +196,7 @@ ATBUS_MACRO_API int connection::proc(node &n, time_t sec, time_t usec) {
   return 0;
 }
 
-ATBUS_MACRO_API int connection::listen(gsl::string_view addr_str) {
+ATBUS_MACRO_API int connection::listen() {
   if (state_t::DISCONNECTED != state_) {
     return EN_ATBUS_ERR_ALREADY_INITED;
   }
@@ -200,7 +206,7 @@ ATBUS_MACRO_API int connection::listen(gsl::string_view addr_str) {
   }
   const node::conf_t &conf = owner_->get_conf();
 
-  if (false == channel::make_address(addr_str, address_)) {
+  if (address_.scheme.empty() || address_.host.empty()) {
     return EN_ATBUS_ERR_CHANNEL_ADDR_INVALID;
   }
 
@@ -214,7 +220,7 @@ ATBUS_MACRO_API int connection::listen(gsl::string_view addr_str) {
     }
 
     if (res < 0) {
-      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, 0, "listen to mem address {} failed", addr_str);
+      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, 0, "listen to mem address {} failed", address_.address);
       return res;
     }
 
@@ -244,7 +250,7 @@ ATBUS_MACRO_API int connection::listen(gsl::string_view addr_str) {
     }
 
     if (res < 0) {
-      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, 0, "listen to shm address {} failed", addr_str);
+      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, 0, "listen to shm address {} failed", address_.address);
       return res;
     }
 
@@ -290,7 +296,7 @@ ATBUS_MACRO_API int connection::listen(gsl::string_view addr_str) {
         int lock_fd = detail::try_flock_file(lock_path);
         if (lock_fd < 0) {
           ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED, errno,
-                                "listen {} and lock {} failed", addr_str, lock_path.c_str());
+                                "listen {} and lock {} failed", address_.address, lock_path.c_str());
           return EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED;
         }
 
@@ -302,7 +308,7 @@ ATBUS_MACRO_API int connection::listen(gsl::string_view addr_str) {
       if (atfw::util::file_system::is_exist(address_.host.c_str())) {
         if (false == atfw::util::file_system::remove(address_.host.c_str())) {
           ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_PIPE_REMOVE_FAILED, 0,
-                                "listen {} and remove old file {} failed", addr_str, address_.host.c_str());
+                                "listen {} and remove old file {} failed", address_.address, address_.host.c_str());
           return EN_ATBUS_ERR_PIPE_REMOVE_FAILED;
         }
       }
@@ -311,7 +317,7 @@ ATBUS_MACRO_API int connection::listen(gsl::string_view addr_str) {
     detail::connection_async_data *async_data = new detail::connection_async_data(owner_);
     if (nullptr == async_data) {
       ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_MALLOC, 0,
-                            "listen {} but malloc async data failed", addr_str);
+                            "listen {} but malloc async data failed", address_.address);
       return EN_ATBUS_ERR_MALLOC;
     }
     connection::ptr_t self = watch();
@@ -321,7 +327,7 @@ ATBUS_MACRO_API int connection::listen(gsl::string_view addr_str) {
     int res = channel::io_stream_listen(owner_->get_iostream_channel(), address_, iostream_on_listen_cb, async_data, 0);
     if (res < 0) {
       ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, owner_->get_iostream_channel()->error_code,
-                            "listen {} failed", addr_str);
+                            "listen {} failed", address_.address);
       delete async_data;
     }
 
@@ -329,7 +335,7 @@ ATBUS_MACRO_API int connection::listen(gsl::string_view addr_str) {
   }
 }
 
-ATBUS_MACRO_API int connection::connect(gsl::string_view addr_str) {
+ATBUS_MACRO_API int connection::connect() {
   if (state_t::DISCONNECTED != state_) {
     return EN_ATBUS_ERR_ALREADY_INITED;
   }
@@ -339,7 +345,7 @@ ATBUS_MACRO_API int connection::connect(gsl::string_view addr_str) {
   }
   const node::conf_t &conf = owner_->get_conf();
 
-  if (false == channel::make_address(addr_str, address_)) {
+  if (address_.scheme.empty() || address_.host.empty()) {
     return EN_ATBUS_ERR_CHANNEL_ADDR_INVALID;
   }
 
@@ -353,7 +359,7 @@ ATBUS_MACRO_API int connection::connect(gsl::string_view addr_str) {
     }
 
     if (res < 0) {
-      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, 0, "connect to address {} failed", addr_str);
+      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, 0, "connect to address {} failed", address_.address);
       return res;
     }
 
@@ -391,7 +397,7 @@ ATBUS_MACRO_API int connection::connect(gsl::string_view addr_str) {
     }
 
     if (res < 0) {
-      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, 0, "connect to address {} failed", addr_str);
+      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, 0, "connect to address {} failed", address_.address);
       return res;
     }
 
@@ -436,7 +442,7 @@ ATBUS_MACRO_API int connection::connect(gsl::string_view addr_str) {
     detail::connection_async_data *async_data = new detail::connection_async_data(owner_);
     if (nullptr == async_data) {
       ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_MALLOC, 0,
-                            "connect {} but malloc async data failed", addr_str);
+                            "connect {} but malloc async data failed", address_.address);
       return EN_ATBUS_ERR_MALLOC;
     }
     connection::ptr_t self = watch();
@@ -447,7 +453,7 @@ ATBUS_MACRO_API int connection::connect(gsl::string_view addr_str) {
         channel::io_stream_connect(owner_->get_iostream_channel(), address_, iostream_on_connected_cb, async_data, 0);
     if (res < 0) {
       ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, owner_->get_iostream_channel()->error_code,
-                            "connect {} failed", addr_str);
+                            "connect {} failed", address_.address);
       delete async_data;
     }
 
@@ -546,7 +552,7 @@ ATBUS_MACRO_API bool connection::is_running() const {
 
 ATBUS_MACRO_API const connection::stat_t &connection::get_statistic() const { return stat_; }
 
-ATBUS_MACRO_API void connection::remove_owner_checker(const timer_desc_ls<ptr_t>::type::iterator &v) {
+ATBUS_MACRO_API void connection::remove_owner_checker(const timer_desc_ls<std::string, ptr_t>::type::iterator &v) {
   if (owner_checker_ != v) {
     return;
   }
@@ -741,7 +747,7 @@ ATBUS_MACRO_API void connection::iostream_on_accepted(channel::io_stream_channel
     return;
   }
 
-  ptr_t conn = create(n);
+  ptr_t conn = create(n, conn_ios->addr.address);
   conn->set_status(state_t::HANDSHAKING);
   conn->flags_.set(flag_t::REG_FD, true);
   conn->flags_.set(flag_t::SERVER_MODE, true);

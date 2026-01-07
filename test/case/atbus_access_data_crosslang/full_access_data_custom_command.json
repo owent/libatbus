@@ -1,0 +1,36 @@
+{
+  "name": "full_access_data_custom_command",
+  "description": "Full access_data generation with custom_command_data",
+  "function": "generate_access_data",
+  "input": {
+    "bus_id": 287454020,
+    "nonce1": 16045690984503098046,
+    "nonce1_hex": "deadbeefcafebabe",
+    "nonce2": 81985529216486895,
+    "nonce2_hex": "123456789abcdef",
+    "access_tokens": [
+      {
+        "value": "my_secret",
+        "hex": "6d795f736563726574"
+      }
+    ],
+    "commands": ["list", "nodes"]
+  },
+  "intermediate": {
+    "concatenated_args": "listnodes",
+    "args_sha256_hex": "43b8e6d334e86568974ca6ff9a2fd4abef9ff2cba2311d6f81d3803757a50c9a"
+  },
+  "expected": {
+    "algorithm": "HMAC-SHA256",
+    "algorithm_value": 0,
+    "timestamp": 1735689600,
+    "nonce1": 16045690984503098046,
+    "nonce2": 81985529216486895,
+    "plaintext": "1735689600:16045690984503098046-81985529216486895:287454020:43b8e6d334e86568974ca6ff9a2fd4abef9ff2cba2311d6f81d3803757a50c9a",
+    "signatures": [
+      "d7f62584f9534f55a30088681bef094a0037218b04311adb06517327e2629233"
+    ],
+    "serialized_hex": "10808bd2bb0618bef5fad7fcddefd6de0120ef9bafcdf8acd191014a20d7f62584f9534f55a30088681bef094a0037218b04311adb06517327e2629233",
+    "serialized_length": 61
+  }
+}

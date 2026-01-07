@@ -249,7 +249,6 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
 
   // 这里不用智能指针是为了该值在上层对象（node）析构时仍然可用
   node *owner_;
-  timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator ping_timer_;
   std::weak_ptr<endpoint> watcher_;
 
   std::list<channel::channel_address_t> listen_address_;

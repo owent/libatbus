@@ -1,0 +1,184 @@
+{
+  "description": "libatbus cross-language pack/unpack test data (with encryption)",
+  "protocol_version": 3,
+  "output_dir": "atbus_connection_context_enc_dec",
+  "generated_at": "2026-01-05",
+  "encryption_note": "Encrypted test files use fixed test keys. See .json metadata for key/iv.",
+  "test_files": [
+    {
+      "name": "no_enc_ping_req",
+      "binary": "no_enc_ping_req.bytes",
+      "metadata": "no_enc_ping_req.json"
+    },
+    {
+      "name": "no_enc_pong_rsp",
+      "binary": "no_enc_pong_rsp.bytes",
+      "metadata": "no_enc_pong_rsp.json"
+    },
+    {
+      "name": "no_enc_data_transform_req_simple",
+      "binary": "no_enc_data_transform_req_simple.bytes",
+      "metadata": "no_enc_data_transform_req_simple.json"
+    },
+    {
+      "name": "no_enc_data_transform_req_with_rsp_flag",
+      "binary": "no_enc_data_transform_req_with_rsp_flag.bytes",
+      "metadata": "no_enc_data_transform_req_with_rsp_flag.json"
+    },
+    {
+      "name": "no_enc_data_transform_rsp",
+      "binary": "no_enc_data_transform_rsp.bytes",
+      "metadata": "no_enc_data_transform_rsp.json"
+    },
+    {
+      "name": "no_enc_custom_command_req",
+      "binary": "no_enc_custom_command_req.bytes",
+      "metadata": "no_enc_custom_command_req.json"
+    },
+    {
+      "name": "no_enc_custom_command_rsp",
+      "binary": "no_enc_custom_command_rsp.bytes",
+      "metadata": "no_enc_custom_command_rsp.json"
+    },
+    {
+      "name": "no_enc_node_register_req",
+      "binary": "no_enc_node_register_req.bytes",
+      "metadata": "no_enc_node_register_req.json"
+    },
+    {
+      "name": "no_enc_node_register_rsp",
+      "binary": "no_enc_node_register_rsp.bytes",
+      "metadata": "no_enc_node_register_rsp.json"
+    },
+    {
+      "name": "no_enc_node_sync_req",
+      "binary": "no_enc_node_sync_req.bytes",
+      "metadata": "no_enc_node_sync_req.json"
+    },
+    {
+      "name": "no_enc_node_sync_rsp",
+      "binary": "no_enc_node_sync_rsp.bytes",
+      "metadata": "no_enc_node_sync_rsp.json"
+    },
+    {
+      "name": "no_enc_node_connect_sync",
+      "binary": "no_enc_node_connect_sync.bytes",
+      "metadata": "no_enc_node_connect_sync.json"
+    },
+    {
+      "name": "no_enc_data_transform_binary_content",
+      "binary": "no_enc_data_transform_binary_content.bytes",
+      "metadata": "no_enc_data_transform_binary_content.json"
+    },
+    {
+      "name": "no_enc_data_transform_large_content",
+      "binary": "no_enc_data_transform_large_content.bytes",
+      "metadata": "no_enc_data_transform_large_content.json"
+    },
+    {
+      "name": "no_enc_data_transform_utf8_content",
+      "binary": "no_enc_data_transform_utf8_content.bytes",
+      "metadata": "no_enc_data_transform_utf8_content.json"
+    },
+    {
+      "name": "enc_xxtea_data_transform_req",
+      "binary": "enc_xxtea_data_transform_req.bytes",
+      "metadata": "enc_xxtea_data_transform_req.json"
+    },
+    {
+      "name": "enc_xxtea_custom_cmd",
+      "binary": "enc_xxtea_custom_cmd.bytes",
+      "metadata": "enc_xxtea_custom_cmd.json"
+    },
+    {
+      "name": "enc_aes_128_cbc_data_transform_req",
+      "binary": "enc_aes_128_cbc_data_transform_req.bytes",
+      "metadata": "enc_aes_128_cbc_data_transform_req.json"
+    },
+    {
+      "name": "enc_aes_128_cbc_custom_cmd",
+      "binary": "enc_aes_128_cbc_custom_cmd.bytes",
+      "metadata": "enc_aes_128_cbc_custom_cmd.json"
+    },
+    {
+      "name": "enc_aes_192_cbc_data_transform_req",
+      "binary": "enc_aes_192_cbc_data_transform_req.bytes",
+      "metadata": "enc_aes_192_cbc_data_transform_req.json"
+    },
+    {
+      "name": "enc_aes_192_cbc_custom_cmd",
+      "binary": "enc_aes_192_cbc_custom_cmd.bytes",
+      "metadata": "enc_aes_192_cbc_custom_cmd.json"
+    },
+    {
+      "name": "enc_aes_256_cbc_data_transform_req",
+      "binary": "enc_aes_256_cbc_data_transform_req.bytes",
+      "metadata": "enc_aes_256_cbc_data_transform_req.json"
+    },
+    {
+      "name": "enc_aes_256_cbc_custom_cmd",
+      "binary": "enc_aes_256_cbc_custom_cmd.bytes",
+      "metadata": "enc_aes_256_cbc_custom_cmd.json"
+    },
+    {
+      "name": "enc_aes_128_gcm_data_transform_req",
+      "binary": "enc_aes_128_gcm_data_transform_req.bytes",
+      "metadata": "enc_aes_128_gcm_data_transform_req.json"
+    },
+    {
+      "name": "enc_aes_128_gcm_custom_cmd",
+      "binary": "enc_aes_128_gcm_custom_cmd.bytes",
+      "metadata": "enc_aes_128_gcm_custom_cmd.json"
+    },
+    {
+      "name": "enc_aes_192_gcm_data_transform_req",
+      "binary": "enc_aes_192_gcm_data_transform_req.bytes",
+      "metadata": "enc_aes_192_gcm_data_transform_req.json"
+    },
+    {
+      "name": "enc_aes_192_gcm_custom_cmd",
+      "binary": "enc_aes_192_gcm_custom_cmd.bytes",
+      "metadata": "enc_aes_192_gcm_custom_cmd.json"
+    },
+    {
+      "name": "enc_aes_256_gcm_data_transform_req",
+      "binary": "enc_aes_256_gcm_data_transform_req.bytes",
+      "metadata": "enc_aes_256_gcm_data_transform_req.json"
+    },
+    {
+      "name": "enc_aes_256_gcm_custom_cmd",
+      "binary": "enc_aes_256_gcm_custom_cmd.bytes",
+      "metadata": "enc_aes_256_gcm_custom_cmd.json"
+    },
+    {
+      "name": "enc_chacha20_poly1305_data_transform_req",
+      "binary": "enc_chacha20_poly1305_data_transform_req.bytes",
+      "metadata": "enc_chacha20_poly1305_data_transform_req.json"
+    },
+    {
+      "name": "enc_chacha20_poly1305_custom_cmd",
+      "binary": "enc_chacha20_poly1305_custom_cmd.bytes",
+      "metadata": "enc_chacha20_poly1305_custom_cmd.json"
+    }
+  ],
+  "crypto_algorithms": [
+    {"name": "NONE", "type": 0},
+    {"name": "XXTEA", "type": 1},
+    {"name": "AES-128-CBC", "type": 2},
+    {"name": "AES-192-CBC", "type": 3},
+    {"name": "AES-256-CBC", "type": 4},
+    {"name": "AES-128-GCM", "type": 5},
+    {"name": "AES-192-GCM", "type": 6},
+    {"name": "AES-256-GCM", "type": 7},
+    {"name": "CHACHA20", "type": 8},
+    {"name": "CHACHA20-POLY1305-IETF", "type": 9},
+    {"name": "XCHACHA20-POLY1305-IETF", "type": 10}
+  ],
+  "usage": {
+    "step1": "Read the .bytes file as raw bytes",
+    "step2": "For encrypted files, setup cipher with key/iv from .json",
+    "step3": "Use your language's unpack implementation to decode",
+    "step4": "Compare decoded values with expected values in .json",
+    "step5": "Pack the same message and compare with original .bytes (for non-AEAD only)"
+  }
+}

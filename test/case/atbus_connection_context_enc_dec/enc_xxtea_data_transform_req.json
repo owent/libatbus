@@ -1,0 +1,19 @@
+{
+  "name": "enc_xxtea_data_transform_req",
+  "description": "Data transform request with xxtea encryption",
+  "protocol_version": 3,
+  "body_type": "data_transform_req",
+  "body_type_case": 13,
+  "crypto_algorithm": "xxtea",
+  "crypto_algorithm_type": 1,
+  "key_hex": "000102030405060708090a0b0c0d0e0f",
+  "key_size": 16,
+  "packed_size": 61,
+  "packed_hex": "080803320208014831afc36cb7fa5b7840874c88f2421bbd7231e3451822e0c260af4ba5bb0d77001781b9c1d06a36c29ecdf43d77145e0dfc6999f77f",
+  "expected": {
+    "from": 1311768467463790320,
+    "to": 1147797409030816545,
+    "content": "Hello, encrypted atbus!",
+    "flags": 1
+  }
+}

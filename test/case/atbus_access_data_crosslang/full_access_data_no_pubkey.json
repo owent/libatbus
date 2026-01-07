@@ -1,0 +1,38 @@
+{
+  "name": "full_access_data_no_pubkey",
+  "description": "Full access_data generation with crypto_handshake_data (no public key)",
+  "function": "generate_access_data",
+  "input": {
+    "bus_id": 305419896,
+    "nonce1": 12379813738877118345,
+    "nonce1_hex": "abcdef0123456789",
+    "nonce2": 10986060915027139770,
+    "nonce2_hex": "9876543210fedcba",
+    "access_tokens": [
+      {
+        "value": "token1",
+        "hex": "746f6b656e31"
+      },
+      {
+        "value": "token2",
+        "hex": "746f6b656e32"
+      }
+    ],
+    "crypto_handshake_type": 0,
+    "public_key_hex": ""
+  },
+  "expected": {
+    "algorithm": "HMAC-SHA256",
+    "algorithm_value": 0,
+    "timestamp": 1735689600,
+    "nonce1": 12379813738877118345,
+    "nonce2": 10986060915027139770,
+    "plaintext": "1735689600:12379813738877118345-10986060915027139770:305419896",
+    "signatures": [
+      "161703f321c918edd4e1f88dcf33e0a237637ab7f9ff2385f56905dafc00aa17",
+      "b2a4d9feb5fefe677b4df2b1437b0b4744fd0713af1ce713cdb624532560f2e0"
+    ],
+    "serialized_hex": "10808bd2bb061889cf959a92e0fbe6ab0120bab9fb87a18695bb98014a20161703f321c918edd4e1f88dcf33e0a237637ab7f9ff2385f56905dafc00aa174a20b2a4d9feb5fefe677b4df2b1437b0b4744fd0713af1ce713cdb624532560f2e0",
+    "serialized_length": 96
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "enc_aes_192_cbc_data_transform_req",
+  "description": "Data transform request with aes_192_cbc encryption",
+  "protocol_version": 3,
+  "body_type": "data_transform_req",
+  "body_type_case": 13,
+  "crypto_algorithm": "aes_192_cbc",
+  "crypto_algorithm_type": 12,
+  "key_hex": "000102030405060708090a0b0c0d0e0f1011121314151617",
+  "key_size": 24,
+  "iv_hex": "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf",
+  "iv_size": 16,
+  "packed_size": 91,
+  "packed_hex": "1a08033214080c1210a0a1a2a3a4a5a6a7a8a9aaabacadaeaf4831acf9fe2b55c6c60d99ce04e1369671d87b6d387b17facb755bd819b6e8b40ac1e412fa85a1053b7049c0785ce4e517facd620ce9ff3754fe861fd02b48042e03",
+  "expected": {
+    "from": 1311768467463790320,
+    "to": 1147797409030816545,
+    "content": "Hello, encrypted atbus!",
+    "flags": 1
+  }
+}

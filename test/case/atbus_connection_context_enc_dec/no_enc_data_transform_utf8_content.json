@@ -1,0 +1,17 @@
+{
+  "name": "no_enc_data_transform_utf8_content",
+  "description": "Data transform with UTF-8 multilingual content",
+  "protocol_version": 3,
+  "body_type": "data_transform_req",
+  "body_type_case": 13,
+  "crypto_algorithm": "NONE",
+  "packed_size": 77,
+  "packed_hex": "04080348486a460881802410828024223c48656c6c6f2c20e4b896e7958c2120d09fd180d0b8d0b2d0b5d18220d0bcd0b8d1802120d985d8b1d8add8a8d8a72120f09f8c8df09f8c8ef09f8c8f",
+  "expected": {
+    "from": 589825,
+    "to": 589826,
+    "content_hex": "48656c6c6f2c20e4b896e7958c2120d09fd180d0b8d0b2d0b5d18220d0bcd0b8d1802120d985d8b1d8add8a8d8a72120f09f8c8df09f8c8ef09f8c8f",
+    "content_size": 60,
+    "flags": 0
+  }
+}

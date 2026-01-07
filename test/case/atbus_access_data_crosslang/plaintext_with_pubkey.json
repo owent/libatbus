@@ -1,0 +1,24 @@
+{
+  "name": "plaintext_with_pubkey",
+  "description": "Plaintext generation with public key (with encryption)",
+  "function": "make_access_data_plaintext",
+  "input": {
+    "bus_id": 2882400001,
+    "bus_id_hex": "abcdef01",
+    "timestamp": 1735689600,
+    "nonce1": 12297848147757817309,
+    "nonce1_hex": "aaaabbbbccccdddd",
+    "nonce2": 1229801703532086340,
+    "nonce2_hex": "1111222233334444",
+    "crypto_handshake_type": 2,
+    "crypto_handshake_type_name": "ATBUS_CRYPTO_KEY_EXCHANGE_SECP256R1",
+    "public_key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+  },
+  "intermediate": {
+    "public_key_sha256_hex": "630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd"
+  },
+  "expected": {
+    "plaintext": "1735689600:12297848147757817309-1229801703532086340:2882400001:2:630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd",
+    "plaintext_format": "<timestamp>:<nonce1>-<nonce2>:<bus_id>:<type>:<sha256_hex>"
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "description": "Cross-language test data for access_data functions",
+  "generator": "atbus_access_data_crosslang_generator.cpp",
+  "output_dir": "atbus_access_data_crosslang",
+  "functions": [
+    {
+      "name": "make_access_data_plaintext",
+      "description": "Generates plaintext string for HMAC signature",
+      "test_files": [
+        "plaintext_no_pubkey.json",
+        "plaintext_with_pubkey.json",
+        "plaintext_custom_command.json"
+      ]
+    },
+    {
+      "name": "calculate_access_data_signature",
+      "description": "Calculates HMAC-SHA256 signature",
+      "test_files": [
+        {"json": "signature_simple_token.json", "binary": "signature_simple_token.bytes"},
+        {"json": "signature_binary_token.json", "binary": "signature_binary_token.bytes"},
+        {"json": "signature_256bit_token.json", "binary": "signature_256bit_token.bytes"}
+      ]
+    },
+    {
+      "name": "generate_access_data",
+      "description": "Generates complete access_data with signatures",
+      "test_files": [
+        {"json": "full_access_data_no_pubkey.json", "binary": "full_access_data_no_pubkey.bytes"},
+        {"json": "full_access_data_with_pubkey.json", "binary": "full_access_data_with_pubkey.bytes"},
+        {"json": "full_access_data_custom_command.json", "binary": "full_access_data_custom_command.bytes"},
+        {"json": "full_access_data_multiple_tokens.json", "binary": "full_access_data_multiple_tokens.bytes"}
+      ]
+    }
+  ]
+}

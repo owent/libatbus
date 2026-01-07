@@ -90,6 +90,18 @@ class ATFW_UTIL_SYMBOL_VISIBLE connection_context final {
   static ATBUS_MACRO_API bool is_compression_algorithm_supported(
       protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE algorithm) noexcept;
 
+  /**
+   * @brief 直接设置加密密钥（用于测试，跳过密钥交换）
+   * @param algorithm 加密算法类型
+   * @param key 密钥数据
+   * @param key_size 密钥大小（字节）
+   * @param iv 初始化向量数据
+   * @param iv_size 初始化向量大小（字节）
+   * @return int 0或错误码
+   */
+  ATBUS_MACRO_API int setup_crypto_with_key(protocol::ATBUS_CRYPTO_ALGORITHM_TYPE algorithm, const unsigned char *key,
+                                            size_t key_size, const unsigned char *iv, size_t iv_size);
+
  private:
   ATBUS_MACRO_API buffer_result_t pack_message_origin(message &m) noexcept;
 

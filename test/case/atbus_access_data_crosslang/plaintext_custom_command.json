@@ -1,0 +1,23 @@
+{
+  "name": "plaintext_custom_command",
+  "description": "Plaintext generation with custom command data",
+  "function": "make_access_data_plaintext",
+  "input": {
+    "bus_id": 2271560481,
+    "bus_id_hex": "87654321",
+    "timestamp": 1735689600,
+    "nonce1": 6148933456521300104,
+    "nonce1_hex": "5555666677778888",
+    "nonce2": 11068065209510513868,
+    "nonce2_hex": "9999aaaabbbbcccc",
+    "commands": ["command1", "arg2", "data3"]
+  },
+  "intermediate": {
+    "concatenated_args": "command1arg2data3",
+    "args_sha256_hex": "5f6b34d74c0c6c03c2c39f40d3dab18a027f4458f9ff7de47dd45e6cc5ef13e4"
+  },
+  "expected": {
+    "plaintext": "1735689600:6148933456521300104-11068065209510513868:2271560481:5f6b34d74c0c6c03c2c39f40d3dab18a027f4458f9ff7de47dd45e6cc5ef13e4",
+    "plaintext_format": "<timestamp>:<nonce1>-<nonce2>:<bus_id>:<sha256_hex>"
+  }
+}

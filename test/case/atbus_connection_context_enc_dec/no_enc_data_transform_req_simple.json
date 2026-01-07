@@ -1,0 +1,17 @@
+{
+  "name": "no_enc_data_transform_req_simple",
+  "description": "Data transform request with simple content",
+  "protocol_version": 3,
+  "body_type": "data_transform_req",
+  "body_type_case": 13,
+  "crypto_algorithm": "NONE",
+  "packed_size": 30,
+  "packed_hex": "04080348196a170881800410828004220d48656c6c6f2c20617462757321",
+  "expected": {
+    "from": 65537,
+    "to": 65538,
+    "content": "Hello, atbus!",
+    "content_hex": "48656c6c6f2c20617462757321",
+    "flags": 0
+  }
+}

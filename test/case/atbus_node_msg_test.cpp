@@ -249,6 +249,8 @@ CASE_TEST(atbus_node_msg, ping_pong) {
 
     CASE_EXPECT_GT(node2->get_endpoint(node1->get_id())->get_stat_last_pong(), 0);
     CASE_EXPECT_GT(node1->get_endpoint(node2->get_id())->get_stat_last_pong(), 0);
+    CASE_EXPECT_GT(node1->get_endpoint(parent->get_id())->get_stat_last_pong(), 0);
+    CASE_EXPECT_GT(parent->get_endpoint(node1->get_id())->get_stat_last_pong(), 0);
     CASE_MSG_INFO() << "Ping delay: " << node2->get_endpoint(node1->get_id())->get_stat_ping_delay() << std::endl;
   }
 

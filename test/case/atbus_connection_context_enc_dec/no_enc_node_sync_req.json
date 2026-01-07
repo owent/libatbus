@@ -1,0 +1,13 @@
+{
+  "name": "no_enc_node_sync_req",
+  "description": "Node tree sync request",
+  "protocol_version": 3,
+  "body_type": "node_sync_req",
+  "body_type_case": 15,
+  "crypto_algorithm": "NONE",
+  "packed_size": 25,
+  "packed_hex": "04080348147a120a04088180140a04088280140a0408838014",
+  "expected": {
+    "node_bus_ids": [327681, 327682, 327683]
+  }
+}
