@@ -53,7 +53,7 @@ class node_access_controller {
 
 class node final : public atfw::util::design_pattern::noncopyable {
  public:
-  using ptr_t = std::shared_ptr<node>;
+  using ptr_t = ::atfw::util::memory::strong_rc_ptr<node>;
   using message_builder_ref_t = ::atframework::atbus::message &;
 
   using bus_id_t = ATBUS_MACRO_BUSID_TYPE;
@@ -728,7 +728,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
   // 配置
   conf_t conf_;
   std::string hash_code_;
-  std::weak_ptr<node> watcher_;  // just like std::shared_from_this<T>
+  ::atfw::util::memory::weak_rc_ptr<node> watcher_;  // just like std::shared_from_this<T>
   atfw::util::lock::seq_alloc_u64 msg_seq_alloc_;
 
   // 加密设置
@@ -754,12 +754,12 @@ class node final : public atfw::util::design_pattern::noncopyable {
     time_t sec;
     time_t usec;
 
-    time_t node_sync_push;                                                     // 节点变更推送
-    time_t parent_opr_time_point;                                              // 父节点操作时间（断线重连或Ping）
-    timer_desc_ls<const endpoint *, std::weak_ptr<endpoint>>::type ping_list;  // 定时ping
-    timer_desc_ls<std::string, connection::ptr_t>::type connecting_list;       // 未完成连接（正在网络连接或握手）
-    std::list<endpoint::ptr_t> pending_endpoint_gc_list;                       // 待检测GC的endpoint列表
-    std::list<connection::ptr_t> pending_connection_gc_list;                   // 待检测GC的connection列表
+    time_t node_sync_push;         // 节点变更推送
+    time_t parent_opr_time_point;  // 父节点操作时间（断线重连或Ping）
+    timer_desc_ls<const endpoint *, ::atfw::util::memory::weak_rc_ptr<endpoint>>::type ping_list;  // 定时ping
+    timer_desc_ls<std::string, connection::ptr_t>::type connecting_list;  // 未完成连接（正在网络连接或握手）
+    std::list<endpoint::ptr_t> pending_endpoint_gc_list;                  // 待检测GC的endpoint列表
+    std::list<connection::ptr_t> pending_connection_gc_list;              // 待检测GC的connection列表
   };
   evt_timer_t event_timer_;
 

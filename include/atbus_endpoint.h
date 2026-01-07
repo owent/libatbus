@@ -91,7 +91,7 @@ class ATBUS_MACRO_API endpoint_subnet_range {
 class endpoint final : public atfw::util::design_pattern::noncopyable {
  public:
   using bus_id_t = ATBUS_MACRO_BUSID_TYPE;
-  using ptr_t = std::shared_ptr<endpoint>;
+  using ptr_t = ::atfw::util::memory::strong_rc_ptr<endpoint>;
 
   struct flag_t {
     enum type {
@@ -249,7 +249,7 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
 
   // 这里不用智能指针是为了该值在上层对象（node）析构时仍然可用
   node *owner_;
-  std::weak_ptr<endpoint> watcher_;
+  ::atfw::util::memory::weak_rc_ptr<endpoint> watcher_;
 
   std::list<channel::channel_address_t> listen_address_;
   std::unordered_set<std::string> supported_schemas_;

@@ -746,7 +746,7 @@ CASE_TEST(atbus_node_reg, destruct) {
       CASE_THREAD_SLEEP_MS(4);
     }
 
-    // reset shared_ptr and delete it
+    // reset strong_rc_ptr and delete it
     node1.reset();
 
     ++proc_t;

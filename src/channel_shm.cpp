@@ -101,7 +101,8 @@ struct shm_mapped_record_type {
   atfw::util::lock::atomic_int_type<size_t> reference_count;
 };
 
-using shm_mapped_by_key_t = std::unordered_map<std::string, std::shared_ptr<shm_mapped_record_type>>;
+using shm_mapped_by_key_t =
+    std::unordered_map<std::string, ::atfw::util::memory::strong_rc_ptr<shm_mapped_record_type>>;
 static shm_mapped_by_key_t shm_mapped_by_key_records;
 static ::atfw::util::lock::spin_lock shm_mapped_records_lock;
 
@@ -210,7 +211,8 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
 
   ::atfw::util::lock::lock_holder<::atfw::util::lock::spin_lock> lock_guard(shm_mapped_records_lock);
 
-  std::shared_ptr<shm_mapped_record_type> shm_record = std::make_shared<shm_mapped_record_type>();
+  ::atfw::util::memory::strong_rc_ptr<shm_mapped_record_type> shm_record =
+      ::atfw::util::memory::make_strong_rc<shm_mapped_record_type>();
   if (!shm_record) {
     return EN_ATBUS_ERR_MALLOC;
   }

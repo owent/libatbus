@@ -123,7 +123,7 @@ ATBUS_MACRO_API connection::ptr_t connection::create(node *owner, gsl::string_vi
   guard.crypto_algorithm = owner->get_crypto_key_exchange_type();
   guard.shared_dh_context = owner->get_crypto_key_exchange_context();
 
-  connection::ptr_t ret = std::make_shared<connection>(guard);
+  connection::ptr_t ret = ::atfw::util::memory::make_strong_rc<connection>(guard);
   if (!ret) {
     return ret;
   }

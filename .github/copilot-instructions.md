@@ -171,10 +171,10 @@ Test files are located in `test/case/`. Example:
 #include "atbus_node.h"
 
 CASE_TEST(atbus_node_setup, create_node) {
-    atframework::atbus::v3000::node::conf_t conf;
+    atframework::atbus::node::conf_t conf;
     conf.id = 0x12345678;
 
-    auto node = atframework::atbus::v3000::node::create();
+    auto node = atframework::atbus::node::create();
     CASE_EXPECT_NE(nullptr, node.get());
 
     int ret = node->init(conf);
@@ -191,10 +191,10 @@ CASE_TEST(atbus_node_setup, create_node) {
 The central component representing a bus node. Manages connections, endpoints, and message routing.
 
 ```cpp
-namespace atframework::atbus::v3000 {
+namespace atframework::atbus {
     class node {
     public:
-        using ptr_t = std::shared_ptr<node>;
+        using ptr_t = atfw::util::memory::strong_rc_ptr<node>;
         static ptr_t create();
         int init(const conf_t& conf);
         int send_data(bus_id_t target, int type, const void* data, size_t size);
@@ -241,7 +241,7 @@ Error codes are defined in `detail/libatbus_error.h`:
 
 ## Coding Conventions
 
-1. **Namespace**: `atframework::atbus::v3000`
+1. **Namespace**: `atframework::atbus`
 2. **Include guards**: Use `#pragma once`
 3. **C++ Standard**: C++17 required
 4. **Naming**:
@@ -249,7 +249,7 @@ Error codes are defined in `detail/libatbus_error.h`:
    - Functions: `snake_case`
    - Constants: `UPPER_SNAKE_CASE` or `EN_` prefix for enums
    - Types: `*_t` suffix for typedefs
-5. **Smart pointers**: Use `std::shared_ptr` for node ownership
+5. **Smart pointers**: Use `atfw::util::memory::strong_rc_ptr` for node ownership
 
 ## Compiler Support
 
