@@ -1,0 +1,15 @@
+{
+  "name": "signature_binary_token",
+  "description": "HMAC-SHA256 signature with binary access token",
+  "function": "calculate_access_data_signature",
+  "algorithm": "HMAC-SHA256",
+  "input": {
+    "access_token_hex": "0d141b222930373e454c535a61686f767d848b9299a0a7aeb5bcc3cad1d8dfe6",
+    "access_token_length": 32,
+    "plaintext": "1735689600:12302652057474621457-2459565876494606489:2882400001"
+  },
+  "expected": {
+    "signature_hex": "fb49ebb56e7c66aa5f8223eec098f9e9c8c0806dc7fde26176f177b60b0bc7e5",
+    "signature_length": 32
+  }
+}

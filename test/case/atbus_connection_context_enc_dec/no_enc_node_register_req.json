@@ -1,0 +1,16 @@
+{
+  "name": "no_enc_node_register_req",
+  "description": "Node registration request message",
+  "protocol_version": 3,
+  "body_type": "node_register_req",
+  "body_type_case": 17,
+  "crypto_algorithm": "NONE",
+  "packed_size": 77,
+  "packed_hex": "04080348488a01450881801010b9601a09746573742d686f737422170a15697076343a2f2f3132372e302e302e313a3838303022180a16756e69783a2f2f2f746d702f61746275732e736f636b",
+  "expected": {
+    "bus_id": 262145,
+    "pid": 12345,
+    "hostname": "test-host",
+    "channels": ["ipv4://127.0.0.1:8800", "unix:///tmp/atbus.sock"]
+  }
+}

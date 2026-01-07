@@ -1,0 +1,13 @@
+{
+  "name": "no_enc_pong_rsp",
+  "description": "Pong response message without encryption",
+  "protocol_version": 3,
+  "body_type": "node_pong_rsp",
+  "body_type_case": 22,
+  "crypto_algorithm": "NONE",
+  "packed_size": 15,
+  "packed_hex": "040803480ab2010708fbf8a5f9c132",
+  "expected": {
+    "time_point": 1735689600123
+  }
+}

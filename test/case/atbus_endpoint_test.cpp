@@ -19,7 +19,7 @@
 #include "frame/test_macros.h"
 
 CASE_TEST(atbus_endpoint, connection_basic) {
-  atbus::connection::ptr_t p = atbus::connection::create(nullptr);
+  atbus::connection::ptr_t p = atbus::connection::create(nullptr, "");
   CASE_EXPECT_TRUE(!p);
 }
 
@@ -106,11 +106,11 @@ CASE_TEST(atbus_endpoint, get_connection) {
     atbus::node::ptr_t node = atbus::node::create();
     node->init(0x12345678, &conf);
 
-    atbus::connection::ptr_t conn1 = atbus::connection::create(node.get());
+    atbus::connection::ptr_t conn1 = atbus::connection::create(node.get(), addr);
 
-    CASE_EXPECT_EQ(0, conn1->connect(addr));
-    atbus::connection::ptr_t conn2 = atbus::connection::create(node.get());
-    conn2->connect("ipv4://127.0.0.1:80");
+    CASE_EXPECT_EQ(0, conn1->connect());
+    atbus::connection::ptr_t conn2 = atbus::connection::create(node.get(), "ipv4://127.0.0.1:80");
+    conn2->connect();
 
     std::vector<atbus::endpoint_subnet_conf> ep_subnets;
     ep_subnets.push_back(atbus::endpoint_subnet_conf(0, 8));

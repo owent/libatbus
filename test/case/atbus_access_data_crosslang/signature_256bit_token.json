@@ -1,0 +1,19 @@
+{
+  "name": "signature_256bit_token",
+  "description": "HMAC-SHA256 signature with 256-bit access token",
+  "function": "calculate_access_data_signature",
+  "algorithm": "HMAC-SHA256",
+  "input": {
+    "access_token_hex": "00112233445566778899aabbccddeeffffeeddccbbaa99887766554433221100",
+    "access_token_length": 32,
+    "bus_id": 2575857510,
+    "timestamp": 1735689600,
+    "nonce1": 1229782938247303441,
+    "nonce2": 2459565876494606882,
+    "plaintext": "1735689600:1229782938247303441-2459565876494606882:2575857510"
+  },
+  "expected": {
+    "signature_hex": "907e2d1c67783da239f7188ee189a805a15de458cf5eb77af1643399edf0d1e9",
+    "signature_length": 32
+  }
+}

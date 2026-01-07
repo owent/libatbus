@@ -1,0 +1,17 @@
+{
+  "name": "no_enc_data_transform_rsp",
+  "description": "Data transform response message",
+  "protocol_version": 3,
+  "body_type": "data_transform_rsp",
+  "body_type_case": 14,
+  "crypto_algorithm": "NONE",
+  "packed_size": 33,
+  "packed_hex": "040803481c721a08828004108180042210526573706f6e736520636f6e74656e74",
+  "expected": {
+    "from": 65538,
+    "to": 65537,
+    "content": "Response content",
+    "content_hex": "526573706f6e736520636f6e74656e74",
+    "flags": 0
+  }
+}

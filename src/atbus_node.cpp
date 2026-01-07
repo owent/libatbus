@@ -74,15 +74,9 @@ static void atbus_node_global_init_once() {
 }  // namespace detail
 #endif
 
-bool node_access_controller::add_ping_timer(node &n, const endpoint::ptr_t &ep,
-                                            timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator &out) {
-  return n.add_ping_timer(ep, out);
-}
+bool node_access_controller::add_ping_timer(node &n, const endpoint::ptr_t &ep) { return n.add_ping_timer(ep); }
 
-void node_access_controller::remove_ping_timer(node &n,
-                                               timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator &inout) {
-  n.remove_ping_timer(inout);
-}
+void node_access_controller::remove_ping_timer(node &n, const endpoint *ep) { n.remove_ping_timer(ep); }
 
 ATBUS_MACRO_API node::conf_t::conf_t() { node::default_conf(this); }
 
@@ -500,12 +494,17 @@ ATBUS_MACRO_API int node::reset() {
   // 必须显式指定断开，以保证会主动断开正在进行的连接
   // 因为正在进行的连接会增加connection的引用计数
   while (!event_timer_.connecting_list.empty()) {
-    timer_desc_ls<connection::ptr_t>::type::iterator iter = event_timer_.connecting_list.begin();
-    iter->second->reset();
+    timer_desc_ls<std::string, connection::ptr_t>::type::iterator iter = event_timer_.connecting_list.begin();
+    if (iter->second) {
+      iter->second->second->reset();
+    }
 
     // 保护性清理操作
-    if (!event_timer_.connecting_list.empty() && !event_timer_.connecting_list.begin()->second) {
-      event_timer_.connecting_list.pop_front();
+    if (!event_timer_.connecting_list.empty()) {
+      iter = event_timer_.connecting_list.begin();
+      if (!iter->second || !iter->second->second) {
+        event_timer_.connecting_list.pop_front();
+      }
     }
   }
 
@@ -523,12 +522,12 @@ ATBUS_MACRO_API int node::reset() {
     std::vector<endpoint::ptr_t> force_clear_endpoint;
     force_clear_endpoint.reserve(event_timer_.ping_list.size());
     // 清理ping定时器
-    for (timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator iter = event_timer_.ping_list.begin();
+    for (timer_desc_ls<const endpoint *, std::weak_ptr<endpoint>>::type::iterator iter = event_timer_.ping_list.begin();
          iter != event_timer_.ping_list.end(); ++iter) {
-      if (iter->second.expired()) {
+      if (iter->second && iter->second->second.expired()) {
         continue;
       }
-      force_clear_endpoint.push_back(iter->second.lock());
+      force_clear_endpoint.push_back(iter->second->second.lock());
     }
 
 #if defined(ATBUS_MACRO_ABORT_ON_PROTECTED_ERROR) && ATBUS_MACRO_ABORT_ON_PROTECTED_ERROR
@@ -610,15 +609,22 @@ ATBUS_MACRO_API int node::proc(time_t sec, time_t usec) {
 
   // connection超时下线
   while (!event_timer_.connecting_list.empty()) {
-    timer_desc_ls<connection::ptr_t>::type::iterator iter = event_timer_.connecting_list.begin();
+    timer_desc_ls<std::string, connection::ptr_t>::type::iterator iter = event_timer_.connecting_list.begin();
 
     if (!iter->second) {
       event_timer_.connecting_list.erase(iter);
       continue;
     }
 
-    if (iter->second->is_connected()) {
-      iter->second->remove_owner_checker(iter);
+    if (!iter->second->second) {
+      event_timer_.connecting_list.erase(iter);
+      continue;
+    }
+
+    auto &timer_obj_ptr = iter->second;
+
+    if (timer_obj_ptr->second->is_connected()) {
+      timer_obj_ptr->second->remove_owner_checker(iter);
       // 保护性清理操作
       if (!event_timer_.connecting_list.empty() && event_timer_.connecting_list.begin() == iter) {
         event_timer_.connecting_list.erase(iter);
@@ -626,21 +632,21 @@ ATBUS_MACRO_API int node::proc(time_t sec, time_t usec) {
       continue;
     }
 
-    if (iter->first >= sec) {
+    if (timer_obj_ptr->first >= sec) {
       break;
     }
 
-    if (!iter->second->check_flag(connection::flag_t::TEMPORARY)) {
-      ATBUS_FUNC_NODE_ERROR(*this, nullptr, iter->second.get(), EN_ATBUS_ERR_NODE_TIMEOUT, 0, "connection {} timeout",
-                            iter->second->get_address().address);
+    if (!timer_obj_ptr->second->check_flag(connection::flag_t::TEMPORARY)) {
+      ATBUS_FUNC_NODE_ERROR(*this, nullptr, timer_obj_ptr->second.get(), EN_ATBUS_ERR_NODE_TIMEOUT, 0,
+                            "connection {} timeout", timer_obj_ptr->second->get_address().address);
     }
-    iter->second->reset();
+    timer_obj_ptr->second->reset();
 
     // 保护性清理操作
     if (!event_timer_.connecting_list.empty() && event_timer_.connecting_list.begin() == iter) {
       if (event_msg_.on_invalid_connection) {
         flag_guard_t fgd(this, flag_t::EN_FT_IN_CALLBACK);
-        event_msg_.on_invalid_connection(std::cref(*this), iter->second.get(), EN_ATBUS_ERR_NODE_TIMEOUT);
+        event_msg_.on_invalid_connection(std::cref(*this), timer_obj_ptr->second.get(), EN_ATBUS_ERR_NODE_TIMEOUT);
       }
       event_timer_.connecting_list.erase(iter);
     }
@@ -691,14 +697,21 @@ ATBUS_MACRO_API int node::proc(time_t sec, time_t usec) {
         break;
       }
 
-      timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator timer_iter = event_timer_.ping_list.begin();
-      time_t timeout_tick = timer_iter->first;
+      timer_desc_ls<const endpoint *, std::weak_ptr<endpoint>>::type::iterator timer_iter =
+          event_timer_.ping_list.begin();
+      if (!timer_iter->second) {
+        event_timer_.ping_list.pop_front();
+        continue;
+      }
+      auto &timer_obj_ptr = timer_iter->second;
+
+      time_t timeout_tick = timer_obj_ptr->first;
       if (timeout_tick > sec) {
         break;
       }
 
       if (!next_ep) {
-        next_ep = timer_iter->second.lock();
+        next_ep = timer_obj_ptr->second.lock();
       }
 
       // Ping
@@ -723,11 +736,20 @@ ATBUS_MACRO_API int node::proc(time_t sec, time_t usec) {
       }
 
       // 如果endpoint对象过期了这里也要移除（保护性措施，理论上不会跑到）
+      while (!event_timer_.ping_list.empty()) {
+        if (!event_timer_.ping_list.front().second) {
+          event_timer_.ping_list.pop_front();
+          continue;
+        }
+        break;
+      }
+
       if (event_timer_.ping_list.empty()) {
         break;
       }
 
-      time_t next_tick = event_timer_.ping_list.front().first;
+      auto &next_timer_obj = event_timer_.ping_list.front();
+      time_t next_tick = next_timer_obj.second->first;
       if (next_tick > sec) {
         break;
       }
@@ -735,8 +757,7 @@ ATBUS_MACRO_API int node::proc(time_t sec, time_t usec) {
       if (next_tick != timeout_tick) {
         next_ep.reset();
       } else {
-        endpoint::ptr_t test_ep = event_timer_.ping_list.front().second.lock();
-        ;
+        endpoint::ptr_t test_ep = next_timer_obj.second->second.lock();
         if (test_ep == next_ep) {
 #if defined(ATBUS_MACRO_ABORT_ON_PROTECTED_ERROR) && ATBUS_MACRO_ABORT_ON_PROTECTED_ERROR
           assert(false);
@@ -749,19 +770,6 @@ ATBUS_MACRO_API int node::proc(time_t sec, time_t usec) {
       }
     }
   }
-
-#if 0  // disabled
-       // 节点同步协议-推送
-        if (0 != event_timer_.node_sync_push && event_timer_.node_sync_push < sec) {
-            // 发起子节点同步信息推送
-            int res = push_node_sync();
-            if (res < 0) {
-                event_timer_.node_sync_push = sec + conf_.retry_interval;
-            } else {
-                event_timer_.node_sync_push = 0;
-            }
-        }
-#endif
 
   // dispatcher all self msgs
   ret += dispatch_all_self_msgs();
@@ -867,12 +875,12 @@ ATBUS_MACRO_API int node::listen(gsl::string_view addr_str) {
     return EN_ATBUS_ERR_NOT_INITED;
   }
 
-  connection::ptr_t conn = connection::create(this);
+  connection::ptr_t conn = connection::create(this, addr_str);
   if (!conn) {
     return EN_ATBUS_ERR_MALLOC;
   }
 
-  int ret = conn->listen(addr_str);
+  int ret = conn->listen();
   if (ret < 0) {
     return ret;
   }
@@ -900,20 +908,14 @@ ATBUS_MACRO_API int node::connect(gsl::string_view addr_str) {
   }
 
   // if there is already connection of this addr not completed, just return success
-  for (timer_desc_ls<connection::ptr_t>::type::iterator iter = event_timer_.connecting_list.begin();
-       iter != event_timer_.connecting_list.end(); ++iter) {
-    if (!iter->second || iter->second->is_connected()) {
-      continue;
-    }
-
-    if (addr_str.size() == iter->second->get_address().address.size() &&
-        0 == UTIL_STRFUNC_STRNCASE_CMP(addr_str.data(), iter->second->get_address().address.c_str(),
-                                       iter->second->get_address().address.size())) {
+  auto iter = event_timer_.connecting_list.find(std::string{addr_str}, false);
+  if (iter != event_timer_.connecting_list.end()) {
+    if (iter->second && iter->second->second && !iter->second->second->is_connected()) {
       return EN_ATBUS_ERR_SUCCESS;
     }
   }
 
-  connection::ptr_t conn = connection::create(this);
+  connection::ptr_t conn = connection::create(this, addr_str);
   if (!conn) {
     return EN_ATBUS_ERR_MALLOC;
   }
@@ -925,7 +927,7 @@ ATBUS_MACRO_API int node::connect(gsl::string_view addr_str) {
     return EN_ATBUS_ERR_ACCESS_DENY;
   }
 
-  int ret = conn->connect(addr_str);
+  int ret = conn->connect();
   if (ret < 0) {
     return ret;
   }
@@ -945,27 +947,20 @@ ATBUS_MACRO_API int node::connect(gsl::string_view addr_str, endpoint *ep) {
   }
 
   // if there is already connection of this addr not completed, just return success
-  for (timer_desc_ls<connection::ptr_t>::type::iterator iter = event_timer_.connecting_list.begin();
-       iter != event_timer_.connecting_list.end(); ++iter) {
-    if (!iter->second || iter->second->is_connected()) {
-      continue;
-    }
-
-    if (iter->second->get_binding() == ep) {
-      if (addr_str.size() == iter->second->get_address().address.size() &&
-          0 == UTIL_STRFUNC_STRNCASE_CMP(addr_str.data(), iter->second->get_address().address.c_str(),
-                                         iter->second->get_address().address.size())) {
-        return EN_ATBUS_ERR_SUCCESS;
-      }
+  auto iter = event_timer_.connecting_list.find(std::string{addr_str}, false);
+  if (iter != event_timer_.connecting_list.end()) {
+    if (iter->second && iter->second->second && !iter->second->second->is_connected() &&
+        iter->second->second->get_binding() == ep) {
+      return EN_ATBUS_ERR_SUCCESS;
     }
   }
 
-  connection::ptr_t conn = connection::create(this);
+  connection::ptr_t conn = connection::create(this, addr_str);
   if (!conn) {
     return EN_ATBUS_ERR_MALLOC;
   }
 
-  int ret = conn->connect(addr_str);
+  int ret = conn->connect();
   if (ret < 0) {
     return ret;
   }
@@ -1597,7 +1592,7 @@ ATBUS_MACRO_API bool node::remove_proc_connection(const std::string &conn_key) {
 }
 
 ATBUS_MACRO_API bool node::add_connection_timer(connection::ptr_t conn,
-                                                timer_desc_ls<connection::ptr_t>::type::iterator &out) {
+                                                timer_desc_ls<std::string, connection::ptr_t>::type::iterator &out) {
   out = event_timer_.connecting_list.end();
   if (state_t::CREATED == state_) {
     return false;
@@ -1609,24 +1604,26 @@ ATBUS_MACRO_API bool node::add_connection_timer(connection::ptr_t conn,
 
   // 如果处于握手阶段，发送节点关系逻辑并加入握手连接池并加入超时判定池
   if (false == conn->is_connected()) {
-    out = event_timer_.connecting_list.insert(event_timer_.connecting_list.end(),
-                                              std::make_pair(event_timer_.sec + conf_.first_idle_timeout, conn));
+    out = event_timer_.connecting_list
+              .insert_key_value(conn->get_address().address,
+                                std::make_pair(event_timer_.sec + conf_.first_idle_timeout, conn))
+              .first;
   }
 
   return true;
 }
 
-ATBUS_MACRO_API bool node::remove_connection_timer(timer_desc_ls<connection::ptr_t>::type::iterator &out) {
+ATBUS_MACRO_API bool node::remove_connection_timer(timer_desc_ls<std::string, connection::ptr_t>::type::iterator &out) {
   if (out == event_timer_.connecting_list.end()) {
     return false;
   }
 
-  if (event_msg_.on_invalid_connection && out->second && !out->second->is_connected()) {
+  if (event_msg_.on_invalid_connection && out->second && out->second->second && !out->second->second->is_connected()) {
     // 确认的临时连接断开不属于无效连接
-    if (!out->second->check_flag(connection::flag_t::TEMPORARY) ||
-        !out->second->check_flag(connection::flag_t::PEER_CLOSED)) {
+    if (!out->second->second->check_flag(connection::flag_t::TEMPORARY) ||
+        !out->second->second->check_flag(connection::flag_t::PEER_CLOSED)) {
       flag_guard_t fgd(this, flag_t::EN_FT_IN_CALLBACK);
-      event_msg_.on_invalid_connection(std::cref(*this), out->second.get(), EN_ATBUS_ERR_NODE_TIMEOUT);
+      event_msg_.on_invalid_connection(std::cref(*this), out->second->second.get(), EN_ATBUS_ERR_NODE_TIMEOUT);
     }
   }
 
@@ -1813,7 +1810,7 @@ ATBUS_MACRO_API int node::on_parent_reg_done() {
 }
 
 ATBUS_MACRO_API int node::on_custom_cmd(const endpoint *ep, const connection *conn, bus_id_t from,
-                                        const std::vector<std::pair<const void *, size_t> > &cmd_args,
+                                        const std::vector<std::pair<const void *, size_t>> &cmd_args,
                                         std::list<std::string> &rsp) {
   if (event_msg_.on_custom_cmd) {
     flag_guard_t fgd(this, flag_t::EN_FT_IN_CALLBACK);
@@ -1823,7 +1820,7 @@ ATBUS_MACRO_API int node::on_custom_cmd(const endpoint *ep, const connection *co
 }
 
 ATBUS_MACRO_API int node::on_custom_rsp(const endpoint *ep, const connection *conn, bus_id_t from,
-                                        const std::vector<std::pair<const void *, size_t> > &cmd_args, uint64_t seq) {
+                                        const std::vector<std::pair<const void *, size_t>> &cmd_args, uint64_t seq) {
   if (event_msg_.on_custom_rsp) {
     flag_guard_t fgd(this, flag_t::EN_FT_IN_CALLBACK);
     event_msg_.on_custom_rsp(std::cref(*this), ep, conn, from, std::cref(cmd_args), seq);
@@ -2287,41 +2284,29 @@ bool node::add_connection_fault(connection &conn) {
   return false;
 }
 
-bool node::add_ping_timer(const endpoint::ptr_t &ep, timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator &out) {
+bool node::add_ping_timer(const endpoint::ptr_t &ep) {
   if (!ep) {
-    out = event_timer_.ping_list.end();
     return false;
   }
 
   // 自己不用ping
   if (ep->get_id() == get_id()) {
-    out = event_timer_.ping_list.end();
     return false;
   }
 
   if (conf_.ping_interval <= 0) {
-    out = event_timer_.ping_list.end();
     return false;
   }
 
   if (flags_.test(flag_t::EN_FT_RESETTING_GC)) {
-    out = event_timer_.ping_list.end();
     return false;
   }
 
-  out = event_timer_.ping_list.insert(event_timer_.ping_list.end(),
-                                      std::make_pair(event_timer_.sec + conf_.ping_interval, ep));
-  return out != event_timer_.ping_list.end();
+  event_timer_.ping_list.insert_key_value(ep.get(), std::make_pair(event_timer_.sec + conf_.ping_interval, ep));
+  return true;
 }
 
-void node::remove_ping_timer(timer_desc_ls<std::weak_ptr<endpoint> >::type::iterator &inout) {
-  if (inout == event_timer_.ping_list.end()) {
-    return;
-  }
-
-  event_timer_.ping_list.erase(inout);
-  inout = event_timer_.ping_list.end();
-}
+void node::remove_ping_timer(const endpoint *ep) { event_timer_.ping_list.erase(ep); }
 
 void node::init_hash_code() {
   atfw::util::hash::sha sha256;

@@ -1,0 +1,39 @@
+{
+  "name": "full_access_data_multiple_tokens",
+  "description": "Full access_data generation with multiple access tokens",
+  "function": "generate_access_data",
+  "input": {
+    "bus_id": 4275878552,
+    "nonce1": 12297829382473034410,
+    "nonce2": 13527612320720337851,
+    "access_tokens": [
+      {
+        "value": "token_a",
+        "hex": "746f6b656e5f61"
+      },
+      {
+        "value": "token_b",
+        "hex": "746f6b656e5f62"
+      },
+      {
+        "value": "token_c",
+        "hex": "746f6b656e5f63"
+      }
+    ]
+  },
+  "expected": {
+    "algorithm": "HMAC-SHA256",
+    "algorithm_value": 0,
+    "timestamp": 1735689600,
+    "nonce1": 12297829382473034410,
+    "nonce2": 13527612320720337851,
+    "plaintext": "1735689600:12297829382473034410-13527612320720337851:4275878552",
+    "signatures": [
+      "71103c71a830e42b8e0f81c341718f7ee3e72e4f077dca765d3db5c6e596a494",
+      "5ad55bbaa089afb825194f079ae09c6d4557241d39c4d3d8f843ca98da387a20",
+      "188d68024bb0e6bc3bcc72ff2d14bebf83f02680f5aac0b13e7dcfce8fbda25d"
+    ],
+    "serialized_hex": "10808bd2bb0618aad5aad5aad5aad5aa0120bbf7eeddbbf7eeddbb014a2071103c71a830e42b8e0f81c341718f7ee3e72e4f077dca765d3db5c6e596a4944a205ad55bbaa089afb825194f079ae09c6d4557241d39c4d3d8f843ca98da387a204a20188d68024bb0e6bc3bcc72ff2d14bebf83f02680f5aac0b13e7dcfce8fbda25d",
+    "serialized_length": 130
+  }
+}

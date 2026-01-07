@@ -154,7 +154,7 @@ ATBUS_MACRO_API endpoint::ptr_t endpoint::create(node *owner, bus_id_t id,
   ret->hostname_ = std::string(hn);
 
   ret->owner_ = owner;
-  if (node_access_controller::add_ping_timer(*owner, ret, ret->ping_timer_)) {
+  if (node_access_controller::add_ping_timer(*owner, ret)) {
     ret->set_flag(flag_t::HAS_PING_TIMER, true);
   }
   ret->watcher_ = ret;
@@ -446,7 +446,7 @@ ATBUS_MACRO_API void endpoint::add_ping_timer() {
     return;
   }
 
-  if (node_access_controller::add_ping_timer(*owner_, watch(), ping_timer_)) {
+  if (node_access_controller::add_ping_timer(*owner_, watch())) {
     set_flag(flag_t::HAS_PING_TIMER, true);
   }
 }
@@ -456,7 +456,7 @@ ATBUS_MACRO_API void endpoint::clear_ping_timer() {
     return;
   }
 
-  node_access_controller::remove_ping_timer(*owner_, ping_timer_);
+  node_access_controller::remove_ping_timer(*owner_, this);
   set_flag(flag_t::HAS_PING_TIMER, false);
 }
 

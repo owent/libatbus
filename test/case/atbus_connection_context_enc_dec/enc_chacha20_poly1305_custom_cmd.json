@@ -1,0 +1,19 @@
+{
+  "name": "enc_chacha20_poly1305_custom_cmd",
+  "description": "Custom command request with chacha20_poly1305 encryption",
+  "protocol_version": 3,
+  "body_type": "custom_command_req",
+  "body_type_case": 11,
+  "crypto_algorithm": "chacha20_poly1305",
+  "crypto_algorithm_type": 32,
+  "key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "key_size": 32,
+  "iv_hex": "b0b1b2b3b4b5b6b7b8b9babb",
+  "iv_size": 12,
+  "packed_size": 115,
+  "packed_hex": "3d080332370820120cb0b1b2b3b4b5b6b7b8b9babc5a25307836393565303638662e307861616164642d3078343463666462393937633365363439324825f4b578ff635620786175511a0e99cb6030305d802835022107b3b521e786525a2b1daa1f1760b71bebdc0f61f9197290ce0cf86ded",
+  "expected": {
+    "from": 12379813738877118345,
+    "commands": ["cmd1", "arg1", "arg2"]
+  }
+}

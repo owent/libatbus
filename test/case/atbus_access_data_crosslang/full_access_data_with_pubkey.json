@@ -1,0 +1,32 @@
+{
+  "name": "full_access_data_with_pubkey",
+  "description": "Full access_data generation with crypto_handshake_data (with public key)",
+  "function": "generate_access_data",
+  "input": {
+    "bus_id": 2271560481,
+    "nonce1": 1229801703532086340,
+    "nonce2": 6148933456521300104,
+    "access_tokens": [
+      {"hex": "0102030405060708090a0b0c0d0e0f10"}
+    ],
+    "crypto_handshake_type": 2,
+    "crypto_handshake_type_name": "ATBUS_CRYPTO_KEY_EXCHANGE_SECP256R1",
+    "public_key_hex": "040306090c0f1215181b1e2124272a2d303336393c3f4245484b4e5154575a5d606366696c6f7275787b7e8184878a8d909396999c9fa2a5a8abaeb1b4b7babdc0"
+  },
+  "intermediate": {
+    "public_key_sha256_hex": "806239bebc2e14eb7de0a1cd96607874ea130d55421176f1112c2569edef6074"
+  },
+  "expected": {
+    "algorithm": "HMAC-SHA256",
+    "algorithm_value": 0,
+    "timestamp": 1735689600,
+    "nonce1": 1229801703532086340,
+    "nonce2": 6148933456521300104,
+    "plaintext": "1735689600:1229801703532086340-6148933456521300104:2271560481:2:806239bebc2e14eb7de0a1cd96607874ea130d55421176f1112c2569edef6074",
+    "signatures": [
+      "2f0eb0c0b0d217a86b823902320e3afa135356d26234a88bf3a0d1c7ff3684ad"
+    ],
+    "serialized_hex": "10808bd2bb0618c488cd99a3c4c88811208891debbe7ccd9aa554a202f0eb0c0b0d217a86b823902320e3afa135356d26234a88bf3a0d1c7ff3684ad",
+    "serialized_length": 60
+  }
+}

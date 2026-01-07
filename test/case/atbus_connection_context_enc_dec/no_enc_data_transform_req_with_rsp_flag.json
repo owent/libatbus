@@ -1,0 +1,17 @@
+{
+  "name": "no_enc_data_transform_req_with_rsp_flag",
+  "description": "Data transform request requiring response",
+  "protocol_version": 3,
+  "body_type": "data_transform_req",
+  "body_type_case": 13,
+  "crypto_algorithm": "NONE",
+  "packed_size": 45,
+  "packed_hex": "04080348286a260881800810828008221a52657175657374207769746820726573706f6e736520666c61672801",
+  "expected": {
+    "from": 131073,
+    "to": 131074,
+    "content": "Request with response flag",
+    "content_hex": "52657175657374207769746820726573706f6e736520666c6167",
+    "flags": 1
+  }
+}

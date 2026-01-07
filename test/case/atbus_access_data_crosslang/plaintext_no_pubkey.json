@@ -1,0 +1,20 @@
+{
+  "name": "plaintext_no_pubkey",
+  "description": "Plaintext generation without public key (no encryption)",
+  "function": "make_access_data_plaintext",
+  "input": {
+    "bus_id": 305419896,
+    "bus_id_hex": "12345678",
+    "timestamp": 1735689600,
+    "nonce1": 1311768467463790320,
+    "nonce1_hex": "123456789abcdef0",
+    "nonce2": 18364758544493064720,
+    "nonce2_hex": "fedcba9876543210",
+    "crypto_handshake_type": 0,
+    "public_key_hex": ""
+  },
+  "expected": {
+    "plaintext": "1735689600:1311768467463790320-18364758544493064720:305419896",
+    "plaintext_format": "<timestamp>:<nonce1>-<nonce2>:<bus_id>"
+  }
+}

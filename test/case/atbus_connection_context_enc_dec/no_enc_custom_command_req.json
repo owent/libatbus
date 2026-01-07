@@ -1,0 +1,14 @@
+{
+  "name": "no_enc_custom_command_req",
+  "description": "Custom command request with multiple arguments",
+  "protocol_version": 3,
+  "body_type": "custom_command_req",
+  "body_type_case": 11,
+  "crypto_algorithm": "NONE",
+  "packed_size": 35,
+  "packed_hex": "040803481e5a1c0881800c12060a04636d643112060a046172673112060a0461726732",
+  "expected": {
+    "from": 196609,
+    "commands": ["cmd1", "arg1", "arg2"]
+  }
+}

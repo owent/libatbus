@@ -1,0 +1,13 @@
+{
+  "name": "no_enc_node_connect_sync",
+  "description": "Node connection sync message",
+  "protocol_version": 3,
+  "body_type": "node_connect_sync",
+  "body_type_case": 20,
+  "crypto_algorithm": "NONE",
+  "packed_size": 32,
+  "packed_hex": "040803481ba201180a160a14697076343a2f2f31302e302e302e313a39303030",
+  "expected": {
+    "address": "ipv4://10.0.0.1:9000"
+  }
+}
