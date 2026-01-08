@@ -38,10 +38,6 @@
 #cmakedefine ATBUS_MACRO_IOS_SEND_BUFFER_LENGTH @ATBUS_MACRO_IOS_SEND_BUFFER_LENGTH@
 #cmakedefine01 ATBUS_MACRO_ABORT_ON_PROTECTED_ERROR
 
-
-#include <unordered_map>
-#include <unordered_set>
-
 #if defined(__cplusplus) && __cplusplus >= 201103L
 #define ATBUS_MACRO_ENABLE_STATIC_ASSERT 1
 #elif defined(_MSC_VER) && _MSC_VER >= 1600
@@ -85,9 +81,11 @@
 #define ATBUS_MACRO_NAMESPACE_ID atframework::atbus::@ATFRAMEWORK_ATBUS_ABI_TAG@
 #define ATBUS_MACRO_NAMESPACE "atframework::atbus::@ATFRAMEWORK_ATBUS_ABI_TAG@"
 
-namespace atframework {
-namespace atbus {}
-}  // namespace atframework
+ATBUS_MACRO_NAMESPACE_BEGIN
+
+using bus_id_t = ATBUS_MACRO_BUSID_TYPE;
+
+ATBUS_MACRO_NAMESPACE_END
 
 namespace atbus = atframework::atbus;
 

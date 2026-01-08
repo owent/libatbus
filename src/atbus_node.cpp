@@ -1422,7 +1422,7 @@ ATBUS_MACRO_API adapter::loop_t *node::get_evloop() {
   return ev_loop_;
 }
 
-ATBUS_MACRO_API node::bus_id_t node::get_id() const { return self_ ? self_->get_id() : 0; }
+ATBUS_MACRO_API bus_id_t node::get_id() const { return self_ ? self_->get_id() : 0; }
 ATBUS_MACRO_API const node::conf_t &node::get_conf() const { return conf_; }
 
 ATBUS_MACRO_API bool node::check_flag(flag_t::type f) const { return flags_.test(f); }

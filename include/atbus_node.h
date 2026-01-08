@@ -56,7 +56,6 @@ class node final : public atfw::util::design_pattern::noncopyable {
   using ptr_t = ::atfw::util::memory::strong_rc_ptr<node>;
   using message_builder_ref_t = ::atframework::atbus::message &;
 
-  using bus_id_t = ATBUS_MACRO_BUSID_TYPE;
   struct conf_flag_t {
     enum type {
       EN_CONF_MAX = 0,

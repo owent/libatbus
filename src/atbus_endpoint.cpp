@@ -233,7 +233,7 @@ ATBUS_MACRO_API void endpoint::reset() {
   // 并且这个值只能在创建时指定，所以不能重置这个值
 }
 
-ATBUS_MACRO_API endpoint::bus_id_t endpoint::get_id() const { return id_; }
+ATBUS_MACRO_API bus_id_t endpoint::get_id() const { return id_; }
 ATBUS_MACRO_API const std::vector<endpoint_subnet_range> &endpoint::get_subnets() const { return subnets_; }
 
 ATBUS_MACRO_API int32_t endpoint::get_pid() const { return pid_; }
@@ -262,12 +262,12 @@ ATBUS_MACRO_API bool endpoint::is_child_node(bus_id_t id) const {
   return false;
 }
 
-ATBUS_MACRO_API endpoint::bus_id_t endpoint::get_children_min_id(bus_id_t children_prefix, uint32_t mask) {
+ATBUS_MACRO_API bus_id_t endpoint::get_children_min_id(bus_id_t children_prefix, uint32_t mask) {
   bus_id_t maskv = (static_cast<bus_id_t>(1) << mask) - 1;
   return children_prefix & (~maskv);
 }
 
-ATBUS_MACRO_API endpoint::bus_id_t endpoint::get_children_max_id(bus_id_t children_prefix, uint32_t mask) {
+ATBUS_MACRO_API bus_id_t endpoint::get_children_max_id(bus_id_t children_prefix, uint32_t mask) {
   bus_id_t maskv = (static_cast<bus_id_t>(1) << mask) - 1;
   return children_prefix | maskv;
 }
