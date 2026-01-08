@@ -762,7 +762,7 @@ ATBUS_MACRO_API int message_handler::on_recv_data_transfer_req(node &n, connecti
   int res = 0;
   endpoint *to_ep = nullptr;
   // 转发数据
-  node::bus_id_t direct_from_bus_id = head->source_bus_id();
+  bus_id_t direct_from_bus_id = head->source_bus_id();
 
   // add router id
   fwd_data->add_router(n.get_id());

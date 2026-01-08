@@ -258,7 +258,7 @@ CASE_TEST(atbus_node_msg, ping_pong) {
 }
 
 static int node_msg_test_recv_msg_test_custom_cmd_fn(const atbus::node &, const atbus::endpoint *,
-                                                     const atbus::connection *, atbus::node::bus_id_t from,
+                                                     const atbus::connection *, atbus::bus_id_t from,
                                                      const std::vector<std::pair<const void *, size_t> > &data,
                                                      std::list<std::string> &rsp) {
   ++recv_msg_history.count;
@@ -277,7 +277,7 @@ static int node_msg_test_recv_msg_test_custom_cmd_fn(const atbus::node &, const 
 }
 
 static int node_msg_test_recv_msg_test_custom_rsp_fn(const atbus::node &, const atbus::endpoint *,
-                                                     const atbus::connection *, atbus::node::bus_id_t from,
+                                                     const atbus::connection *, atbus::bus_id_t from,
                                                      const std::vector<std::pair<const void *, size_t> > &data,
                                                      uint64_t seq) {
   ++recv_msg_history.count;

@@ -90,7 +90,6 @@ class ATBUS_MACRO_API endpoint_subnet_range {
 
 class endpoint final : public atfw::util::design_pattern::noncopyable {
  public:
-  using bus_id_t = ATBUS_MACRO_BUSID_TYPE;
   using ptr_t = ::atfw::util::memory::strong_rc_ptr<endpoint>;
 
   struct flag_t {

@@ -29,7 +29,7 @@ CASE_TEST(atbus_endpoint, endpoint_basic) {
 }
 
 CASE_TEST(atbus_endpoint, get_children_min_max) {
-  atbus::endpoint::bus_id_t tested = atbus::endpoint::get_children_max_id(0x12345678, 16);
+  atbus::bus_id_t tested = atbus::endpoint::get_children_max_id(0x12345678, 16);
   CASE_EXPECT_EQ(tested, 0x1234FFFF);
 
   tested = atbus::endpoint::get_children_min_id(0x12345678, 16);

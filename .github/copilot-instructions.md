@@ -146,6 +146,28 @@ The test executable is `atbus_unit_test`.
 ./atbus_unit_test -v
 ```
 
+### Windows: DLL lookup via PATH
+
+On Windows, `atbus_unit_test.exe` (and samples) may fail to start if dependent DLLs cannot be found. In this monorepo build layout, DLLs are usually under the build output tree.
+
+Preferred approach: **prepend DLL directories to `PATH`** for the current run/debug session.
+
+Typical DLL directories:
+
+- `<BUILD_DIR>\\publish\\bin\\<Config>` (project DLLs)
+- `<REPO_ROOT>\\third_party\\install\\windows-amd64-msvc-19\\bin` (third-party DLLs when using the bundled cmake-toolset)
+
+Example (PowerShell):
+
+```powershell
+$buildDir = "<BUILD_DIR>"  # e.g. D:\\workspace\\...\\build_jobs_cmake_tools
+$cfg = "Debug"
+
+$env:PATH = "$buildDir\\publish\\bin\\$cfg;$buildDir\\publish\\bin;${PWD}\\third_party\\install\\windows-amd64-msvc-19\\bin;" + $env:PATH
+Set-Location "$buildDir\\_deps\\atbus\\test\\$cfg"
+./atbus_unit_test.exe -l
+```
+
 ### Test Groups
 
 Common test groups include:
