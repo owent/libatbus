@@ -13,7 +13,7 @@ enum ATBUS_PROTOCOL_CONST {
   option allow_alias = true;
   ATBUS_PROTOCOL_CONST_UNKNOWN = 0;
   ATBUS_PROTOCOL_VERSION = 3;
-  ATBUS_PROTOCOL_MINIMAL_VERSION = 3;  // minimal protocol version supported
+  ATBUS_PROTOCOL_MINIMAL_VERSION = 3; // minimal protocol version supported
 }
 
 enum ATBUS_FORWARD_DATA_FLAG_TYPE {
@@ -33,25 +33,25 @@ enum ATBUS_CRYPTO_KDF_TYPE {
 enum ATBUS_CRYPTO_ALGORITHM_TYPE {
   ATBUS_CRYPTO_ALGORITHM_NONE = 0;
   ATBUS_CRYPTO_ALGORITHM_XXTEA = 1;
-  ATBUS_CRYPTO_ALGORITHM_AES_128_CBC = 11;  // PKCS#7
-  ATBUS_CRYPTO_ALGORITHM_AES_192_CBC = 12;  // PKCS#7
-  ATBUS_CRYPTO_ALGORITHM_AES_256_CBC = 13;  // PKCS#7
-  ATBUS_CRYPTO_ALGORITHM_AES_128_GCM = 14;  // AEAD
-  ATBUS_CRYPTO_ALGORITHM_AES_192_GCM = 15;  // AEAD
-  ATBUS_CRYPTO_ALGORITHM_AES_256_GCM = 16;  // AEAD
+  ATBUS_CRYPTO_ALGORITHM_AES_128_CBC = 11; // PKCS#7
+  ATBUS_CRYPTO_ALGORITHM_AES_192_CBC = 12; // PKCS#7
+  ATBUS_CRYPTO_ALGORITHM_AES_256_CBC = 13; // PKCS#7
+  ATBUS_CRYPTO_ALGORITHM_AES_128_GCM = 14; // AEAD
+  ATBUS_CRYPTO_ALGORITHM_AES_192_GCM = 15; // AEAD
+  ATBUS_CRYPTO_ALGORITHM_AES_256_GCM = 16; // AEAD
 
   ATBUS_CRYPTO_ALGORITHM_CHACHA20 = 31;
-  ATBUS_CRYPTO_ALGORITHM_CHACHA20_POLY1305_IETF = 32;   // AEAD
-  ATBUS_CRYPTO_ALGORITHM_XCHACHA20_POLY1305_IETF = 33;  // AEAD
+  ATBUS_CRYPTO_ALGORITHM_CHACHA20_POLY1305_IETF = 32; // AEAD
+  ATBUS_CRYPTO_ALGORITHM_XCHACHA20_POLY1305_IETF = 33; // AEAD
 }
 
 enum ATBUS_CRYPTO_KEY_EXCHANGE_TYPE {
   ATBUS_CRYPTO_KEY_EXCHANGE_NONE = 0;
   // golang 标准库只支持ECDH
-  ATBUS_CRYPTO_KEY_EXCHANGE_X25519 = 1;     // x25519(TLS 1.3推荐)
-  ATBUS_CRYPTO_KEY_EXCHANGE_SECP256R1 = 2;  // secp256r1, p-256
-  ATBUS_CRYPTO_KEY_EXCHANGE_SECP384R1 = 3;  // secp384r1, p-384
-  ATBUS_CRYPTO_KEY_EXCHANGE_SECP521R1 = 4;  // secp521r1, p-521
+  ATBUS_CRYPTO_KEY_EXCHANGE_X25519 = 1; // x25519(TLS 1.3推荐)
+  ATBUS_CRYPTO_KEY_EXCHANGE_SECP256R1 = 2; // secp256r1, p-256
+  ATBUS_CRYPTO_KEY_EXCHANGE_SECP384R1 = 3; // secp384r1, p-384
+  ATBUS_CRYPTO_KEY_EXCHANGE_SECP521R1 = 4; // secp521r1, p-521
 }
 
 enum ATBUS_COMPRESSION_ALGORITHM_TYPE {
@@ -64,10 +64,10 @@ enum ATBUS_COMPRESSION_ALGORITHM_TYPE {
 }
 
 message crypto_handshake_data {
-  uint64 sequence = 1;  // used to prevent duplication
+  uint64 sequence = 1; // used to prevent duplication
   ATBUS_CRYPTO_KEY_EXCHANGE_TYPE type = 2;
   repeated ATBUS_CRYPTO_KDF_TYPE kdf_type = 3;
-  repeated ATBUS_CRYPTO_ALGORITHM_TYPE algorithms = 4;  // available cryptographic algorithms
+  repeated ATBUS_CRYPTO_ALGORITHM_TYPE algorithms = 4; // available cryptographic algorithms
   // golang 标准库接口不支持生成 TLS 1.2 ECDHE ServerKeyExchange 结构
   // 为了兼容性我们采用 ATBUS_CRYPTO_KEY_EXCHANGE_TYPE 字段标识密钥交换类型，两边配置一致
   // 要求跨语言、跨加密库时需要保证算法都受到支持。
@@ -103,15 +103,15 @@ message forward_data {
 
 message access_data {
   ATBUS_ACCESS_DATA_ALGORITHM_TYPE algorithm = 1;
-  int64 timestamp = 2;  // unix timestamp
+  int64 timestamp = 2; // unix timestamp
 
   // 128bits nonce is enough
   // - TLS 1.3: 96 bits
   // - IPSec:   64 bits
   // - JWT:     128 bits
   // - UUID v4: 128 bits
-  uint64 nonce1 = 3;  // random
-  uint64 nonce2 = 4;  // random
+  uint64 nonce1 = 3; // random
+  uint64 nonce2 = 4; // random
 
   // access_token="<timestamp>:<nonce1>-<nonce2>:<register_data.bus_id>:{register_data.crypto_handshake.type}:{hex(sha256_lower_case(register_data.crypto_handshake.public_key))}"
   // access_token="<timestamp>:<nonce1>-<nonce2>:<register_data.bus_id>" (without encryption)
@@ -145,7 +145,7 @@ message ping_data {
 
 message subnet_range {
   uint64 id_prefix = 1;
-  uint32 mask_bits = 2;  // suffix
+  uint32 mask_bits = 2; // suffix
 }
 
 message register_data {
@@ -160,10 +160,6 @@ message register_data {
   repeated subnet_range subnets = 9;
   string hash_code = 10;
   crypto_handshake_data crypto_handshake = 11;
-}
-
-message connection_data {
-  channel_data address = 1;
 }
 
 message message_head_crypto {
@@ -207,7 +203,6 @@ message message_body {
     node_tree node_sync_rsp = 16;
     register_data node_register_req = 17;
     register_data node_register_rsp = 18;
-    connection_data node_connect_sync = 20;
     ping_data node_ping_req = 21;
     ping_data node_pong_rsp = 22;
   }

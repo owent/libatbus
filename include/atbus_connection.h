@@ -14,6 +14,7 @@
 #include <memory/lru_map.h>
 
 #include <bitset>
+#include <chrono>
 #include <ctime>
 #include <list>
 #include <memory>
@@ -36,7 +37,7 @@ class endpoint;
 
 template <class TKey, class TObj>
 struct timer_desc_ls {
-  using pair_type = std::pair<time_t, TObj>;
+  using pair_type = std::pair<std::chrono::system_clock::time_point, TObj>;
   using type = ::atfw::util::memory::lru_map<
       TKey, pair_type, std::hash<TKey>, std::equal_to<TKey>,
       ::atfw::util::memory::lru_map_option<::atfw::util::memory::compat_strong_ptr_mode::kStrongRc>>;
@@ -109,11 +110,10 @@ class connection final : public atfw::util::design_pattern::noncopyable {
 
   /**
    * @brief 执行一帧
-   * @param sec 当前时间-秒
-   * @param usec 当前时间-微秒
+   * @param now 当前时间
    * @return 本帧处理的消息数
    */
-  ATBUS_MACRO_API int proc(node &n, time_t sec, time_t usec);
+  ATBUS_MACRO_API int proc(node &n, std::chrono::system_clock::time_point now);
 
   /**
    * @brief 监听数据接收地址
@@ -186,7 +186,7 @@ class connection final : public atfw::util::design_pattern::noncopyable {
 
   ATBUS_MACRO_API const stat_t &get_statistic() const;
 
-  ATBUS_MACRO_API void remove_owner_checker(const timer_desc_ls<std::string, ptr_t>::type::iterator &v);
+  ATBUS_MACRO_API void remove_owner_checker();
 
   ATBUS_MACRO_API connection_context &get_connection_context() noexcept;
 
@@ -221,14 +221,14 @@ class connection final : public atfw::util::design_pattern::noncopyable {
                                                   size_t s);
 
 #ifdef ATBUS_CHANNEL_SHM
-  static ATBUS_MACRO_API int shm_proc_fn(node &n, connection &conn, time_t sec, time_t usec);
+  static ATBUS_MACRO_API int shm_proc_fn(node &n, connection &conn, std::chrono::system_clock::time_point now);
 
   static ATBUS_MACRO_API int shm_free_fn(node &n, connection &conn);
 
   static ATBUS_MACRO_API int shm_push_fn(connection &conn, const void *buffer, size_t s);
 #endif
 
-  static ATBUS_MACRO_API int mem_proc_fn(node &n, connection &conn, time_t sec, time_t usec);
+  static ATBUS_MACRO_API int mem_proc_fn(node &n, connection &conn, std::chrono::system_clock::time_point now);
 
   static ATBUS_MACRO_API int mem_free_fn(node &n, connection &conn);
 
@@ -251,7 +251,6 @@ class connection final : public atfw::util::design_pattern::noncopyable {
 
   // 这里不用智能指针是为了该值在上层对象（node或者endpoint）析构时仍然可用
   node *owner_;
-  timer_desc_ls<std::string, ptr_t>::type::iterator owner_checker_;
   endpoint *binding_;
   ::atfw::util::memory::weak_rc_ptr<connection> watcher_;
 
@@ -281,7 +280,7 @@ class connection final : public atfw::util::design_pattern::noncopyable {
 #endif
       conn_data_ios ios_fd;
     };
-    using proc_fn_t = int (*)(node &n, connection &conn, time_t sec, time_t usec);
+    using proc_fn_t = int (*)(node &n, connection &conn, std::chrono::system_clock::time_point now);
     using free_fn_t = int (*)(node &n, connection &conn);
     using push_fn_t = int (*)(connection &conn, const void *buffer, size_t s);
 

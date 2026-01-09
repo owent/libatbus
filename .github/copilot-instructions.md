@@ -8,40 +8,19 @@
 - **License**: MIT (libatbus), Apache 2.0 (Flatbuffers), Node's license (libuv)
 - **Languages**: C++ (C++17 required, C++17/C++20/C++23 features used when available)
 
+## Skills (How-to playbooks)
+
+Operational, copy/paste-friendly guides live in `.github/skills/`:
+
+- Entry point: `.github/skills/README.md`
+
 ## Build System
 
 This project uses **CMake** (minimum version 3.24.0).
 
-### Build Commands
+Build steps and common configuration options are documented in:
 
-```bash
-# Clone and configure
-git clone --single-branch --depth=1 -b main https://github.com/atframework/libatbus.git
-mkdir libatbus/build && cd libatbus/build
-
-# Configure (Debug mode)
-cmake ..
-
-# Configure (Release mode - recommended for benchmarks)
-cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo
-
-# Build
-cmake --build .                          # Linux/macOS
-cmake --build . --config RelWithDebInfo  # Windows (MSVC)
-
-# Run tests
-ctest . -V
-```
-
-### Key CMake Options
-
-| Option                   | Default  | Description                               |
-| ------------------------ | -------- | ----------------------------------------- |
-| `BUILD_SHARED_LIBS`      | NO       | Build dynamic library                     |
-| `ATBUS_MACRO_BUSID_TYPE` | uint64_t | Bus ID type                               |
-| `CMAKE_BUILD_TYPE`       | Debug    | Build type (Debug/Release/RelWithDebInfo) |
-
-**Note**: Use `RelWithDebInfo` or `Release` for production and benchmarks. Debug mode has significant performance overhead.
+- `.github/skills/build.md`
 
 ## Directory Structure
 
@@ -113,98 +92,9 @@ CASE_THREAD_SLEEP_MS(milliseconds)
 CASE_THREAD_YIELD()
 ```
 
-### Running Tests
+### Running and writing tests
 
-The test executable is `atbus_unit_test`.
-
-```bash
-# Run all tests
-./atbus_unit_test
-
-# List all test cases
-./atbus_unit_test -l
-./atbus_unit_test --list-tests
-
-# Run specific test group(s) or case(s)
-./atbus_unit_test -r <test_group_name>
-./atbus_unit_test -r <test_group_name>.<test_case_name>
-
-# Examples:
-./atbus_unit_test -r atbus_node_reg
-./atbus_unit_test -r atbus_node_msg
-./atbus_unit_test -r atbus_connection_context_crosslang
-./atbus_unit_test -r channel
-
-# Run with filter pattern (supports wildcards)
-./atbus_unit_test -f "atbus_node*"
-./atbus_unit_test --filter "channel*"
-
-# Show help
-./atbus_unit_test -h
-
-# Show version
-./atbus_unit_test -v
-```
-
-### Windows: DLL lookup via PATH
-
-On Windows, `atbus_unit_test.exe` (and samples) may fail to start if dependent DLLs cannot be found. In this monorepo build layout, DLLs are usually under the build output tree.
-
-Preferred approach: **prepend DLL directories to `PATH`** for the current run/debug session.
-
-Typical DLL directories:
-
-- `<BUILD_DIR>\\publish\\bin\\<Config>` (project DLLs)
-- `<REPO_ROOT>\\third_party\\install\\windows-amd64-msvc-19\\bin` (third-party DLLs when using the bundled cmake-toolset)
-
-Example (PowerShell):
-
-```powershell
-$buildDir = "<BUILD_DIR>"  # e.g. D:\\workspace\\...\\build_jobs_cmake_tools
-$cfg = "Debug"
-
-$env:PATH = "$buildDir\\publish\\bin\\$cfg;$buildDir\\publish\\bin;${PWD}\\third_party\\install\\windows-amd64-msvc-19\\bin;" + $env:PATH
-Set-Location "$buildDir\\_deps\\atbus\\test\\$cfg"
-./atbus_unit_test.exe -l
-```
-
-### Test Groups
-
-Common test groups include:
-
-- `atbus_node_reg` - Node registration tests
-- `atbus_node_msg` - Node messaging tests
-- `atbus_node_relationship` - Node relationship tests
-- `atbus_node_setup` - Node setup tests
-- `atbus_endpoint` - Endpoint tests
-- `atbus_message_handler` - Message handler tests
-- `atbus_connection_context` - Connection context tests
-- `atbus_connection_context_crosslang` - Cross-language compatibility tests
-- `atbus_access_data_crosslang` - Access data cross-language tests
-- `channel` - Channel tests (TCP, Unix, shared memory)
-- `buffer` - Buffer tests
-
-### Writing Test Cases
-
-Test files are located in `test/case/`. Example:
-
-```cpp
-#include "frame/test_macros.h"
-#include "atbus_node.h"
-
-CASE_TEST(atbus_node_setup, create_node) {
-    atframework::atbus::node::conf_t conf;
-    conf.id = 0x12345678;
-
-    auto node = atframework::atbus::node::create();
-    CASE_EXPECT_NE(nullptr, node.get());
-
-    int ret = node->init(conf);
-    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, ret);
-
-    CASE_MSG_INFO() << "Node created with ID: " << std::hex << conf.id;
-}
-```
+See `.github/skills/testing.md`.
 
 ## Key Components
 

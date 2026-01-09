@@ -72,8 +72,6 @@ struct message_handler {
                                                  int32_t type, int32_t ret_code, uint64_t sequence,
                                                  uint64_t from_bus_id);
 
-  static ATBUS_MACRO_API int send_node_connect_sync(node &n, uint64_t direct_from_bus_id, endpoint &dst_ep);
-
   static ATBUS_MACRO_API int send_message(node &n, connection &conn, message &msg);
 
   // ========================= 接收handle =========================
@@ -87,7 +85,6 @@ struct message_handler {
   static ATBUS_MACRO_API int on_recv_node_sync_rsp(node &n, connection *conn, message &&, int status, int errcode);
   static ATBUS_MACRO_API int on_recv_node_reg_req(node &n, connection *conn, message &&, int status, int errcode);
   static ATBUS_MACRO_API int on_recv_node_reg_rsp(node &n, connection *conn, message &&, int status, int errcode);
-  static ATBUS_MACRO_API int on_recv_node_conn_syn(node &n, connection *conn, message &&, int status, int errcode);
   static ATBUS_MACRO_API int on_recv_node_ping(node &n, connection *conn, message &&, int status, int errcode);
   static ATBUS_MACRO_API int on_recv_node_pong(node &n, connection *conn, message &&, int status, int errcode);
 };

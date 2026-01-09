@@ -131,7 +131,7 @@ ATBUS_MACRO_API connection::ptr_t connection::create(node *owner, gsl::string_vi
   ret->owner_ = owner;
   ret->watcher_ = ret;
 
-  owner->add_connection_timer(ret, ret->owner_checker_);
+  owner->add_connection_timer(ret);
   return ret;
 }
 
@@ -160,7 +160,7 @@ ATBUS_MACRO_API void connection::reset() {
   ptr_t tmp_holder = watch();
 
   // 后面会重置状态，影响事件判定，所以要先移除检查队列
-  owner_->remove_connection_timer(owner_checker_);
+  owner_->remove_connection_timer(this);
 
   disconnect();
 
@@ -184,13 +184,13 @@ ATBUS_MACRO_API void connection::reset() {
   memset(&stat_, 0, sizeof(stat_));
 }
 
-ATBUS_MACRO_API int connection::proc(node &n, time_t sec, time_t usec) {
+ATBUS_MACRO_API int connection::proc(node &n, std::chrono::system_clock::time_point now) {
   if (state_t::CONNECTED != state_) {
     return 0;
   }
 
   if (nullptr != conn_data_.proc_fn) {
-    return conn_data_.proc_fn(n, *this, sec, usec);
+    return conn_data_.proc_fn(n, *this, now);
   }
 
   return 0;
@@ -552,13 +552,9 @@ ATBUS_MACRO_API bool connection::is_running() const {
 
 ATBUS_MACRO_API const connection::stat_t &connection::get_statistic() const { return stat_; }
 
-ATBUS_MACRO_API void connection::remove_owner_checker(const timer_desc_ls<std::string, ptr_t>::type::iterator &v) {
-  if (owner_checker_ != v) {
-    return;
-  }
-
+ATBUS_MACRO_API void connection::remove_owner_checker() {
   if (nullptr != owner_) {
-    owner_->remove_connection_timer(owner_checker_);
+    owner_->remove_connection_timer(this);
   }
 }
 
@@ -572,7 +568,7 @@ ATBUS_MACRO_API void connection::set_status(state_t::type v) {
   state_ = v;
 
   if (nullptr != owner_ && v == state_t::CONNECTED) {
-    owner_->remove_connection_timer(owner_checker_);
+    owner_->remove_connection_timer(this);
   }
 }
 
@@ -816,7 +812,7 @@ ATBUS_MACRO_API void connection::iostream_on_written(channel::io_stream_channel 
 }
 
 #ifdef ATBUS_CHANNEL_SHM
-ATBUS_MACRO_API int connection::shm_proc_fn(node &n, connection &conn, time_t /*sec*/, time_t /*usec*/) {
+ATBUS_MACRO_API int connection::shm_proc_fn(node &n, connection &conn, std::chrono::system_clock::time_point /*now*/) {
   int ret = 0;
   size_t left_times = static_cast<size_t>(n.get_conf().loop_times);
   detail::buffer_block *static_buffer = n.get_temp_static_buffer();
@@ -884,7 +880,7 @@ ATBUS_MACRO_API int connection::shm_push_fn(connection &conn, const void *buffer
 }
 #endif
 
-ATBUS_MACRO_API int connection::mem_proc_fn(node &n, connection &conn, time_t /*sec*/, time_t /*usec*/) {
+ATBUS_MACRO_API int connection::mem_proc_fn(node &n, connection &conn, std::chrono::system_clock::time_point /*now*/) {
   int ret = 0;
   size_t left_times = static_cast<size_t>(n.get_conf().loop_times);
   detail::buffer_block *static_buffer = n.get_temp_static_buffer();

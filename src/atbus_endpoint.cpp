@@ -18,128 +18,8 @@
 #include "libatbus_protocol.h"  // NOLINT: build/include_subdir
 
 ATBUS_MACRO_NAMESPACE_BEGIN
-ATBUS_MACRO_API endpoint_subnet_conf::endpoint_subnet_conf() : id_prefix(0), mask_bits(0) {}
-ATBUS_MACRO_API endpoint_subnet_conf::endpoint_subnet_conf(ATBUS_MACRO_BUSID_TYPE a, uint32_t b)
-    : id_prefix(a), mask_bits(b) {}
 
-ATBUS_MACRO_API endpoint_subnet_range::endpoint_subnet_range() : id_prefix_(0), mask_bits_(0) {
-  max_id_ = 0;
-  min_id_ = 0;
-}
-
-ATBUS_MACRO_API endpoint_subnet_range::endpoint_subnet_range(ATBUS_MACRO_BUSID_TYPE a, uint32_t b)
-    : id_prefix_(a), mask_bits_(b) {
-  max_id_ = id_prefix_ | ((static_cast<uint64_t>(1) << mask_bits_) - 1);
-  min_id_ = max_id_ - ((static_cast<uint64_t>(1) << mask_bits_) - 1);
-}
-
-ATBUS_MACRO_API bool endpoint_subnet_range::operator==(const endpoint_subnet_range &other) const {
-  return max_id_ == other.max_id_ && min_id_ == other.min_id_;
-}
-
-#ifdef __cpp_impl_three_way_comparison
-ATBUS_MACRO_API std::strong_ordering endpoint_subnet_range::operator<=>(const endpoint_subnet_range &other) const {
-  if (max_id_ != other.max_id_) {
-    if (max_id_ < other.max_id_) {
-      return std::strong_ordering::less;
-    }
-
-    return std::strong_ordering::greater;
-  }
-
-  if (min_id_ != other.min_id_) {
-    if (min_id_ > other.min_id_) {
-      return std::strong_ordering::less;
-    }
-
-    return std::strong_ordering::greater;
-  }
-
-  return std::strong_ordering::equal;
-}
-#else
-
-ATBUS_MACRO_API bool endpoint_subnet_range::operator<(const endpoint_subnet_range &other) const {
-  if (max_id_ != other.max_id_) {
-    return max_id_ < other.max_id_;
-  }
-
-  return min_id_ > other.min_id_;
-}
-
-ATBUS_MACRO_API bool endpoint_subnet_range::operator<=(const endpoint_subnet_range &other) const {
-  if (max_id_ != other.max_id_) {
-    return max_id_ < other.max_id_;
-  }
-
-  return min_id_ >= other.min_id_;
-}
-
-ATBUS_MACRO_API bool endpoint_subnet_range::operator>(const endpoint_subnet_range &other) const {
-  if (max_id_ != other.max_id_) {
-    return max_id_ > other.max_id_;
-  }
-
-  return min_id_ < other.min_id_;
-}
-
-ATBUS_MACRO_API bool endpoint_subnet_range::operator>=(const endpoint_subnet_range &other) const {
-  if (max_id_ != other.max_id_) {
-    return max_id_ > other.max_id_;
-  }
-
-  return min_id_ <= other.min_id_;
-}
-
-ATBUS_MACRO_API bool endpoint_subnet_range::operator!=(const endpoint_subnet_range &other) const {
-  return max_id_ != other.max_id_ || min_id_ != other.min_id_;
-}
-
-#endif
-
-ATBUS_MACRO_API bool endpoint_subnet_range::contain(const endpoint_subnet_range &other) const {
-  return max_id_ >= other.max_id_ && min_id_ <= other.min_id_;
-}
-
-ATBUS_MACRO_API bool endpoint_subnet_range::contain(ATBUS_MACRO_BUSID_TYPE id) const {
-  if (0 == id) {
-    return false;
-  }
-
-  return max_id_ >= id && min_id_ <= id;
-}
-
-ATBUS_MACRO_API bool endpoint_subnet_range::contain(ATBUS_MACRO_BUSID_TYPE id_prefix, uint32_t mask_bits,
-                                                    ATBUS_MACRO_BUSID_TYPE id) {
-  if (0 == id) {
-    return false;
-  }
-
-  return (id_prefix | ((static_cast<uint64_t>(1) << mask_bits) - 1)) ==
-         (id | ((static_cast<uint64_t>(1) << mask_bits) - 1));
-}
-
-ATBUS_MACRO_API bool endpoint_subnet_range::contain(const endpoint_subnet_conf &conf, ATBUS_MACRO_BUSID_TYPE id) {
-  return contain(conf.id_prefix, conf.mask_bits, id);
-}
-
-ATBUS_MACRO_API bool endpoint_subnet_range::lower_bound_by_max_id(const endpoint_subnet_range &l,
-                                                                  ATBUS_MACRO_BUSID_TYPE r) {
-  /**
-   * max_id_相同时，范围大的>范围小的
-   * 注意下面这种情况
-   * ============****========
-   * ========********========
-   *    ^      ^   ^   ^
-   *    1      3   2   4
-   */
-
-  return l.get_id_max() < r;
-}
-
-ATBUS_MACRO_API endpoint::ptr_t endpoint::create(node *owner, bus_id_t id,
-                                                 const std::vector<endpoint_subnet_conf> &subnets, int32_t pid,
-                                                 gsl::string_view hn) {
+ATBUS_MACRO_API endpoint::ptr_t endpoint::create(node *owner, bus_id_t id, int32_t pid, gsl::string_view hn) {
   if (nullptr == owner) {
     return endpoint::ptr_t();
   }
@@ -158,25 +38,6 @@ ATBUS_MACRO_API endpoint::ptr_t endpoint::create(node *owner, bus_id_t id,
     ret->set_flag(flag_t::HAS_PING_TIMER, true);
   }
   ret->watcher_ = ret;
-
-  ret->subnets_.reserve(subnets.size() + 1);
-  bool auto_add_self_subnet = true;
-  for (size_t i = 0; i < subnets.size(); ++i) {
-    if (subnets[i].id_prefix == 0) {
-      ret->subnets_.push_back(endpoint_subnet_range(id, subnets[i].mask_bits));
-      auto_add_self_subnet = false;
-    } else {
-      ret->subnets_.push_back(endpoint_subnet_range(subnets[i].id_prefix, subnets[i].mask_bits));
-      if (endpoint_subnet_range::contain(subnets[i].id_prefix, subnets[i].mask_bits, id)) {
-        auto_add_self_subnet = false;
-      }
-    }
-  }
-  if (auto_add_self_subnet) {
-    ret->subnets_.push_back(endpoint_subnet_range(id, 0));
-  }
-
-  merge_subnets(ret->subnets_);
 
   return ret;
 }
@@ -234,7 +95,6 @@ ATBUS_MACRO_API void endpoint::reset() {
 }
 
 ATBUS_MACRO_API bus_id_t endpoint::get_id() const { return id_; }
-ATBUS_MACRO_API const std::vector<endpoint_subnet_range> &endpoint::get_subnets() const { return subnets_; }
 
 ATBUS_MACRO_API int32_t endpoint::get_pid() const { return pid_; }
 ATBUS_MACRO_API const std::string &endpoint::get_hostname() const { return hostname_; }
@@ -245,46 +105,6 @@ ATBUS_MACRO_API void endpoint::update_hash_code(gsl::string_view in) {
   }
 
   hash_code_ = std::string(in);
-}
-
-ATBUS_MACRO_API bool endpoint::is_child_node(bus_id_t id) const {
-  // id_ == 0 means a temporary node, and has no child
-  if (0 == id_) {
-    return false;
-  }
-
-  for (size_t i = 0; i < subnets_.size(); ++i) {
-    if (subnets_[i].contain(id)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-ATBUS_MACRO_API bus_id_t endpoint::get_children_min_id(bus_id_t children_prefix, uint32_t mask) {
-  bus_id_t maskv = (static_cast<bus_id_t>(1) << mask) - 1;
-  return children_prefix & (~maskv);
-}
-
-ATBUS_MACRO_API bus_id_t endpoint::get_children_max_id(bus_id_t children_prefix, uint32_t mask) {
-  bus_id_t maskv = (static_cast<bus_id_t>(1) << mask) - 1;
-  return children_prefix | maskv;
-}
-
-ATBUS_MACRO_API bool endpoint::is_child_node(bus_id_t parent_id, bus_id_t parent_children_prefix, uint32_t parent_mask,
-                                             bus_id_t checked_id) {
-  if (0 == parent_children_prefix) {
-    parent_children_prefix = parent_id;
-  }
-
-  bus_id_t min_c = get_children_min_id(parent_children_prefix, parent_mask);
-  bus_id_t max_c = get_children_max_id(parent_children_prefix, parent_mask);
-  if (parent_id != checked_id && checked_id >= min_c && checked_id <= max_c) {
-    return true;
-  }
-
-  return false;
 }
 
 ATBUS_MACRO_API bool endpoint::add_connection(connection *conn, bool force_data) {
@@ -569,26 +389,33 @@ ATBUS_MACRO_API size_t endpoint::get_data_connection_count(bool enable_fallback_
 }
 
 endpoint::stat_t::stat_t()
-    : fault_count(0), unfinished_ping(0), ping_delay(0), last_pong_time(0), created_time_sec(0), created_time_usec(0) {}
+    : fault_count(0),
+      unfinished_ping(0),
+      ping_delay(0),
+      last_pong_time(std::chrono::system_clock::from_time_t(0)),
+      created_time(std::chrono::system_clock::from_time_t(0)) {}
 
 /** 增加错误计数 **/
-ATBUS_MACRO_API size_t endpoint::add_stat_fault() { return ++stat_.fault_count; }
+ATBUS_MACRO_API size_t endpoint::add_stat_fault() noexcept { return ++stat_.fault_count; }
 
 /** 清空错误计数 **/
-ATBUS_MACRO_API void endpoint::clear_stat_fault() { stat_.fault_count = 0; }
+ATBUS_MACRO_API void endpoint::clear_stat_fault() noexcept { stat_.fault_count = 0; }
 
-ATBUS_MACRO_API void endpoint::set_stat_ping(uint64_t p) { stat_.unfinished_ping = p; }
+ATBUS_MACRO_API void endpoint::set_stat_unfinished_ping(uint64_t p) noexcept { stat_.unfinished_ping = p; }
 
-ATBUS_MACRO_API uint64_t endpoint::get_stat_ping() const { return stat_.unfinished_ping; }
+ATBUS_MACRO_API uint64_t endpoint::get_stat_unfinished_ping() const noexcept { return stat_.unfinished_ping; }
 
-ATBUS_MACRO_API void endpoint::set_stat_ping_delay(time_t pd, time_t pong_tm) {
+ATBUS_MACRO_API void endpoint::set_stat_ping_delay(std::chrono::microseconds pd,
+                                                   std::chrono::system_clock::time_point pong_tm) noexcept {
   stat_.ping_delay = pd;
   stat_.last_pong_time = pong_tm;
 }
 
-ATBUS_MACRO_API time_t endpoint::get_stat_ping_delay() const { return stat_.ping_delay; }
+ATBUS_MACRO_API std::chrono::microseconds endpoint::get_stat_ping_delay() const { return stat_.ping_delay; }
 
-ATBUS_MACRO_API time_t endpoint::get_stat_last_pong() const { return stat_.last_pong_time; }
+ATBUS_MACRO_API std::chrono::system_clock::time_point endpoint::get_stat_last_pong() const {
+  return stat_.last_pong_time;
+}
 
 ATBUS_MACRO_API size_t endpoint::get_stat_push_start_times() const {
   size_t ret = 0;
@@ -710,178 +537,15 @@ ATBUS_MACRO_API size_t endpoint::get_stat_pull_size() const {
   return ret;
 }
 
-ATBUS_MACRO_API time_t endpoint::get_stat_created_time_sec() {
-  UTIL_LIKELY_IF (stat_.created_time_sec > 0) {
-    return stat_.created_time_sec;
+ATBUS_MACRO_API std::chrono::system_clock::time_point endpoint::get_stat_created_time() {
+  if ATFW_UTIL_LIKELY_CONDITION (stat_.created_time > std::chrono::system_clock::from_time_t(0)) {
+    return stat_.created_time;
   }
 
-  stat_.created_time_sec = owner_->get_timer_sec();
-  stat_.created_time_usec = owner_->get_timer_usec();
-  return stat_.created_time_sec;
-}
-
-ATBUS_MACRO_API time_t endpoint::get_stat_created_time_usec() {
-  UTIL_LIKELY_IF (stat_.created_time_sec > 0) {
-    return stat_.created_time_usec;
-  }
-
-  stat_.created_time_sec = owner_->get_timer_sec();
-  stat_.created_time_usec = owner_->get_timer_usec();
-  return stat_.created_time_usec;
+  stat_.created_time = owner_->get_timer_tick();
+  return stat_.created_time;
 }
 
 ATBUS_MACRO_API const node *endpoint::get_owner() const { return owner_; }
 
-ATBUS_MACRO_API void endpoint::merge_subnets(std::vector<endpoint_subnet_range> &subnets) {
-  if (subnets.size() <= 1) {
-    return;
-  }
-
-  std::sort(subnets.begin(), subnets.end());
-
-  size_t new_size = 1;
-  size_t old_index = 1;
-
-  for (; old_index < subnets.size(); ++old_index) {
-    assert(new_size >= 1);
-    assert(old_index >= new_size);
-
-    /**
-     * PREV: ========****============
-     * NEXT: ========********========
-     * Just replace previous
-     */
-    if (subnets[old_index].get_id_min() <= subnets[new_size - 1].get_id_min()) {
-      subnets[new_size - 1] = subnets[old_index];
-    } else {
-      /**
-       * PREV: ====****================
-       * NEXT: ============****========
-       * OR
-       * PREV: ======****==============
-       * NEXT: ==========****==========
-       */
-      if (new_size != old_index) {
-        subnets[new_size] = subnets[old_index];
-      }
-      ++new_size;
-    }
-
-    /**
-     * PREV: ======****==============
-     * NEXT: ==========****==========
-     * TO
-     * PREV: ======********==========
-     */
-    bool check_merge = true;
-    while (check_merge && new_size > 1) {
-      check_merge = false;
-      if (subnets[new_size - 1].get_mask_bits() == subnets[new_size - 2].get_mask_bits() &&
-          subnets[new_size - 1].get_id_min() == subnets[new_size - 2].get_id_max() + 1) {
-        endpoint_subnet_range up(subnets[new_size - 2].get_id_min(), subnets[new_size - 2].get_mask_bits() + 1);
-        if (up.get_id_max() == subnets[new_size - 1].get_id_max() &&
-            up.get_id_min() == subnets[new_size - 2].get_id_min()) {
-          subnets[new_size - 2] = up;
-          --new_size;
-          check_merge = true;
-        }
-      }
-    }
-  }
-
-  if (new_size != subnets.size()) {
-    subnets.resize(new_size);
-  }
-}
-
-ATBUS_MACRO_API std::vector<endpoint_subnet_range>::const_iterator endpoint::search_subnet_for_id(
-    const std::vector<endpoint_subnet_range> &subnets, bus_id_t id) {
-  std::vector<endpoint_subnet_range>::const_iterator iter = subnets.begin();
-  // 初始也可以用下面的二分查找，但是没什么意义。最终还是要while循环判到底,因为后面如果有范围更大的max_id然后覆盖到id的
-  // iter = std::lower_bound(subnets.begin(), subnets.end(), id, endpoint_subnet_range::lower_bound_by_max_id);
-
-  while (iter != subnets.end()) {
-    if ((*iter).contain(id)) {
-      break;
-    }
-
-    ++iter;
-  }
-
-  return iter;
-}
-
-ATBUS_MACRO_API bool endpoint::contain(const std::vector<endpoint_subnet_range> &parent_subnets,
-                                       const std::vector<endpoint_subnet_range> &child_subnets) {
-  if (parent_subnets.empty() && !child_subnets.empty()) {
-    return false;
-  }
-
-  for (size_t i = 0; i < child_subnets.size(); ++i) {
-    bool check_passed = false;
-    for (size_t j = 0; !check_passed && j < parent_subnets.size(); ++j) {
-      if (parent_subnets[j].contain(child_subnets[i].get_id_min()) &&
-          parent_subnets[j].contain(child_subnets[i].get_id_max())) {
-        check_passed = true;
-      }
-    }
-
-    if (!check_passed) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-ATBUS_MACRO_API bool endpoint::contain(const std::vector<endpoint_subnet_range> &parent_subnets,
-                                       const std::vector<endpoint_subnet_conf> &child_subnets) {
-  if (parent_subnets.empty() && !child_subnets.empty()) {
-    return false;
-  }
-
-  for (size_t i = 0; i < child_subnets.size(); ++i) {
-    bool check_passed = false;
-    for (size_t j = 0; !check_passed && j < parent_subnets.size(); ++j) {
-      if (parent_subnets[j].contain(child_subnets[i].id_prefix) &&
-          parent_subnets[j].get_mask_bits() >= child_subnets[i].mask_bits) {
-        check_passed = true;
-      }
-    }
-
-    if (!check_passed) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-ATBUS_MACRO_API bool endpoint::contain(const std::vector<endpoint_subnet_range> &parent_subnets, bus_id_t id) {
-  if (parent_subnets.empty() || 0 == id) {
-    return false;
-  }
-
-  for (size_t i = 0; i < parent_subnets.size(); ++i) {
-    if (parent_subnets[i].contain(id)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-ATBUS_MACRO_API bool endpoint::contain(const std::vector<endpoint_subnet_conf> &parent_subnets, bus_id_t id) {
-  if (parent_subnets.empty() || 0 == id) {
-    return false;
-  }
-
-  for (size_t i = 0; i < parent_subnets.size(); ++i) {
-    if (endpoint_subnet_range::contain(parent_subnets[i], id)) {
-      return true;
-    }
-  }
-
-  return false;
-}
 ATBUS_MACRO_NAMESPACE_END

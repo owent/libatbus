@@ -86,9 +86,9 @@ ATBUS_MACRO_API node::conf_t::~conf_t() {}
 
 ATBUS_MACRO_API node::conf_t &node::conf_t::operator=(const conf_t &other) {
   ev_loop = other.ev_loop;
-  subnets = other.subnets;
+  topology_labels = other.topology_labels;
   flags = other.flags;
-  parent_address = other.parent_address;
+  upstream_address = other.upstream_address;
   loop_times = other.loop_times;
   ttl = other.ttl;
   protocol_version = other.protocol_version;
@@ -153,10 +153,8 @@ node::node()
       logger_enable_debug_message_verbose_(false) {
   ::atfw::util::time::time_utility::update();
 
-  event_timer_.sec = 0;
-  event_timer_.usec = 0;
-  event_timer_.node_sync_push = 0;
-  event_timer_.parent_opr_time_point = 0;
+  event_timer_.tick = std::chrono::system_clock::from_time_t(0);
+  event_timer_.upstream_opr_time_point = std::chrono::system_clock::from_time_t(0);
   random_engine_.init_seed(static_cast<uint64_t>(time(nullptr)));
 
   flags_.reset();
@@ -197,28 +195,29 @@ ATBUS_MACRO_API void node::default_conf(conf_t *conf) {
   }
 
   conf->ev_loop = nullptr;
-  conf->subnets.clear();
   conf->flags.reset();
-  conf->parent_address.clear();
-  conf->loop_times = 128;
-  conf->ttl = 16;  // 默认最长8次跳转
+  conf->upstream_address.clear();
+  conf->topology_labels.clear();
+  conf->loop_times = 256;
+  conf->ttl = 16;  // 默认最长16次跳转
   conf->protocol_version = atbus::protocol::ATBUS_PROTOCOL_VERSION;
   conf->protocol_minimal_version = atbus::protocol::ATBUS_PROTOCOL_MINIMAL_VERSION;
 
-  conf->first_idle_timeout = ATBUS_MACRO_CONNECTION_CONFIRM_TIMEOUT;
-  conf->ping_interval = 8;  // 默认ping包间隔为8s
-  conf->retry_interval = 3;
+  conf->first_idle_timeout = std::chrono::duration_cast<std::chrono::microseconds>(
+      std::chrono::seconds{ATBUS_MACRO_CONNECTION_CONFIRM_TIMEOUT});
+  conf->ping_interval =
+      std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::seconds{8});  // 默认ping包间隔为8s
+  conf->retry_interval = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::seconds{3});
   conf->fault_tolerant = 2;  // 允许最多失败2次，第3次直接失败，默认配置里3次ping包无响应则是最多24s可以发现节点下线
   conf->backlog = ATBUS_MACRO_CONNECTION_BACKLOG;
   conf->access_token_max_number = 5;
   conf->access_tokens.clear();
   conf->overwrite_listen_path = false;
 
-  conf->message_size = ATBUS_MACRO_MESSAGE_LIMIT;
-
   // 加密算法
   conf->crypto_key_exchange_type = protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE;
-  conf->crypto_key_refresh_interval = std::chrono::microseconds(3600000000 * 3);  // 默认3小时重新协商一次
+  conf->crypto_key_refresh_interval =
+      std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::hours{3});  // 默认3小时重新协商一次
   conf->crypto_allow_algorithms.clear();
 #if defined(ATFW_UTIL_MACRO_CRYPTO_CIPHER_ENABLED)
   std::unordered_set<protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> algorithm;
@@ -250,6 +249,9 @@ ATBUS_MACRO_API void node::default_conf(conf_t *conf) {
   conf->compression_allow_algorithms.push_back(protocol::ATBUS_COMPRESSION_ALGORITHM_ZLIB);
 #endif
 
+  // Message配置
+  conf->message_size = ATBUS_MACRO_MESSAGE_LIMIT;
+
   // recv_buffer_size 用于内存/共享内存通道的缓冲区长度，因为本机节点一般数量少所以默认设的大一点
   conf->recv_buffer_size = ATBUS_MACRO_SHM_MEM_CHANNEL_LENGTH;
 
@@ -263,8 +265,7 @@ ATBUS_MACRO_API void node::default_conf(start_conf_t *conf) {
     return;
   }
 
-  conf->timer_sec = 0;
-  conf->timer_usec = 0;
+  conf->timer_timepoint = std::chrono::system_clock::from_time_t(0);
 }
 
 ATBUS_MACRO_API node::ptr_t node::create() {
@@ -297,6 +298,17 @@ ATBUS_MACRO_API int node::init(bus_id_t id, const conf_t *conf) {
     conf_ = *conf;
   }
 
+  // 初始化拓扑配置
+  topology_.pid = get_pid();
+  topology_.hostname = get_hostname();
+  topology_.labels = conf_.topology_labels;
+  topology_registry_ = topology_registry::create();
+  if (id != 0) {
+    // 初始化先复制一份，后面再更新
+    topology_data copy_topology = topology_;
+    topology_registry_->update_peer(id, 0, std::move(copy_topology));
+  }
+
   // 加载加密和压缩配置
   reload_crypto(conf_.crypto_key_exchange_type, conf_.crypto_key_refresh_interval,
                 gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE>(conf_.crypto_allow_algorithms.data(),
@@ -312,7 +324,7 @@ ATBUS_MACRO_API int node::init(bus_id_t id, const conf_t *conf) {
   conf_.protocol_minimal_version = atbus::protocol::ATBUS_PROTOCOL_MINIMAL_VERSION;
 
   ev_loop_ = conf_.ev_loop;
-  self_ = endpoint::create(this, id, conf_.subnets, get_pid(), get_hostname());
+  self_ = endpoint::create(this, id, get_pid(), get_hostname());
   if (!self_) {
     return EN_ATBUS_ERR_MALLOC;
   }
@@ -413,13 +425,11 @@ ATBUS_MACRO_API int node::start(const start_conf_t &start_conf) {
   }
 
   // 初始化时间
-  if (0 == start_conf.timer_sec && 0 == start_conf.timer_usec) {
+  if (start_conf.timer_timepoint == std::chrono::system_clock::from_time_t(0)) {
     atfw::util::time::time_utility::update();
-    event_timer_.sec = atfw::util::time::time_utility::get_sys_now();
-    event_timer_.usec = atfw::util::time::time_utility::get_now_usec();
+    event_timer_.tick = atfw::util::time::time_utility::sys_now();
   } else {
-    event_timer_.sec = start_conf.timer_sec;
-    event_timer_.usec = start_conf.timer_usec;
+    event_timer_.tick = start_conf.timer_timepoint;
   }
 
   init_hash_code();
@@ -428,15 +438,15 @@ ATBUS_MACRO_API int node::start(const start_conf_t &start_conf) {
   }
 
   // 连接父节点
-  if (0 != get_id() && !conf_.parent_address.empty()) {
+  if (0 != get_id() && !conf_.upstream_address.empty()) {
     if (!node_parent_.node_) {
       // 如果父节点被激活了，那么父节点操作时间必须更新到非0值，以启用这个功能
-      if (connect(conf_.parent_address.c_str()) >= 0) {
-        event_timer_.parent_opr_time_point = event_timer_.sec + conf_.first_idle_timeout;
-        state_ = state_t::CONNECTING_PARENT;
+      if (connect(conf_.upstream_address.c_str()) >= 0) {
+        event_timer_.upstream_opr_time_point = event_timer_.tick + conf_.first_idle_timeout;
+        state_ = state_t::CONNECTING_UPSTREAM;
       } else {
-        event_timer_.parent_opr_time_point = event_timer_.sec + conf_.retry_interval;
-        state_ = state_t::LOST_PARENT;
+        event_timer_.upstream_opr_time_point = event_timer_.tick + conf_.retry_interval;
+        state_ = state_t::LOST_UPSTREAM;
       }
     }
   } else {
@@ -466,7 +476,7 @@ ATBUS_MACRO_API int node::reset() {
   }
 
   // first save all connection, and then reset it
-  using auto_map_t = detail::auto_select_map<std::string, connection::ptr_t>::type;
+  using auto_map_t = std::unordered_map<std::string, connection::ptr_t>;
   {
     std::vector<auto_map_t::mapped_type> temp_vec;
     temp_vec.reserve(proc_connections_.size());
@@ -576,17 +586,14 @@ ATBUS_MACRO_API int node::reset() {
   return EN_ATBUS_ERR_SUCCESS;
 }
 
-ATBUS_MACRO_API int node::proc(time_t sec, time_t usec) {
+ATBUS_MACRO_API int node::proc(std::chrono::system_clock::time_point now) {
   flag_guard_t fgd_proc(this, flag_t::EN_FT_IN_PROC);
   if (!fgd_proc) {
     return 0;
   }
 
-  if (sec > event_timer_.sec) {
-    event_timer_.sec = sec;
-    event_timer_.usec = usec;
-  } else if (sec == event_timer_.sec && usec > event_timer_.usec) {
-    event_timer_.usec = usec;
+  if (now > event_timer_.tick) {
+    event_timer_.tick = now;
   }
 
   if (state_t::CREATED == state_) {
@@ -603,9 +610,9 @@ ATBUS_MACRO_API int node::proc(time_t sec, time_t usec) {
 
   // TODO 以后可以优化成event_fd通知，这样就不需要轮询了
   // 点对点IO流通道
-  for (detail::auto_select_map<std::string, connection::ptr_t>::type::iterator iter = proc_connections_.begin();
+  for (std::unordered_map<std::string, connection::ptr_t>::iterator iter = proc_connections_.begin();
        iter != proc_connections_.end(); ++iter) {
-    ret += iter->second->proc(*this, sec, usec);
+    ret += iter->second->proc(*this, now);
   }
 
   // connection超时下线
@@ -625,7 +632,7 @@ ATBUS_MACRO_API int node::proc(time_t sec, time_t usec) {
     auto &timer_obj_ptr = iter->second;
 
     if (timer_obj_ptr->second->is_connected()) {
-      timer_obj_ptr->second->remove_owner_checker(iter);
+      timer_obj_ptr->second->remove_owner_checker();
       // 保护性清理操作
       if (!event_timer_.connecting_list.empty() && event_timer_.connecting_list.begin() == iter) {
         event_timer_.connecting_list.erase(iter);
@@ -633,7 +640,7 @@ ATBUS_MACRO_API int node::proc(time_t sec, time_t usec) {
       continue;
     }
 
-    if (timer_obj_ptr->first >= sec) {
+    if (timer_obj_ptr->first >= now) {
       break;
     }
 
@@ -654,8 +661,9 @@ ATBUS_MACRO_API int node::proc(time_t sec, time_t usec) {
   }
 
   // 父节点操作
-  if (0 != get_id() && !conf_.parent_address.empty() && 0 != event_timer_.parent_opr_time_point &&
-      event_timer_.parent_opr_time_point < sec) {
+  if (0 != get_id() && !conf_.upstream_address.empty() &&
+      event_timer_.upstream_opr_time_point > std::chrono::system_clock::from_time_t(0) &&
+      event_timer_.upstream_opr_time_point < now) {
     // 获取命令节点
     connection *ctl_conn = nullptr;
     if (node_parent_.node_ && self_) {
@@ -664,29 +672,30 @@ ATBUS_MACRO_API int node::proc(time_t sec, time_t usec) {
 
     // 父节点重连
     if (nullptr == ctl_conn) {
-      int res = connect(conf_.parent_address.c_str());
+      int res = connect(conf_.upstream_address.c_str());
       if (res < 0) {
-        ATBUS_FUNC_NODE_ERROR(*this, nullptr, nullptr, res, 0, "reconnect parent node {} failed", conf_.parent_address);
+        ATBUS_FUNC_NODE_ERROR(*this, nullptr, nullptr, res, 0, "reconnect parent node {} failed",
+                              conf_.upstream_address);
 
-        event_timer_.parent_opr_time_point = sec + conf_.retry_interval;
+        event_timer_.upstream_opr_time_point = now + conf_.retry_interval;
       } else {
         // 下一次判定父节点连接超时再重新连接
-        event_timer_.parent_opr_time_point = sec + conf_.first_idle_timeout;
-        state_ = state_t::CONNECTING_PARENT;
+        event_timer_.upstream_opr_time_point = now + conf_.first_idle_timeout;
+        state_ = state_t::CONNECTING_UPSTREAM;
       }
     } else {
       if (node_parent_.node_ && !node_parent_.node_->is_available() &&
-          node_parent_.node_->get_stat_created_time_sec() + conf_.first_idle_timeout < sec) {
+          node_parent_.node_->get_stat_created_time() + conf_.first_idle_timeout < now) {
         add_endpoint_gc_list(node_parent_.node_);
       } else {
         int res = ping_endpoint(*node_parent_.node_);
         if (res < 0) {
-          ATBUS_FUNC_NODE_ERROR(*this, nullptr, nullptr, res, 0, "ping parent node {} failed", conf_.parent_address);
+          ATBUS_FUNC_NODE_ERROR(*this, nullptr, nullptr, res, 0, "ping parent node {} failed", conf_.upstream_address);
         }
       }
 
       // ping包不需要重试
-      event_timer_.parent_opr_time_point = sec + conf_.ping_interval;
+      event_timer_.upstream_opr_time_point = now + conf_.ping_interval;
     }
   }
 
@@ -706,8 +715,8 @@ ATBUS_MACRO_API int node::proc(time_t sec, time_t usec) {
       }
       auto &timer_obj_ptr = timer_iter->second;
 
-      time_t timeout_tick = timer_obj_ptr->first;
-      if (timeout_tick > sec) {
+      std::chrono::system_clock::time_point timeout_tick = timer_obj_ptr->first;
+      if (timeout_tick > now) {
         break;
       }
 
@@ -717,8 +726,7 @@ ATBUS_MACRO_API int node::proc(time_t sec, time_t usec) {
 
       // Ping
       // 前检测有效性，如果超出最大首次空闲时间后还处于不可用状态（没有数据连接），可能是等待对方连接超时。这时候需要踢下线
-      if (next_ep && !next_ep->is_available() &&
-          next_ep->get_stat_created_time_sec() + conf_.first_idle_timeout < sec) {
+      if (next_ep && !next_ep->is_available() && next_ep->get_stat_created_time() + conf_.first_idle_timeout < now) {
         add_endpoint_gc_list(next_ep);
         // 多追加一次，以防万一状态错误能够自动恢复或则再次回收
         // 正常是不会触发这次的定时器的，一会回收的时候会删除掉
@@ -750,8 +758,8 @@ ATBUS_MACRO_API int node::proc(time_t sec, time_t usec) {
       }
 
       auto &next_timer_obj = event_timer_.ping_list.front();
-      time_t next_tick = next_timer_obj.second->first;
-      if (next_tick > sec) {
+      std::chrono::system_clock::time_point next_tick = next_timer_obj.second->first;
+      if (next_tick > now) {
         break;
       }
 
@@ -1271,10 +1279,10 @@ ATBUS_MACRO_API int node::add_endpoint(endpoint::ptr_t ep) {
       node_parent_.node_ = ep;
       ep->add_ping_timer();
 
-      if ((state_t::LOST_PARENT == get_state() || state_t::CONNECTING_PARENT == get_state()) &&
-          check_flag(flag_t::EN_FT_PARENT_REG_DONE)) {
+      if ((state_t::LOST_UPSTREAM == get_state() || state_t::CONNECTING_UPSTREAM == get_state()) &&
+          check_flag(flag_t::EN_FT_UPSTREAM_REG_DONE)) {
         // 这里是自己先注册到父节点，然后才完成父节点对自己的注册流程，在msg_handler::on_recv_node_reg_rsp里已经标记
-        // EN_FT_PARENT_REG_DONE 了
+        // EN_FT_UPSTREAM_REG_DONE 了
         on_actived();
       }
 
@@ -1430,6 +1438,11 @@ ATBUS_MACRO_API node::state_t::type node::get_state() const { return state_; }
 
 ATBUS_MACRO_API node::ptr_t node::get_watcher() { return watcher_.lock(); }
 
+ATBUS_MACRO_API const ::atfw::util::nostd::nonnull<topology_registry::ptr_t> &node::get_topology_registry()
+    const noexcept {
+  return topology_registry_;
+}
+
 ATBUS_MACRO_API bool node::is_child_node(bus_id_t id) const {
   if (0 == get_id() || !self_) {
     return false;
@@ -1583,7 +1596,7 @@ ATBUS_MACRO_API bool node::add_proc_connection(connection::ptr_t conn) {
 }
 
 ATBUS_MACRO_API bool node::remove_proc_connection(const std::string &conn_key) {
-  detail::auto_select_map<std::string, connection::ptr_t>::type::iterator iter = proc_connections_.find(conn_key);
+  std::unordered_map<std::string, connection::ptr_t>::iterator iter = proc_connections_.find(conn_key);
   if (iter == proc_connections_.end()) {
     return false;
   }
@@ -1592,9 +1605,7 @@ ATBUS_MACRO_API bool node::remove_proc_connection(const std::string &conn_key) {
   return true;
 }
 
-ATBUS_MACRO_API bool node::add_connection_timer(connection::ptr_t conn,
-                                                timer_desc_ls<std::string, connection::ptr_t>::type::iterator &out) {
-  out = event_timer_.connecting_list.end();
+ATBUS_MACRO_API bool node::add_connection_timer(connection::ptr_t conn) {
   if (state_t::CREATED == state_) {
     return false;
   }
@@ -1605,39 +1616,46 @@ ATBUS_MACRO_API bool node::add_connection_timer(connection::ptr_t conn,
 
   // 如果处于握手阶段，发送节点关系逻辑并加入握手连接池并加入超时判定池
   if (false == conn->is_connected()) {
-    out = event_timer_.connecting_list
-              .insert_key_value(conn->get_address().address,
-                                std::make_pair(event_timer_.sec + conf_.first_idle_timeout, conn))
-              .first;
+    event_timer_.connecting_list.insert_key_value(conn->get_address().address,
+                                                  std::make_pair(event_timer_.tick + conf_.first_idle_timeout, conn));
   }
 
   return true;
 }
 
-ATBUS_MACRO_API bool node::remove_connection_timer(timer_desc_ls<std::string, connection::ptr_t>::type::iterator &out) {
-  if (out == event_timer_.connecting_list.end()) {
+ATBUS_MACRO_API bool node::remove_connection_timer(const connection *conn) {
+  if (conn == nullptr) {
     return false;
   }
 
-  if (event_msg_.on_invalid_connection && out->second && out->second->second && !out->second->second->is_connected()) {
+  auto iter = event_timer_.connecting_list.find(conn->get_address().address, false);
+  if (iter == event_timer_.connecting_list.end()) {
+    return false;
+  }
+  if (!iter->second) {
+    iter == event_timer_.connecting_list.erase(iter);
+    return false;
+  }
+  if (iter->second->second.get() != conn) {
+    return false;
+  }
+
+  if (event_msg_.on_invalid_connection && !iter->second->second->is_connected()) {
     // 确认的临时连接断开不属于无效连接
-    if (!out->second->second->check_flag(connection::flag_t::TEMPORARY) ||
-        !out->second->second->check_flag(connection::flag_t::PEER_CLOSED)) {
+    if (!iter->second->second->check_flag(connection::flag_t::TEMPORARY) ||
+        !iter->second->second->check_flag(connection::flag_t::PEER_CLOSED)) {
       flag_guard_t fgd(this, flag_t::EN_FT_IN_CALLBACK);
-      event_msg_.on_invalid_connection(std::cref(*this), out->second->second.get(), EN_ATBUS_ERR_NODE_TIMEOUT);
+      event_msg_.on_invalid_connection(std::cref(*this), iter->second->second.get(), EN_ATBUS_ERR_NODE_TIMEOUT);
     }
   }
 
-  event_timer_.connecting_list.erase(out);
-  out = event_timer_.connecting_list.end();
+  event_timer_.connecting_list.erase(iter);
   return true;
 }
 
 ATBUS_MACRO_API size_t node::get_connection_timer_size() const { return event_timer_.connecting_list.size(); }
 
-ATBUS_MACRO_API time_t node::get_timer_sec() const { return event_timer_.sec; }
-
-ATBUS_MACRO_API time_t node::get_timer_usec() const { return event_timer_.usec; }
+ATBUS_MACRO_API std::chrono::system_clock::time_point node::get_timer_tick() const { return event_timer_.tick; }
 
 ATBUS_MACRO_API void node::on_recv(connection *conn, message &&m, int status, int errcode) {
   if (status < 0 || errcode < 0) {
@@ -1717,12 +1735,12 @@ ATBUS_MACRO_API int node::on_disconnect(const connection *conn) {
   }
 
   // 父节点断线逻辑则重置状态
-  if (state_t::CONNECTING_PARENT == state_ && !conf_.parent_address.empty() &&
-      conf_.parent_address == conn->get_address().address) {
-    state_ = state_t::LOST_PARENT;
+  if (state_t::CONNECTING_UPSTREAM == state_ && !conf_.upstream_address.empty() &&
+      conf_.upstream_address == conn->get_address().address) {
+    state_ = state_t::LOST_UPSTREAM;
 
     // set reconnect to parent into retry interval
-    event_timer_.parent_opr_time_point = get_timer_sec() + conf_.retry_interval;
+    event_timer_.upstream_opr_time_point = get_timer_tick() + conf_.retry_interval;
 
     // if not activited, shutdown
     if (!flags_.test(flag_t::EN_FT_ACTIVED)) {
@@ -1799,13 +1817,13 @@ ATBUS_MACRO_API int node::on_actived() {
   return EN_ATBUS_ERR_SUCCESS;
 }
 
-ATBUS_MACRO_API int node::on_parent_reg_done() {
-  flags_.set(flag_t::EN_FT_PARENT_REG_DONE, true);
+ATBUS_MACRO_API int node::on_upstream_reg_done() {
+  flags_.set(flag_t::EN_FT_UPSTREAM_REG_DONE, true);
 
   // 父节点成功上线以后要更新一下父节点action定时器。以便能够及时发起第一个ping包
-  time_t ping_timepoint = get_timer_sec() + conf_.ping_interval;
-  if (ping_timepoint < event_timer_.parent_opr_time_point) {
-    event_timer_.parent_opr_time_point = ping_timepoint;
+  std::chrono::system_clock::time_point ping_timepoint = get_timer_tick() + conf_.ping_interval;
+  if (ping_timepoint < event_timer_.upstream_opr_time_point) {
+    event_timer_.upstream_opr_time_point = ping_timepoint;
   }
   return EN_ATBUS_ERR_SUCCESS;
 }
@@ -1944,7 +1962,7 @@ ATBUS_MACRO_API detail::buffer_block *node::get_temp_static_buffer() { return st
 
 ATBUS_MACRO_API int node::ping_endpoint(endpoint &ep) {
   // 检测上一次ping是否返回
-  if (0 != ep.get_stat_ping()) {
+  if (0 != ep.get_stat_unfinished_ping()) {
     if (add_endpoint_fault(ep)) {
       return EN_ATBUS_ERR_ATNODE_FAULT_TOLERANT;
     }
@@ -1979,14 +1997,14 @@ ATBUS_MACRO_API int node::ping_endpoint(endpoint &ep) {
     add_endpoint_fault(ep);
   }
 
-  ep.set_stat_ping(ping_seq);
+  ep.set_stat_unfinished_ping(ping_seq);
   return EN_ATBUS_ERR_SUCCESS;
 }
 
 ATBUS_MACRO_API uint64_t node::allocate_message_sequence() {
   uint64_t ret = 0;
   while (!ret) {
-    ret = msg_seq_alloc_.inc();
+    ret = message_sequence_allocator_.inc();
   }
   return ret;
 }
@@ -2106,34 +2124,6 @@ ATBUS_MACRO_API void node::ref_object(void *obj) {
 }
 
 ATBUS_MACRO_API void node::unref_object(void *obj) { ref_objs_.erase(obj); }
-
-ATBUS_MACRO_API bool node::check_conflict(endpoint_collection_t &coll, const endpoint_subnet_range &range) {
-  endpoint_collection_t::iterator iter = coll.lower_bound(endpoint_subnet_range(range.get_id_min(), 0));
-  if (iter == coll.end()) {
-    return false;
-  }
-
-  if (iter->first.contain(range.get_id_min())) {
-    return true;
-  }
-
-  if (range.contain(iter->first.get_id_min())) {
-    return true;
-  }
-
-  return false;
-}
-
-ATBUS_MACRO_API bool node::check_conflict(endpoint_collection_t &coll,
-                                          const std::vector<endpoint_subnet_range> &confs) {
-  for (size_t i = 0; i < confs.size(); ++i) {
-    if (check_conflict(coll, confs[i])) {
-      return true;
-    }
-  }
-
-  return false;
-}
 
 ATBUS_MACRO_API protocol::ATBUS_CRYPTO_ALGORITHM_TYPE node::parse_crypto_algorithm_name(
     gsl::string_view name) noexcept {
@@ -2295,7 +2285,7 @@ bool node::add_ping_timer(const endpoint::ptr_t &ep) {
     return false;
   }
 
-  if (conf_.ping_interval <= 0) {
+  if (conf_.ping_interval <= std::chrono::microseconds{0}) {
     return false;
   }
 
@@ -2303,7 +2293,7 @@ bool node::add_ping_timer(const endpoint::ptr_t &ep) {
     return false;
   }
 
-  event_timer_.ping_list.insert_key_value(ep.get(), std::make_pair(event_timer_.sec + conf_.ping_interval, ep));
+  event_timer_.ping_list.insert_key_value(ep.get(), std::make_pair(event_timer_.tick + conf_.ping_interval, ep));
   return true;
 }
 
@@ -2379,14 +2369,6 @@ void node::init_hash_code() {
     sha256.update(reinterpret_cast<const unsigned char *>(&id), sizeof(id));
   }
 
-  // hash start timer
-  {
-    time_t t = get_timer_sec();
-    sha256.update(reinterpret_cast<const unsigned char *>(&t), sizeof(t));
-    t = get_timer_usec();
-    sha256.update(reinterpret_cast<const unsigned char *>(&t), sizeof(t));
-  }
-
   sha256.final();
   hash_code_ = sha256.get_output_hex();
 }
@@ -2403,10 +2385,10 @@ int node::remove_endpoint(bus_id_t tid, endpoint *expected) {
     }
 
     node_parent_.node_.reset();
-    state_ = state_t::LOST_PARENT;
+    state_ = state_t::LOST_UPSTREAM;
 
     // set reconnect to parent into retry interval
-    event_timer_.parent_opr_time_point = get_timer_sec() + conf_.retry_interval;
+    event_timer_.upstream_opr_time_point = get_timer_tick() + conf_.retry_interval;
 
     // event
     if (event_msg_.on_endpoint_removed) {
@@ -2540,7 +2522,8 @@ channel::io_stream_conf *node::get_iostream_conf() {
   iostream_conf_->send_buffer_limit_size =
       conf_.message_size + ATBUS_MACRO_MAX_FRAME_HEADER +
       ::atframework::atbus::detail::buffer_block::padding_size(sizeof(uv_write_t) + sizeof(uint32_t) + 16);
-  iostream_conf_->confirm_timeout = conf_.first_idle_timeout;
+  iostream_conf_->confirm_timeout =
+      static_cast<time_t>(std::chrono::duration_cast<std::chrono::seconds>(conf_.first_idle_timeout).count());
   iostream_conf_->backlog = conf_.backlog;
 
   return iostream_conf_.get();

@@ -213,8 +213,10 @@ class topology_registry {
    * - If @p target_bus_id is 0, this call is ignored.
    * - If @p upstream_bus_id is 0, the peer becomes a root (no upstream).
    * - If peer exists and upstream changed, downstream links will be updated accordingly.
+   *
+   * @return true on success, false on failure (e.g. invalid target_bus_id or there will be a circle).
    */
-  ATBUS_MACRO_API void update_peer(bus_id_t target_bus_id, bus_id_t upstream_bus_id, topology_data &&data);
+  ATBUS_MACRO_API bool update_peer(bus_id_t target_bus_id, bus_id_t upstream_bus_id, topology_data &&data);
 
   /**
    * @brief Get the topology relation between two peers.
