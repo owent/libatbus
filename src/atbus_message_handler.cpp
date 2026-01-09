@@ -186,7 +186,6 @@ static dispatch_handle_set _build_handle_set() {
   ret.fns[::atframework::atbus::protocol::message_body::kNodeSyncRsp] = message_handler::on_recv_node_sync_rsp;
   ret.fns[::atframework::atbus::protocol::message_body::kNodeRegisterReq] = message_handler::on_recv_node_reg_req;
   ret.fns[::atframework::atbus::protocol::message_body::kNodeRegisterRsp] = message_handler::on_recv_node_reg_rsp;
-  ret.fns[::atframework::atbus::protocol::message_body::kNodeConnectSync] = message_handler::on_recv_node_conn_syn;
   ret.fns[::atframework::atbus::protocol::message_body::kNodePingReq] = message_handler::on_recv_node_ping;
   ret.fns[::atframework::atbus::protocol::message_body::kNodePongRsp] = message_handler::on_recv_node_pong;
 
@@ -599,71 +598,6 @@ ATBUS_MACRO_API int message_handler::send_custom_cmd_rsp(node &n, connection *co
   return ret;
 }
 
-ATBUS_MACRO_API int message_handler::send_node_connect_sync(node &n, uint64_t direct_from_bus_id, endpoint &dst_ep) {
-  const std::list<channel::channel_address_t> &listen_addrs = dst_ep.get_listen();
-  const endpoint *from_ep = n.get_endpoint(direct_from_bus_id);
-  bool is_same_host = (nullptr != from_ep && from_ep->get_hostname() == dst_ep.get_hostname());
-  bool is_same_process = is_same_host && (nullptr != from_ep && from_ep->get_pid() == dst_ep.get_pid());
-  gsl::string_view select_address;
-  int select_address_score = -1;
-  for (auto &addr : listen_addrs) {
-    // 通知连接控制通道，控制通道不能是单工通道
-    if (channel::is_simplex_address(addr.address)) {
-      continue;
-    }
-
-    // 不支持的协议检查
-    if (from_ep != nullptr && !from_ep->is_schema_supported(addr.scheme)) {
-      continue;
-    }
-
-    // 跨进程通道检查
-    if (channel::is_local_process_address(addr.address) && !is_same_process) {
-      continue;
-    }
-
-    // 跨机器通道检查
-    if (channel::is_local_host_address(addr.address) && !is_same_host) {
-      continue;
-    }
-
-    int score = calculate_channel_address_priority(addr.address, is_same_host, is_same_process);
-    if (score > select_address_score) {
-      select_address = addr.address;
-      select_address_score = score;
-    }
-  }
-
-  if (!select_address.empty()) {
-    ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
-    arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
-    message m{arena_options};
-
-    ::atframework::atbus::protocol::message_head &head = m.mutable_head();
-    ::atframework::atbus::protocol::connection_data *body = m.mutable_body().mutable_node_connect_sync();
-    ::atframework::atbus::protocol::channel_data *conn_data = body->mutable_address();
-    assert(body && conn_data);
-
-    uint64_t self_id = n.get_id();
-
-    head.set_version(n.get_protocol_version());
-    head.set_result_code(0);
-    head.set_type(0);
-    head.set_sequence(n.allocate_message_sequence());
-    head.set_source_bus_id(self_id);
-
-    conn_data->set_address(std::string(select_address));
-    int ret = n.send_ctrl_message(direct_from_bus_id, m);
-    if (ret < 0) {
-      ATBUS_FUNC_NODE_ERROR(n, nullptr, nullptr, ret, 0, "send control message to {:#x} failed", direct_from_bus_id);
-    }
-
-    return ret;
-  }
-
-  return EN_ATBUS_ERR_SUCCESS;
-}
-
 ATBUS_MACRO_API int message_handler::send_message(node &n, connection &conn, message &m) {
   auto &head = m.mutable_head();
   connection_context::buffer_result_t ret = pack_message(conn.get_connection_context(), m, n.get_protocol_version(),
@@ -767,17 +701,6 @@ ATBUS_MACRO_API int message_handler::on_recv_data_transfer_req(node &n, connecti
   // add router id
   fwd_data->add_router(n.get_id());
   res = _forward_data_message(n, m, direct_from_bus_id, fwd_data->to(), &to_ep);
-
-  // 子节点转发成功
-  if (res >= 0 && n.is_child_node(fwd_data->to())) {
-    // 如果来源和目标消息都来自于子节点，则通知建立直连
-    if (nullptr != to_ep && to_ep->get_flag(endpoint::flag_t::HAS_LISTEN_FD) && n.is_child_node(direct_from_bus_id) &&
-        n.is_child_node(to_ep->get_id())) {
-      res = send_node_connect_sync(n, direct_from_bus_id, *to_ep);
-    }
-
-    return res;
-  }
 
   // 非子节点转发失败，并且不来自于父节点，则转发送给父节点
   // 如果失败可能是连接未完成，但是endpoint已建立，所以直接发给父节点
@@ -1519,51 +1442,6 @@ ATBUS_MACRO_API int message_handler::on_recv_node_reg_rsp(node &n, connection *c
     }
   }
 
-  return EN_ATBUS_ERR_SUCCESS;
-}
-
-ATBUS_MACRO_API int message_handler::on_recv_node_conn_syn(node &n, connection *conn, message &&m, int /*status*/,
-                                                           int /*errcode*/) {
-  auto body_type = m.get_body_type();
-  if (body_type != ::atframework::atbus::protocol::message_body::kNodeConnectSync) {
-    ATBUS_FUNC_NODE_ERROR(n, nullptr == conn ? nullptr : conn->get_binding(), conn, EN_ATBUS_ERR_BAD_DATA, 0,
-                          "invalid body type {}", static_cast<int>(body_type));
-    return EN_ATBUS_ERR_BAD_DATA;
-  }
-
-  const ::atframework::atbus::protocol::connection_data &conn_data = m.mutable_body().node_connect_sync();
-
-  auto head = m.get_head();
-  if (nullptr == conn || nullptr == head) {
-    ATBUS_FUNC_NODE_ERROR(n, nullptr == conn ? nullptr : conn->get_binding(), conn, EN_ATBUS_ERR_BAD_DATA, 0,
-                          "no head");
-    return EN_ATBUS_ERR_BAD_DATA;
-  }
-
-  // check version
-  if (head->version() < n.get_protocol_minimal_version()) {
-    return EN_ATBUS_ERR_UNSUPPORTED_VERSION;
-  }
-
-  if (::atframework::atbus::connection::state_t::CONNECTED != conn->get_status()) {
-    ATBUS_FUNC_NODE_ERROR(n, nullptr == conn ? nullptr : conn->get_binding(), conn, EN_ATBUS_ERR_NOT_READY, 0,
-                          "connection not ready");
-    return EN_ATBUS_ERR_NOT_READY;
-  }
-
-  if (false == conn_data.has_address() || conn_data.address().address().empty()) {
-    ATBUS_FUNC_NODE_ERROR(n, nullptr == conn ? nullptr : conn->get_binding(), conn, EN_ATBUS_ERR_BAD_DATA, 0,
-                          "no address");
-    return EN_ATBUS_ERR_BAD_DATA;
-  }
-
-  ATBUS_FUNC_NODE_DEBUG(n, nullptr, nullptr, &m, "node recv conn_syn and prepare connect to {}",
-                        conn_data.address().address());
-  int ret = n.connect(conn_data.address().address().c_str());
-  if (ret < 0) {
-    ATBUS_FUNC_NODE_ERROR(n, n.get_self_endpoint(), nullptr, ret, 0, "connect to {} failed",
-                          conn_data.address().address());
-  }
   return EN_ATBUS_ERR_SUCCESS;
 }
 

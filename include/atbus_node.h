@@ -12,20 +12,23 @@
 
 #include <design_pattern/nomovable.h>
 #include <design_pattern/noncopyable.h>
+#include <gsl/select-gsl.h>
+#include <nostd/nullability.h>
 #include <nostd/string_view.h>
 
 #include <log/log_wrapper.h>
 
-#include <stdint.h>
 #include <bitset>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <ctime>
 #include <functional>
 #include <list>
 #include <map>
 #include <memory>
 #include <set>
+#include <unordered_map>
 #include <vector>
 
 #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
@@ -39,6 +42,7 @@
 #include "detail/libatbus_error.h"
 
 #include "atbus_endpoint.h"
+#include "atbus_topology.h"
 
 ATBUS_MACRO_NAMESPACE_BEGIN
 
@@ -64,7 +68,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   /** 并没有非常复杂的状态切换，所以没有引入状态机 **/
   struct state_t {
-    enum type { CREATED = 0, INITED, LOST_PARENT, CONNECTING_PARENT, RUNNING };
+    enum type { CREATED = 0, INITED, LOST_UPSTREAM, CONNECTING_UPSTREAM, RUNNING };
   };
 
   struct flag_t {
@@ -72,7 +76,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
       EN_FT_RESETTING,         /** 正在重置 **/
       EN_FT_RESETTING_GC,      /** 正在重置且正准备GC或GC流程已完成 **/
       EN_FT_ACTIVED,           /** 已激活 **/
-      EN_FT_PARENT_REG_DONE,   /** 已通过父节点注册 **/
+      EN_FT_UPSTREAM_REG_DONE, /** 已通过父节点注册 **/
       EN_FT_SHUTDOWN,          /** 已完成关闭前的资源回收 **/
       EN_FT_RECV_SELF_MSG,     /** 正在接收发给自己的信息 **/
       EN_FT_IN_CALLBACK,       /** 在回调函数中 **/
@@ -102,21 +106,21 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   struct conf_t {
     adapter::loop_t *ev_loop;
-    std::vector<endpoint_subnet_conf> subnets;   /** 子网范围 **/
-    std::bitset<conf_flag_t::EN_CONF_MAX> flags; /** 开关配置 **/
-    std::string parent_address;                  /** 父节点地址 **/
-    int loop_times;                              /** 消息循环次数限制，防止某些通道繁忙把其他通道堵死 **/
-    int ttl;                                     /** 消息转发跳转限制 **/
+    std::bitset<conf_flag_t::EN_CONF_MAX> flags;                  /** 开关配置 **/
+    std::string upstream_address;                                 /** 上游节点地址 **/
+    std::unordered_map<std::string, std::string> topology_labels; /** 拓扑标签 **/
+    int32_t loop_times; /** 消息循环次数限制，防止某些通道繁忙把其他通道堵死 **/
+    int32_t ttl;        /** 消息转发跳转限制 **/
     int32_t protocol_version;
     int32_t protocol_minimal_version;
 
     // ===== 连接配置 =====
-    int backlog;
-    time_t first_idle_timeout;      /** 第一个包允许的空闲时间，秒 **/
-    time_t ping_interval;           /** ping包间隔，秒 **/
-    time_t retry_interval;          /** 重试包间隔，秒 **/
-    size_t fault_tolerant;          /** 容错次数，次 **/
-    size_t access_token_max_number; /** 最大access token数量，请不要设置的太大，验证次数最大可能是N^2 **/
+    int32_t backlog;
+    std::chrono::microseconds first_idle_timeout; /** 第一个包允许的空闲时间 **/
+    std::chrono::microseconds ping_interval;      /** ping包间隔 **/
+    std::chrono::microseconds retry_interval;     /** 重试包间隔 **/
+    size_t fault_tolerant;                        /** 容错次数，次 **/
+    size_t access_token_max_number;               /** 最大access token数量，请不要设置的太大，验证次数最大可能是N^2 **/
     std::vector<std::vector<unsigned char>> access_tokens; /** access token列表 **/
     bool overwrite_listen_path;                            /** 是否覆盖已存在的listen path(unix/pipe socket) **/
 
@@ -141,11 +145,10 @@ class node final : public atfw::util::design_pattern::noncopyable {
   };
 
   struct start_conf_t {
-    time_t timer_sec;
-    time_t timer_usec;
+    std::chrono::system_clock::time_point timer_timepoint;
   };
 
-  using endpoint_collection_t = std::map<endpoint_subnet_range, endpoint::ptr_t>;
+  using endpoint_collection_t = std::unordered_map<bus_id_t, endpoint::ptr_t>;
 
   struct evt_msg_t {
     // 接收消息事件回调 => 参数列表: 发起节点，来源对端，来源连接，消息体，数据地址，数据长度
@@ -266,11 +269,10 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   /**
    * @brief 执行一帧
-   * @param sec 当前时间-秒
-   * @param sec 当前时间-微秒
+   * @param now 当前时间-秒
    * @return 本帧处理的消息数
    */
-  ATBUS_MACRO_API int proc(time_t sec, time_t usec);
+  ATBUS_MACRO_API int proc(std::chrono::system_clock::time_point now);
 
   /**
    * @brief poll libuv
@@ -519,6 +521,8 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   ATBUS_MACRO_API ptr_t get_watcher();
 
+  ATBUS_MACRO_API const ::atfw::util::nostd::nonnull<topology_registry::ptr_t> &get_topology_registry() const noexcept;
+
   ATBUS_MACRO_API bool is_child_node(bus_id_t id) const;
   ATBUS_MACRO_API bool is_parent_node(bus_id_t id) const;
 
@@ -541,16 +545,13 @@ class node final : public atfw::util::design_pattern::noncopyable {
   ATBUS_MACRO_API bool add_proc_connection(connection::ptr_t conn);
   ATBUS_MACRO_API bool remove_proc_connection(const std::string &conn_key);
 
-  ATBUS_MACRO_API bool add_connection_timer(connection::ptr_t conn,
-                                            timer_desc_ls<std::string, connection::ptr_t>::type::iterator &out);
+  ATBUS_MACRO_API bool add_connection_timer(connection::ptr_t conn);
 
-  ATBUS_MACRO_API bool remove_connection_timer(timer_desc_ls<std::string, connection::ptr_t>::type::iterator &out);
+  ATBUS_MACRO_API bool remove_connection_timer(const connection *conn);
 
   ATBUS_MACRO_API size_t get_connection_timer_size() const;
 
-  ATBUS_MACRO_API time_t get_timer_sec() const;
-
-  ATBUS_MACRO_API time_t get_timer_usec() const;
+  ATBUS_MACRO_API std::chrono::system_clock::time_point get_timer_tick() const;
 
   ATBUS_MACRO_API void on_recv(connection *conn, message &&m, int status, int errcode);
 
@@ -669,10 +670,6 @@ class node final : public atfw::util::design_pattern::noncopyable {
   // inner API, please don't use it if you don't known what will happen
   ATBUS_MACRO_API void unref_object(void *);
 
-  static ATBUS_MACRO_API bool check_conflict(endpoint_collection_t &coll, const endpoint_subnet_range &conf);
-  static ATBUS_MACRO_API bool check_conflict(endpoint_collection_t &coll,
-                                             const std::vector<endpoint_subnet_range> &confs);
-
   static ATBUS_MACRO_API protocol::ATBUS_CRYPTO_ALGORITHM_TYPE parse_crypto_algorithm_name(
       gsl::string_view name) noexcept;
 
@@ -723,12 +720,14 @@ class node final : public atfw::util::design_pattern::noncopyable {
   endpoint::ptr_t self_;
   state_t::type state_;
   std::bitset<flag_t::EN_FT_MAX> flags_;
+  topology_registry::ptr_t topology_registry_;
 
   // 配置
   conf_t conf_;
+  topology_data topology_;
   std::string hash_code_;
   ::atfw::util::memory::weak_rc_ptr<node> watcher_;  // just like std::shared_from_this<T>
-  atfw::util::lock::seq_alloc_u64 msg_seq_alloc_;
+  atfw::util::lock::seq_alloc_u64 message_sequence_allocator_;
 
   // 加密设置
   protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE crypto_key_exchange_type_;
@@ -750,11 +749,9 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   // ============ 定时器 ============
   struct evt_timer_t {
-    time_t sec;
-    time_t usec;
+    std::chrono::system_clock::time_point tick;
 
-    time_t node_sync_push;         // 节点变更推送
-    time_t parent_opr_time_point;  // 父节点操作时间（断线重连或Ping）
+    std::chrono::system_clock::time_point upstream_opr_time_point;  // 上游节点操作时间（断线重连或Ping）
     timer_desc_ls<const endpoint *, ::atfw::util::memory::weak_rc_ptr<endpoint>>::type ping_list;  // 定时ping
     timer_desc_ls<std::string, connection::ptr_t>::type connecting_list;  // 未完成连接（正在网络连接或握手）
     std::list<endpoint::ptr_t> pending_endpoint_gc_list;                  // 待检测GC的endpoint列表
@@ -764,7 +761,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   // 轮训接收通道集
   detail::buffer_block *static_buffer_;
-  detail::auto_select_map<std::string, connection::ptr_t>::type proc_connections_;
+  std::unordered_map<std::string, connection::ptr_t> proc_connections_;
 
   // 基于事件的通道信息
   // 基于事件的通道超时收集

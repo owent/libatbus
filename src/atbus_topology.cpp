@@ -182,10 +182,15 @@ ATBUS_MACRO_API void topology_registry::remove_peer(bus_id_t target_bus_id) noex
   }
 }
 
-ATBUS_MACRO_API void topology_registry::update_peer(bus_id_t target_bus_id, bus_id_t upstream_bus_id,
+ATBUS_MACRO_API bool topology_registry::update_peer(bus_id_t target_bus_id, bus_id_t upstream_bus_id,
                                                     topology_data &&data) {
   if (target_bus_id == 0) {
-    return;
+    return false;
+  }
+
+  // Reject trivial self-loop (including the case where the peer does not exist yet).
+  if (target_bus_id == upstream_bus_id) {
+    return false;
   }
 
   topology_peer::ptr_t upstream;
@@ -198,9 +203,19 @@ ATBUS_MACRO_API void topology_registry::update_peer(bus_id_t target_bus_id, bus_
     peer->update_data(std::move(data));
 
     if (peer->get_upstream() == upstream) {
-      return;
+      return true;
     }
 
+    // 检查成环
+    auto cur = upstream;
+    while (cur) {
+      if (cur->get_bus_id() == target_bus_id) {
+        return false;
+      }
+      cur = cur->get_upstream();
+    }
+
+    // 解除旧的上游关系
     if (peer->get_upstream()) {
       peer->get_upstream()->remove_downstream(target_bus_id, peer.get());
     }
@@ -220,6 +235,8 @@ ATBUS_MACRO_API void topology_registry::update_peer(bus_id_t target_bus_id, bus_
   if (upstream) {
     upstream->add_downstream(peer);
   }
+
+  return true;
 }
 
 ATBUS_MACRO_API topology_relation_type

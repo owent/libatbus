@@ -14,9 +14,6 @@ int main() {
   atbus::node::conf_t conf;
   atbus::node::default_conf(&conf);
 
-  // 子域的范围设为16（后16位都是子节点）, id_prefix=0 等于使用endpoint自己的ID
-  conf.subnets.push_back(atbus::endpoint_subnet_conf(0, 16));
-
   // 初始化libuv事件分发器
   uv_loop_t ev_loop;
   uv_loop_init(&ev_loop);
@@ -30,9 +27,9 @@ int main() {
     atbus::node::ptr_t node2 = atbus::node::create();
 
     // 初始化
-    node1->init(0x12345678, &conf);  // BUS ID=0x12345678, 0x1234XXXX 都是子节点
-    node2->init(0x12356789, &conf);  // BUS ID=0x12356789, 0x1235XXXX 都是子节点
-    // 所以这两个都是兄弟节点
+    node1->init(0x12345678, &conf);  // BUS ID=0x12345678
+    node2->init(0x12356789, &conf);  // BUS ID=0x12356789
+    // 未设置拓扑，所以这两个是kOtherUpstreamPeer关系
 
     // 各自监听地址
     node1->listen("ipv4://127.0.0.1:16387");

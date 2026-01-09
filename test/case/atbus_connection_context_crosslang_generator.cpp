@@ -671,41 +671,6 @@ CASE_TEST(atbus_connection_context_crosslang, generate_no_encryption_test_files)
   }
 
   // ============================================================================
-  // Test Case 12: node_connect_sync
-  // ============================================================================
-  {
-    const char* test_name = "no_enc_node_connect_sync";
-    std::string address = "ipv4://10.0.0.1:9000";
-
-    atfw::atbus::message msg(arena_options);
-    auto* conn = msg.mutable_body().mutable_node_connect_sync();
-    conn->mutable_address()->set_address(address);
-
-    auto pack_result = ctx->pack_message(msg, protocol_version, random_engine, 1024 * 1024);
-    if (pack_result.is_success()) {
-      auto* buffer = pack_result.get_success();
-      write_binary_file(std::string(test_name) + ".bytes", buffer->data(), buffer->used());
-
-      std::ostringstream json;
-      json << "{\n";
-      json << "  \"name\": \"" << test_name << "\",\n";
-      json << "  \"description\": \"Node connection sync message\",\n";
-      json << "  \"protocol_version\": " << protocol_version << ",\n";
-      json << "  \"body_type\": \"node_connect_sync\",\n";
-      json << "  \"body_type_case\": 20,\n";
-      json << "  \"crypto_algorithm\": \"NONE\",\n";
-      json << "  \"packed_size\": " << buffer->used() << ",\n";
-      json << "  \"packed_hex\": \"" << bytes_to_hex(buffer->data(), buffer->used()) << "\",\n";
-      json << "  \"expected\": {\n";
-      json << "    \"address\": \"" << escape_json_string(address) << "\"\n";
-      json << "  }\n";
-      json << "}\n";
-      write_json_file(std::string(test_name) + ".json", json.str());
-      generated_count++;
-    }
-  }
-
-  // ============================================================================
   // Test Case 13: data_transform_req with binary content (all byte values 0-255)
   // ============================================================================
   {
@@ -883,7 +848,6 @@ CASE_TEST(atbus_connection_context_crosslang, verify_generated_no_encryption_fil
       "no_enc_node_register_rsp",
       "no_enc_node_sync_req",
       "no_enc_node_sync_rsp",
-      "no_enc_node_connect_sync",
       "no_enc_data_transform_binary_content",
       "no_enc_data_transform_large_content",
       "no_enc_data_transform_utf8_content",
@@ -941,7 +905,6 @@ CASE_TEST(atbus_connection_context_crosslang, generate_index_file) {
       "no_enc_node_register_rsp",
       "no_enc_node_sync_req",
       "no_enc_node_sync_rsp",
-      "no_enc_node_connect_sync",
       "no_enc_data_transform_binary_content",
       "no_enc_data_transform_large_content",
       "no_enc_data_transform_utf8_content",
@@ -1304,7 +1267,6 @@ CASE_TEST(atbus_connection_context_crosslang, generate_full_index_file) {
       "no_enc_node_register_rsp",
       "no_enc_node_sync_req",
       "no_enc_node_sync_rsp",
-      "no_enc_node_connect_sync",
       "no_enc_data_transform_binary_content",
       "no_enc_data_transform_large_content",
       "no_enc_data_transform_utf8_content",

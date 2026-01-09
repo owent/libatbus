@@ -317,3 +317,139 @@ CASE_TEST(atbus_topology, topology_registry_foreach_and_policy) {
         atbus::topology_registry::check_policy(policy_labels_only, from_data, to_data_labels_only_missing_label));
   }
 }
+
+CASE_TEST(atbus_topology, topology_registry_update_peer_cycle_detection) {
+  atbus::topology_registry::ptr_t registry = atbus::topology_registry::create();
+  CASE_EXPECT_TRUE(registry);
+
+  // Test case 1: Self-loop should be rejected (target == upstream)
+  {
+    CASE_EXPECT_FALSE(registry->update_peer(1, 1, make_topology_data(1, "h1")));
+    // Peer should not be created
+    CASE_EXPECT_FALSE(registry->get_peer(1));
+  }
+
+  // Build initial tree:
+  //   1
+  //  / \
+  // 2   4
+  // |
+  // 3
+  registry->update_peer(1, 0, make_topology_data(1, "h1"));
+  registry->update_peer(2, 1, make_topology_data(2, "h1"));
+  registry->update_peer(3, 2, make_topology_data(3, "h1"));
+  registry->update_peer(4, 1, make_topology_data(4, "h1"));
+
+  // Verify initial structure
+  atbus::topology_peer::ptr_t peer1 = registry->get_peer(1);
+  atbus::topology_peer::ptr_t peer2 = registry->get_peer(2);
+  atbus::topology_peer::ptr_t peer3 = registry->get_peer(3);
+  atbus::topology_peer::ptr_t peer4 = registry->get_peer(4);
+  CASE_EXPECT_TRUE(peer1);
+  CASE_EXPECT_TRUE(peer2);
+  CASE_EXPECT_TRUE(peer3);
+  CASE_EXPECT_TRUE(peer4);
+
+  // Test case 2: Direct cycle - try to set 1's upstream to 2 (1 -> 2 -> 1 would be a cycle)
+  {
+    CASE_EXPECT_FALSE(registry->update_peer(1, 2, make_topology_data(1, "h1")));
+    // Peer1 should still have no upstream
+    peer1 = registry->get_peer(1);
+    CASE_EXPECT_TRUE(peer1);
+    CASE_EXPECT_FALSE(peer1->get_upstream());
+  }
+
+  // Test case 3: Indirect cycle - try to set 1's upstream to 3 (1 -> 3 -> 2 -> 1 would be a cycle)
+  {
+    CASE_EXPECT_FALSE(registry->update_peer(1, 3, make_topology_data(1, "h1")));
+    // Peer1 should still have no upstream
+    peer1 = registry->get_peer(1);
+    CASE_EXPECT_TRUE(peer1);
+    CASE_EXPECT_FALSE(peer1->get_upstream());
+  }
+
+  // Test case 4: Try to set 2's upstream to 3 (2 -> 3 -> 2 would be a cycle)
+  {
+    CASE_EXPECT_FALSE(registry->update_peer(2, 3, make_topology_data(2, "h1")));
+    // Peer2 should still have peer1 as upstream
+    peer2 = registry->get_peer(2);
+    CASE_EXPECT_TRUE(peer2);
+    CASE_EXPECT_TRUE(peer2->get_upstream());
+    CASE_EXPECT_EQ(1, peer2->get_upstream()->get_bus_id());
+  }
+
+  // Test case 5: Valid update - move peer4 to be under peer2 (no cycle)
+  //   1
+  //   |
+  //   2
+  //  / \
+  // 3   4
+  {
+    CASE_EXPECT_TRUE(registry->update_peer(4, 2, make_topology_data(4, "h1")));
+    peer4 = registry->get_peer(4);
+    CASE_EXPECT_TRUE(peer4);
+    CASE_EXPECT_TRUE(peer4->get_upstream());
+    CASE_EXPECT_EQ(2, peer4->get_upstream()->get_bus_id());
+    // Peer1 should no longer have peer4 as downstream
+    peer1 = registry->get_peer(1);
+    CASE_EXPECT_FALSE(peer1->contains_downstream(4));
+    // Peer2 should now have peer4 as downstream
+    peer2 = registry->get_peer(2);
+    CASE_EXPECT_TRUE(peer2->contains_downstream(4));
+  }
+
+  // Test case 6: Deeper indirect cycle - try to set 1's upstream to 4 (1 -> 4 -> 2 -> 1 would be a cycle)
+  {
+    CASE_EXPECT_FALSE(registry->update_peer(1, 4, make_topology_data(1, "h1")));
+    peer1 = registry->get_peer(1);
+    CASE_EXPECT_TRUE(peer1);
+    CASE_EXPECT_FALSE(peer1->get_upstream());
+  }
+
+  // Test case 7: Valid update - peer can be its own root (upstream = 0)
+  {
+    atbus::topology_registry::ptr_t registry2 = atbus::topology_registry::create();
+    CASE_EXPECT_TRUE(registry2->update_peer(100, 0, make_topology_data(100, "h1")));
+    atbus::topology_peer::ptr_t peer100 = registry2->get_peer(100);
+    CASE_EXPECT_TRUE(peer100);
+    CASE_EXPECT_FALSE(peer100->get_upstream());
+  }
+
+  // Test case 8: target_bus_id = 0 should be rejected
+  {
+    CASE_EXPECT_FALSE(registry->update_peer(0, 1, make_topology_data(0, "h1")));
+  }
+
+  // Test case 9: Adding a new peer with valid upstream that is already downstream creates no cycle
+  //   1
+  //   |
+  //   2
+  //  /|\
+  // 3 4 5
+  {
+    CASE_EXPECT_TRUE(registry->update_peer(5, 2, make_topology_data(5, "h1")));
+    atbus::topology_peer::ptr_t peer5 = registry->get_peer(5);
+    CASE_EXPECT_TRUE(peer5);
+    CASE_EXPECT_TRUE(peer5->get_upstream());
+    CASE_EXPECT_EQ(2, peer5->get_upstream()->get_bus_id());
+    peer2 = registry->get_peer(2);
+    CASE_EXPECT_TRUE(peer2->contains_downstream(5));
+  }
+
+  // Test case 10: Multiple levels - create a chain and try to create a cycle
+  // Add peer 6 under peer 3: 1 -> 2 -> 3 -> 6
+  {
+    CASE_EXPECT_TRUE(registry->update_peer(6, 3, make_topology_data(6, "h1")));
+    atbus::topology_peer::ptr_t peer6 = registry->get_peer(6);
+    CASE_EXPECT_TRUE(peer6);
+    CASE_EXPECT_TRUE(peer6->get_upstream());
+    CASE_EXPECT_EQ(3, peer6->get_upstream()->get_bus_id());
+
+    // Try to set peer2's upstream to peer6 (would create: 2 -> 6 -> 3 -> 2)
+    CASE_EXPECT_FALSE(registry->update_peer(2, 6, make_topology_data(2, "h1")));
+    peer2 = registry->get_peer(2);
+    CASE_EXPECT_TRUE(peer2);
+    CASE_EXPECT_TRUE(peer2->get_upstream());
+    CASE_EXPECT_EQ(1, peer2->get_upstream()->get_bus_id());
+  }
+}
