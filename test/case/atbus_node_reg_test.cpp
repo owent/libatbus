@@ -74,7 +74,7 @@ static int node_reg_test_on_error(const atfw::util::log::log_formatter::caller_i
   gsl::string_view log_data{content, content_size};
   // find status: {}, error_code: {}
   int status = 0;
-  int errcode = 0;
+  ATBUS_ERROR_TYPE errcode = EN_ATBUS_ERR_SUCCESS;
   size_t pos = log_data.find("status:");
   if (gsl::string_view::npos != pos) {
     for (; pos < log_data.size(); ++pos) {
@@ -88,14 +88,14 @@ static int node_reg_test_on_error(const atfw::util::log::log_formatter::caller_i
   }
   pos = log_data.find("error_code:", pos);
   if (gsl::string_view::npos != pos) {
-    errcode = atfw::util::string::to_int<int>(log_data.substr(pos + 11));
+    errcode = static_cast<ATBUS_ERROR_TYPE>(atfw::util::string::to_int<int>(log_data.substr(pos + 11)));
   }
-  if ((0 == status && 0 == errcode) || UV_EOF == errcode || UV_ECONNRESET == errcode) {
+  if ((0 == status && 0 == errcode) || UV_EOF == status || UV_ECONNRESET == status) {
     return 0;
   }
 
   // 随时可能收到网络错误，排除错误检查
-  if (recv_msg_history.status == 0 || status > EN_ATBUS_ERR_DNS_GETADDR_FAILED || status < EN_ATBUS_ERR_NOT_READY) {
+  if (recv_msg_history.status == 0 || errcode > EN_ATBUS_ERR_DNS_GETADDR_FAILED || errcode < EN_ATBUS_ERR_NOT_READY) {
     recv_msg_history.status = status;
   }
   ++recv_msg_history.register_failed_count;
@@ -250,8 +250,8 @@ CASE_TEST(atbus_node_reg, reset_and_send_tcp) {
     node2->proc(proc_t, 0);
 
     int count = recv_msg_history.count;
-    node2->set_on_recv_handle(node_reg_test_recv_msg_test_record_fn);
-    CASE_EXPECT_TRUE(!!node2->get_on_recv_handle());
+    node2->set_on_forward_request_handle(node_reg_test_recv_msg_test_record_fn);
+    CASE_EXPECT_TRUE(!!node2->get_on_forward_request_handle());
     node1->send_data(node2->get_id(), 0, send_data.data(), send_data.size());
 
     UNITTEST_WAIT_UNTIL(conf.ev_loop, count != recv_msg_history.count, 8000, 0) {}
@@ -263,8 +263,9 @@ CASE_TEST(atbus_node_reg, reset_and_send_tcp) {
     check_ep_count = recv_msg_history.remove_endpoint_count;
 
     // reset
-    CASE_EXPECT_EQ(0, node1->shutdown(0));  // shutdown - test, next proc() will call reset()
-    CASE_EXPECT_EQ(0, node1->shutdown(0));  // shutdown - again
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS,
+                   node1->shutdown(EN_ATBUS_ERR_SUCCESS));  // shutdown - test, next proc() will call reset()
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->shutdown(EN_ATBUS_ERR_SUCCESS));  // shutdown - again
 
     UNITTEST_WAIT_UNTIL(
         conf.ev_loop,
@@ -451,8 +452,8 @@ CASE_TEST(atbus_node_reg, message_size_limit) {
     node2->proc(proc_t, 0);
 
     int count = recv_msg_history.count;
-    node2->set_on_recv_handle(node_reg_test_recv_msg_test_record_fn);
-    CASE_EXPECT_TRUE(!!node2->get_on_recv_handle());
+    node2->set_on_forward_request_handle(node_reg_test_recv_msg_test_record_fn);
+    CASE_EXPECT_TRUE(!!node2->get_on_forward_request_handle());
     CASE_EXPECT_EQ(0, node1->send_data(node2->get_id(), 0, send_data.data(), send_data.size()));
 
     UNITTEST_WAIT_UNTIL(conf.ev_loop, count != recv_msg_history.count, 8000, 0) {}
@@ -466,8 +467,9 @@ CASE_TEST(atbus_node_reg, message_size_limit) {
     check_ep_count = recv_msg_history.remove_endpoint_count;
 
     // reset
-    CASE_EXPECT_EQ(0, node1->shutdown(0));  // shutdown - test, next proc() will call reset()
-    CASE_EXPECT_EQ(0, node1->shutdown(0));  // shutdown - again
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS,
+                   node1->shutdown(EN_ATBUS_ERR_SUCCESS));  // shutdown - test, next proc() will call reset()
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->shutdown(EN_ATBUS_ERR_SUCCESS));  // shutdown - again
 
     UNITTEST_WAIT_UNTIL(
         conf.ev_loop,
@@ -847,8 +849,7 @@ CASE_TEST(atbus_node_reg, reg_pc_success) {
     {
       atbus::endpoint *test_ep = nullptr;
       atbus::connection *test_conn = nullptr;
-      node_parent->get_remote_channel(node_child->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
-                                      &test_conn);
+      node_parent->get_peer_channel(node_child->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
       CASE_EXPECT_NE(nullptr, test_ep);
       CASE_EXPECT_NE(nullptr, test_conn);
       if (nullptr != test_ep) {
@@ -859,15 +860,14 @@ CASE_TEST(atbus_node_reg, reg_pc_success) {
         CASE_EXPECT_FALSE(test_ep->get_hash_code().empty());
         CASE_EXPECT_EQ(node_child->get_self_endpoint()->get_hash_code(), test_ep->get_hash_code());
       }
-      CASE_EXPECT_TRUE(node_parent->is_child_node(node_child->get_id()));
+      CASE_EXPECT_TRUE(node_parent->is_downstream_node(node_child->get_id()));
     }
 
     // API - test
     {
       atbus::endpoint *test_ep = nullptr;
       atbus::connection *test_conn = nullptr;
-      node_child->get_remote_channel(node_parent->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
-                                     &test_conn);
+      node_child->get_peer_channel(node_parent->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
       CASE_EXPECT_NE(nullptr, test_ep);
       CASE_EXPECT_NE(nullptr, test_conn);
       if (nullptr != test_ep) {
@@ -966,8 +966,7 @@ CASE_TEST(atbus_node_reg, reg_pc_success_cross_subnet) {
     {
       atbus::endpoint *test_ep = nullptr;
       atbus::connection *test_conn = nullptr;
-      node_parent->get_remote_channel(node_child->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
-                                      &test_conn);
+      node_parent->get_peer_channel(node_child->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
       CASE_EXPECT_NE(nullptr, test_ep);
       CASE_EXPECT_NE(nullptr, test_conn);
     }
@@ -976,8 +975,7 @@ CASE_TEST(atbus_node_reg, reg_pc_success_cross_subnet) {
     {
       atbus::endpoint *test_ep = nullptr;
       atbus::connection *test_conn = nullptr;
-      node_child->get_remote_channel(node_parent->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
-                                     &test_conn);
+      node_child->get_peer_channel(node_parent->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
       CASE_EXPECT_NE(nullptr, test_ep);
       CASE_EXPECT_NE(nullptr, test_conn);
     }
@@ -1082,8 +1080,7 @@ CASE_TEST(atbus_node_reg, reg_pc_failed_with_subnet_mismatch) {
     {
       atbus::endpoint *test_ep = nullptr;
       atbus::connection *test_conn = nullptr;
-      node_parent->get_remote_channel(node_child->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
-                                      &test_conn);
+      node_parent->get_peer_channel(node_child->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
       CASE_EXPECT_EQ(nullptr, test_ep);
       CASE_EXPECT_EQ(nullptr, test_conn);
     }
@@ -1092,8 +1089,7 @@ CASE_TEST(atbus_node_reg, reg_pc_failed_with_subnet_mismatch) {
     {
       atbus::endpoint *test_ep = nullptr;
       atbus::connection *test_conn = nullptr;
-      node_child->get_remote_channel(node_parent->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
-                                     &test_conn);
+      node_child->get_peer_channel(node_parent->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
       CASE_EXPECT_EQ(nullptr, test_ep);
       CASE_EXPECT_EQ(nullptr, test_conn);
     }
@@ -1168,7 +1164,7 @@ CASE_TEST(atbus_node_reg, reg_bro_success) {
     {
       atbus::endpoint *test_ep = nullptr;
       atbus::connection *test_conn = nullptr;
-      node_1->get_remote_channel(node_2->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
+      node_1->get_peer_channel(node_2->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
       CASE_EXPECT_NE(nullptr, test_ep);
       CASE_EXPECT_NE(nullptr, test_conn);
     }
@@ -1177,7 +1173,7 @@ CASE_TEST(atbus_node_reg, reg_bro_success) {
     {
       atbus::endpoint *test_ep = nullptr;
       atbus::connection *test_conn = nullptr;
-      node_2->get_remote_channel(node_1->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
+      node_2->get_peer_channel(node_1->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
       CASE_EXPECT_NE(nullptr, test_ep);
       CASE_EXPECT_NE(nullptr, test_conn);
     }
@@ -1392,7 +1388,7 @@ CASE_TEST(atbus_node_reg, mem_and_send) {
 
   conf.ev_loop = &ev_loop;
 
-  const size_t memory_chan_len = conf.recv_buffer_size;
+  const size_t memory_chan_len = conf.receive_buffer_size;
   char *memory_chan_buf = reinterpret_cast<char *>(malloc(memory_chan_len));
   memset(memory_chan_buf, 0, memory_chan_len);
 
@@ -1455,7 +1451,7 @@ CASE_TEST(atbus_node_reg, mem_and_send) {
     {
       atbus::endpoint *test_ep = nullptr;
       atbus::connection *test_conn = nullptr;
-      node1->get_remote_channel(node2->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
+      node1->get_peer_channel(node2->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
       CASE_EXPECT_NE(nullptr, test_ep);
       CASE_EXPECT_NE(nullptr, test_conn);
 
@@ -1480,8 +1476,8 @@ CASE_TEST(atbus_node_reg, mem_and_send) {
     node2->proc(proc_t, 0);
 
     int count = recv_msg_history.count;
-    node2->set_on_recv_handle(node_reg_test_recv_msg_test_record_fn);
-    CASE_EXPECT_TRUE(!!node2->get_on_recv_handle());
+    node2->set_on_forward_request_handle(node_reg_test_recv_msg_test_record_fn);
+    CASE_EXPECT_TRUE(!!node2->get_on_forward_request_handle());
     CASE_EXPECT_EQ(0, node1->send_data(node2->get_id(), 0, send_data.data(), send_data.size()));
 
     proc_t += 1;
@@ -1508,8 +1504,9 @@ CASE_TEST(atbus_node_reg, mem_and_send) {
     check_ep_count = recv_msg_history.remove_endpoint_count;
 
     // reset
-    CASE_EXPECT_EQ(0, node1->shutdown(0));  // shutdown - test, next proc() will call reset()
-    CASE_EXPECT_EQ(0, node1->shutdown(0));  // shutdown - again
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS,
+                   node1->shutdown(EN_ATBUS_ERR_SUCCESS));  // shutdown - test, next proc() will call reset()
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->shutdown(EN_ATBUS_ERR_SUCCESS));  // shutdown - again
 
     UNITTEST_WAIT_UNTIL(
         conf.ev_loop,
@@ -1545,7 +1542,7 @@ static bool node_reg_test_is_shm_available(const atbus::node::conf_t &conf) {
 
   std::string sz_contest;
   atfw::util::file_system::get_file_content(sz_contest, "/proc/sys/kernel/shmmax");
-  return atfw::util::string::to_int<size_t>(sz_contest.c_str()) >= conf.recv_buffer_size;
+  return atfw::util::string::to_int<size_t>(sz_contest.c_str()) >= conf.receive_buffer_size;
 }
 
 // 正常首发数据测试 -- 共享内存
@@ -1619,7 +1616,7 @@ CASE_TEST(atbus_node_reg, shm_and_send) {
     {
       atbus::endpoint *test_ep = nullptr;
       atbus::connection *test_conn = nullptr;
-      node1->get_remote_channel(node2->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
+      node1->get_peer_channel(node2->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
       CASE_EXPECT_NE(nullptr, test_ep);
       CASE_EXPECT_NE(nullptr, test_conn);
 
@@ -1644,8 +1641,8 @@ CASE_TEST(atbus_node_reg, shm_and_send) {
     node2->proc(proc_t, 0);
 
     int count = recv_msg_history.count;
-    node2->set_on_recv_handle(node_reg_test_recv_msg_test_record_fn);
-    CASE_EXPECT_TRUE(!!node2->get_on_recv_handle());
+    node2->set_on_forward_request_handle(node_reg_test_recv_msg_test_record_fn);
+    CASE_EXPECT_TRUE(!!node2->get_on_forward_request_handle());
     CASE_EXPECT_EQ(0, node1->send_data(node2->get_id(), 0, send_data.data(), send_data.size()));
 
     proc_t += 1;
@@ -1672,8 +1669,9 @@ CASE_TEST(atbus_node_reg, shm_and_send) {
     check_ep_count = recv_msg_history.remove_endpoint_count;
 
     // reset
-    CASE_EXPECT_EQ(0, node1->shutdown(0));  // shutdown - test, next proc() will call reset()
-    CASE_EXPECT_EQ(0, node1->shutdown(0));  // shutdown - again
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS,
+                   node1->shutdown(EN_ATBUS_ERR_SUCCESS));  // shutdown - test, next proc() will call reset()
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->shutdown(EN_ATBUS_ERR_SUCCESS));  // shutdown - again
 
     UNITTEST_WAIT_UNTIL(
         conf.ev_loop,

@@ -157,8 +157,9 @@ static ::atfw::util::memory::strong_rc_ptr<::atfw::util::crypto::cipher> _create
   }
 }
 
-static int _generate_key_iv(protocol::ATBUS_CRYPTO_KDF_TYPE /*type*/, std::vector<unsigned char> &shared_secret,
-                            size_t key_iv_size, std::vector<unsigned char> &key_iv) {
+static ATBUS_ERROR_TYPE _generate_key_iv(protocol::ATBUS_CRYPTO_KDF_TYPE /*type*/,
+                                         std::vector<unsigned char> &shared_secret, size_t key_iv_size,
+                                         std::vector<unsigned char> &key_iv) {
   // FIXME: 目前只支持ATBUS_CRYPTO_KDF_HKDF_SHA256
   key_iv.resize(key_iv_size);
 
@@ -167,7 +168,7 @@ static int _generate_key_iv(protocol::ATBUS_CRYPTO_KDF_TYPE /*type*/, std::vecto
     key_iv.clear();
     return EN_ATBUS_ERR_CRYPTO_HANDSHAKE_KDF_ERROR;
   }
-  return 0;
+  return EN_ATBUS_ERR_SUCCESS;
 }
 
 static uint64_t _generate_handshake_sequence_id() {
@@ -352,8 +353,8 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
 }
 
 // Message帧层: vint(header长度) + header + body + padding
-ATBUS_MACRO_API int connection_context::unpack_message(message &m, gsl::span<const unsigned char> input,
-                                                       size_t max_body_size) noexcept {
+ATBUS_MACRO_API ATBUS_ERROR_TYPE connection_context::unpack_message(message &m, gsl::span<const unsigned char> input,
+                                                                    size_t max_body_size) noexcept {
   if (input.size() > max_body_size + ATBUS_MACRO_MAX_FRAME_HEADER) {
     return EN_ATBUS_ERR_INVALID_SIZE;
   }
@@ -466,7 +467,7 @@ ATBUS_MACRO_API protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE connection_context::g
   return compression_select_algorithm_;
 }
 
-ATBUS_MACRO_API int connection_context::handshake_generate_self_key(uint64_t peer_sequence_id) {
+ATBUS_MACRO_API ATBUS_ERROR_TYPE connection_context::handshake_generate_self_key(uint64_t peer_sequence_id) {
   if (crypto_key_exchange_algorithm_ == protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE || !handshake_ctx_) {
     return EN_ATBUS_ERR_SUCCESS;
   }
@@ -496,7 +497,7 @@ ATBUS_MACRO_API int connection_context::handshake_generate_self_key(uint64_t pee
   return EN_ATBUS_ERR_SUCCESS;
 }
 
-ATBUS_MACRO_API int connection_context::handshake_read_peer_key(
+ATBUS_MACRO_API ATBUS_ERROR_TYPE connection_context::handshake_read_peer_key(
     const protocol::crypto_handshake_data &peer_pub_key,
     gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> supported_crypto_algorithms) {
   if (crypto_key_exchange_algorithm_ == protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE || !handshake_dh_) {
@@ -507,7 +508,7 @@ ATBUS_MACRO_API int connection_context::handshake_read_peer_key(
     return EN_ATBUS_ERR_CRYPTO_HANDSHAKE_SEQUENCE_EXPIRED;
   }
 
-  int ret = EN_ATBUS_ERR_SUCCESS;
+  ATBUS_ERROR_TYPE ret = EN_ATBUS_ERR_SUCCESS;
   do {
     if (supported_crypto_algorithms.empty() && peer_pub_key.algorithms_size() == 0) {
       break;
@@ -597,7 +598,7 @@ ATBUS_MACRO_API int connection_context::handshake_read_peer_key(
   return ret;
 }
 
-ATBUS_MACRO_API int connection_context::handshake_write_self_public_key(
+ATBUS_MACRO_API ATBUS_ERROR_TYPE connection_context::handshake_write_self_public_key(
     protocol::crypto_handshake_data &self_pub_key,
     gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> supported_crypto_algorithms) {
   self_pub_key.set_sequence(handshake_sequence_id_);
@@ -638,7 +639,7 @@ ATBUS_MACRO_API size_t connection_context::internal_padding_temporary_buffer_blo
   return _padding_temporary_buffer_block(origin_size);
 }
 
-ATBUS_MACRO_API int connection_context::update_compression_algorithm(
+ATBUS_MACRO_API ATBUS_ERROR_TYPE connection_context::update_compression_algorithm(
     gsl::span<const protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> algorithm) noexcept {
   supported_compression_algorithms_.clear();
   supported_compression_algorithms_.reserve(algorithm.size());
@@ -688,9 +689,9 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
   return buffer_result_t::make_success(std::move(buffer));
 }
 
-ATBUS_MACRO_API int connection_context::setup_crypto_with_key(protocol::ATBUS_CRYPTO_ALGORITHM_TYPE algorithm,
-                                                              const unsigned char *key, size_t key_size,
-                                                              const unsigned char *iv, size_t iv_size) {
+ATBUS_MACRO_API ATBUS_ERROR_TYPE
+connection_context::setup_crypto_with_key(protocol::ATBUS_CRYPTO_ALGORITHM_TYPE algorithm, const unsigned char *key,
+                                          size_t key_size, const unsigned char *iv, size_t iv_size) {
   if (algorithm == protocol::ATBUS_CRYPTO_ALGORITHM_NONE) {
     send_cipher_.reset();
     receive_cipher_.reset();

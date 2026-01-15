@@ -95,11 +95,11 @@ static void stat_callback(uv_timer_t * /*handle*/) {
   std::cerr.flush();
 }
 
-static void closed_callback(EXPLICIT_UNUSED_ATTR atbus::channel::io_stream_channel *channel,  // 事件触发的channel
+static void closed_callback(EXPLICIT_UNUSED_ATTR atbus::channel::io_stream_channel *channel,        // 事件触发的channel
                             EXPLICIT_UNUSED_ATTR atbus::channel::io_stream_connection *connection,  // 事件触发的连接
-                            int /*status*/,  // libuv传入的转态码
-                            void *,          // 额外参数(不同事件不同含义)
-                            size_t           // 额外参数长度
+                            int /*status*/,                                                         // libuv传入的转态码
+                            void *,  // 额外参数(不同事件不同含义)
+                            size_t   // 额外参数长度
 ) {
   assert(channel);
   assert(connection);
@@ -135,15 +135,15 @@ int main(int argc, char *argv[]) {
 
   io_stream_conf cfg;
   io_stream_init_configure(&cfg);
-  cfg.recv_buffer_max_size =
-      conf.limit_size + atbus::detail::buffer_block::full_size(cfg.recv_buffer_limit_size) * conf.limit_static_num +
+  cfg.receive_buffer_max_size =
+      conf.limit_size + atbus::detail::buffer_block::full_size(cfg.receive_buffer_limit_size) * conf.limit_static_num +
       atbus::detail::buffer_block::padding_size(1);  // 预留一个对齐单位的空区域
-  cfg.recv_buffer_static = conf.limit_static_num;
+  cfg.receive_buffer_static = conf.limit_static_num;
 
   io_stream_channel channel;
   io_stream_init(&channel, uv_default_loop(), &cfg);
-  channel.evt.callbacks[io_stream_callback_evt_t::EN_FN_RECVED] = recv_callback;
-  channel.evt.callbacks[io_stream_callback_evt_t::EN_FN_DISCONNECTED] = closed_callback;
+  channel.evt.callbacks[io_stream_callback_event_t::EN_FN_RECEIVED] = recv_callback;
+  channel.evt.callbacks[io_stream_callback_event_t::EN_FN_DISCONNECTED] = closed_callback;
 
   channel_address_t addr;
   make_address(argv[1], addr);

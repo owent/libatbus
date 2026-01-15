@@ -70,7 +70,7 @@ static void listen_callback_test_fn(atbus::channel::io_stream_channel *channel, 
   CASE_EXPECT_EQ(0, channel->error_code);
 
   // listen accepted event
-  connection->evt.callbacks[atbus::channel::io_stream_callback_evt_t::EN_FN_ACCEPTED] = accepted_callback_test_fn;
+  connection->evt.callbacks[atbus::channel::io_stream_callback_event_t::EN_FN_ACCEPTED] = accepted_callback_test_fn;
 
   ++g_check_flag;
 }
@@ -203,8 +203,8 @@ CASE_TEST(channel, io_stream_tcp_basic) {
     uv_run(&loop, UV_RUN_ONCE);
   }
 
-  svr.evt.callbacks[atbus::channel::io_stream_callback_evt_t::EN_FN_RECVED] = recv_callback_check_fn;
-  cli.evt.callbacks[atbus::channel::io_stream_callback_evt_t::EN_FN_RECVED] = recv_callback_check_fn;
+  svr.evt.callbacks[atbus::channel::io_stream_callback_event_t::EN_FN_RECEIVED] = recv_callback_check_fn;
+  cli.evt.callbacks[atbus::channel::io_stream_callback_event_t::EN_FN_RECEIVED] = recv_callback_check_fn;
   char *buf = get_test_buffer();
 
   check_flag = g_check_flag;
@@ -272,7 +272,7 @@ CASE_TEST(channel, io_stream_tcp_reset_by_client) {
   atbus::channel::io_stream_init(&svr, nullptr, nullptr);
   atbus::channel::io_stream_init(&cli, nullptr, nullptr);
 
-  svr.evt.callbacks[atbus::channel::io_stream_callback_evt_t::EN_FN_DISCONNECTED] = disconnected_callback_test_fn;
+  svr.evt.callbacks[atbus::channel::io_stream_callback_event_t::EN_FN_DISCONNECTED] = disconnected_callback_test_fn;
 
   int check_flag = g_check_flag = 0;
 
@@ -316,7 +316,7 @@ CASE_TEST(channel, io_stream_tcp_reset_by_server) {
   atbus::channel::io_stream_init(&svr, nullptr, nullptr);
   atbus::channel::io_stream_init(&cli, nullptr, nullptr);
 
-  cli.evt.callbacks[atbus::channel::io_stream_callback_evt_t::EN_FN_DISCONNECTED] = disconnected_callback_test_fn;
+  cli.evt.callbacks[atbus::channel::io_stream_callback_event_t::EN_FN_DISCONNECTED] = disconnected_callback_test_fn;
 
   int check_flag = g_check_flag = 0;
 
@@ -383,15 +383,15 @@ CASE_TEST(channel, io_stream_tcp_size_extended) {
   atbus::channel::io_stream_channel svr, cli;
   atbus::channel::io_stream_conf conf;
   atbus::channel::io_stream_init_configure(&conf);
-  conf.send_buffer_limit_size = conf.recv_buffer_max_size + 1;
+  conf.send_buffer_limit_size = conf.receive_buffer_max_size + 1;
 
   atbus::channel::io_stream_init(&svr, nullptr, &conf);
   atbus::channel::io_stream_init(&cli, nullptr, &conf);
 
-  svr.evt.callbacks[atbus::channel::io_stream_callback_evt_t::EN_FN_RECVED] = recv_size_err_callback_check_fn;
-  cli.evt.callbacks[atbus::channel::io_stream_callback_evt_t::EN_FN_RECVED] = recv_size_err_callback_check_fn;
-  svr.evt.callbacks[atbus::channel::io_stream_callback_evt_t::EN_FN_DISCONNECTED] = disconnected_callback_test_fn;
-  svr.evt.callbacks[atbus::channel::io_stream_callback_evt_t::EN_FN_DISCONNECTED] = disconnected_callback_test_fn;
+  svr.evt.callbacks[atbus::channel::io_stream_callback_event_t::EN_FN_RECEIVED] = recv_size_err_callback_check_fn;
+  cli.evt.callbacks[atbus::channel::io_stream_callback_event_t::EN_FN_RECEIVED] = recv_size_err_callback_check_fn;
+  svr.evt.callbacks[atbus::channel::io_stream_callback_event_t::EN_FN_DISCONNECTED] = disconnected_callback_test_fn;
+  svr.evt.callbacks[atbus::channel::io_stream_callback_event_t::EN_FN_DISCONNECTED] = disconnected_callback_test_fn;
 
   int check_flag = g_check_flag = 0;
 
@@ -412,7 +412,7 @@ CASE_TEST(channel, io_stream_tcp_size_extended) {
   check_flag = g_check_flag;
 
   int res = atbus::channel::io_stream_send(cli.conn_pool.begin()->second.get(), get_test_buffer(),
-                                           conf.recv_buffer_limit_size + 1);
+                                           conf.receive_buffer_limit_size + 1);
   CASE_EXPECT_EQ(0, res);
 
   res = atbus::channel::io_stream_send(cli.conn_pool.begin()->second.get(), get_test_buffer(),

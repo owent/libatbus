@@ -93,6 +93,8 @@ struct ATFW_UTIL_SYMBOL_VISIBLE topology_policy_rule {
  * @brief Runtime topology data associated with a peer.
  */
 struct ATFW_UTIL_SYMBOL_VISIBLE topology_data {
+  using ptr_t = atfw::util::memory::strong_rc_ptr<topology_data>;
+
   /** @brief Process id of the peer. */
   int32_t pid;
 
@@ -131,6 +133,7 @@ class topology_peer {
   struct ctor_guard_type {
     bus_id_t bus_id;
   };
+  using downstream_map_t = std::unordered_map<bus_id_t, atfw::util::memory::weak_rc_ptr<topology_peer>>;
 
  public:
   ATBUS_MACRO_API topology_peer(ctor_guard_type &);
@@ -155,13 +158,19 @@ class topology_peer {
   ATBUS_MACRO_API bool contains_downstream(bus_id_t downstream_bus_id) const noexcept;
 
  private:
+  ATBUS_MACRO_API void set_proactively_added(bool v) noexcept;
+
+  ATBUS_MACRO_API bool get_proactively_added() const noexcept;
+
   ATBUS_MACRO_API void update_upstream(topology_peer::ptr_t upstream) noexcept;
 
-  ATBUS_MACRO_API void update_data(topology_data &&data) noexcept;
+  ATBUS_MACRO_API void update_data(topology_data::ptr_t data) noexcept;
 
   ATBUS_MACRO_API void add_downstream(topology_peer::ptr_t downstream);
 
   ATBUS_MACRO_API void remove_downstream(bus_id_t downstream_bus_id, const topology_peer *check = nullptr) noexcept;
+
+  ATBUS_MACRO_API const downstream_map_t &get_all_downstream() const noexcept;
 
  private:
   friend class topology_registry;
@@ -169,10 +178,11 @@ class topology_peer {
 
   bus_id_t bus_id_;
   ptr_t upstream_;
+  bool proactively_added_;
 
-  mutable std::unordered_map<bus_id_t, atfw::util::memory::weak_rc_ptr<topology_peer>> downstream_;
+  mutable downstream_map_t downstream_;
 
-  topology_data data_;
+  topology_data::ptr_t data_;
 };
 
 /**
@@ -216,7 +226,7 @@ class topology_registry {
    *
    * @return true on success, false on failure (e.g. invalid target_bus_id or there will be a circle).
    */
-  ATBUS_MACRO_API bool update_peer(bus_id_t target_bus_id, bus_id_t upstream_bus_id, topology_data &&data);
+  ATBUS_MACRO_API bool update_peer(bus_id_t target_bus_id, bus_id_t upstream_bus_id, topology_data::ptr_t data);
 
   /**
    * @brief Get the topology relation between two peers.

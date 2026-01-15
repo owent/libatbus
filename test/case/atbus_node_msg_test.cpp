@@ -336,9 +336,9 @@ CASE_TEST(atbus_node_msg, custom_cmd) {
                         8000, 0) {}
 
     int count = recv_msg_history.count;
-    node2->set_on_custom_cmd_handle(node_msg_test_recv_msg_test_custom_cmd_fn);
-    node1->set_on_custom_rsp_handle(node_msg_test_recv_msg_test_custom_rsp_fn);
-    CASE_EXPECT_TRUE(!!node1->get_on_custom_rsp_handle());
+    node2->set_on_custom_command_request_handle(node_msg_test_recv_msg_test_custom_cmd_fn);
+    node1->set_on_custom_command_response_handle(node_msg_test_recv_msg_test_custom_rsp_fn);
+    CASE_EXPECT_TRUE(!!node1->get_on_custom_command_response_handle());
 
     char test_str[] = "hello world!";
     std::string send_data = test_str;
@@ -357,8 +357,8 @@ CASE_TEST(atbus_node_msg, custom_cmd) {
     recv_msg_history.expect_cmd_req_from = node1->get_id();
     recv_msg_history.expect_cmd_rsp_from = node2->get_id();
     recv_msg_history.data.clear();
-    CASE_EXPECT_EQ(0,
-                   node1->send_custom_cmd(node2->get_id(), custom_data, custom_len, 3, &recv_msg_history.last_cmd_seq));
+    CASE_EXPECT_EQ(
+        0, node1->send_custom_command(node2->get_id(), custom_data, custom_len, 3, &recv_msg_history.last_cmd_seq));
 
     UNITTEST_WAIT_UNTIL(conf.ev_loop, count + 1 < recv_msg_history.count, 3000, 0) {}
 
@@ -402,8 +402,8 @@ CASE_TEST(atbus_node_msg, custom_cmd_by_temp_node) {
     UNITTEST_WAIT_UNTIL(conf.ev_loop, node2->is_endpoint_available(node1->get_id()), 8000, 0) {}
 
     int count = recv_msg_history.count;
-    node1->set_on_custom_cmd_handle(node_msg_test_recv_msg_test_custom_cmd_fn);
-    node2->set_on_custom_rsp_handle(node_msg_test_recv_msg_test_custom_rsp_fn);
+    node1->set_on_custom_command_request_handle(node_msg_test_recv_msg_test_custom_cmd_fn);
+    node2->set_on_custom_command_response_handle(node_msg_test_recv_msg_test_custom_rsp_fn);
 
     char test_str[] = "hello world!";
     std::string send_data = test_str;
@@ -422,8 +422,8 @@ CASE_TEST(atbus_node_msg, custom_cmd_by_temp_node) {
     recv_msg_history.expect_cmd_req_from = node2->get_id();
     recv_msg_history.expect_cmd_rsp_from = node1->get_id();
     recv_msg_history.data.clear();
-    CASE_EXPECT_EQ(0,
-                   node2->send_custom_cmd(node1->get_id(), custom_data, custom_len, 3, &recv_msg_history.last_cmd_seq));
+    CASE_EXPECT_EQ(
+        0, node2->send_custom_command(node1->get_id(), custom_data, custom_len, 3, &recv_msg_history.last_cmd_seq));
 
     UNITTEST_WAIT_UNTIL(conf.ev_loop, count + 1 < recv_msg_history.count, 3000, 0) {}
 
@@ -451,7 +451,7 @@ CASE_TEST(atbus_node_msg, send_cmd_to_self) {
     atbus::node::ptr_t node1 = atbus::node::create();
     setup_atbus_node_logger(*node1);
 
-    CASE_EXPECT_EQ(EN_ATBUS_ERR_NOT_INITED, node1->send_custom_cmd(node1->get_id(), cmds_in, cmds_len, 3));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_NOT_INITED, node1->send_custom_command(node1->get_id(), cmds_in, cmds_len, 3));
 
     node1->init(0x12345678, &conf);
 
@@ -464,15 +464,15 @@ CASE_TEST(atbus_node_msg, send_cmd_to_self) {
     node1->proc(proc_tm, 0);
 
     int count = recv_msg_history.count;
-    node1->set_on_custom_cmd_handle(node_msg_test_recv_msg_test_custom_cmd_fn);
-    node1->set_on_custom_rsp_handle(node_msg_test_recv_msg_test_custom_rsp_fn);
-    CASE_EXPECT_TRUE(!!node1->get_on_custom_cmd_handle());
+    node1->set_on_custom_command_request_handle(node_msg_test_recv_msg_test_custom_cmd_fn);
+    node1->set_on_custom_command_response_handle(node_msg_test_recv_msg_test_custom_rsp_fn);
+    CASE_EXPECT_TRUE(!!node1->get_on_custom_command_request_handle());
 
     recv_msg_history.last_cmd_seq = 0;
     recv_msg_history.expect_cmd_req_from = node1->get_id();
     recv_msg_history.expect_cmd_rsp_from = node1->get_id();
     recv_msg_history.data.clear();
-    node1->send_custom_cmd(node1->get_id(), cmds_in, cmds_len, 3, &recv_msg_history.last_cmd_seq);
+    node1->send_custom_command(node1->get_id(), cmds_in, cmds_len, 3, &recv_msg_history.last_cmd_seq);
 
     CASE_EXPECT_EQ(count + 2, recv_msg_history.count);
     CASE_EXPECT_EQ(cmds_len[0] + cmds_len[1] + cmds_len[2] + 3, recv_msg_history.data.size());
@@ -517,7 +517,7 @@ CASE_TEST(atbus_node_msg, reset_and_send) {
     send_data.assign("self\0hello world!\n", sizeof("self\0hello world!\n") - 1);
 
     int count = recv_msg_history.count;
-    node1->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
+    node1->set_on_forward_request_handle(node_msg_test_recv_msg_test_record_fn);
     uint64_t data_seq = 0;
     node1->send_data(node1->get_id(), 0, send_data.data(), send_data.size(), &data_seq);
 
@@ -593,7 +593,7 @@ CASE_TEST(atbus_node_msg, send_loopback_error) {
       atbus::endpoint *target = nullptr;
       atbus::connection *target_conn = nullptr;
       CASE_EXPECT_EQ(
-          0, node1->get_remote_channel(node2->get_id(), &atbus::endpoint::get_data_connection, &target, &target_conn));
+          0, node1->get_peer_channel(node2->get_id(), &atbus::endpoint::get_data_connection, &target, &target_conn));
       CASE_EXPECT_NE(nullptr, target);
       CASE_EXPECT_NE(nullptr, target_conn);
       if (nullptr == target_conn) {
@@ -661,7 +661,7 @@ static int node_msg_test_recv_and_send_msg_fn(const atbus::node &n, const atbus:
   sended_data += sended_data;
 
   atbus::node *np = const_cast<atbus::node *>(&n);
-  np->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
+  np->set_on_forward_request_handle(node_msg_test_recv_msg_test_record_fn);
   np->set_on_forward_response_handle(node_msg_test_recv_and_send_msg_on_forward_response_fn);
 
   np->send_data(n.get_id(), 0, sended_data.c_str(), sended_data.size(), true);
@@ -696,7 +696,7 @@ CASE_TEST(atbus_node_msg, send_msg_to_self_and_need_rsp) {
     send_data.assign("self\0hello world!\n", sizeof("self\0hello world!\n") - 1);
 
     int count = recv_msg_history.count;
-    node1->set_on_recv_handle(node_msg_test_recv_and_send_msg_fn);
+    node1->set_on_forward_request_handle(node_msg_test_recv_and_send_msg_fn);
     node1->send_data(node1->get_id(), 0, send_data.data(), send_data.size());
 
     CASE_EXPECT_EQ(count + 3, recv_msg_history.count);
@@ -752,8 +752,8 @@ CASE_TEST(atbus_node_msg, parent_and_child) {
     node_parent->proc(proc_t, 0);
     node_child->proc(proc_t, 0);
 
-    node_child->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
-    node_parent->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
+    node_child->set_on_forward_request_handle(node_msg_test_recv_msg_test_record_fn);
+    node_parent->set_on_forward_request_handle(node_msg_test_recv_msg_test_record_fn);
 
     int count = recv_msg_history.count;
 
@@ -846,8 +846,8 @@ CASE_TEST(atbus_node_msg, transfer_and_connect) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_child_2->start());
 
     time_t proc_t = time(nullptr) + 1;
-    node_child_1->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
-    node_child_2->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
+    node_child_1->set_on_forward_request_handle(node_msg_test_recv_msg_test_record_fn);
+    node_child_2->set_on_forward_request_handle(node_msg_test_recv_msg_test_record_fn);
 
     // wait for register finished
     UNITTEST_WAIT_UNTIL(conf.ev_loop,
@@ -929,8 +929,8 @@ CASE_TEST(atbus_node_msg, transfer_only) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_child_2->start());
 
     time_t proc_t = time(nullptr) + 1;
-    node_child_1->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
-    node_child_2->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
+    node_child_1->set_on_forward_request_handle(node_msg_test_recv_msg_test_record_fn);
+    node_child_2->set_on_forward_request_handle(node_msg_test_recv_msg_test_record_fn);
     node_parent_1->connect("ipv4://127.0.0.1:16388");
 
     // wait for register finished
@@ -1039,7 +1039,7 @@ CASE_TEST(atbus_node_msg, transfer_failed) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_child_1->start());
 
     time_t proc_t = time(nullptr) + 1;
-    node_child_1->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
+    node_child_1->set_on_forward_request_handle(node_msg_test_recv_msg_test_record_fn);
     node_child_1->set_on_forward_response_handle(node_msg_test_send_data_forward_response_fn);
     CASE_EXPECT_TRUE(!!node_child_1->get_on_forward_response_handle());
 
@@ -1115,7 +1115,7 @@ CASE_TEST(atbus_node_msg, transfer_failed_cross_parents) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_child_1->start());
 
     time_t proc_t = time(nullptr) + 1;
-    node_child_1->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
+    node_child_1->set_on_forward_request_handle(node_msg_test_recv_msg_test_record_fn);
     node_child_1->set_on_forward_response_handle(node_msg_test_send_data_forward_response_fn);
     node_child_1->set_on_remove_endpoint_handle(node_msg_test_remove_endpoint_fn);
 
@@ -1304,8 +1304,8 @@ static bool test_encrypted_message_between_nodes(atbus::node::ptr_t &node1, atbu
   recv_msg_history.data.clear();
   recv_msg_history.count = 0;
 
-  node1->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
-  node2->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
+  node1->set_on_forward_request_handle(node_msg_test_recv_msg_test_record_fn);
+  node2->set_on_forward_request_handle(node_msg_test_recv_msg_test_record_fn);
 
   int initial_count = recv_msg_history.count;
   int send_result = node1->send_data(node2->get_id(), 0, test_message.data(), test_message.size());
@@ -1708,8 +1708,8 @@ CASE_TEST(atbus_node_msg, crypto_config_multiple_algorithms) {
 
     recv_msg_history.data.clear();
     recv_msg_history.count = 0;
-    node1->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
-    node2->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
+    node1->set_on_forward_request_handle(node_msg_test_recv_msg_test_record_fn);
+    node2->set_on_forward_request_handle(node_msg_test_recv_msg_test_record_fn);
 
     int initial_count = recv_msg_history.count;
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS,
@@ -1792,8 +1792,8 @@ CASE_TEST(atbus_node_msg, crypto_config_parent_child) {
       ++proc_t;
     }
 
-    node_child->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
-    node_parent->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
+    node_child->set_on_forward_request_handle(node_msg_test_recv_msg_test_record_fn);
+    node_parent->set_on_forward_request_handle(node_msg_test_recv_msg_test_record_fn);
 
     // Parent to child
     {
@@ -1874,8 +1874,8 @@ CASE_TEST(atbus_node_msg, crypto_config_disabled) {
 
     recv_msg_history.data.clear();
     recv_msg_history.count = 0;
-    node1->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
-    node2->set_on_recv_handle(node_msg_test_recv_msg_test_record_fn);
+    node1->set_on_forward_request_handle(node_msg_test_recv_msg_test_record_fn);
+    node2->set_on_forward_request_handle(node_msg_test_recv_msg_test_record_fn);
 
     int initial_count = recv_msg_history.count;
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS,

@@ -19,7 +19,7 @@ struct topology_test_handles {
     peer.update_upstream(upstream);
   }
 
-  static void update_data(atbus::topology_peer &peer, atbus::topology_data &&data) noexcept {
+  static void update_data(atbus::topology_peer &peer, atbus::topology_data::ptr_t data) noexcept {
     peer.update_data(std::move(data));
   }
 };
@@ -49,11 +49,11 @@ CASE_TEST(atbus_topology, topology_peer_basic) {
   CASE_EXPECT_FALSE(peer1->contains_downstream(0x22345678));
   CASE_EXPECT_FALSE(peer2->contains_downstream(0x12345678));
 
-  atbus::topology_data data;
-  data.pid = 1234;
-  data.hostname = "test_host";
-  data.labels["key1"] = "value1";
-  data.labels["key2"] = "value2";
+  atbus::topology_data::ptr_t data = ::atfw::util::memory::make_strong_rc<atbus::topology_data>();
+  data->pid = 1234;
+  data->hostname = "test_host";
+  data->labels["key1"] = "value1";
+  data->labels["key2"] = "value2";
 
   atbus::topology_test_handles::update_data(*peer1, std::move(data));
   const atbus::topology_data &ret_data = peer1->get_topology_data();
@@ -64,10 +64,10 @@ CASE_TEST(atbus_topology, topology_peer_basic) {
   CASE_EXPECT_EQ(std::string("value2"), ret_data.labels.at("key2"));
 }
 
-static atbus::topology_data make_topology_data(int32_t pid, const char *hostname) {
-  atbus::topology_data data;
-  data.pid = pid;
-  data.hostname = hostname;
+static atbus::topology_data::ptr_t make_topology_data(int32_t pid, const char *hostname) {
+  atbus::topology_data::ptr_t data = ::atfw::util::memory::make_strong_rc<atbus::topology_data>();
+  data->pid = pid;
+  data->hostname = hostname;
   return data;
 }
 
@@ -184,8 +184,9 @@ CASE_TEST(atbus_topology, topology_registry_update_and_remove) {
   // Removing peer2 should:
   // - remove it from upstream's downstream list
   // - clear upstream for peer3
+  // - NOT erase peer2 from registry because it still has downstream (peer3)
   registry->remove_peer(2);
-  CASE_EXPECT_FALSE(registry->get_peer(2));
+  CASE_EXPECT_TRUE(registry->get_peer(2));
 
   peer10 = registry->get_peer(10);
   peer3 = registry->get_peer(3);
@@ -197,6 +198,71 @@ CASE_TEST(atbus_topology, topology_registry_update_and_remove) {
   // Removing peer10 should clear upstream of peers that were attached to it (none now).
   registry->remove_peer(10);
   CASE_EXPECT_FALSE(registry->get_peer(10));
+}
+
+CASE_TEST(atbus_topology, topology_registry_proactive_peer_not_auto_removed_when_orphaned) {
+  atbus::topology_registry::ptr_t registry = atbus::topology_registry::create();
+  CASE_EXPECT_TRUE(registry);
+
+  // Peer 1 is created as target_bus_id -> proactively added.
+  registry->update_peer(1, 0, make_topology_data(1, "h1"));
+  // Peer 2 is created as target_bus_id and attached under 1.
+  registry->update_peer(2, 1, make_topology_data(2, "h1"));
+
+  atbus::topology_peer::ptr_t peer1 = registry->get_peer(1);
+  atbus::topology_peer::ptr_t peer2 = registry->get_peer(2);
+  CASE_EXPECT_TRUE(peer1);
+  CASE_EXPECT_TRUE(peer2);
+  CASE_EXPECT_TRUE(peer1->contains_downstream(2));
+  CASE_EXPECT_TRUE(peer2->get_upstream());
+  CASE_EXPECT_EQ(1, peer2->get_upstream()->get_bus_id());
+
+  // Removing peer 2 should NOT auto-remove peer 1, even if peer 1 becomes orphaned,
+  // because peer 1 was proactively added via update_peer(target_bus_id).
+  registry->remove_peer(2);
+  CASE_EXPECT_FALSE(registry->get_peer(2));
+  peer1 = registry->get_peer(1);
+  CASE_EXPECT_TRUE(peer1);
+  CASE_EXPECT_FALSE(peer1->contains_downstream(2));
+}
+
+CASE_TEST(atbus_topology, topology_registry_passive_upstream_auto_removed_when_orphaned) {
+  atbus::topology_registry::ptr_t registry = atbus::topology_registry::create();
+  CASE_EXPECT_TRUE(registry);
+
+  // Peer 1 is created passively as upstream_bus_id (not proactively added).
+  registry->update_peer(2, 1, make_topology_data(2, "h1"));
+
+  atbus::topology_peer::ptr_t peer1 = registry->get_peer(1);
+  atbus::topology_peer::ptr_t peer2 = registry->get_peer(2);
+  CASE_EXPECT_TRUE(peer1);
+  CASE_EXPECT_TRUE(peer2);
+  CASE_EXPECT_TRUE(peer1->contains_downstream(2));
+
+  // Removing peer 2 should make peer 1 orphaned, and since peer 1 was passively created,
+  // it should be auto-removed recursively.
+  registry->remove_peer(2);
+  CASE_EXPECT_FALSE(registry->get_peer(2));
+  CASE_EXPECT_FALSE(registry->get_peer(1));
+}
+
+CASE_TEST(atbus_topology, topology_registry_passive_to_proactive_prevents_auto_remove) {
+  atbus::topology_registry::ptr_t registry = atbus::topology_registry::create();
+  CASE_EXPECT_TRUE(registry);
+
+  // First, create peer 1 passively as upstream of peer 2.
+  registry->update_peer(2, 1, make_topology_data(2, "h1"));
+  CASE_EXPECT_TRUE(registry->get_peer(1));
+  CASE_EXPECT_TRUE(registry->get_peer(2));
+
+  // Then, explicitly update peer 1 as target_bus_id to make it proactively added.
+  registry->update_peer(1, 0, make_topology_data(1, "h1"));
+  CASE_EXPECT_TRUE(registry->get_peer(1));
+
+  // Now removing peer 2 should NOT auto-remove peer 1.
+  registry->remove_peer(2);
+  CASE_EXPECT_FALSE(registry->get_peer(2));
+  CASE_EXPECT_TRUE(registry->get_peer(1));
 }
 
 CASE_TEST(atbus_topology, topology_registry_foreach_and_policy) {
@@ -223,32 +289,30 @@ CASE_TEST(atbus_topology, topology_registry_foreach_and_policy) {
 
   // check_policy
   atbus::topology_policy_rule policy;
-  atbus::topology_data from_data = make_topology_data(1234, "host_a");
-  atbus::topology_data to_data_ok = make_topology_data(1234, "host_a");
-  to_data_ok.labels["zone"] = "1";
+  atbus::topology_data::ptr_t from_data = make_topology_data(1234, "host_a");
+  atbus::topology_data::ptr_t to_data_ok = make_topology_data(1234, "host_a");
+  to_data_ok->labels["zone"] = "1";
 
   policy.require_same_hostname = true;
   policy.require_same_process = true;
   policy.require_label_values["zone"].insert("1");
   policy.require_label_values["zone"].insert("2");
 
-  CASE_EXPECT_TRUE(atbus::topology_registry::check_policy(policy, from_data, to_data_ok));
+  CASE_EXPECT_TRUE(atbus::topology_registry::check_policy(policy, *from_data, *to_data_ok));
 
-  atbus::topology_data to_data_bad_host = to_data_ok;
-  to_data_bad_host.hostname = "host_b";
-  CASE_EXPECT_FALSE(atbus::topology_registry::check_policy(policy, from_data, to_data_bad_host));
+  atbus::topology_data::ptr_t to_data_bad_host = to_data_ok;
+  to_data_bad_host->hostname = "host_b";
+  CASE_EXPECT_FALSE(atbus::topology_registry::check_policy(policy, *from_data, *to_data_bad_host));
+  atbus::topology_data::ptr_t to_data_bad_pid = to_data_ok;
+  to_data_bad_pid->pid = 5678;
+  CASE_EXPECT_FALSE(atbus::topology_registry::check_policy(policy, *from_data, *to_data_bad_pid));
 
-  atbus::topology_data to_data_bad_pid = to_data_ok;
-  to_data_bad_pid.pid = 5678;
-  CASE_EXPECT_FALSE(atbus::topology_registry::check_policy(policy, from_data, to_data_bad_pid));
-
-  atbus::topology_data to_data_bad_label = to_data_ok;
-  to_data_bad_label.labels["zone"] = "3";
-  CASE_EXPECT_FALSE(atbus::topology_registry::check_policy(policy, from_data, to_data_bad_label));
-
-  atbus::topology_data to_data_missing_label = to_data_ok;
-  to_data_missing_label.labels.clear();
-  CASE_EXPECT_FALSE(atbus::topology_registry::check_policy(policy, from_data, to_data_missing_label));
+  atbus::topology_data::ptr_t to_data_bad_label = to_data_ok;
+  to_data_bad_label->labels["zone"] = "3";
+  CASE_EXPECT_FALSE(atbus::topology_registry::check_policy(policy, *from_data, *to_data_bad_label));
+  atbus::topology_data::ptr_t to_data_missing_label = to_data_ok;
+  to_data_missing_label->labels.clear();
+  CASE_EXPECT_FALSE(atbus::topology_registry::check_policy(policy, *from_data, *to_data_missing_label));
 
   {
     // require_same_hostname=true, require_same_process=false
@@ -257,19 +321,20 @@ CASE_TEST(atbus_topology, topology_registry_foreach_and_policy) {
     policy_hostname_only.require_same_process = false;
     policy_hostname_only.require_label_values["zone"].insert("1");
 
-    atbus::topology_data to_data_hostname_only_ok = make_topology_data(5678, "host_a");
-    to_data_hostname_only_ok.labels["zone"] = "1";
-    CASE_EXPECT_TRUE(atbus::topology_registry::check_policy(policy_hostname_only, from_data, to_data_hostname_only_ok));
+    atbus::topology_data::ptr_t to_data_hostname_only_ok = make_topology_data(5678, "host_a");
+    to_data_hostname_only_ok->labels["zone"] = "1";
+    CASE_EXPECT_TRUE(
+        atbus::topology_registry::check_policy(policy_hostname_only, *from_data, *to_data_hostname_only_ok));
 
-    atbus::topology_data to_data_hostname_only_bad_host = to_data_hostname_only_ok;
-    to_data_hostname_only_bad_host.hostname = "host_b";
+    atbus::topology_data::ptr_t to_data_hostname_only_bad_host = to_data_hostname_only_ok;
+    to_data_hostname_only_bad_host->hostname = "host_b";
     CASE_EXPECT_FALSE(
-        atbus::topology_registry::check_policy(policy_hostname_only, from_data, to_data_hostname_only_bad_host));
+        atbus::topology_registry::check_policy(policy_hostname_only, *from_data, *to_data_hostname_only_bad_host));
 
-    atbus::topology_data to_data_hostname_only_bad_label = to_data_hostname_only_ok;
-    to_data_hostname_only_bad_label.labels["zone"] = "2";
+    atbus::topology_data::ptr_t to_data_hostname_only_bad_label = to_data_hostname_only_ok;
+    to_data_hostname_only_bad_label->labels["zone"] = "2";
     CASE_EXPECT_FALSE(
-        atbus::topology_registry::check_policy(policy_hostname_only, from_data, to_data_hostname_only_bad_label));
+        atbus::topology_registry::check_policy(policy_hostname_only, *from_data, *to_data_hostname_only_bad_label));
   }
 
   {
@@ -280,19 +345,19 @@ CASE_TEST(atbus_topology, topology_registry_foreach_and_policy) {
     policy_process_only.require_same_process = true;
     policy_process_only.require_label_values["zone"].insert("1");
 
-    atbus::topology_data to_data_process_only_ok = make_topology_data(1234, "host_a");
-    to_data_process_only_ok.labels["zone"] = "1";
-    CASE_EXPECT_TRUE(atbus::topology_registry::check_policy(policy_process_only, from_data, to_data_process_only_ok));
+    atbus::topology_data::ptr_t to_data_process_only_ok = make_topology_data(1234, "host_a");
+    to_data_process_only_ok->labels["zone"] = "1";
+    CASE_EXPECT_TRUE(atbus::topology_registry::check_policy(policy_process_only, *from_data, *to_data_process_only_ok));
 
-    atbus::topology_data to_data_process_only_bad_pid = to_data_process_only_ok;
-    to_data_process_only_bad_pid.pid = 5678;
+    atbus::topology_data::ptr_t to_data_process_only_bad_pid = to_data_process_only_ok;
+    to_data_process_only_bad_pid->pid = 5678;
     CASE_EXPECT_FALSE(
-        atbus::topology_registry::check_policy(policy_process_only, from_data, to_data_process_only_bad_pid));
+        atbus::topology_registry::check_policy(policy_process_only, *from_data, *to_data_process_only_bad_pid));
 
-    atbus::topology_data to_data_process_only_bad_host = to_data_process_only_ok;
-    to_data_process_only_bad_host.hostname = "host_b";
+    atbus::topology_data::ptr_t to_data_process_only_bad_host = to_data_process_only_ok;
+    to_data_process_only_bad_host->hostname = "host_b";
     CASE_EXPECT_FALSE(
-        atbus::topology_registry::check_policy(policy_process_only, from_data, to_data_process_only_bad_host));
+        atbus::topology_registry::check_policy(policy_process_only, *from_data, *to_data_process_only_bad_host));
   }
 
   {
@@ -302,19 +367,19 @@ CASE_TEST(atbus_topology, topology_registry_foreach_and_policy) {
     policy_labels_only.require_same_process = false;
     policy_labels_only.require_label_values["zone"].insert("1");
 
-    atbus::topology_data to_data_labels_only_ok = make_topology_data(5678, "host_b");
-    to_data_labels_only_ok.labels["zone"] = "1";
-    CASE_EXPECT_TRUE(atbus::topology_registry::check_policy(policy_labels_only, from_data, to_data_labels_only_ok));
+    atbus::topology_data::ptr_t to_data_labels_only_ok = make_topology_data(5678, "host_b");
+    to_data_labels_only_ok->labels["zone"] = "1";
+    CASE_EXPECT_TRUE(atbus::topology_registry::check_policy(policy_labels_only, *from_data, *to_data_labels_only_ok));
 
-    atbus::topology_data to_data_labels_only_bad_label = to_data_labels_only_ok;
-    to_data_labels_only_bad_label.labels["zone"] = "2";
+    atbus::topology_data::ptr_t to_data_labels_only_bad_label = to_data_labels_only_ok;
+    to_data_labels_only_bad_label->labels["zone"] = "2";
     CASE_EXPECT_FALSE(
-        atbus::topology_registry::check_policy(policy_labels_only, from_data, to_data_labels_only_bad_label));
+        atbus::topology_registry::check_policy(policy_labels_only, *from_data, *to_data_labels_only_bad_label));
 
-    atbus::topology_data to_data_labels_only_missing_label = to_data_labels_only_ok;
-    to_data_labels_only_missing_label.labels.clear();
+    atbus::topology_data::ptr_t to_data_labels_only_missing_label = to_data_labels_only_ok;
+    to_data_labels_only_missing_label->labels.clear();
     CASE_EXPECT_FALSE(
-        atbus::topology_registry::check_policy(policy_labels_only, from_data, to_data_labels_only_missing_label));
+        atbus::topology_registry::check_policy(policy_labels_only, *from_data, *to_data_labels_only_missing_label));
   }
 }
 

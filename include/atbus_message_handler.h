@@ -26,17 +26,19 @@ class endpoint;
 class connection;
 
 struct message_handler {
-  using handler_fn_t = int (*)(node &n, connection *conn, message &&, int status, int errcode);
+  using handler_fn_t = ATBUS_ERROR_TYPE (*)(node &n, connection *conn, message &&, int status,
+                                            ATBUS_ERROR_TYPE errcode);
   using buffer_result_t = ::atfw::util::design_pattern::result_type<static_buffer_block, ATBUS_ERROR_TYPE>;
 
-  static ATBUS_MACRO_API int unpack_message(connection_context &conn_ctx, message &target,
-                                            gsl::span<const unsigned char> data, size_t max_body_size);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE unpack_message(connection_context &conn_ctx, message &target,
+                                                         gsl::span<const unsigned char> data, size_t max_body_size);
 
   static ATBUS_MACRO_API buffer_result_t pack_message(connection_context &conn_ctx, message &m,
                                                       int32_t protocol_version, random_engine_t &random_engine,
                                                       size_t max_body_size);
 
-  static ATBUS_MACRO_API int dispatch_message(node &n, connection *conn, message &&, int status, int errcode);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE dispatch_message(node &n, connection *conn, message &&, int status,
+                                                           ATBUS_ERROR_TYPE errcode);
 
   static ATBUS_MACRO_API const char *get_body_name(int body_case);
 
@@ -64,28 +66,34 @@ struct message_handler {
 
   static ATBUS_MACRO_API int send_ping(node &n, connection &conn, uint64_t seq);
 
-  static ATBUS_MACRO_API int send_reg(int32_t msg_id, node &n, connection &conn, int32_t ret_code, uint64_t seq);
+  static ATBUS_MACRO_API int send_register(int32_t msg_id, node &n, connection &conn, int32_t ret_code, uint64_t seq);
 
-  static ATBUS_MACRO_API int send_transfer_rsp(node &n, message &&, int32_t ret_code);
+  static ATBUS_MACRO_API int send_transfer_response(node &n, message &&, int32_t ret_code);
 
-  static ATBUS_MACRO_API int send_custom_cmd_rsp(node &n, connection *conn, const std::list<std::string> &rsp_data,
-                                                 int32_t type, int32_t ret_code, uint64_t sequence,
-                                                 uint64_t from_bus_id);
+  static ATBUS_MACRO_API int send_custom_command_response(node &n, connection *conn,
+                                                          const std::list<std::string> &rsp_data, int32_t type,
+                                                          int32_t ret_code, uint64_t sequence, uint64_t from_bus_id);
 
   static ATBUS_MACRO_API int send_message(node &n, connection &conn, message &msg);
 
   // ========================= 接收handle =========================
-  static ATBUS_MACRO_API int on_recv_data_transfer_req(node &n, connection *conn, message &&, int status, int errcode);
-  static ATBUS_MACRO_API int on_recv_data_transfer_rsp(node &n, connection *conn, message &&, int status, int errcode);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE on_recv_data_transfer_req(node &n, connection *conn, message &&, int status,
+                                                                    ATBUS_ERROR_TYPE errcode);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE on_recv_data_transfer_rsp(node &n, connection *conn, message &&, int status,
+                                                                    ATBUS_ERROR_TYPE errcode);
 
-  static ATBUS_MACRO_API int on_recv_custom_cmd_req(node &n, connection *conn, message &&, int status, int errcode);
-  static ATBUS_MACRO_API int on_recv_custom_cmd_rsp(node &n, connection *conn, message &&, int status, int errcode);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE on_recv_custom_command_req(node &n, connection *conn, message &&, int status,
+                                                                     ATBUS_ERROR_TYPE errcode);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE on_recv_custom_command_rsp(node &n, connection *conn, message &&, int status,
+                                                                     ATBUS_ERROR_TYPE errcode);
 
-  static ATBUS_MACRO_API int on_recv_node_sync_req(node &n, connection *conn, message &&, int status, int errcode);
-  static ATBUS_MACRO_API int on_recv_node_sync_rsp(node &n, connection *conn, message &&, int status, int errcode);
-  static ATBUS_MACRO_API int on_recv_node_reg_req(node &n, connection *conn, message &&, int status, int errcode);
-  static ATBUS_MACRO_API int on_recv_node_reg_rsp(node &n, connection *conn, message &&, int status, int errcode);
-  static ATBUS_MACRO_API int on_recv_node_ping(node &n, connection *conn, message &&, int status, int errcode);
-  static ATBUS_MACRO_API int on_recv_node_pong(node &n, connection *conn, message &&, int status, int errcode);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE on_recv_node_register_req(node &n, connection *conn, message &&, int status,
+                                                                    ATBUS_ERROR_TYPE errcode);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE on_recv_node_register_rsp(node &n, connection *conn, message &&, int status,
+                                                                    ATBUS_ERROR_TYPE errcode);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE on_recv_node_ping(node &n, connection *conn, message &&, int status,
+                                                            ATBUS_ERROR_TYPE errcode);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE on_recv_node_pong(node &n, connection *conn, message &&, int status,
+                                                            ATBUS_ERROR_TYPE errcode);
 };
 ATBUS_MACRO_NAMESPACE_END

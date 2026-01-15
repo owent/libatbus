@@ -169,13 +169,13 @@ struct io_stream_channel {
     int         status;         // 状态
 
     // 数据区域
-    buffer_manager write_buffers;     // 写数据缓冲区(两种Buffer管理方式，一种动态，一种静态)
-    buffer_manager read_buffers;      // 读数据缓冲区(两种Buffer管理方式，一种动态，一种静态)
+    buffer_manager write_buffer_manager;     // 写数据缓冲区(两种Buffer管理方式，一种动态，一种静态)
+    buffer_manager read_buffer_manager;      // 读数据缓冲区(两种Buffer管理方式，一种动态，一种静态)
     
     // 回调函数
     connect_callback_t on_connect;
     disconnect_callback_t on_disconnect;
-    recv_callback_t on_recv;
+    recv_callback_t on_receive_message;
     
     // 统计信息
     size_t block_bad_count; 	// 读取到坏块次数

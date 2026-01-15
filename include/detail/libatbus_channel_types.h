@@ -13,6 +13,7 @@
 #include <memory/rc_ptr.h>
 
 #include <stdint.h>
+#include <chrono>
 #include <cstddef>
 #include <map>
 #include <memory>
@@ -90,12 +91,12 @@ using io_stream_callback_t = void (*)(io_stream_channel *channel,        // 事�
                                       size_t s                           // 额外参数长度
 );
 
-struct ATBUS_MACRO_API_HEAD_ONLY io_stream_callback_evt_t {
-  enum mem_fn_t {
+struct ATBUS_MACRO_API_HEAD_ONLY io_stream_callback_event_t {
+  enum ios_fn_t {
     EN_FN_ACCEPTED = 0,
     EN_FN_CONNECTED,  // 连接或listen成功
     EN_FN_DISCONNECTED,
-    EN_FN_RECVED,
+    EN_FN_RECEIVED,
     EN_FN_WRITEN,
     MAX
   };
@@ -124,8 +125,9 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_connection {
   io_stream_channel *channel;
 
   // 事件响应
-  io_stream_callback_evt_t evt;
-  io_stream_callback_t act_disc_cbk;  // 主动关闭连接的回调（为了减少额外分配而采用的缓存策略）
+  io_stream_callback_event_t evt;
+  // 主动关闭连接的回调（为了减少额外分配而采用的缓存策略）
+  io_stream_callback_t proactively_disconnect_callback;
 
   // 数据区域
   // 读数据缓冲区(两种Buffer管理方式，一种动态，一种静态)
@@ -133,34 +135,35 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_connection {
    * @note 由于大多数数据包都比较小
    *        当数据包比较小时和动态直接放在动态int的数据包一起，这样可以减少内存拷贝次数
    */
-  ::atframework::atbus::detail::buffer_manager read_buffers;
+  ::atframework::atbus::detail::buffer_manager read_buffer_manager;
 
   struct read_head_t {
     char buffer[ATBUS_MACRO_DATA_SMALL_SIZE];  // varint数据暂存区和小数据包存储区
     size_t len;                                // varint数据暂存区和小数据包存储区已使用长度
   };
   read_head_t read_head;
-  ::atframework::atbus::detail::buffer_manager write_buffers;  // 写数据缓冲区(两种Buffer管理方式，一种动态，一种静态)
+  ::atframework::atbus::detail::buffer_manager
+      write_buffer_manager;  // 写数据缓冲区(两种Buffer管理方式，一种动态，一种静态)
 
   // 自定义数据区域
   void *data;
 };
 
 struct ATBUS_MACRO_API_HEAD_ONLY io_stream_conf {
-  time_t keepalive;
+  std::chrono::microseconds keepalive;
 
   bool is_noblock;
   bool is_nodelay;
   size_t send_buffer_static;
-  size_t recv_buffer_static;
+  size_t receive_buffer_static;
   size_t send_buffer_max_size;
   size_t send_buffer_limit_size;
-  size_t recv_buffer_max_size;
-  size_t recv_buffer_limit_size;
+  size_t receive_buffer_max_size;
+  size_t receive_buffer_limit_size;
 
   int backlog;  // backlog indicates the number of connections the kernel might queue
 
-  time_t confirm_timeout;
+  std::chrono::microseconds confirm_timeout;
   size_t max_read_net_eagain_count;
   size_t max_read_check_block_size_failed_count;
   size_t max_read_check_hash_failed_count;
@@ -185,11 +188,11 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_channel {
   conn_gc_pool_t conn_gc_pool;
 
   // 事件响应
-  io_stream_callback_evt_t evt;
+  io_stream_callback_event_t evt;
 
   int error_code;  // 记录外部的错误码
   // 统计信息
-  atfw::util::lock::seq_alloc_u32 active_reqs;  // 正在进行的req数量
+  atfw::util::lock::seq_alloc_u64 active_reqs;  // 正在进行的req数量
   size_t read_net_eagain_count;                 // 读到的网络重试错误数量
   size_t read_check_block_size_failed_count;    // 读到的数据块长度检查错误数量
   size_t read_check_hash_failed_count;          // 读到的数据hash检查错误数量
