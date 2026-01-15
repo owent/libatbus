@@ -5,9 +5,6 @@
  *      Author: owent
  */
 
-#ifndef LIBATBUS_NODE_H
-#define LIBATBUS_NODE_H
-
 #pragma once
 
 #include <design_pattern/nomovable.h>
@@ -95,8 +92,14 @@ class node final : public atfw::util::design_pattern::noncopyable {
     };
 
     int32_t flags;  // @see flag_type upper
+    uint64_t sequence;
 
     ATBUS_MACRO_API send_data_options_t();
+
+    ATBUS_MACRO_API send_data_options_t(std::initializer_list<flag_type> flag_list) noexcept;
+
+    ATBUS_MACRO_API send_data_options_t(gsl::span<flag_type> flag_list) noexcept;
+
     ATBUS_MACRO_API ~send_data_options_t();
     ATBUS_MACRO_API send_data_options_t(const send_data_options_t &other);
     ATBUS_MACRO_API send_data_options_t &operator=(const send_data_options_t &other);
@@ -133,10 +136,10 @@ class node final : public atfw::util::design_pattern::noncopyable {
     std::vector<protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> compression_allow_algorithms;
 
     // ===== 缓冲区配置 =====
-    size_t message_size;       /** max message size **/
-    size_t recv_buffer_size;   /** 接收缓冲区，和数据包大小有关 **/
-    size_t send_buffer_size;   /** 发送缓冲区限制 **/
-    size_t send_buffer_number; /** 发送缓冲区静态Buffer数量限制，0则为动态缓冲区 **/
+    size_t message_size;        /** max message size **/
+    size_t receive_buffer_size; /** 接收缓冲区，和数据包大小有关 **/
+    size_t send_buffer_size;    /** 发送缓冲区限制 **/
+    size_t send_buffer_number;  /** 发送缓冲区静态Buffer数量限制，0则为动态缓冲区 **/
 
     ATBUS_MACRO_API conf_t();
     ATBUS_MACRO_API conf_t(const conf_t &other);
@@ -150,54 +153,59 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   using endpoint_collection_t = std::unordered_map<bus_id_t, endpoint::ptr_t>;
 
-  struct evt_msg_t {
+  struct event_handle_set_t {
     // 接收消息事件回调 => 参数列表: 发起节点，来源对端，来源连接，消息体，数据地址，数据长度
-    using on_recv_msg_fn_t =
-        std::function<int(const node &, const endpoint *, const connection *, const message &, const void *, size_t)>;
+    using on_forward_request_fn_t = std::function<int(const node &, const endpoint *, const connection *,
+                                                      const message &, gsl::span<const unsigned char>)>;
     // 发送消息失败事件或成功通知回调 => 参数列表: 发起节点，来源对端，来源连接，消息体
     // @note
     // 除非发送时标记atbus::protocol::FORWARD_DATA_FLAG_REQUIRE_RSP为true(即需要通知)，否则成功发送消息默认不回发通知
     using on_forward_response_fn_t =
         std::function<int(const node &, const endpoint *, const connection *, const message *m)>;
-    // 新对端注册事件回调 => 参数列表: 发起节点，来源对端，来源连接，返回码（通常来自libuv）
-    using on_reg_fn_t = std::function<int(const node &, const endpoint *, const connection *, int)>;
+    // 新对端注册事件回调 => 参数列表: 发起节点，来源对端，来源连接，返回码
+    using on_register_fn_t = std::function<int(const node &, const endpoint *, const connection *, ATBUS_ERROR_TYPE)>;
     // 节点关闭事件回调 => 参数列表: 发起节点，下线原因
-    using on_node_down_fn_t = std::function<int(const node &, int)>;
+    using on_node_down_fn_t = std::function<int(const node &, ATBUS_ERROR_TYPE)>;
     // 节点开始服务事件回调 => 参数列表: 发起节点，错误码，通常是 EN_ATBUS_ERR_SUCCESS
-    using on_node_up_fn_t = std::function<int(const node &, int)>;
+    using on_node_up_fn_t = std::function<int(const node &, ATBUS_ERROR_TYPE)>;
     // 失效连接事件回调 => 参数列表: 发起节点，来源连接，错误码，通常是 EN_ATBUS_ERR_NODE_TIMEOUT
-    using on_invalid_connection_fn_t = std::function<int(const node &, const connection *, int)>;
+    using on_invalid_connection_fn_t = std::function<int(const node &, const connection *, ATBUS_ERROR_TYPE)>;
     using on_new_connection_fn_t = std::function<int(const node &, const connection *)>;
     // 接收到命令消息事件回调 => 参数列表:
     //      发起节点，来源对端，来源连接，来源节点ID，命令参数列表，返回信息列表（跨节点的共享内存和内存通道的返回消息将被忽略）
-    using on_custom_cmd_fn_t =
+    using on_custom_command_request_fn_t =
         std::function<int(const node &, const endpoint *, const connection *, bus_id_t,
-                          const std::vector<std::pair<const void *, size_t>> &, std::list<std::string> &)>;
+                          gsl::span<gsl::span<const unsigned char>>, std::list<std::string> &)>;
     // 接收到命令回包事件回调 => 参数列表: 发起节点，来源对端，来源连接，来源节点ID，回包数据列表，对应请求包的sequence
-    using on_custom_rsp_fn_t = std::function<int(const node &, const endpoint *, const connection *, bus_id_t,
-                                                 const std::vector<std::pair<const void *, size_t>> &, uint64_t)>;
-
+    using on_custom_command_response_fn_t =
+        std::function<int(const node &, const endpoint *, const connection *, bus_id_t,
+                          gsl::span<gsl::span<const unsigned char>>, uint64_t)>;
     // 对端上线事件回调 => 参数列表: 发起节点，新增的对端，错误码，通常是 EN_ATBUS_ERR_SUCCESS
-    using on_add_endpoint_fn_t = std::function<int(const node &, endpoint *, int)>;
+    using on_add_endpoint_fn_t = std::function<int(const node &, endpoint *, ATBUS_ERROR_TYPE)>;
     // 对端离线事件回调 => 参数列表: 发起节点，新增的对端，错误码，通常是 EN_ATBUS_ERR_SUCCESS
-    using on_remove_endpoint_fn_t = std::function<int(const node &, endpoint *, int)>;
+    using on_remove_endpoint_fn_t = std::function<int(const node &, endpoint *, ATBUS_ERROR_TYPE)>;
     // 对端ping/pong事件回调 => 参数列表: 发起节点，ping/pong的对端，消息体，ping_data
     using on_ping_pong_endpoint_fn_t = std::function<int(const node &, const endpoint *, const message &,
                                                          const ::atframework::atbus::protocol::ping_data &)>;
 
-    on_recv_msg_fn_t on_recv_msg;
+    // 拓扑关系-当前节点的上游拓扑变更回调 => 参数列表: 发起节点，几方拓扑节点，新上游节点，当前节点的拓扑数据
+    using on_topology_update_upstream_fn_t = std::function<void(
+        const node &, const topology_peer::ptr_t &, const topology_peer::ptr_t &, const topology_data::ptr_t &)>;
+
+    on_forward_request_fn_t on_forward_request;
     on_forward_response_fn_t on_forward_response;
-    on_reg_fn_t on_reg;
+    on_register_fn_t on_register;
     on_node_down_fn_t on_node_down;
     on_node_up_fn_t on_node_up;
     on_invalid_connection_fn_t on_invalid_connection;
     on_new_connection_fn_t on_new_connection;
-    on_custom_cmd_fn_t on_custom_cmd;
-    on_custom_rsp_fn_t on_custom_rsp;
+    on_custom_command_request_fn_t on_custom_command_request;
+    on_custom_command_response_fn_t on_custom_command_response;
     on_add_endpoint_fn_t on_endpoint_added;
     on_remove_endpoint_fn_t on_endpoint_removed;
     on_ping_pong_endpoint_fn_t on_endpoint_ping;
     on_ping_pong_endpoint_fn_t on_endpoint_pong;
+    on_topology_update_upstream_fn_t on_topology_update_upstream;
   };
 
   struct flag_guard_t {
@@ -269,7 +277,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   /**
    * @brief 执行一帧
-   * @param now 当前时间-秒
+   * @param now 当前时间
    * @return 本帧处理的消息数
    */
   ATBUS_MACRO_API int proc(std::chrono::system_clock::time_point now);
@@ -327,69 +335,45 @@ class node final : public atfw::util::design_pattern::noncopyable {
   /**
    * @brief 发送数据
    * @param tid 发送目标ID
-   * @param type 自定义类型，将作为msg.head.type字段传递。可用于业务区分服务类型
-   * @param buffer 数据块地址
-   * @param s 数据块长度
-   * @param require_rsp 是否强制需要回包（默认情况下如果发送成功是没有回包通知的）
+   * @param type 自定义类型，将作为message.head.type字段传递。可用于业务区分服务类型
+   * @param data 要发送的数据块
    * @return 0或错误码
    * @note 接收端收到的数据很可能不是地址对齐的，所以这里不建议发送内存数据对象(struct/class)
    *       如果非要发送内存数据的话，接收端一定要memcpy，不能直接类型转换，除非手动设置了地址对齐规则
    */
-  ATBUS_MACRO_API int send_data(bus_id_t tid, int type, const void *buffer, size_t s, bool require_rsp = false);
+  ATBUS_MACRO_API int send_data(bus_id_t tid, int type, gsl::span<const unsigned char> data);
 
   /**
    * @brief 发送数据
    * @param tid 发送目标ID
-   * @param type 自定义类型，将作为msg.head.type字段传递。可用于业务区分服务类型
-   * @param buffer 数据块地址
-   * @param s 数据块长度
-   * @param sequence 返回本次自定义消息的发送序号，可用于通过回包进行错误处理或确认处理
+   * @param type 自定义类型，将作为message.head.type字段传递。可用于业务区分服务类型
+   * @param data 要发送的数据块
+   * @param options 发送选项,如果未设置sequence,会自动分配并传出
    * @return 0或错误码
    * @note 接收端收到的数据很可能不是地址对齐的，所以这里不建议发送内存数据对象(struct/class)
    *       如果非要发送内存数据的话，接收端一定要memcpy，不能直接类型转换，除非手动设置了地址对齐规则
    */
-  ATBUS_MACRO_API int send_data(bus_id_t tid, int type, const void *buffer, size_t s, uint64_t *sequence);
-
-  /**
-   * @brief 发送数据
-   * @param tid 发送目标ID
-   * @param type 自定义类型，将作为msg.head.type字段传递。可用于业务区分服务类型
-   * @param buffer 数据块地址
-   * @param s 数据块长度
-   * @param options 发送选项
-   * @return 0或错误码
-   * @note 接收端收到的数据很可能不是地址对齐的，所以这里不建议发送内存数据对象(struct/class)
-   *       如果非要发送内存数据的话，接收端一定要memcpy，不能直接类型转换，除非手动设置了地址对齐规则
-   */
-  ATBUS_MACRO_API int send_data(bus_id_t tid, int type, const void *buffer, size_t s,
-                                const send_data_options_t &options);
-
-  /**
-   * @brief 发送数据
-   * @param tid 发送目标ID
-   * @param type 自定义类型，将作为msg.head.type字段传递。可用于业务区分服务类型
-   * @param buffer 数据块地址
-   * @param s 数据块长度
-   * @param sequence 返回本次自定义消息的发送序号，可用于通过回包进行错误处理或确认处理
-   * @param options 发送选项
-   * @return 0或错误码
-   * @note 接收端收到的数据很可能不是地址对齐的，所以这里不建议发送内存数据对象(struct/class)
-   *       如果非要发送内存数据的话，接收端一定要memcpy，不能直接类型转换，除非手动设置了地址对齐规则
-   */
-  ATBUS_MACRO_API int send_data(bus_id_t tid, int type, const void *buffer, size_t s, uint64_t *sequence,
-                                const send_data_options_t &options);
+  ATBUS_MACRO_API int send_data(bus_id_t tid, int type, gsl::span<const unsigned char> data,
+                                send_data_options_t &options);
 
   /**
    * @brief 发送自定义命令消息
    * @param tid 发送目标ID
-   * @param arr_buf 自定义消息内容数组
-   * @param arr_size 自定义消息内容长度
-   * @param arr_count 自定义消息数组个数
-   * @param seq 返回本次自定义消息的发送序号，可用于通过回包进行错误处理或确认处理
+   * @param args 自定义消息内容数组
+   * @param options 发送选项,如果未设置sequence,会自动分配并传出
    * @return 0或错误码
    */
-  ATBUS_MACRO_API int send_custom_cmd(bus_id_t tid, const void *arr_buf[], size_t arr_size[], size_t arr_count,
-                                      uint64_t *seq = nullptr);
+  ATBUS_MACRO_API int send_custom_command(bus_id_t tid, gsl::span<gsl::span<const unsigned char>> args);
+
+  /**
+   * @brief 发送自定义命令消息
+   * @param tid 发送目标ID
+   * @param args 自定义消息内容数组
+   * @param options 发送选项,如果未设置sequence,会自动分配并传出
+   * @return 0或错误码
+   */
+  ATBUS_MACRO_API int send_custom_command(bus_id_t tid, gsl::span<gsl::span<const unsigned char>> args,
+                                          send_data_options_t &options);
 
   /**
    * @brief 获取远程发送目标信息
@@ -399,30 +383,42 @@ class node final : public atfw::util::design_pattern::noncopyable {
    * @param conn_out 如果发送成功，导出发送连接，否则导出NULL
    * @return 0或错误码
    */
-  ATBUS_MACRO_API int get_remote_channel(bus_id_t tid, endpoint::get_connection_fn_t fn, endpoint **ep_out,
-                                         connection **conn_out);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE get_peer_channel(bus_id_t tid, endpoint::get_connection_fn_t fn, endpoint **ep_out,
+                                                    connection **conn_out);
+
+  /**
+   * @brief 设置当前节点的上游端点拓扑关系
+   * @param tid 上游端点ID
+   */
+  ATBUS_MACRO_API void set_topology_upstream(bus_id_t tid);
 
   /**
    * @brief 根据对端ID查找直链的端点
    * @param tid 目标端点ID
    * @return 直连的端点，不存在则返回NULL
    */
-  ATBUS_MACRO_API endpoint *get_endpoint(bus_id_t tid);
-  ATBUS_MACRO_API const endpoint *get_endpoint(bus_id_t tid) const;
+  ATBUS_MACRO_API endpoint *get_endpoint(bus_id_t tid) noexcept;
+
+  /**
+   * @brief 根据对端ID查找直链的端点
+   * @param tid 目标端点ID
+   * @return 直连的端点，不存在则返回NULL
+   */
+  ATBUS_MACRO_API const endpoint *get_endpoint(bus_id_t tid) const noexcept;
 
   /**
    * @brief 添加目标端点
    * @param ep 目标端点
    * @return 0或错误码
    */
-  ATBUS_MACRO_API int add_endpoint(endpoint::ptr_t ep);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE add_endpoint(endpoint::ptr_t ep);
 
   /**
    * @brief 移除目标端点
    * @param tid 目标端点ID
    * @return 0或错误码
    */
-  ATBUS_MACRO_API int remove_endpoint(bus_id_t tid);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE remove_endpoint(bus_id_t tid);
 
   /**
    * @brief 是否有到对端的数据通道(可以向对端发送数据)
@@ -442,6 +438,9 @@ class node final : public atfw::util::design_pattern::noncopyable {
   ATBUS_MACRO_API bool check_access_hash(const ::atframework::atbus::protocol::access_data &access_key,
                                          atfw::util::nostd::string_view plaintext, connection *conn) const;
 
+  /**
+   * @brief 获取节点的hash code
+   */
   ATBUS_MACRO_API const std::string &get_hash_code() const;
 
  public:
@@ -449,9 +448,9 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   ATBUS_MACRO_API const endpoint *get_self_endpoint() const;
 
-  ATBUS_MACRO_API const endpoint *get_parent_endpoint() const;
+  ATBUS_MACRO_API const endpoint *get_upstream_endpoint() const;
 
-  ATBUS_MACRO_API const endpoint_collection_t &get_routes() const;
+  ATBUS_MACRO_API const endpoint_collection_t &get_immediate_endpoint_set() const;
 
   /**
    * @brief 获取关联的事件管理器,如果未设置则会初始化为默认时间管理器
@@ -460,55 +459,55 @@ class node final : public atfw::util::design_pattern::noncopyable {
   ATBUS_MACRO_API adapter::loop_t *get_evloop();
 
  private:
-  int remove_endpoint(bus_id_t tid, endpoint *expected);
+  ATBUS_ERROR_TYPE remove_endpoint(bus_id_t tid, endpoint *expected);
 
   /**
    * @brief 发送数据消息
    * @param tid 发送目标ID
-   * @param msg_builder 消息构建器
+   * @param message_builder 消息构建器
    * @return 0或错误码
    */
-  int send_data_message(bus_id_t tid, message_builder_ref_t mb);
+  ATBUS_ERROR_TYPE send_data_message(bus_id_t tid, message_builder_ref_t mb);
 
   /**
    * @brief 发送数据消息
    * @param tid 发送目标ID
-   * @param msg_builder 消息构建器
+   * @param message_builder 消息构建器
    * @param ep_out 如果发送成功，导出发送目标
    * @param conn_out 如果发送成功，导出发送连接
    * @return 0或错误码
    */
-  int send_data_message(bus_id_t tid, message_builder_ref_t mb, endpoint **ep_out, connection **conn_out);
+  ATBUS_ERROR_TYPE send_data_message(bus_id_t tid, message_builder_ref_t mb, endpoint **ep_out, connection **conn_out);
 
   /**
    * @brief 发送控制消息
    * @param tid 发送目标ID
-   * @param msg_builder 消息构建器
+   * @param message_builder 消息构建器
    * @return 0或错误码
    */
-  int send_ctrl_message(bus_id_t tid, message_builder_ref_t mb);
+  ATBUS_ERROR_TYPE send_ctrl_message(bus_id_t tid, message_builder_ref_t mb);
 
   /**
    * @brief 发送控制消息
    * @param tid 发送目标ID
-   * @param msg_builder 消息构建器
+   * @param message_builder 消息构建器
    * @param ep_out 如果发送成功，导出发送目标
    * @param conn_out 如果发送成功，导出发送连接
    * @return 0或错误码
    */
-  int send_ctrl_message(bus_id_t tid, message_builder_ref_t mb, endpoint **ep_out, connection **conn_out);
+  ATBUS_ERROR_TYPE send_ctrl_message(bus_id_t tid, message_builder_ref_t mb, endpoint **ep_out, connection **conn_out);
 
   /**
    * @brief 发送消息
    * @param tid 发送目标ID
-   * @param msg_builder 消息构建器
+   * @param message_builder 消息构建器
    * @param fn 获取有效连接的接口，用以区分数据通道和控制通道
    * @param ep_out 如果发送成功，导出发送目标
    * @param conn_out 如果发送成功，导出发送连接
    * @return 0或错误码
    */
-  int send_message(bus_id_t tid, message_builder_ref_t msg_builder, endpoint::get_connection_fn_t fn, endpoint **ep_out,
-                   connection **conn_out);
+  ATBUS_ERROR_TYPE send_message(bus_id_t tid, message_builder_ref_t message_builder, endpoint::get_connection_fn_t fn,
+                                endpoint **ep_out, connection **conn_out);
 
   channel::io_stream_conf *get_iostream_conf();
 
@@ -523,8 +522,8 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   ATBUS_MACRO_API const ::atfw::util::nostd::nonnull<topology_registry::ptr_t> &get_topology_registry() const noexcept;
 
-  ATBUS_MACRO_API bool is_child_node(bus_id_t id) const;
-  ATBUS_MACRO_API bool is_parent_node(bus_id_t id) const;
+  ATBUS_MACRO_API topology_relation_type get_topology_relation(bus_id_t id,
+                                                               topology_peer::ptr_t *next_hop_peer) const noexcept;
 
   static ATBUS_MACRO_API int get_pid();
   static ATBUS_MACRO_API const std::string &get_hostname();
@@ -553,57 +552,52 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   ATBUS_MACRO_API std::chrono::system_clock::time_point get_timer_tick() const;
 
-  ATBUS_MACRO_API void on_recv(connection *conn, message &&m, int status, int errcode);
+  ATBUS_MACRO_API void on_receive_message(connection *conn, message &&m, int status, ATBUS_ERROR_TYPE errcode);
 
-  ATBUS_MACRO_API void on_recv_data(const endpoint *ep, connection *conn, const message &m, const void *buffer,
-                                    size_t s) const;
+  ATBUS_MACRO_API void on_receive_data(const endpoint *ep, connection *conn, const message &m,
+                                       gsl::span<const unsigned char> data) const;
 
-  ATBUS_MACRO_API void on_recv_forward_response(const endpoint *, const connection *, const message *m);
+  ATBUS_MACRO_API void on_receive_forward_response(const endpoint *, const connection *, const message *m);
 
-  ATBUS_MACRO_API int on_disconnect(const connection *);
-  ATBUS_MACRO_API int on_new_connection(connection *);
-  ATBUS_MACRO_API int on_shutdown(int reason);
-  ATBUS_MACRO_API int on_reg(const endpoint *, const connection *, int);
-  ATBUS_MACRO_API int on_actived();
-  ATBUS_MACRO_API int on_parent_reg_done();
-  ATBUS_MACRO_API int on_custom_cmd(const endpoint *, const connection *, bus_id_t from,
-                                    const std::vector<std::pair<const void *, size_t>> &cmd_args,
-                                    std::list<std::string> &rsp);
-  ATBUS_MACRO_API int on_custom_rsp(const endpoint *, const connection *, bus_id_t from,
-                                    const std::vector<std::pair<const void *, size_t>> &cmd_args, uint64_t seq);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE on_disconnect(const connection *);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE on_new_connection(connection *);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE on_shutdown(ATBUS_ERROR_TYPE errcode);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE on_register(const endpoint *, const connection *, ATBUS_ERROR_TYPE);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE on_actived();
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE on_upstream_register_done();
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE on_custom_command_request(const endpoint *, const connection *, bus_id_t from,
+                                                             gsl::span<gsl::span<const unsigned char>> args,
+                                                             std::list<std::string> &rsp);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE on_custom_command_response(const endpoint *, const connection *, bus_id_t from,
+                                                              gsl::span<gsl::span<const unsigned char>> args,
+                                                              uint64_t sequence);
 
-  ATBUS_MACRO_API int on_ping(const endpoint *ep, const message &m,
-                              const ::atframework::atbus::protocol::ping_data &body);
-  ATBUS_MACRO_API int on_pong(const endpoint *ep, const message &m,
-                              const ::atframework::atbus::protocol::ping_data &body);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE on_ping(const endpoint *ep, const message &m,
+                                           const ::atframework::atbus::protocol::ping_data &body);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE on_pong(const endpoint *ep, const message &m,
+                                           const ::atframework::atbus::protocol::ping_data &body);
 
   /**
    * @brief 关闭node
-   * @param reason 关闭原因ID
+   * @param errcode 关闭原因错误码
    * @note 如果需要在关闭前执行资源回收，可以在on_node_down_fn_t回调中返回非0值来阻止node的reset操作，
    *       并在资源释放完成后再调用shutdown函数，在第二次on_node_down_fn_t回调中返回0值
    *
    * @note 或者也可以通过ref_object和unref_object来标记和解除数据引用，reset函数会执行事件loop知道所有引用的资源被移除
    */
-  ATBUS_MACRO_API int shutdown(int reason);
+  ATBUS_MACRO_API int shutdown(ATBUS_ERROR_TYPE errcode);
 
   /** do not use this directly **/
   ATBUS_MACRO_API int fatal_shutdown(const atfw::util::log::log_wrapper::caller_info_t &caller, const endpoint *,
-                                     const connection *, int status, int errcode);
+                                     const connection *, int status, ATBUS_ERROR_TYPE errcode);
 
   /** dispatch all self messages **/
-  ATBUS_MACRO_API int dispatch_all_self_msgs();
+  ATBUS_MACRO_API int dispatch_all_self_messages();
 
   ATBUS_MACRO_API const detail::buffer_block *get_temp_static_buffer() const;
   ATBUS_MACRO_API detail::buffer_block *get_temp_static_buffer();
 
   ATBUS_MACRO_API int ping_endpoint(endpoint &ep);
-
-#if 0  // disabled
-        ATBUS_MACRO_API int push_node_sync();
-
-        ATBUS_MACRO_API int pull_node_sync();
-#endif
 
   ATBUS_MACRO_API uint64_t allocate_message_sequence();
 
@@ -611,47 +605,50 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   ATBUS_MACRO_API void add_connection_gc_list(const connection::ptr_t &conn);
 
-  ATBUS_MACRO_API void set_on_recv_handle(evt_msg_t::on_recv_msg_fn_t fn);
-  ATBUS_MACRO_API const evt_msg_t::on_recv_msg_fn_t &get_on_recv_handle() const;
+  ATBUS_MACRO_API void set_on_forward_request_handle(event_handle_set_t::on_forward_request_fn_t fn);
+  ATBUS_MACRO_API const event_handle_set_t::on_forward_request_fn_t &get_on_forward_request_handle() const;
 
-  ATBUS_MACRO_API void set_on_receive_handle(evt_msg_t::on_recv_msg_fn_t fn);
-  ATBUS_MACRO_API const evt_msg_t::on_recv_msg_fn_t &get_on_receive_handle() const;
+  ATBUS_MACRO_API void set_on_forward_response_handle(event_handle_set_t::on_forward_response_fn_t fn);
+  ATBUS_MACRO_API const event_handle_set_t::on_forward_response_fn_t &get_on_forward_response_handle() const;
 
-  ATBUS_MACRO_API void set_on_forward_response_handle(evt_msg_t::on_forward_response_fn_t fn);
-  ATBUS_MACRO_API const evt_msg_t::on_forward_response_fn_t &get_on_forward_response_handle() const;
+  ATBUS_MACRO_API void set_on_register_handle(event_handle_set_t::on_register_fn_t fn);
+  ATBUS_MACRO_API const event_handle_set_t::on_register_fn_t &get_on_register_handle() const;
 
-  ATBUS_MACRO_API void set_on_register_handle(evt_msg_t::on_reg_fn_t fn);
-  ATBUS_MACRO_API const evt_msg_t::on_reg_fn_t &get_on_register_handle() const;
+  ATBUS_MACRO_API void set_on_shutdown_handle(event_handle_set_t::on_node_down_fn_t fn);
+  ATBUS_MACRO_API const event_handle_set_t::on_node_down_fn_t &get_on_shutdown_handle() const;
 
-  ATBUS_MACRO_API void set_on_shutdown_handle(evt_msg_t::on_node_down_fn_t fn);
-  ATBUS_MACRO_API const evt_msg_t::on_node_down_fn_t &get_on_shutdown_handle() const;
+  ATBUS_MACRO_API void set_on_available_handle(event_handle_set_t::on_node_up_fn_t fn);
+  ATBUS_MACRO_API const event_handle_set_t::on_node_up_fn_t &get_on_available_handle() const;
 
-  ATBUS_MACRO_API void set_on_available_handle(evt_msg_t::on_node_up_fn_t fn);
-  ATBUS_MACRO_API const evt_msg_t::on_node_up_fn_t &get_on_available_handle() const;
+  ATBUS_MACRO_API void set_on_invalid_connection_handle(event_handle_set_t::on_invalid_connection_fn_t fn);
+  ATBUS_MACRO_API const event_handle_set_t::on_invalid_connection_fn_t &get_on_invalid_connection_handle() const;
 
-  ATBUS_MACRO_API void set_on_invalid_connection_handle(evt_msg_t::on_invalid_connection_fn_t fn);
-  ATBUS_MACRO_API const evt_msg_t::on_invalid_connection_fn_t &get_on_invalid_connection_handle() const;
+  ATBUS_MACRO_API void set_on_new_connection_handle(event_handle_set_t::on_new_connection_fn_t fn);
+  ATBUS_MACRO_API const event_handle_set_t::on_new_connection_fn_t &get_on_new_connection_handle() const;
 
-  ATBUS_MACRO_API void set_on_new_connection_handle(evt_msg_t::on_new_connection_fn_t fn);
-  ATBUS_MACRO_API const evt_msg_t::on_new_connection_fn_t &get_on_new_connection_handle() const;
+  ATBUS_MACRO_API void set_on_custom_command_request_handle(event_handle_set_t::on_custom_command_request_fn_t fn);
+  ATBUS_MACRO_API const event_handle_set_t::on_custom_command_request_fn_t &get_on_custom_command_request_handle()
+      const;
 
-  ATBUS_MACRO_API void set_on_custom_cmd_handle(evt_msg_t::on_custom_cmd_fn_t fn);
-  ATBUS_MACRO_API const evt_msg_t::on_custom_cmd_fn_t &get_on_custom_cmd_handle() const;
+  ATBUS_MACRO_API void set_on_custom_command_response_handle(event_handle_set_t::on_custom_command_response_fn_t fn);
+  ATBUS_MACRO_API const event_handle_set_t::on_custom_command_response_fn_t &get_on_custom_command_response_handle()
+      const;
 
-  ATBUS_MACRO_API void set_on_custom_rsp_handle(evt_msg_t::on_custom_rsp_fn_t fn);
-  ATBUS_MACRO_API const evt_msg_t::on_custom_rsp_fn_t &get_on_custom_rsp_handle() const;
+  ATBUS_MACRO_API void set_on_add_endpoint_handle(event_handle_set_t::on_add_endpoint_fn_t fn);
+  ATBUS_MACRO_API const event_handle_set_t::on_add_endpoint_fn_t &get_on_add_endpoint_handle() const;
 
-  ATBUS_MACRO_API void set_on_add_endpoint_handle(evt_msg_t::on_add_endpoint_fn_t fn);
-  ATBUS_MACRO_API const evt_msg_t::on_add_endpoint_fn_t &get_on_add_endpoint_handle() const;
+  ATBUS_MACRO_API void set_on_remove_endpoint_handle(event_handle_set_t::on_remove_endpoint_fn_t fn);
+  ATBUS_MACRO_API const event_handle_set_t::on_remove_endpoint_fn_t &get_on_remove_endpoint_handle() const;
 
-  ATBUS_MACRO_API void set_on_remove_endpoint_handle(evt_msg_t::on_remove_endpoint_fn_t fn);
-  ATBUS_MACRO_API const evt_msg_t::on_remove_endpoint_fn_t &get_on_remove_endpoint_handle() const;
+  ATBUS_MACRO_API void set_on_ping_endpoint_handle(event_handle_set_t::on_ping_pong_endpoint_fn_t fn);
+  ATBUS_MACRO_API const event_handle_set_t::on_ping_pong_endpoint_fn_t &get_on_ping_endpoint_handle() const;
 
-  ATBUS_MACRO_API void set_on_ping_endpoint_handle(evt_msg_t::on_ping_pong_endpoint_fn_t fn);
-  ATBUS_MACRO_API const evt_msg_t::on_ping_pong_endpoint_fn_t &get_on_ping_endpoint_handle() const;
+  ATBUS_MACRO_API void set_on_pong_endpoint_handle(event_handle_set_t::on_ping_pong_endpoint_fn_t fn);
+  ATBUS_MACRO_API const event_handle_set_t::on_ping_pong_endpoint_fn_t &get_on_pong_endpoint_handle() const;
 
-  ATBUS_MACRO_API void set_on_pong_endpoint_handle(evt_msg_t::on_ping_pong_endpoint_fn_t fn);
-  ATBUS_MACRO_API const evt_msg_t::on_ping_pong_endpoint_fn_t &get_on_pong_endpoint_handle() const;
+  ATBUS_MACRO_API void set_on_topology_update_upstream_handle(event_handle_set_t::on_topology_update_upstream_fn_t fn);
+  ATBUS_MACRO_API const event_handle_set_t::on_topology_update_upstream_fn_t &get_on_topology_update_upstream_handle()
+      const;
 
   ATFW_UTIL_FORCEINLINE const atfw::util::log::log_wrapper::ptr_t &get_logger() const noexcept { return logger_; }
 
@@ -679,9 +676,9 @@ class node final : public atfw::util::design_pattern::noncopyable {
  private:
   static endpoint *find_route(endpoint_collection_t &coll, bus_id_t id);
 
-  bool insert_child(endpoint_collection_t &coll, endpoint::ptr_t ep);
+  bool insert_child(endpoint_collection_t &coll, endpoint::ptr_t ep, bool ignore_event = false);
 
-  bool remove_child(endpoint_collection_t &coll, bus_id_t id, endpoint *expected = nullptr);
+  bool remove_child(endpoint_collection_t &coll, bus_id_t id, endpoint *expected = nullptr, bool ignore_event = false);
 
   bool remove_collection(endpoint_collection_t &coll);
 
@@ -724,7 +721,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   // 配置
   conf_t conf_;
-  topology_data topology_;
+  topology_data::ptr_t topology_;
   std::string hash_code_;
   ::atfw::util::memory::weak_rc_ptr<node> watcher_;  // just like std::shared_from_this<T>
   atfw::util::lock::seq_alloc_u64 message_sequence_allocator_;
@@ -741,7 +738,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
   adapter::loop_t *ev_loop_;
   std::unique_ptr<channel::io_stream_channel, io_stream_channel_del> iostream_channel_;
   std::unique_ptr<channel::io_stream_conf> iostream_conf_;
-  evt_msg_t event_msg_;
+  event_handle_set_t event_message_;
   using self_data_messages_t = std::list<message>;
   using self_command_messages_t = std::list<message>;
   self_data_messages_t self_data_messages_;
@@ -751,7 +748,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
   struct evt_timer_t {
     std::chrono::system_clock::time_point tick;
 
-    std::chrono::system_clock::time_point upstream_opr_time_point;  // 上游节点操作时间（断线重连或Ping）
+    std::chrono::system_clock::time_point upstream_op_timepoint;  // 上游节点操作时间（断线重连或Ping）
     timer_desc_ls<const endpoint *, ::atfw::util::memory::weak_rc_ptr<endpoint>>::type ping_list;  // 定时ping
     timer_desc_ls<std::string, connection::ptr_t>::type connecting_list;  // 未完成连接（正在网络连接或握手）
     std::list<endpoint::ptr_t> pending_endpoint_gc_list;                  // 待检测GC的endpoint列表
@@ -767,11 +764,11 @@ class node final : public atfw::util::design_pattern::noncopyable {
   // 基于事件的通道超时收集
 
   // ============ 节点逻辑关系数据 ============
-  // 父节点
-  struct parent_info_t {
+  // 上游节点
+  struct upstream_info_t {
     endpoint::ptr_t node_;
   };
-  parent_info_t node_parent_;  // 父节点（默认路由，自动重连）
+  upstream_info_t node_upstream_;  // 上游节点（默认路由，自动重连）
 
   // 路由节点
   endpoint_collection_t node_routes_;
@@ -895,5 +892,3 @@ ATBUS_MACRO_NAMESPACE_END
       }                                                                                                         \
     }
 #endif
-
-#endif /* LIBATBUS_NODE_H_ */

@@ -137,12 +137,11 @@ class connection final : public atfw::util::design_pattern::noncopyable {
   /**
    * @brief 发送数据
    * @param buffer 数据块地址
-   * @param s 数据块长度
    * @return 0或错误码
    * @note 接收端收到的数据很可能不是地址对齐的，所以这里不建议发送内存数据
    *       如果非要发送内存数据的话，一定要memcpy，不能直接类型转换，除非手动设置了地址对齐规则
    */
-  ATBUS_MACRO_API int push(const void *buffer, size_t s);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE push(gsl::span<const unsigned char> buffer);
 
   /** 增加错误计数 **/
   ATBUS_MACRO_API size_t add_stat_fault();
@@ -204,9 +203,9 @@ class connection final : public atfw::util::design_pattern::noncopyable {
                                                        channel::io_stream_connection *connection, int status,
                                                        void *buffer, size_t s);
 
-  static ATBUS_MACRO_API void iostream_on_recv_cb(channel::io_stream_channel *channel,
-                                                  channel::io_stream_connection *connection, int status, void *buffer,
-                                                  size_t s);
+  static ATBUS_MACRO_API void iostream_on_receive_cb(channel::io_stream_channel *channel,
+                                                     channel::io_stream_connection *connection, int status,
+                                                     void *buffer, size_t s);
   static ATBUS_MACRO_API void iostream_on_accepted(channel::io_stream_channel *channel,
                                                    channel::io_stream_connection *connection, int status, void *buffer,
                                                    size_t s);
@@ -221,22 +220,24 @@ class connection final : public atfw::util::design_pattern::noncopyable {
                                                   size_t s);
 
 #ifdef ATBUS_CHANNEL_SHM
-  static ATBUS_MACRO_API int shm_proc_fn(node &n, connection &conn, std::chrono::system_clock::time_point now);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE shm_proc_fn(node &n, connection &conn,
+                                                      std::chrono::system_clock::time_point now);
 
-  static ATBUS_MACRO_API int shm_free_fn(node &n, connection &conn);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE shm_free_fn(node &n, connection &conn);
 
-  static ATBUS_MACRO_API int shm_push_fn(connection &conn, const void *buffer, size_t s);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE shm_push_fn(connection &conn, const void *buffer, size_t s);
 #endif
 
-  static ATBUS_MACRO_API int mem_proc_fn(node &n, connection &conn, std::chrono::system_clock::time_point now);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE mem_proc_fn(node &n, connection &conn,
+                                                      std::chrono::system_clock::time_point now);
 
-  static ATBUS_MACRO_API int mem_free_fn(node &n, connection &conn);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE mem_free_fn(node &n, connection &conn);
 
-  static ATBUS_MACRO_API int mem_push_fn(connection &conn, const void *buffer, size_t s);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE mem_push_fn(connection &conn, const void *buffer, size_t s);
 
-  static ATBUS_MACRO_API int ios_free_fn(node &n, connection &conn);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE ios_free_fn(node &n, connection &conn);
 
-  static ATBUS_MACRO_API int ios_push_fn(connection &conn, const void *buffer, size_t s);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE ios_push_fn(connection &conn, const void *buffer, size_t s);
 
   static ATBUS_MACRO_API bool unpack(connection &conn, message &m, gsl::span<const unsigned char> in);
 
@@ -280,9 +281,9 @@ class connection final : public atfw::util::design_pattern::noncopyable {
 #endif
       conn_data_ios ios_fd;
     };
-    using proc_fn_t = int (*)(node &n, connection &conn, std::chrono::system_clock::time_point now);
-    using free_fn_t = int (*)(node &n, connection &conn);
-    using push_fn_t = int (*)(connection &conn, const void *buffer, size_t s);
+    using proc_fn_t = ATBUS_ERROR_TYPE (*)(node &n, connection &conn, std::chrono::system_clock::time_point now);
+    using free_fn_t = ATBUS_ERROR_TYPE (*)(node &n, connection &conn);
+    using push_fn_t = ATBUS_ERROR_TYPE (*)(connection &conn, const void *buffer, size_t s);
 
     shared_t shared;
     proc_fn_t proc_fn;

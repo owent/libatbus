@@ -47,27 +47,27 @@ CASE_TEST(atbus_endpoint, is_child) {
     node->init(0x12345678, &conf);
 
     // 0值边界检测
-    CASE_EXPECT_TRUE(node->is_child_node(0x12340000));
-    CASE_EXPECT_TRUE(node->is_child_node(0x1234FFFF));
-    CASE_EXPECT_FALSE(node->is_child_node(0x1233FFFF));
-    CASE_EXPECT_FALSE(node->is_child_node(0x12350000));
+    CASE_EXPECT_TRUE(node->is_downstream_node(0x12340000));
+    CASE_EXPECT_TRUE(node->is_downstream_node(0x1234FFFF));
+    CASE_EXPECT_FALSE(node->is_downstream_node(0x1233FFFF));
+    CASE_EXPECT_FALSE(node->is_downstream_node(0x12350000));
 
-    CASE_EXPECT_TRUE(node->is_child_node(0x22340000));
-    CASE_EXPECT_TRUE(node->is_child_node(0x2234FFFF));
-    CASE_EXPECT_FALSE(node->is_child_node(0x2233FFFF));
-    CASE_EXPECT_FALSE(node->is_child_node(0x22350000));
+    CASE_EXPECT_TRUE(node->is_downstream_node(0x22340000));
+    CASE_EXPECT_TRUE(node->is_downstream_node(0x2234FFFF));
+    CASE_EXPECT_FALSE(node->is_downstream_node(0x2233FFFF));
+    CASE_EXPECT_FALSE(node->is_downstream_node(0x22350000));
 
     // 自己是自己的子节点
-    CASE_EXPECT_TRUE(node->is_child_node(node->get_id()));
+    CASE_EXPECT_TRUE(node->is_downstream_node(node->get_id()));
 
     // 0值边界检测 - 静态接口
-    CASE_EXPECT_TRUE(atbus::endpoint::is_child_node(0x12345678, 0x12345678, 16, 0x12340000));
-    CASE_EXPECT_TRUE(atbus::endpoint::is_child_node(0x12345678, 0x12345678, 16, 0x1234FFFF));
-    CASE_EXPECT_FALSE(atbus::endpoint::is_child_node(0x12345678, 0x12345678, 16, 0x1233FFFF));
-    CASE_EXPECT_FALSE(atbus::endpoint::is_child_node(0x12345678, 0x12345678, 16, 0x12350000));
+    CASE_EXPECT_TRUE(atbus::endpoint::is_downstream_node(0x12345678, 0x12345678, 16, 0x12340000));
+    CASE_EXPECT_TRUE(atbus::endpoint::is_downstream_node(0x12345678, 0x12345678, 16, 0x1234FFFF));
+    CASE_EXPECT_FALSE(atbus::endpoint::is_downstream_node(0x12345678, 0x12345678, 16, 0x1233FFFF));
+    CASE_EXPECT_FALSE(atbus::endpoint::is_downstream_node(0x12345678, 0x12345678, 16, 0x12350000));
 
     // 自己是自己的子节点 - 静态接口
-    CASE_EXPECT_FALSE(atbus::endpoint::is_child_node(0x12345678, 0x12345678, 16, 0x12345678));
+    CASE_EXPECT_FALSE(atbus::endpoint::is_downstream_node(0x12345678, 0x12345678, 16, 0x12345678));
   }
 
   {
@@ -75,8 +75,8 @@ CASE_TEST(atbus_endpoint, is_child) {
     atbus::node::ptr_t node = atbus::node::create();
     node->init(0x12345678, &conf);
     // 0值判定，无子节点
-    CASE_EXPECT_TRUE(node->is_child_node(0x12345678));
-    CASE_EXPECT_FALSE(node->is_child_node(0x12345679));
+    CASE_EXPECT_TRUE(node->is_downstream_node(0x12345678));
+    CASE_EXPECT_FALSE(node->is_downstream_node(0x12345679));
   }
 }
 
@@ -88,10 +88,10 @@ CASE_TEST(atbus_endpoint, get_connection) {
   uv_loop_init(&ev_loop);
 
   conf.ev_loop = &ev_loop;
-  conf.recv_buffer_size = 64 * 1024;
+  conf.receive_buffer_size = 64 * 1024;
 
-  char *buffer = new char[conf.recv_buffer_size];
-  memset(buffer, -1, sizeof(conf.recv_buffer_size));  // init it and then valgrind will now report uninitialised used
+  char *buffer = new char[conf.receive_buffer_size];
+  memset(buffer, -1, sizeof(conf.receive_buffer_size));  // init it and then valgrind will now report uninitialised used
 
   char addr[32] = {0};
   UTIL_STRFUNC_SNPRINTF(addr, sizeof(addr), "mem://0x%p", buffer);

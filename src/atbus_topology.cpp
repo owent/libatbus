@@ -81,7 +81,8 @@ ATBUS_MACRO_API topology_data &topology_data::operator=(topology_data &&other) {
   return *this;
 }
 
-ATBUS_MACRO_API topology_peer::topology_peer(ctor_guard_type &guard) : bus_id_(guard.bus_id) {}
+ATBUS_MACRO_API topology_peer::topology_peer(ctor_guard_type &guard)
+    : bus_id_(guard.bus_id), proactively_added_(false) {}
 
 ATBUS_MACRO_API topology_peer::~topology_peer() {}
 
@@ -91,7 +92,14 @@ ATBUS_MACRO_API topology_peer::ptr_t topology_peer::create(bus_id_t bus_id) {
   return atfw::util::memory::make_strong_rc<topology_peer>(guard);
 }
 
-ATBUS_MACRO_API const topology_data &topology_peer::get_topology_data() const noexcept { return data_; }
+ATBUS_MACRO_API const topology_data &topology_peer::get_topology_data() const noexcept {
+  if (data_) {
+    return *data_;
+  }
+
+  static topology_data empty_data;
+  return empty_data;
+}
 
 ATBUS_MACRO_API bool topology_peer::contains_downstream(bus_id_t downstream_bus_id) const noexcept {
   auto iter = downstream_.find(downstream_bus_id);
@@ -107,11 +115,21 @@ ATBUS_MACRO_API bool topology_peer::contains_downstream(bus_id_t downstream_bus_
   return true;
 }
 
+ATBUS_MACRO_API void topology_peer::set_proactively_added(bool v) noexcept { proactively_added_ = v; }
+
+ATBUS_MACRO_API bool topology_peer::get_proactively_added() const noexcept { return proactively_added_; }
+
 ATBUS_MACRO_API void topology_peer::update_upstream(topology_peer::ptr_t upstream) noexcept {
   upstream_ = std::move(upstream);
 }
 
-ATBUS_MACRO_API void topology_peer::update_data(topology_data &&data) noexcept { data_ = std::move(data); }
+ATBUS_MACRO_API void topology_peer::update_data(topology_data::ptr_t data) noexcept {
+  if (data_ == data) {
+    return;
+  }
+
+  data_ = std::move(data);
+}
 
 ATBUS_MACRO_API void topology_peer::add_downstream(topology_peer::ptr_t downstream) {
   if (!downstream) {
@@ -135,6 +153,10 @@ ATBUS_MACRO_API void topology_peer::remove_downstream(bus_id_t downstream_bus_id
   }
 
   downstream_.erase(iter);
+}
+
+ATBUS_MACRO_API const topology_peer::downstream_map_t &topology_peer::get_all_downstream() const noexcept {
+  return downstream_;
 }
 
 ATBUS_MACRO_API topology_registry::topology_registry(ctor_guard_type &) {}
@@ -162,28 +184,31 @@ ATBUS_MACRO_API void topology_registry::remove_peer(bus_id_t target_bus_id) noex
   }
 
   topology_peer::ptr_t peer = iter->second;
-  data_.erase(iter);
 
   if (!peer) {
+    data_.erase(iter);
     return;
+  }
+
+  peer->set_proactively_added(false);
+  // 如果还有下游节点，不能删除
+  if (peer->get_all_downstream().empty()) {
+    data_.erase(iter);
   }
 
   // remove from upstream
   if (peer->upstream_) {
     peer->upstream_->remove_downstream(target_bus_id, peer.get());
-  }
 
-  // remove from downstream
-  for (const auto &downstream_item : peer->downstream_) {
-    auto downstream_ptr = downstream_item.second.lock();
-    if (downstream_ptr && downstream_ptr->upstream_.get() == peer.get()) {
-      downstream_ptr->update_upstream(nullptr);
+    // 如果上游是被动添加的，且没有下游了，则递归删除
+    if (!peer->upstream_->get_proactively_added() && peer->upstream_->downstream_.empty()) {
+      remove_peer(peer->upstream_->get_bus_id());
     }
   }
 }
 
 ATBUS_MACRO_API bool topology_registry::update_peer(bus_id_t target_bus_id, bus_id_t upstream_bus_id,
-                                                    topology_data &&data) {
+                                                    topology_data::ptr_t data) {
   if (target_bus_id == 0) {
     return false;
   }
@@ -200,7 +225,10 @@ ATBUS_MACRO_API bool topology_registry::update_peer(bus_id_t target_bus_id, bus_
 
   topology_peer::ptr_t peer = get_peer(target_bus_id);
   if (peer) {
-    peer->update_data(std::move(data));
+    peer->set_proactively_added(true);
+    if (data) {
+      peer->update_data(std::move(data));
+    }
 
     if (peer->get_upstream() == upstream) {
       return true;
@@ -229,7 +257,10 @@ ATBUS_MACRO_API bool topology_registry::update_peer(bus_id_t target_bus_id, bus_
 
   // create new peer
   peer = mutable_peer(target_bus_id);
-  peer->update_data(std::move(data));
+  peer->set_proactively_added(true);
+  if (data) {
+    peer->update_data(std::move(data));
+  }
   peer->update_upstream(upstream);
 
   if (upstream) {

@@ -47,7 +47,8 @@ class ATFW_UTIL_SYMBOL_VISIBLE connection_context final {
   ATBUS_MACRO_API buffer_result_t pack_message(message &m, int32_t protocol_version, random_engine_t &random_engine,
                                                size_t max_body_size) noexcept;
 
-  ATBUS_MACRO_API int unpack_message(message &m, gsl::span<const unsigned char> input, size_t max_body_size) noexcept;
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE unpack_message(message &m, gsl::span<const unsigned char> input,
+                                                  size_t max_body_size) noexcept;
 
   ATBUS_MACRO_API std::chrono::system_clock::time_point get_handshake_start_time() const noexcept;
   ATBUS_MACRO_API protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE get_crypto_key_exchange_algorithm() const noexcept;
@@ -60,7 +61,7 @@ class ATFW_UTIL_SYMBOL_VISIBLE connection_context final {
    * @param peer_sequence_id 对端握手序列号,如果是Client模式，这里传0表示自己生产
    * @return int 0或错误码
    */
-  ATBUS_MACRO_API int handshake_generate_self_key(uint64_t peer_sequence_id);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE handshake_generate_self_key(uint64_t peer_sequence_id);
 
   /**
    * @brief 读取对端公钥并计算共享密钥
@@ -68,9 +69,9 @@ class ATFW_UTIL_SYMBOL_VISIBLE connection_context final {
    * @param supported_crypto_algorithms 支持的加密算法列表
    * @return int 0或错误码
    */
-  ATBUS_MACRO_API int handshake_read_peer_key(
-      const protocol::crypto_handshake_data &peer_pub_key,
-      gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> supported_crypto_algorithms);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE
+  handshake_read_peer_key(const protocol::crypto_handshake_data &peer_pub_key,
+                          gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> supported_crypto_algorithms);
 
   /**
    * @brief 写入自己的公钥到握手数据结构
@@ -78,14 +79,14 @@ class ATFW_UTIL_SYMBOL_VISIBLE connection_context final {
    * @param supported_crypto_algorithms 支持的加密算法列表
    * @return int 0或错误码
    */
-  ATBUS_MACRO_API int handshake_write_self_public_key(
-      protocol::crypto_handshake_data &self_pub_key,
-      gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> supported_crypto_algorithms);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE
+  handshake_write_self_public_key(protocol::crypto_handshake_data &self_pub_key,
+                                  gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> supported_crypto_algorithms);
 
   static ATBUS_MACRO_API size_t internal_padding_temporary_buffer_block(size_t origin_size) noexcept;
 
-  ATBUS_MACRO_API int update_compression_algorithm(
-      gsl::span<const protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> algorithm) noexcept;
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE
+  update_compression_algorithm(gsl::span<const protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> algorithm) noexcept;
 
   static ATBUS_MACRO_API bool is_compression_algorithm_supported(
       protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE algorithm) noexcept;
@@ -99,8 +100,9 @@ class ATFW_UTIL_SYMBOL_VISIBLE connection_context final {
    * @param iv_size 初始化向量大小（字节）
    * @return int 0或错误码
    */
-  ATBUS_MACRO_API int setup_crypto_with_key(protocol::ATBUS_CRYPTO_ALGORITHM_TYPE algorithm, const unsigned char *key,
-                                            size_t key_size, const unsigned char *iv, size_t iv_size);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE setup_crypto_with_key(protocol::ATBUS_CRYPTO_ALGORITHM_TYPE algorithm,
+                                                         const unsigned char *key, size_t key_size,
+                                                         const unsigned char *iv, size_t iv_size);
 
  private:
   ATBUS_MACRO_API buffer_result_t pack_message_origin(message &m) noexcept;

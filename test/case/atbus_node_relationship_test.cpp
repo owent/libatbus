@@ -91,12 +91,12 @@ CASE_TEST(atbus_node_rela, child_endpoint_opr) {
       atbus::endpoint::create(node.get(), 0x12345679, ep_subnets, node->get_pid(), node->get_hostname());
   // 插入到末尾
   CASE_EXPECT_EQ(0, node->add_endpoint(ep));
-  CASE_EXPECT_EQ(1, node->get_routes().size());
+  CASE_EXPECT_EQ(1, node->get_immediate_endpoint_set().size());
 
   // 插入到中间
   ep = atbus::endpoint::create(node.get(), 0x12345589, ep_subnets, node->get_pid(), node->get_hostname());
   CASE_EXPECT_EQ(0, node->add_endpoint(ep));
-  CASE_EXPECT_EQ(2, node->get_routes().size());
+  CASE_EXPECT_EQ(2, node->get_immediate_endpoint_set().size());
 
   // 新端点子域冲突-父子关系
   ep_subnets.clear();
@@ -128,7 +128,7 @@ CASE_TEST(atbus_node_rela, child_endpoint_opr) {
   ep = atbus::endpoint::create(node.get(), 0x22345680, ep_subnets, node->get_pid(), node->get_hostname());
   CASE_EXPECT_EQ(EN_ATBUS_ERR_ATNODE_MASK_CONFLICT, node->add_endpoint(ep));
 
-  CASE_EXPECT_EQ(3, node->get_routes().size());
+  CASE_EXPECT_EQ(3, node->get_immediate_endpoint_set().size());
 
   // 移除失败-找不到
   CASE_EXPECT_EQ(EN_ATBUS_ERR_ATNODE_NOT_FOUND, node->remove_endpoint(0x12345680));
