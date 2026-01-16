@@ -771,7 +771,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
   upstream_info_t node_upstream_;  // 上游节点（默认路由，自动重连）
 
   // 路由节点
-  endpoint_collection_t node_routes_;
+  endpoint_collection_t node_route_;
 
   // 统计信息
   struct stat_info_t {

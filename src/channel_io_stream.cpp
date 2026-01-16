@@ -1001,7 +1001,7 @@ static void io_stream_tcp_connection_cb(uv_stream_t *req, int status) {
   io_stream_flag_guard flag_guard(channel->flags, io_stream_channel::EN_CF_IN_CALLBACK);
 
   channel->error_code = status;
-  int res = EN_ATBUS_ERR_SUCCESS;
+  ATBUS_ERROR_TYPE res = EN_ATBUS_ERR_SUCCESS;
 
   ::atfw::util::memory::strong_rc_ptr<adapter::stream_t> recv_conn;
   ::atfw::util::memory::strong_rc_ptr<io_stream_connection> conn;
@@ -1062,7 +1062,7 @@ static void io_stream_pipe_connection_cb(uv_stream_t *req, int status) {
   io_stream_flag_guard flag_guard(channel->flags, io_stream_channel::EN_CF_IN_CALLBACK);
 
   channel->error_code = status;
-  int res = EN_ATBUS_ERR_SUCCESS;
+  ATBUS_ERROR_TYPE res = EN_ATBUS_ERR_SUCCESS;
 
   ::atfw::util::memory::strong_rc_ptr<io_stream_connection> conn;
   ::atfw::util::memory::strong_rc_ptr<adapter::stream_t> recv_conn;
@@ -1247,7 +1247,7 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
       }
     }
 #endif
-    int ret = EN_ATBUS_ERR_SUCCESS;
+    ATBUS_ERROR_TYPE ret = EN_ATBUS_ERR_SUCCESS;
     do {
       io_stream_tcp_setup(channel, handle);
 
@@ -1324,7 +1324,7 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
     // uv_accept is called on.
     // @see http://docs.libuv.org/en/v1.x/pipe.html
     uv_pipe_init(ev_loop, handle, 0);
-    int ret = EN_ATBUS_ERR_SUCCESS;
+    ATBUS_ERROR_TYPE ret = EN_ATBUS_ERR_SUCCESS;
     do {
       if (0 != (channel->error_code = uv_pipe_bind(handle, addr.host.c_str()))) {
         if (channel->error_code == UV_EADDRINUSE) {

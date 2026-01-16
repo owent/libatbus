@@ -64,17 +64,19 @@ struct message_handler {
       const ::atframework::atbus::protocol::access_data &ad, gsl::span<const unsigned char> access_token,
       atfw::util::nostd::string_view plaintext);
 
-  static ATBUS_MACRO_API int send_ping(node &n, connection &conn, uint64_t seq);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE send_ping(node &n, connection &conn, uint64_t seq);
 
-  static ATBUS_MACRO_API int send_register(int32_t msg_id, node &n, connection &conn, int32_t ret_code, uint64_t seq);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE send_register(int32_t msg_id, node &n, connection &conn, int32_t ret_code,
+                                                        uint64_t seq);
 
-  static ATBUS_MACRO_API int send_transfer_response(node &n, message &&, int32_t ret_code);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE send_transfer_response(node &n, message &&, int32_t ret_code);
 
-  static ATBUS_MACRO_API int send_custom_command_response(node &n, connection *conn,
-                                                          const std::list<std::string> &rsp_data, int32_t type,
-                                                          int32_t ret_code, uint64_t sequence, uint64_t from_bus_id);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE send_custom_command_response(node &n, connection *conn,
+                                                                       const std::list<std::string> &rsp_data,
+                                                                       int32_t type, int32_t ret_code,
+                                                                       uint64_t sequence, uint64_t from_bus_id);
 
-  static ATBUS_MACRO_API int send_message(node &n, connection &conn, message &msg);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE send_message(node &n, connection &conn, message &msg);
 
   // ========================= 接收handle =========================
   static ATBUS_MACRO_API ATBUS_ERROR_TYPE on_recv_data_transfer_req(node &n, connection *conn, message &&, int status,

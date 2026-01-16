@@ -252,7 +252,7 @@ ATBUS_MACRO_API bool topology_registry::update_peer(bus_id_t target_bus_id, bus_
     if (upstream) {
       upstream->add_downstream(peer);
     }
-    return;
+    return true;
   }
 
   // create new peer
