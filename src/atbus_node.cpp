@@ -523,7 +523,7 @@ ATBUS_MACRO_API int node::reset() {
     remove_endpoint(node_upstream_.node_->get_id());
   }
   // endpoint 不应该游离在node以外，所以这里就应该要触发endpoint::reset
-  remove_collection(node_routes_);
+  remove_collection(node_route_);
 
   // 清空正在连接或握手的列表
   // 必须显式指定断开，以保证会主动断开正在进行的连接
@@ -1030,12 +1030,12 @@ ATBUS_MACRO_API int node::disconnect(bus_id_t id) {
     return EN_ATBUS_ERR_SUCCESS;
   }
 
-  endpoint *ep = find_route(node_routes_, id);
+  endpoint *ep = find_route(node_route_, id);
   if (nullptr != ep && ep->get_id() == id) {
     endpoint::ptr_t ep_ptr = ep->watch();
 
     // 移除连接关系
-    remove_child(node_routes_, id);
+    remove_child(node_route_, id);
 
     ep_ptr->reset();
     return EN_ATBUS_ERR_SUCCESS;
@@ -1192,8 +1192,8 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::get_peer_channel(bus_id_t tid, endpoint::
   }
 
   do {
-    // 上游节点单独判定，防止上游节点被判定为兄弟节点
-    if (node_upstream_.node_ && is_upstream_node(tid)) {
+    // 上游节点
+    if (node_upstream_.node_ && node_upstream_.node_->get_id() == tid) {
       target = node_upstream_.node_.get();
       conn = (self_.get()->*fn)(target);
 
@@ -1201,26 +1201,46 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::get_peer_channel(bus_id_t tid, endpoint::
       break;
     }
 
-    target = find_route(node_routes_, tid);
-    if (nullptr != target && target->is_downstream_node(tid)) {
+    // 直连节点
+    target = find_route(node_route_, tid);
+    if (nullptr != target) {
       conn = (self_.get()->*fn)(target);
 
       ASSIGN_EPCONN();
       break;
     }
 
-    // 子网节点不走默认路由
-    if (is_downstream_node(tid)) {
+    topology_peer::ptr_t next_hop_peer = nullptr;
+    topology_relation_type relation = get_topology_relation(tid, &next_hop_peer);
+    // 子节点
+    if (relation == topology_relation_type::kImmediateDownstream ||
+        relation == topology_relation_type::kTransitiveDownstream) {
+      if (!next_hop_peer) {
+        return EN_ATBUS_ERR_ATNODE_INVALID_ID;
+      }
+      target = find_route(node_route_, next_hop_peer->get_bus_id());
+      if (nullptr != target) {
+        conn = (self_.get()->*fn)(target);
+
+        ASSIGN_EPCONN();
+        break;
+      } else {
+        return EN_ATBUS_ERR_ATNODE_INVALID_ID;
+      }
+    }
+
+    // 只有邻居节点,远方节点,间接上游都可以走上游节点。有个特殊情况是未注册拓扑关系视为远方节点，也允许走上游节点
+    if (relation == topology_relation_type::kSelf) {
       return EN_ATBUS_ERR_ATNODE_INVALID_ID;
     }
 
     // 其他情况,如果发给上游节点
-    /*
+    //
     //       F1 ------------ F2     |       F1
     //      /  \            /  \    |      /  \
     //    C11  C12        C21  C22  |    C11  C12
     // 当C11发往C21或C22时触发这种情况  | 当C11发往C12时触发这种情况
-    */
+    //
     if (node_upstream_.node_) {
       target = node_upstream_.node_.get();
       conn = (self_.get()->*fn)(target);
@@ -1274,15 +1294,15 @@ ATBUS_MACRO_API void node::set_topology_upstream(bus_id_t tid) {
 
   // 更新上游 endpoint
   if (node_upstream_.node_) {
-    insert_child(node_routes_, node_upstream_.node_, true);
+    insert_child(node_route_, node_upstream_.node_, true);
   }
 
   if (tid == 0) {
     node_upstream_.node_.reset();
   } else {
-    node_upstream_.node_ = find_route(node_routes_, tid);
+    node_upstream_.node_ = find_route(node_route_, tid);
     if (node_upstream_.node_) {
-      remove_child(node_routes_, tid, nullptr, true);
+      remove_child(node_route_, tid, nullptr, true);
     }
   }
 
@@ -1305,7 +1325,7 @@ ATBUS_MACRO_API endpoint *node::get_endpoint(bus_id_t tid) noexcept {
     return node_upstream_.node_.get();
   }
 
-  endpoint *res = find_route(node_routes_, tid);
+  endpoint *res = find_route(node_route_, tid);
   if (nullptr != res && res->get_id() == tid) {
     return res;
   }
@@ -1379,14 +1399,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::add_endpoint(endpoint::ptr_t ep) {
     return EN_ATBUS_ERR_SUCCESS;
   }
 
-  // 如果是子节点则必须包含子节点的所有subnet
-  if (0 != get_id() && is_downstream_node(ep->get_id())) {
-    if (!endpoint::contain(self_->get_subnets(), ep->get_subnets())) {
-      return EN_ATBUS_ERR_ATNODE_MASK_CONFLICT;
-    }
-  }
-
-  if (insert_child(node_routes_, ep)) {
+  if (insert_child(node_route_, ep)) {
     ep->add_ping_timer();
 
     return EN_ATBUS_ERR_SUCCESS;
@@ -1491,7 +1504,7 @@ ATBUS_MACRO_API const endpoint *node::get_self_endpoint() const { return self_ ?
 
 ATBUS_MACRO_API const endpoint *node::get_upstream_endpoint() const { return node_upstream_.node_.get(); }
 
-ATBUS_MACRO_API const node::endpoint_collection_t &node::get_immediate_endpoint_set() const { return node_routes_; };
+ATBUS_MACRO_API const node::endpoint_collection_t &node::get_immediate_endpoint_set() const { return node_route_; };
 
 ATBUS_MACRO_API adapter::loop_t *node::get_evloop() {
   // if just created, do not alloc new event loop
@@ -1724,7 +1737,7 @@ ATBUS_MACRO_API bool node::remove_connection_timer(const connection *conn) {
     return false;
   }
   if (!iter->second) {
-    iter == event_timer_.connecting_list.erase(iter);
+    event_timer_.connecting_list.erase(iter);
     return false;
   }
   if (iter->second->second.get() != conn) {
@@ -2015,8 +2028,10 @@ ATBUS_MACRO_API int node::dispatch_all_self_messages() {
       if (message_body_type::kDataTransformReq == body_type) {
         ::atframework::atbus::protocol::message_body &body = m.mutable_body();
         const ::atframework::atbus::protocol::forward_data &fwd_data = body.data_transform_req();
-        on_receive_data(get_self_endpoint(), nullptr, m, reinterpret_cast<const void *>(fwd_data.content().data()),
-                        fwd_data.content().size());
+        on_receive_data(
+            get_self_endpoint(), nullptr, m,
+            gsl::span<const unsigned char>(reinterpret_cast<const unsigned char *>(fwd_data.content().data()),
+                                           fwd_data.content().size()));
         ++ret;
 
         // fake response
@@ -2044,7 +2059,7 @@ ATBUS_MACRO_API int node::dispatch_all_self_messages() {
         break;
       }
 
-      on_receive_message(nullptr, std::move(m), 0, 0);
+      on_receive_message(nullptr, std::move(m), 0, EN_ATBUS_ERR_SUCCESS);
       ++ret;
 
     } while (false);
@@ -2289,20 +2304,12 @@ ATBUS_MACRO_API protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE node::parse_compressi
 }
 
 endpoint *node::find_route(endpoint_collection_t &coll, bus_id_t id) {
-  endpoint_collection_t::iterator iter = coll.lower_bound(endpoint_subnet_range(id, 0));
+  endpoint_collection_t::iterator iter = coll.find(id);
   if (iter == coll.end()) {
     return nullptr;
   }
 
-  if (iter->second->get_id() == id) {
-    return iter->second.get();
-  }
-
-  if (iter->first.contain(id)) {
-    return iter->second.get();
-  }
-
-  return nullptr;
+  return iter->second.get();
 }
 
 bool node::insert_child(endpoint_collection_t &coll, endpoint::ptr_t ep, bool ignore_event) {
@@ -2310,17 +2317,11 @@ bool node::insert_child(endpoint_collection_t &coll, endpoint::ptr_t ep, bool ig
     return false;
   }
 
-  if (check_conflict(coll, ep->get_subnets())) {
-    ATBUS_FUNC_NODE_ERROR(*this, ep.get(), nullptr, EN_ATBUS_ERR_ATNODE_MASK_CONFLICT,
-                          EN_ATBUS_ERR_ATNODE_MASK_CONFLICT, "child collection conflict");
-    return false;
+  auto iter = coll.find(ep->get_id());
+  if (iter != coll.end() && iter->second.get() != ep.get()) {
+    return true;
   }
-
-  // insert all routes
-  const std::vector<endpoint_subnet_range> &routes = ep->get_subnets();
-  for (size_t i = 0; i < routes.size(); ++i) {
-    coll[routes[i]] = ep;
-  }
+  coll[ep->get_id()] = ep;
 
   // event
   if (!ignore_event && event_message_.on_endpoint_added) {
@@ -2331,12 +2332,8 @@ bool node::insert_child(endpoint_collection_t &coll, endpoint::ptr_t ep, bool ig
 }
 
 bool node::remove_child(endpoint_collection_t &coll, bus_id_t id, endpoint *expected, bool ignore_event) {
-  endpoint_collection_t::iterator iter = coll.lower_bound(endpoint_subnet_range(id, 0));
+  endpoint_collection_t::iterator iter = coll.find(id);
   if (iter == coll.end()) {
-    return false;
-  }
-
-  if (iter->second->get_id() != id) {
     return false;
   }
 
@@ -2345,11 +2342,7 @@ bool node::remove_child(endpoint_collection_t &coll, bus_id_t id, endpoint *expe
   }
 
   endpoint::ptr_t ep = iter->second;
-  // remove all routes
-  const std::vector<endpoint_subnet_range> &routes = iter->second->get_subnets();
-  for (size_t i = 0; i < routes.size(); ++i) {
-    coll.erase(routes[i]);
-  }
+  coll.erase(iter);
 
   // event
   if (!ignore_event && event_message_.on_endpoint_removed) {
@@ -2495,12 +2488,12 @@ ATBUS_MACRO_API void node::stat_add_dispatch_times() { ++stat_.dispatch_times; }
 
 ATBUS_ERROR_TYPE node::remove_endpoint(bus_id_t tid, endpoint *expected) {
   // 上游节点单独判定，由于防止测试兄弟节点
-  if (is_upstream_node(tid)) {
-    endpoint::ptr_t ep = node_upstream_.node_;
-
-    if (nullptr != expected && node_upstream_.node_.get() != expected) {
+  if (node_upstream_.node_ && node_upstream_.node_->get_id() == tid) {
+    if (expected != nullptr && expected != node_upstream_.node_.get()) {
       return EN_ATBUS_ERR_ATNODE_NOT_FOUND;
     }
+
+    endpoint::ptr_t ep = node_upstream_.node_;
 
     node_upstream_.node_.reset();
     state_ = state_t::LOST_UPSTREAM;
@@ -2525,7 +2518,7 @@ ATBUS_ERROR_TYPE node::remove_endpoint(bus_id_t tid, endpoint *expected) {
     return EN_ATBUS_ERR_ATNODE_INVALID_ID;
   }
 
-  if (remove_child(node_routes_, tid, expected)) {
+  if (remove_child(node_route_, tid, expected)) {
     return EN_ATBUS_ERR_SUCCESS;
   } else {
     return EN_ATBUS_ERR_ATNODE_NOT_FOUND;
@@ -2642,8 +2635,7 @@ channel::io_stream_conf *node::get_iostream_conf() {
   iostream_conf_->send_buffer_limit_size =
       conf_.message_size + ATBUS_MACRO_MAX_FRAME_HEADER +
       ::atframework::atbus::detail::buffer_block::padding_size(sizeof(uv_write_t) + sizeof(uint32_t) + 16);
-  iostream_conf_->confirm_timeout =
-      static_cast<time_t>(std::chrono::duration_cast<std::chrono::seconds>(conf_.first_idle_timeout).count());
+  iostream_conf_->confirm_timeout = conf_.first_idle_timeout;
   iostream_conf_->backlog = conf_.backlog;
 
   return iostream_conf_.get();
