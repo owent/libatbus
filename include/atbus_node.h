@@ -705,6 +705,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
   void remove_ping_timer(const endpoint *ep);
 
   friend class node_access_controller;
+  friend struct node_msg_test_access;
 
   void init_hash_code();
 
