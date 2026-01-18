@@ -1080,12 +1080,12 @@ CASE_TEST(atbus_node_reg, reg_pc_failed_with_subnet_mismatch) {
       node_downstream->proc(unit_test_make_timepoint(proc_t, proc_us));
     }
 
-    node_parent->proc(unit_test_make_timepoint(proc_t, proc_us));
-    node_child->proc(unit_test_make_timepoint(proc_t, proc_us));
+    node_upstream->proc(unit_test_make_timepoint(proc_t, proc_us));
+    node_downstream->proc(unit_test_make_timepoint(proc_t, proc_us));
 
     // in windows CI, connection will be closed sometimes, it will lead to add one endpoint more than one times
-    CASE_EXPECT_TRUE(node_child->get_state() == atbus::node::state_t::CREATED ||
-                     node_child->get_state() == atbus::node::state_t::RUNNING);
+    CASE_EXPECT_TRUE(node_downstream->get_state() == atbus::node::state_t::CREATED ||
+                     node_downstream->get_state() == atbus::node::state_t::RUNNING);
     CASE_EXPECT_LE(check_ep_count, recv_msg_history.add_endpoint_count);
     CASE_EXPECT_LE(old_register_count, recv_msg_history.register_count);
     CASE_EXPECT_LE(old_available_count, recv_msg_history.availavle_count);
@@ -1094,7 +1094,8 @@ CASE_TEST(atbus_node_reg, reg_pc_failed_with_subnet_mismatch) {
     {
       atbus::endpoint *test_ep = nullptr;
       atbus::connection *test_conn = nullptr;
-      node_parent->get_peer_channel(node_child->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
+      node_upstream->get_peer_channel(node_downstream->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
+                                      &test_conn);
       CASE_EXPECT_NE(nullptr, test_ep);
       CASE_EXPECT_NE(nullptr, test_conn);
     }
@@ -1103,17 +1104,18 @@ CASE_TEST(atbus_node_reg, reg_pc_failed_with_subnet_mismatch) {
     {
       atbus::endpoint *test_ep = nullptr;
       atbus::connection *test_conn = nullptr;
-      node_child->get_peer_channel(node_parent->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
+      node_downstream->get_peer_channel(node_upstream->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
+                                        &test_conn);
       CASE_EXPECT_NE(nullptr, test_ep);
       CASE_EXPECT_NE(nullptr, test_conn);
     }
 
     CASE_MSG_INFO() << "atbus_node_reg.reg_pc_failed_with_subnet_mismatch done." << std::endl;
     // disconnect - upstream and downstream
-    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_parent->disconnect(0x12346789));
-    CASE_EXPECT_EQ(EN_ATBUS_ERR_ATNODE_NOT_FOUND, node_parent->disconnect(0x12346789));
-    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_child->disconnect(0x12345678));
-    CASE_EXPECT_EQ(EN_ATBUS_ERR_ATNODE_NOT_FOUND, node_child->disconnect(0x12345678));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->disconnect(0x12346789));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_ATNODE_NOT_FOUND, node_upstream->disconnect(0x12346789));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream->disconnect(0x12345678));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_ATNODE_NOT_FOUND, node_downstream->disconnect(0x12345678));
   }
 
   unit_test_setup_exit(&ev_loop);
@@ -1276,7 +1278,7 @@ CASE_TEST(atbus_node_reg, conflict) {
 
 // 对上游节点重连失败不会导致下线的流程测试
 // 对上游节点断线重连的流程测试
-CASE_TEST(atbus_node_reg, reconnect_parent_failed) {
+CASE_TEST(atbus_node_reg, reconnect_upstream_failed) {
   atbus::node::conf_t conf;
   atbus::node::default_conf(&conf);
   uv_loop_t ev_loop;
