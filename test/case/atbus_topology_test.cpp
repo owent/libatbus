@@ -193,7 +193,8 @@ CASE_TEST(atbus_topology, topology_registry_update_and_remove) {
   CASE_EXPECT_TRUE(peer10);
   CASE_EXPECT_TRUE(peer3);
   CASE_EXPECT_FALSE(peer10->contains_downstream(2));
-  CASE_EXPECT_FALSE(peer3->get_upstream());
+  CASE_EXPECT_TRUE(peer3->get_upstream());
+  CASE_EXPECT_EQ(2, peer3->get_upstream()->get_bus_id());
 
   // Removing peer10 should clear upstream of peers that were attached to it (none now).
   registry->remove_peer(10);

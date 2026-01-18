@@ -178,17 +178,6 @@ static std::string string_vector_to_json_array(const std::vector<std::string>& v
   return oss.str();
 }
 
-static std::string uint64_vector_to_json_array(const std::vector<uint64_t>& vec) {
-  std::ostringstream oss;
-  oss << "[";
-  for (size_t i = 0; i < vec.size(); ++i) {
-    if (i > 0) oss << ", ";
-    oss << vec[i];
-  }
-  oss << "]";
-  return oss.str();
-}
-
 }  // namespace
 
 // ============================================================================
@@ -595,82 +584,6 @@ CASE_TEST(atbus_connection_context_crosslang, generate_no_encryption_test_files)
   }
 
   // ============================================================================
-  // Test Case 10: node_sync_req
-  // ============================================================================
-  {
-    const char* test_name = "no_enc_node_sync_req";
-    std::vector<uint64_t> bus_ids = {0x50001, 0x50002, 0x50003};
-
-    atfw::atbus::message msg(arena_options);
-    auto* tree = msg.mutable_body().mutable_node_sync_req();
-    for (auto id : bus_ids) {
-      auto* node = tree->add_nodes();
-      node->set_bus_id(id);
-    }
-
-    auto pack_result = ctx->pack_message(msg, protocol_version, random_engine, 1024 * 1024);
-    if (pack_result.is_success()) {
-      auto* buffer = pack_result.get_success();
-      write_binary_file(std::string(test_name) + ".bytes", buffer->data(), buffer->used());
-
-      std::ostringstream json;
-      json << "{\n";
-      json << "  \"name\": \"" << test_name << "\",\n";
-      json << "  \"description\": \"Node tree sync request\",\n";
-      json << "  \"protocol_version\": " << protocol_version << ",\n";
-      json << "  \"body_type\": \"node_sync_req\",\n";
-      json << "  \"body_type_case\": 15,\n";
-      json << "  \"crypto_algorithm\": \"NONE\",\n";
-      json << "  \"packed_size\": " << buffer->used() << ",\n";
-      json << "  \"packed_hex\": \"" << bytes_to_hex(buffer->data(), buffer->used()) << "\",\n";
-      json << "  \"expected\": {\n";
-      json << "    \"node_bus_ids\": " << uint64_vector_to_json_array(bus_ids) << "\n";
-      json << "  }\n";
-      json << "}\n";
-      write_json_file(std::string(test_name) + ".json", json.str());
-      generated_count++;
-    }
-  }
-
-  // ============================================================================
-  // Test Case 11: node_sync_rsp
-  // ============================================================================
-  {
-    const char* test_name = "no_enc_node_sync_rsp";
-    std::vector<uint64_t> bus_ids = {0x60001, 0x60002};
-
-    atfw::atbus::message msg(arena_options);
-    auto* tree = msg.mutable_body().mutable_node_sync_rsp();
-    for (auto id : bus_ids) {
-      auto* node = tree->add_nodes();
-      node->set_bus_id(id);
-    }
-
-    auto pack_result = ctx->pack_message(msg, protocol_version, random_engine, 1024 * 1024);
-    if (pack_result.is_success()) {
-      auto* buffer = pack_result.get_success();
-      write_binary_file(std::string(test_name) + ".bytes", buffer->data(), buffer->used());
-
-      std::ostringstream json;
-      json << "{\n";
-      json << "  \"name\": \"" << test_name << "\",\n";
-      json << "  \"description\": \"Node tree sync response\",\n";
-      json << "  \"protocol_version\": " << protocol_version << ",\n";
-      json << "  \"body_type\": \"node_sync_rsp\",\n";
-      json << "  \"body_type_case\": 16,\n";
-      json << "  \"crypto_algorithm\": \"NONE\",\n";
-      json << "  \"packed_size\": " << buffer->used() << ",\n";
-      json << "  \"packed_hex\": \"" << bytes_to_hex(buffer->data(), buffer->used()) << "\",\n";
-      json << "  \"expected\": {\n";
-      json << "    \"node_bus_ids\": " << uint64_vector_to_json_array(bus_ids) << "\n";
-      json << "  }\n";
-      json << "}\n";
-      write_json_file(std::string(test_name) + ".json", json.str());
-      generated_count++;
-    }
-  }
-
-  // ============================================================================
   // Test Case 13: data_transform_req with binary content (all byte values 0-255)
   // ============================================================================
   {
@@ -823,7 +736,7 @@ CASE_TEST(atbus_connection_context_crosslang, generate_no_encryption_test_files)
 
   CASE_MSG_INFO() << "Generated " << generated_count << " no-encryption test files in " << get_output_dir()
                   << std::endl;
-  CASE_EXPECT_EQ(15, generated_count);
+  CASE_EXPECT_EQ(12, generated_count);
 }
 
 // ============================================================================
@@ -846,8 +759,6 @@ CASE_TEST(atbus_connection_context_crosslang, verify_generated_no_encryption_fil
       "no_enc_custom_command_rsp",
       "no_enc_node_register_req",
       "no_enc_node_register_rsp",
-      "no_enc_node_sync_req",
-      "no_enc_node_sync_rsp",
       "no_enc_data_transform_binary_content",
       "no_enc_data_transform_large_content",
       "no_enc_data_transform_utf8_content",
@@ -903,8 +814,6 @@ CASE_TEST(atbus_connection_context_crosslang, generate_index_file) {
       "no_enc_custom_command_rsp",
       "no_enc_node_register_req",
       "no_enc_node_register_rsp",
-      "no_enc_node_sync_req",
-      "no_enc_node_sync_rsp",
       "no_enc_data_transform_binary_content",
       "no_enc_data_transform_large_content",
       "no_enc_data_transform_utf8_content",
