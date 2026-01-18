@@ -29,7 +29,7 @@ int main() {
     // 初始化
     node1->init(0x12345678, &conf);  // BUS ID=0x12345678
     node2->init(0x12356789, &conf);  // BUS ID=0x12356789
-    // 未设置拓扑，所以这两个是kOtherUpstreamPeer关系
+    // 未设置拓扑关系表，因此默认会落在 kOtherUpstreamPeer（表示无明确拓扑关系）
 
     // 各自监听地址
     node1->listen("ipv4://127.0.0.1:16387");
@@ -60,13 +60,14 @@ int main() {
     // 设置接收到消息后的回调函数
     bool recved = false;
     node2->set_on_forward_request_handle([&recved](const atbus::node &n, const atbus::endpoint *ep,
-                                                   const atbus::connection *conn, const atbus::message &,
-                                                   const void *buffer, size_t len) {
+                             const atbus::connection *conn, const atbus::message &,
+                             gsl::span<const unsigned char> buffer) {
       if (nullptr != ep && nullptr != conn) {
         std::cout << "atbus node 0x" << std::ios::hex << n.get_id() << " receive data from 0x" << std::ios::hex
                   << ep->get_id() << "(connection: " << conn->get_address().address << "): ";
       }
-      std::cout.write(reinterpret_cast<const char *>(buffer), static_cast<std::streamsize>(len));
+      std::cout.write(reinterpret_cast<const char *>(buffer.data()),
+              static_cast<std::streamsize>(buffer.size()));
       std::cout << std::endl;
       recved = true;
       return 0;
@@ -74,7 +75,9 @@ int main() {
 
     // 发送数据
     std::string send_data = "hello world!";
-    node1->send_data(node2->get_id(), 0, send_data.data(), send_data.size());
+    node1->send_data(node2->get_id(), 0,
+             gsl::span<const unsigned char>(reinterpret_cast<const unsigned char *>(send_data.data()),
+                             send_data.size()));
 
     // 等待发送完成
     while (!recved) {

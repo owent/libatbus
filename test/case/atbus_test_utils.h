@@ -3,7 +3,13 @@
 
 #pragma once
 
+#include <chrono>
+
 #include "uv.h"
+
+inline std::chrono::system_clock::time_point unit_test_make_timepoint(time_t sec, time_t usec) {
+  return std::chrono::system_clock::from_time_t(sec) + std::chrono::microseconds(usec);
+}
 
 void unit_test_tick_handle(uv_timer_t *handle);
 void unit_test_timeout_handle(uv_timer_t *handle);
