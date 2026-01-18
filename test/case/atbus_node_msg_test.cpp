@@ -40,16 +40,14 @@ static void setup_atbus_node_logger(atbus::node &n) {
   n.enable_debug_message_verbose();
 }
 
-namespace atframework {
-namespace atbus {
+ATBUS_MACRO_NAMESPACE_BEGIN
 struct node_msg_test_access {
   static ATBUS_ERROR_TYPE send_data_message(node &n, bus_id_t tid, message &m, endpoint **ep_out,
                                             connection **conn_out) {
     return n.send_data_message(tid, m, ep_out, conn_out);
   }
 };
-}  // namespace atbus
-}  // namespace atframework
+ATBUS_MACRO_NAMESPACE_END
 
 struct node_msg_test_recv_msg_record_t {
   const atbus::node *n;
