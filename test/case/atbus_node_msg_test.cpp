@@ -40,6 +40,17 @@ static void setup_atbus_node_logger(atbus::node &n) {
   n.enable_debug_message_verbose();
 }
 
+namespace atframework {
+namespace atbus {
+struct node_msg_test_access {
+  static ATBUS_ERROR_TYPE send_data_message(node &n, bus_id_t tid, message &m, endpoint **ep_out,
+                                            connection **conn_out) {
+    return n.send_data_message(tid, m, ep_out, conn_out);
+  }
+};
+}  // namespace atbus
+}  // namespace atframework
+
 struct node_msg_test_recv_msg_record_t {
   const atbus::node *n;
   const atbus::endpoint *ep;
@@ -119,7 +130,9 @@ static int node_msg_test_send_data_forward_response_fn(const atbus::node &n, con
   recv_msg_history.ep = ep;
   recv_msg_history.conn = conn;
   recv_msg_history.status = nullptr == m ? 0 : m->get_head() == nullptr ? 0 : m->get_head()->result_code();
-  ++recv_msg_history.failed_count;
+  if (recv_msg_history.status < 0) {
+    ++recv_msg_history.failed_count;
+  }
 
   const ::atframework::atbus::protocol::forward_data *fwd_data = nullptr;
   if (nullptr != m) {
@@ -143,6 +156,33 @@ static int node_msg_test_send_data_forward_response_fn(const atbus::node &n, con
   }
 
   return 0;
+}
+
+static void node_msg_test_build_forward_message(atbus::node &sender, atbus::bus_id_t tid, int type,
+                                                gsl::span<const unsigned char> data,
+                                                atbus::node::send_data_options_t &options, atbus::message &m) {
+  atbus::protocol::message_head &head = m.mutable_head();
+  atbus::protocol::forward_data *body = m.mutable_body().mutable_data_transform_req();
+  CASE_EXPECT_TRUE(nullptr != body);
+
+  uint64_t self_id = sender.get_id();
+  uint32_t flags = 0;
+  if (0 != (options.flags & atbus::node::send_data_options_t::EN_SDOPT_REQUIRE_RESPONSE)) {
+    flags |= atbus::protocol::FORWARD_DATA_FLAG_REQUIRE_RSP;
+  }
+
+  head.set_version(sender.get_protocol_version());
+  head.set_type(type);
+  head.set_source_bus_id(self_id);
+  if (0 != options.sequence) {
+    head.set_sequence(options.sequence);
+  }
+
+  body->set_from(self_id);
+  body->set_to(tid);
+  body->add_router(self_id);
+  body->mutable_content()->assign(reinterpret_cast<const char *>(data.data()), data.size());
+  body->set_flags(flags);
 }
 
 static int node_msg_test_remove_endpoint_fn(const atbus::node &, atbus::endpoint *, int) {
@@ -978,6 +1018,170 @@ CASE_TEST(atbus_node_msg, transfer_only) {
       uv_run(conf.ev_loop, UV_RUN_NOWAIT);
       CASE_THREAD_SLEEP_MS(4);
     }
+  }
+
+  unit_test_setup_exit(&ev_loop);
+}
+
+// 基于拓扑关系的多级上游/下游转发路径测试
+CASE_TEST(atbus_node_msg, topology_registry_multi_level_route) {
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+
+  conf.ev_loop = &ev_loop;
+
+  {
+    atbus::node::ptr_t node_upstream = atbus::node::create();
+    atbus::node::ptr_t node_mid = atbus::node::create();
+    atbus::node::ptr_t node_downstream = atbus::node::create();
+    setup_atbus_node_logger(*node_upstream);
+    setup_atbus_node_logger(*node_mid);
+    setup_atbus_node_logger(*node_downstream);
+
+    node_upstream->init(0x12345678, &conf);
+
+    conf.upstream_address = "ipv4://127.0.0.1:16387";
+    node_mid->init(0x12346789, &conf);
+
+    conf.upstream_address = "ipv4://127.0.0.1:16388";
+    node_downstream->init(0x12346890, &conf);
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->listen("ipv4://127.0.0.1:16387"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_mid->listen("ipv4://127.0.0.1:16388"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream->listen("ipv4://127.0.0.1:16389"));
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->start());
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_mid->start());
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream->start());
+
+    time_t proc_t = time(nullptr) + 1;
+    UNITTEST_WAIT_UNTIL(conf.ev_loop,
+                        node_mid->is_endpoint_available(node_upstream->get_id()) &&
+                            node_upstream->is_endpoint_available(node_mid->get_id()) &&
+                            node_downstream->is_endpoint_available(node_mid->get_id()) &&
+                            node_mid->is_endpoint_available(node_downstream->get_id()),
+                        8000, 64) {
+      node_upstream->proc(unit_test_make_timepoint(proc_t, 0));
+      node_mid->proc(unit_test_make_timepoint(proc_t, 0));
+      node_downstream->proc(unit_test_make_timepoint(proc_t, 0));
+      ++proc_t;
+    }
+
+    CASE_EXPECT_EQ(nullptr, node_upstream->get_endpoint(node_downstream->get_id()));
+    CASE_EXPECT_EQ(nullptr, node_downstream->get_endpoint(node_upstream->get_id()));
+
+    atbus::topology_peer::ptr_t next_hop;
+    CASE_EXPECT_EQ(static_cast<int>(atbus::topology_relation_type::kInvalid),
+                   static_cast<int>(node_upstream->get_topology_relation(node_downstream->get_id(), &next_hop)));
+    CASE_EXPECT_FALSE(next_hop);
+
+    std::string send_data = "topology multi-level route\n";
+    {
+      atbus::node::send_data_options_t options;
+      options.flags |= atbus::node::send_data_options_t::EN_SDOPT_REQUIRE_RESPONSE;
+      ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
+      arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
+      atbus::message msg{arena_options};
+      node_msg_test_build_forward_message(
+          *node_upstream, node_downstream->get_id(), 0,
+          gsl::span<const unsigned char>(reinterpret_cast<const unsigned char *>(send_data.data()), send_data.size()),
+          options, msg);
+      atbus::endpoint *next_ep = nullptr;
+      atbus::connection *next_conn = nullptr;
+      int ret = atframework::atbus::node_msg_test_access::send_data_message(*node_upstream, node_downstream->get_id(),
+                                                                            msg, &next_ep, &next_conn);
+      CASE_EXPECT_NE(EN_ATBUS_ERR_SUCCESS, ret);
+      CASE_EXPECT_EQ(nullptr, next_ep);
+    }
+
+    node_upstream->get_topology_registry()->update_peer(node_mid->get_id(), node_upstream->get_id(), nullptr);
+    node_upstream->get_topology_registry()->update_peer(node_downstream->get_id(), node_mid->get_id(), nullptr);
+
+    CASE_EXPECT_TRUE(
+        node_downstream->get_topology_registry()->update_peer(node_mid->get_id(), node_upstream->get_id(), nullptr));
+    CASE_EXPECT_FALSE(
+        node_downstream->get_topology_registry()->update_peer(node_upstream->get_id(), node_mid->get_id(), nullptr));
+    CASE_EXPECT_TRUE(
+        node_downstream->get_topology_registry()->update_peer(node_downstream->get_id(), node_mid->get_id(), nullptr));
+
+    CASE_EXPECT_EQ(static_cast<int>(atbus::topology_relation_type::kTransitiveDownstream),
+                   static_cast<int>(node_upstream->get_topology_relation(node_downstream->get_id(), &next_hop)));
+    CASE_EXPECT_TRUE(next_hop);
+    CASE_EXPECT_EQ(node_mid->get_id(), next_hop->get_bus_id());
+
+    CASE_EXPECT_EQ(static_cast<int>(atbus::topology_relation_type::kTransitiveUpstream),
+                   static_cast<int>(node_downstream->get_topology_relation(node_upstream->get_id(), &next_hop)));
+    CASE_EXPECT_TRUE(next_hop);
+    CASE_EXPECT_EQ(node_mid->get_id(), next_hop->get_bus_id());
+
+    node_downstream->set_on_forward_request_handle(node_msg_test_recv_msg_test_record_fn);
+    int old_count = recv_msg_history.count;
+    recv_msg_history.data.clear();
+    {
+      atbus::node::send_data_options_t options;
+      options.flags |= atbus::node::send_data_options_t::EN_SDOPT_REQUIRE_RESPONSE;
+      ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
+      arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
+      atbus::message msg{arena_options};
+      node_msg_test_build_forward_message(
+          *node_upstream, node_downstream->get_id(), 0,
+          gsl::span<const unsigned char>(reinterpret_cast<const unsigned char *>(send_data.data()), send_data.size()),
+          options, msg);
+      atbus::endpoint *next_ep = nullptr;
+      atbus::connection *next_conn = nullptr;
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, atframework::atbus::node_msg_test_access::send_data_message(
+                                               *node_upstream, node_downstream->get_id(), msg, &next_ep, &next_conn));
+      CASE_EXPECT_TRUE(nullptr != next_ep);
+      CASE_EXPECT_EQ(node_mid->get_id(), next_ep->get_id());
+      CASE_EXPECT_TRUE(nullptr != next_conn);
+    }
+
+    UNITTEST_WAIT_UNTIL(conf.ev_loop, recv_msg_history.count > old_count, 8000, 0) {
+      node_upstream->proc(unit_test_make_timepoint(proc_t, 0));
+      node_mid->proc(unit_test_make_timepoint(proc_t, 0));
+      node_downstream->proc(unit_test_make_timepoint(proc_t, 0));
+      ++proc_t;
+    }
+    CASE_EXPECT_EQ(send_data, recv_msg_history.data);
+
+    atbus::endpoint *mid_to_downstream = node_mid->get_endpoint(node_downstream->get_id());
+    CASE_EXPECT_TRUE(nullptr != mid_to_downstream);
+    if (nullptr != mid_to_downstream) {
+      mid_to_downstream->reset();
+    }
+
+    node_upstream->set_on_forward_response_handle(node_msg_test_send_data_forward_response_fn);
+    int old_failed = recv_msg_history.failed_count;
+    recv_msg_history.status = 0;
+    {
+      atbus::node::send_data_options_t options;
+      options.flags |= atbus::node::send_data_options_t::EN_SDOPT_REQUIRE_RESPONSE;
+      ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
+      arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
+      atbus::message msg{arena_options};
+      node_msg_test_build_forward_message(
+          *node_upstream, node_downstream->get_id(), 0,
+          gsl::span<const unsigned char>(reinterpret_cast<const unsigned char *>(send_data.data()), send_data.size()),
+          options, msg);
+      atbus::endpoint *next_ep = nullptr;
+      atbus::connection *next_conn = nullptr;
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, atframework::atbus::node_msg_test_access::send_data_message(
+                                               *node_upstream, node_downstream->get_id(), msg, &next_ep, &next_conn));
+      CASE_EXPECT_TRUE(nullptr != next_ep);
+      CASE_EXPECT_EQ(node_mid->get_id(), next_ep->get_id());
+    }
+
+    UNITTEST_WAIT_UNTIL(conf.ev_loop, recv_msg_history.failed_count > old_failed, 8000, 0) {
+      node_upstream->proc(unit_test_make_timepoint(proc_t, 0));
+      node_mid->proc(unit_test_make_timepoint(proc_t, 0));
+      node_downstream->proc(unit_test_make_timepoint(proc_t, 0));
+      ++proc_t;
+    }
+    CASE_EXPECT_GT(recv_msg_history.failed_count, old_failed);
+    CASE_EXPECT_TRUE(EN_ATBUS_ERR_ATNODE_NO_CONNECTION == recv_msg_history.status ||
+                     EN_ATBUS_ERR_ATNODE_INVALID_ID == recv_msg_history.status);
   }
 
   unit_test_setup_exit(&ev_loop);
