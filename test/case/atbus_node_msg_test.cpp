@@ -1157,7 +1157,6 @@ CASE_TEST(atbus_node_msg, topology_registry_multi_level_route) {
     recv_msg_history.status = 0;
     {
       atbus::node::send_data_options_t options;
-      options.flags |= atbus::node::send_data_options_t::EN_SDOPT_REQUIRE_RESPONSE;
       ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
       arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
       atbus::message msg{arena_options};
