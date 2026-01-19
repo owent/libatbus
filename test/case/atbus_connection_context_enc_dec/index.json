@@ -51,16 +51,6 @@
       "metadata": "no_enc_node_register_rsp.json"
     },
     {
-      "name": "no_enc_node_sync_req",
-      "binary": "no_enc_node_sync_req.bytes",
-      "metadata": "no_enc_node_sync_req.json"
-    },
-    {
-      "name": "no_enc_node_sync_rsp",
-      "binary": "no_enc_node_sync_rsp.bytes",
-      "metadata": "no_enc_node_sync_rsp.json"
-    },
-    {
       "name": "no_enc_data_transform_binary_content",
       "binary": "no_enc_data_transform_binary_content.bytes",
       "metadata": "no_enc_data_transform_binary_content.json"
