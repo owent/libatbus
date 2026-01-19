@@ -720,7 +720,8 @@ CASE_TEST(atbus_node_reg, destruct) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_NOT_INITED, node1->connect("ipv4://127.0.0.1:16388"));
     {
       atbus::node::send_data_options_t options;
-      options.flags |= atbus::node::send_data_options_t::EN_SDOPT_REQUIRE_RESPONSE;
+      options.flags |=
+          static_cast<decltype(options.flags)>(atbus::node::send_data_options_t::EN_SDOPT_REQUIRE_RESPONSE);
       CASE_EXPECT_EQ(EN_ATBUS_ERR_NOT_INITED,
                      node1->send_data(0x12345678, 213, gsl::span<const unsigned char>(), options));
     }
@@ -748,7 +749,8 @@ CASE_TEST(atbus_node_reg, destruct) {
 
     {
       atbus::node::send_data_options_t options;
-      options.flags |= atbus::node::send_data_options_t::EN_SDOPT_REQUIRE_RESPONSE;
+      options.flags |=
+          static_cast<decltype(options.flags)>(atbus::node::send_data_options_t::EN_SDOPT_REQUIRE_RESPONSE);
       CASE_EXPECT_EQ(EN_ATBUS_ERR_INVALID_SIZE,
                      node1->send_data(0x12345678, 213,
                                       gsl::span<const unsigned char>(reinterpret_cast<const unsigned char *>(&conf),

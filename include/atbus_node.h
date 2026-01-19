@@ -91,20 +91,92 @@ class node final : public atfw::util::design_pattern::noncopyable {
       EN_SDOPT_REQUIRE_RESPONSE = 0x01,  // 是否强制需要回包（默认情况下如果发送成功是没有回包通知的）
     };
 
-    int32_t flags;  // @see flag_type upper
+    uint32_t flags;  // @see flag_type upper
     uint64_t sequence;
 
-    ATBUS_MACRO_API send_data_options_t();
+    ATFW_UTIL_FORCEINLINE constexpr send_data_options_t() : flags(EN_SDOPT_NONE), sequence(0) {}
 
-    ATBUS_MACRO_API send_data_options_t(std::initializer_list<flag_type> flag_list) noexcept;
+    ATFW_UTIL_FORCEINLINE constexpr send_data_options_t(std::initializer_list<flag_type> flag_list) noexcept
+        : flags(EN_SDOPT_NONE), sequence(0) {
+      for (auto f : flag_list) {
+        flags |= f;
+      }
+    }
 
-    ATBUS_MACRO_API send_data_options_t(gsl::span<flag_type> flag_list) noexcept;
+    ATFW_UTIL_FORCEINLINE constexpr send_data_options_t(gsl::span<flag_type> flag_list) noexcept
+        : flags(EN_SDOPT_NONE), sequence(0) {
+      flags = EN_SDOPT_NONE;
+      for (auto f : flag_list) {
+        flags |= f;
+      }
+    }
 
-    ATBUS_MACRO_API ~send_data_options_t();
-    ATBUS_MACRO_API send_data_options_t(const send_data_options_t &other);
-    ATBUS_MACRO_API send_data_options_t &operator=(const send_data_options_t &other);
-    ATBUS_MACRO_API send_data_options_t(send_data_options_t &&other);
-    ATBUS_MACRO_API send_data_options_t &operator=(send_data_options_t &&other);
+    ATFW_UTIL_FORCEINLINE constexpr bool check_flag(flag_type f) const noexcept {
+      return (flags & static_cast<uint32_t>(f)) != 0;
+    }
+
+    ATFW_UTIL_FORCEINLINE constexpr ~send_data_options_t() {}
+
+    ATFW_UTIL_FORCEINLINE constexpr send_data_options_t(const send_data_options_t &other)
+        : flags(other.flags), sequence(other.sequence) {}
+
+    ATFW_UTIL_FORCEINLINE constexpr send_data_options_t &operator=(const send_data_options_t &other) {
+      flags = other.flags;
+      sequence = other.sequence;
+      return *this;
+    }
+
+    ATFW_UTIL_FORCEINLINE constexpr send_data_options_t(send_data_options_t &&other)
+        : flags(other.flags), sequence(other.sequence) {}
+
+    ATFW_UTIL_FORCEINLINE constexpr send_data_options_t &operator=(send_data_options_t &&other) {
+      flags = other.flags;
+      sequence = other.sequence;
+      return *this;
+    }
+  };
+
+  struct get_peer_options_t {
+    enum class option_type : uint16_t {
+      EN_GPOPT_NONE = 0,
+      EN_GPOPT_NO_UPSTREAM = 0x01,  // 不允许上游转发
+    };
+
+    uint16_t flags;  // @see flag_type upper
+
+    ATFW_UTIL_FORCEINLINE constexpr get_peer_options_t() : flags(0) {}
+    ATFW_UTIL_FORCEINLINE constexpr ~get_peer_options_t() {}
+
+    ATFW_UTIL_FORCEINLINE constexpr get_peer_options_t(std::initializer_list<option_type> flag_list) noexcept
+        : flags(0) {
+      for (auto f : flag_list) {
+        flags |= static_cast<uint16_t>(f);
+      }
+    }
+
+    ATFW_UTIL_FORCEINLINE constexpr get_peer_options_t(gsl::span<option_type> flag_list) noexcept : flags(0) {
+      for (auto f : flag_list) {
+        flags |= static_cast<uint16_t>(f);
+      }
+    }
+
+    ATFW_UTIL_FORCEINLINE constexpr get_peer_options_t(const get_peer_options_t &other) : flags(other.flags) {}
+
+    ATFW_UTIL_FORCEINLINE constexpr get_peer_options_t &operator=(const get_peer_options_t &other) {
+      flags = other.flags;
+      return *this;
+    }
+
+    ATFW_UTIL_FORCEINLINE constexpr get_peer_options_t(get_peer_options_t &&other) : flags(other.flags) {}
+
+    ATFW_UTIL_FORCEINLINE constexpr get_peer_options_t &operator=(get_peer_options_t &&other) {
+      flags = other.flags;
+      return *this;
+    }
+
+    ATFW_UTIL_FORCEINLINE constexpr bool check_flag(option_type f) const noexcept {
+      return (flags & static_cast<uint16_t>(f)) != 0;
+    }
   };
 
   struct conf_t {
@@ -384,7 +456,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
    * @return 0或错误码
    */
   ATBUS_MACRO_API ATBUS_ERROR_TYPE get_peer_channel(bus_id_t tid, endpoint::get_connection_fn_t fn, endpoint **ep_out,
-                                                    connection **conn_out);
+                                                    connection **conn_out, get_peer_options_t options = {});
 
   /**
    * @brief 设置当前节点的上游端点拓扑关系
@@ -467,7 +539,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
    * @param message_builder 消息构建器
    * @return 0或错误码
    */
-  ATBUS_ERROR_TYPE send_data_message(bus_id_t tid, message_builder_ref_t mb);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE send_data_message(bus_id_t tid, message_builder_ref_t mb);
 
   /**
    * @brief 发送数据消息
@@ -477,7 +549,8 @@ class node final : public atfw::util::design_pattern::noncopyable {
    * @param conn_out 如果发送成功，导出发送连接
    * @return 0或错误码
    */
-  ATBUS_ERROR_TYPE send_data_message(bus_id_t tid, message_builder_ref_t mb, endpoint **ep_out, connection **conn_out);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE send_data_message(bus_id_t tid, message_builder_ref_t mb, endpoint **ep_out,
+                                                     connection **conn_out);
 
   /**
    * @brief 发送控制消息
@@ -485,7 +558,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
    * @param message_builder 消息构建器
    * @return 0或错误码
    */
-  ATBUS_ERROR_TYPE send_ctrl_message(bus_id_t tid, message_builder_ref_t mb);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE send_ctrl_message(bus_id_t tid, message_builder_ref_t mb);
 
   /**
    * @brief 发送控制消息
@@ -495,7 +568,8 @@ class node final : public atfw::util::design_pattern::noncopyable {
    * @param conn_out 如果发送成功，导出发送连接
    * @return 0或错误码
    */
-  ATBUS_ERROR_TYPE send_ctrl_message(bus_id_t tid, message_builder_ref_t mb, endpoint **ep_out, connection **conn_out);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE send_ctrl_message(bus_id_t tid, message_builder_ref_t mb, endpoint **ep_out,
+                                                     connection **conn_out);
 
   /**
    * @brief 发送消息
@@ -506,8 +580,9 @@ class node final : public atfw::util::design_pattern::noncopyable {
    * @param conn_out 如果发送成功，导出发送连接
    * @return 0或错误码
    */
-  ATBUS_ERROR_TYPE send_message(bus_id_t tid, message_builder_ref_t message_builder, endpoint::get_connection_fn_t fn,
-                                endpoint **ep_out, connection **conn_out);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE send_message(bus_id_t tid, message_builder_ref_t message_builder,
+                                                endpoint::get_connection_fn_t fn, endpoint **ep_out,
+                                                connection **conn_out);
 
   channel::io_stream_conf *get_iostream_conf();
 
