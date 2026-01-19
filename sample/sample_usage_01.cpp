@@ -9,7 +9,6 @@
 #include <libatbus_protocol.h>
 
 int main() {
-#if defined(UTIL_CONFIG_COMPILER_CXX_LAMBDAS) && UTIL_CONFIG_COMPILER_CXX_LAMBDAS
   // 初始化默认配置
   atbus::node::conf_t conf;
   atbus::node::default_conf(&conf);
@@ -53,21 +52,20 @@ int main() {
 
       // 定期执行proc函数，用于处理内部定时器
       // 第一个参数是Unix时间戳（秒），第二个参数是微秒
-      node1->proc(time(nullptr), 0);
-      node2->proc(time(nullptr), 0);
+      node1->proc(std::chrono::system_clock::now());
+      node2->proc(std::chrono::system_clock::now());
     }
 
     // 设置接收到消息后的回调函数
     bool recved = false;
     node2->set_on_forward_request_handle([&recved](const atbus::node &n, const atbus::endpoint *ep,
-                             const atbus::connection *conn, const atbus::message &,
-                             gsl::span<const unsigned char> buffer) {
+                                                   const atbus::connection *conn, const atbus::message &,
+                                                   gsl::span<const unsigned char> buffer) {
       if (nullptr != ep && nullptr != conn) {
         std::cout << "atbus node 0x" << std::ios::hex << n.get_id() << " receive data from 0x" << std::ios::hex
                   << ep->get_id() << "(connection: " << conn->get_address().address << "): ";
       }
-      std::cout.write(reinterpret_cast<const char *>(buffer.data()),
-              static_cast<std::streamsize>(buffer.size()));
+      std::cout.write(reinterpret_cast<const char *>(buffer.data()), static_cast<std::streamsize>(buffer.size()));
       std::cout << std::endl;
       recved = true;
       return 0;
@@ -75,9 +73,9 @@ int main() {
 
     // 发送数据
     std::string send_data = "hello world!";
-    node1->send_data(node2->get_id(), 0,
-             gsl::span<const unsigned char>(reinterpret_cast<const unsigned char *>(send_data.data()),
-                             send_data.size()));
+    node1->send_data(
+        node2->get_id(), 0,
+        gsl::span<const unsigned char>(reinterpret_cast<const unsigned char *>(send_data.data()), send_data.size()));
 
     // 等待发送完成
     while (!recved) {
@@ -85,8 +83,8 @@ int main() {
 
       // 定期执行proc函数，用于处理内部定时器
       // 第一个参数是Unix时间戳（秒），第二个参数是微秒
-      node1->proc(time(nullptr), 0);
-      node2->proc(time(nullptr), 0);
+      node1->proc(std::chrono::system_clock::now());
+      node2->proc(std::chrono::system_clock::now());
     }
 
     // 析构时会自动关闭所持有的资源
@@ -96,8 +94,5 @@ int main() {
   while (UV_EBUSY == uv_loop_close(&ev_loop)) {
     uv_run(&ev_loop, UV_RUN_ONCE);
   }
-#else
-  std::cout << "lambda not supported, ignore this sample" << std::endl;
-#endif
   return 0;
 }
