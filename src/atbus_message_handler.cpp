@@ -99,7 +99,8 @@ static ATBUS_ERROR_TYPE _forward_data_message(::atframework::atbus::node &n,
   // 检查如果发送目标不是来源，则转发失败消息
   endpoint *target = nullptr;
   connection *target_conn = nullptr;
-  ATBUS_ERROR_TYPE ret = n.get_peer_channel(to_server_id, &endpoint::get_data_connection, &target, &target_conn);
+  ATBUS_ERROR_TYPE ret = n.get_peer_channel(to_server_id, &endpoint::get_data_connection, &target, &target_conn,
+                                            {atbus::node::get_peer_options_t::option_type::EN_GPOPT_NO_UPSTREAM});
 
   if (nullptr != out_endpoint) {
     *out_endpoint = target;
@@ -716,7 +717,8 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_data_transfer_req(node
     }
 
     const endpoint *upstream_ep = n.get_upstream_endpoint();
-    if (upstream_ep == nullptr || (to_ep != nullptr && upstream_ep->get_id() == to_ep->get_id())) {
+    if (upstream_ep == nullptr || (to_ep != nullptr && upstream_ep->get_id() == to_ep->get_id()) ||
+        direct_from_bus_id == upstream_ep->get_id()) {
       break;
     }
     ret = _forward_data_message(n, m, direct_from_bus_id, upstream_ep->get_id(), nullptr);

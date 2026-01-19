@@ -165,7 +165,7 @@ static void node_msg_test_build_forward_message(atbus::node &sender, atbus::bus_
 
   uint64_t self_id = sender.get_id();
   uint32_t flags = 0;
-  if (0 != (options.flags & atbus::node::send_data_options_t::EN_SDOPT_REQUIRE_RESPONSE)) {
+  if (options.check_flag(atbus::node::send_data_options_t::EN_SDOPT_REQUIRE_RESPONSE)) {
     flags |= atbus::protocol::FORWARD_DATA_FLAG_REQUIRE_RSP;
   }
 
@@ -716,7 +716,7 @@ static int node_msg_test_recv_and_send_msg_fn(const atbus::node &n, const atbus:
   np->set_on_forward_response_handle(node_msg_test_recv_and_send_msg_on_forward_response_fn);
 
   atbus::node::send_data_options_t options;
-  options.flags |= atbus::node::send_data_options_t::EN_SDOPT_REQUIRE_RESPONSE;
+  options.flags |= static_cast<decltype(options.flags)>(atbus::node::send_data_options_t::EN_SDOPT_REQUIRE_RESPONSE);
   np->send_data(
       n.get_id(), 0,
       gsl::span<const unsigned char>(reinterpret_cast<const unsigned char *>(sended_data.data()), sended_data.size()),
@@ -1001,6 +1001,15 @@ CASE_TEST(atbus_node_msg, transfer_only) {
 
       ++proc_t;
     }
+    CASE_EXPECT_TRUE(node_upstream_1->is_endpoint_available(node_upstream_2->get_id()) &&
+                     node_upstream_2->is_endpoint_available(node_upstream_1->get_id()));
+
+    // 注册关系
+    atbus::node::ptr_t nodes[] = {node_upstream_1, node_upstream_2, node_downstream_1, node_downstream_2};
+    for (auto &n : nodes) {
+      n->get_topology_registry()->update_peer(node_downstream_1->get_id(), node_upstream_1->get_id(), nullptr);
+      n->get_topology_registry()->update_peer(node_downstream_2->get_id(), node_upstream_2->get_id(), nullptr);
+    }
 
     // 转发消息
     std::string send_data;
@@ -1016,6 +1025,9 @@ CASE_TEST(atbus_node_msg, transfer_only) {
       uv_run(conf.ev_loop, UV_RUN_NOWAIT);
       CASE_THREAD_SLEEP_MS(4);
     }
+
+    CASE_EXPECT_GT(recv_msg_history.count, count);
+    CASE_EXPECT_EQ(send_data, recv_msg_history.data);
   }
 
   unit_test_setup_exit(&ev_loop);
@@ -1078,7 +1090,8 @@ CASE_TEST(atbus_node_msg, topology_registry_multi_level_route) {
     std::string send_data = "topology multi-level route\n";
     {
       atbus::node::send_data_options_t options;
-      options.flags |= atbus::node::send_data_options_t::EN_SDOPT_REQUIRE_RESPONSE;
+      options.flags |=
+          static_cast<decltype(options.flags)>(atbus::node::send_data_options_t::EN_SDOPT_REQUIRE_RESPONSE);
       ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
       arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
       atbus::message msg{arena_options};
@@ -1097,12 +1110,12 @@ CASE_TEST(atbus_node_msg, topology_registry_multi_level_route) {
     node_upstream->get_topology_registry()->update_peer(node_mid->get_id(), node_upstream->get_id(), nullptr);
     node_upstream->get_topology_registry()->update_peer(node_downstream->get_id(), node_mid->get_id(), nullptr);
 
+    node_mid->get_topology_registry()->update_peer(node_downstream->get_id(), node_mid->get_id(), nullptr);
+
     CASE_EXPECT_TRUE(
         node_downstream->get_topology_registry()->update_peer(node_mid->get_id(), node_upstream->get_id(), nullptr));
     CASE_EXPECT_FALSE(
         node_downstream->get_topology_registry()->update_peer(node_upstream->get_id(), node_mid->get_id(), nullptr));
-    CASE_EXPECT_TRUE(
-        node_downstream->get_topology_registry()->update_peer(node_downstream->get_id(), node_mid->get_id(), nullptr));
 
     CASE_EXPECT_EQ(static_cast<int>(atbus::topology_relation_type::kTransitiveDownstream),
                    static_cast<int>(node_upstream->get_topology_relation(node_downstream->get_id(), &next_hop)));
@@ -1119,7 +1132,8 @@ CASE_TEST(atbus_node_msg, topology_registry_multi_level_route) {
     recv_msg_history.data.clear();
     {
       atbus::node::send_data_options_t options;
-      options.flags |= atbus::node::send_data_options_t::EN_SDOPT_REQUIRE_RESPONSE;
+      options.flags |=
+          static_cast<decltype(options.flags)>(atbus::node::send_data_options_t::EN_SDOPT_REQUIRE_RESPONSE);
       ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
       arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
       atbus::message msg{arena_options};

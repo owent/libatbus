@@ -131,43 +131,6 @@ ATBUS_MACRO_API node::flag_guard_t::~flag_guard_t() {
   }
 }
 
-ATBUS_MACRO_API node::send_data_options_t::send_data_options_t() : flags(EN_SDOPT_NONE), sequence(0) {}
-
-ATBUS_MACRO_API node::send_data_options_t::send_data_options_t(std::initializer_list<flag_type> flag_list) noexcept
-    : flags(EN_SDOPT_NONE), sequence(0) {
-  for (auto f : flag_list) {
-    flags |= f;
-  }
-}
-
-ATBUS_MACRO_API node::send_data_options_t::send_data_options_t(gsl::span<flag_type> flag_list) noexcept
-    : flags(EN_SDOPT_NONE), sequence(0) {
-  flags = EN_SDOPT_NONE;
-  for (auto f : flag_list) {
-    flags |= f;
-  }
-}
-
-ATBUS_MACRO_API node::send_data_options_t::~send_data_options_t() {}
-
-ATBUS_MACRO_API node::send_data_options_t::send_data_options_t(const send_data_options_t &other)
-    : flags(other.flags), sequence(other.sequence) {}
-
-ATBUS_MACRO_API node::send_data_options_t &node::send_data_options_t::operator=(const send_data_options_t &other) {
-  flags = other.flags;
-  sequence = other.sequence;
-  return *this;
-}
-
-ATBUS_MACRO_API node::send_data_options_t::send_data_options_t(send_data_options_t &&other)
-    : flags(other.flags), sequence(other.sequence) {}
-
-ATBUS_MACRO_API node::send_data_options_t &node::send_data_options_t::operator=(send_data_options_t &&other) {
-  flags = other.flags;
-  sequence = other.sequence;
-  return *this;
-}
-
 node::node()
     : state_(state_t::CREATED),
       crypto_key_exchange_type_(protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE),
@@ -1082,7 +1045,7 @@ ATBUS_MACRO_API int node::send_data(bus_id_t tid, int type, gsl::span<const unsi
 
   uint64_t self_id = get_id();
   uint32_t flags = 0;
-  if (0 != (options.flags & send_data_options_t::EN_SDOPT_REQUIRE_RESPONSE)) {
+  if (options.check_flag(send_data_options_t::EN_SDOPT_REQUIRE_RESPONSE)) {
     flags |= atbus::protocol::FORWARD_DATA_FLAG_REQUIRE_RSP;
   }
 
@@ -1169,7 +1132,8 @@ ATBUS_MACRO_API int node::send_custom_command(bus_id_t tid, gsl::span<gsl::span<
 }
 
 ATBUS_MACRO_API ATBUS_ERROR_TYPE node::get_peer_channel(bus_id_t tid, endpoint::get_connection_fn_t fn,
-                                                        endpoint **ep_out, connection **conn_out) {
+                                                        endpoint **ep_out, connection **conn_out,
+                                                        get_peer_options_t options) {
   if (!self_) {
     return EN_ATBUS_ERR_NOT_INITED;
   }
@@ -1234,14 +1198,41 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::get_peer_channel(bus_id_t tid, endpoint::
       return EN_ATBUS_ERR_ATNODE_INVALID_ID;
     }
 
-    // 其他情况,如果发给上游节点
+    // 自动发现邻居路由
     //
-    //       F1 ------------ F2     |       F1
-    //      /  \            /  \    |      /  \
-    //    C11  C12        C21  C22  |    C11  C12
-    // 当C11发往C21或C22时触发这种情况  | 当C11发往C12时触发这种情况
+    //     F1 ----主动连接---- F2
+    //    /  \                /  \
+    //  C11  C12            C21  C22
+    // 当C11/F1发往C21或C22时触发这种情况
     //
-    if (node_upstream_.node_) {
+    if (relation == topology_relation_type::kOtherUpstreamPeer && topology_registry_) {
+      auto find_nearest_neighbour_peer = topology_registry_->get_peer(tid);
+      if (find_nearest_neighbour_peer) {
+        find_nearest_neighbour_peer = find_nearest_neighbour_peer->get_upstream();
+      }
+      while (find_nearest_neighbour_peer) {
+        target = find_route(node_route_, find_nearest_neighbour_peer->get_bus_id());
+        if (nullptr != target) {
+          conn = (self_.get()->*fn)(target);
+
+          ASSIGN_EPCONN();
+          break;
+        }
+        find_nearest_neighbour_peer = find_nearest_neighbour_peer->get_upstream();
+      }
+      if (nullptr != target) {
+        break;
+      }
+    }
+
+    // Fallback到上游转发
+    //
+    //     F1
+    //    /  \
+    //  C11  C12
+    // 当C11发往C12时触发这种情况
+    //
+    if (!options.check_flag(get_peer_options_t::option_type::EN_GPOPT_NO_UPSTREAM) && node_upstream_.node_) {
       target = node_upstream_.node_.get();
       conn = (self_.get()->*fn)(target);
 
@@ -2525,26 +2516,27 @@ ATBUS_ERROR_TYPE node::remove_endpoint(bus_id_t tid, endpoint *expected) {
   }
 }
 
-ATBUS_ERROR_TYPE node::send_data_message(bus_id_t tid, message_builder_ref_t mb) {
+ATBUS_MACRO_API ATBUS_ERROR_TYPE node::send_data_message(bus_id_t tid, message_builder_ref_t mb) {
   return send_data_message(tid, mb, nullptr, nullptr);
 }
 
-ATBUS_ERROR_TYPE node::send_data_message(bus_id_t tid, message_builder_ref_t mb, endpoint **ep_out,
-                                         connection **conn_out) {
+ATBUS_MACRO_API ATBUS_ERROR_TYPE node::send_data_message(bus_id_t tid, message_builder_ref_t mb, endpoint **ep_out,
+                                                         connection **conn_out) {
   return send_message(tid, mb, &endpoint::get_data_connection, ep_out, conn_out);
 }
 
-ATBUS_ERROR_TYPE node::send_ctrl_message(bus_id_t tid, message_builder_ref_t mb) {
+ATBUS_MACRO_API ATBUS_ERROR_TYPE node::send_ctrl_message(bus_id_t tid, message_builder_ref_t mb) {
   return send_ctrl_message(tid, mb, nullptr, nullptr);
 }
 
-ATBUS_ERROR_TYPE node::send_ctrl_message(bus_id_t tid, message_builder_ref_t mb, endpoint **ep_out,
-                                         connection **conn_out) {
+ATBUS_MACRO_API ATBUS_ERROR_TYPE node::send_ctrl_message(bus_id_t tid, message_builder_ref_t mb, endpoint **ep_out,
+                                                         connection **conn_out) {
   return send_message(tid, mb, &endpoint::get_ctrl_connection, ep_out, conn_out);
 }
 
-ATBUS_ERROR_TYPE node::send_message(bus_id_t tid, message_builder_ref_t mb, endpoint::get_connection_fn_t fn,
-                                    endpoint **ep_out, connection **conn_out) {
+ATBUS_MACRO_API ATBUS_ERROR_TYPE node::send_message(bus_id_t tid, message_builder_ref_t mb,
+                                                    endpoint::get_connection_fn_t fn, endpoint **ep_out,
+                                                    connection **conn_out) {
   if (state_t::CREATED == state_) {
     return EN_ATBUS_ERR_NOT_INITED;
   }
