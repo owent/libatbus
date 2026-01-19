@@ -78,12 +78,14 @@ CASE_TEST(atbus_topology, topology_registry_relations) {
   CASE_EXPECT_TRUE(registry);
 
   // Build a small forest:
-  //   1
-  //  / \
-  // 2   4
-  // |
-  // 3
-  //   10
+  /**
+   *   1
+   *  / \
+   * 2   4
+   * |
+   * 3
+   *   10
+   */
   registry->update_peer(1, 0, make_topology_data(1, "h1"));
   registry->update_peer(2, 1, make_topology_data(2, "h1"));
   registry->update_peer(3, 2, make_topology_data(3, "h1"));
@@ -396,11 +398,13 @@ CASE_TEST(atbus_topology, topology_registry_update_peer_cycle_detection) {
   }
 
   // Build initial tree:
-  //   1
-  //  / \
-  // 2   4
-  // |
-  // 3
+  /**
+   *   1
+   *  / \
+   * 2   4
+   * |
+   * 3
+   */
   registry->update_peer(1, 0, make_topology_data(1, "h1"));
   registry->update_peer(2, 1, make_topology_data(2, "h1"));
   registry->update_peer(3, 2, make_topology_data(3, "h1"));
@@ -445,11 +449,13 @@ CASE_TEST(atbus_topology, topology_registry_update_peer_cycle_detection) {
   }
 
   // Test case 5: Valid update - move peer4 to be under peer2 (no cycle)
-  //   1
-  //   |
-  //   2
-  //  / \
-  // 3   4
+  /**
+   *   1
+   *   |
+   *   2
+   *  / \
+   * 3   4
+   */
   {
     CASE_EXPECT_TRUE(registry->update_peer(4, 2, make_topology_data(4, "h1")));
     peer4 = registry->get_peer(4);
@@ -487,11 +493,13 @@ CASE_TEST(atbus_topology, topology_registry_update_peer_cycle_detection) {
   }
 
   // Test case 9: Adding a new peer with valid upstream that is already downstream creates no cycle
-  //   1
-  //   |
-  //   2
-  //  /|\
-  // 3 4 5
+  /**
+   *   1
+   *   |
+   *   2
+   *  /|\
+   * 3 4 5
+   */
   {
     CASE_EXPECT_TRUE(registry->update_peer(5, 2, make_topology_data(5, "h1")));
     atbus::topology_peer::ptr_t peer5 = registry->get_peer(5);
