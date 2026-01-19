@@ -925,6 +925,12 @@ CASE_TEST(atbus_node_msg, transfer_and_connect) {
       ++proc_t;
     }
 
+    atbus::node::ptr_t nodes[] = {node_upstream, node_downstream_1, node_downstream_2};
+    for (auto &n : nodes) {
+      n->get_topology_registry()->update_peer(node_downstream_1->get_id(), node_upstream->get_id(), nullptr);
+      n->get_topology_registry()->update_peer(node_downstream_2->get_id(), node_upstream->get_id(), nullptr);
+    }
+
     // 转发消息
     std::string send_data;
     send_data.assign("transfer through upstream\n", sizeof("transfer through upstream\n") - 1);
@@ -1279,6 +1285,16 @@ CASE_TEST(atbus_node_msg, transfer_failed) {
       ++proc_t;
     }
 
+    CASE_EXPECT_TRUE(node_upstream->is_endpoint_available(node_downstream_1->get_id()) &&
+                     node_downstream_1->is_endpoint_available(node_upstream->get_id()));
+
+    atbus::node::ptr_t nodes[] = {node_upstream, node_downstream_1};
+    for (auto &n : nodes) {
+      n->get_topology_registry()->update_peer(node_downstream_1->get_id(), node_upstream->get_id(), nullptr);
+      n->get_topology_registry()->update_peer(0x12346890, node_upstream->get_id(), nullptr);
+      n->get_topology_registry()->update_peer(0x12356789, 0, nullptr);
+    }
+
     // 转发消息
     std::string send_data;
     send_data.assign("transfer through upstream\n", sizeof("transfer through upstream\n") - 1);
@@ -1362,6 +1378,14 @@ CASE_TEST(atbus_node_msg, transfer_failed_cross_upstreams) {
 
       ++proc_t;
     }
+    CASE_EXPECT_TRUE(node_upstream_1->is_endpoint_available(node_upstream_2->get_id()) &&
+                     node_upstream_2->is_endpoint_available(node_upstream_1->get_id()));
+
+    atbus::node::ptr_t nodes[] = {node_upstream_1, node_upstream_2, node_downstream_1};
+    for (auto &n : nodes) {
+      n->get_topology_registry()->update_peer(node_downstream_1->get_id(), node_upstream_1->get_id(), nullptr);
+      n->get_topology_registry()->update_peer(0x12356666, node_upstream_2->get_id(), nullptr);
+    }
 
     int before_remove_endpoint_count = recv_msg_history.remove_endpoint_count;
     int before_test_count = recv_msg_history.failed_count;
@@ -1389,7 +1413,7 @@ CASE_TEST(atbus_node_msg, transfer_failed_cross_upstreams) {
 
     CASE_EXPECT_FALSE(recv_msg_history.last_msg_router.empty());
     if (!recv_msg_history.last_msg_router.empty()) {
-      CASE_EXPECT_EQ(0x12345678, recv_msg_history.last_msg_router.back());
+      CASE_EXPECT_EQ(0x12356789, recv_msg_history.last_msg_router.back());
     }
 
     CASE_EXPECT_EQ(before_test_count + recv_transfer_failed, recv_msg_history.failed_count);
