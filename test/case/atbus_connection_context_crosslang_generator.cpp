@@ -4,6 +4,7 @@
 #include <atbus_connection_context.h>
 #include <libatbus_protocol.h>
 
+#include <detail/buffer.h>
 #include <detail/libatbus_error.h>
 
 #include <algorithm/crypto_cipher.h>
@@ -176,6 +177,29 @@ static std::string string_vector_to_json_array(const std::vector<std::string>& v
   }
   oss << "]";
   return oss.str();
+}
+
+static bool parse_message_head_from_buffer(const unsigned char* data, size_t size,
+                                           ::atframework::atbus::protocol::message_head& out_head,
+                                           size_t& out_head_size, size_t& out_head_vint_size) {
+  if (data == nullptr || size == 0) {
+    return false;
+  }
+
+  uint64_t head_size = 0;
+  out_head_vint_size = ::atframework::atbus::detail::fn::read_vint(head_size, data, size);
+  if (out_head_vint_size == 0 || head_size == 0) {
+    return false;
+  }
+  if (out_head_vint_size + static_cast<size_t>(head_size) > size) {
+    return false;
+  }
+  if (!out_head.ParseFromArray(data + out_head_vint_size, static_cast<int>(head_size))) {
+    return false;
+  }
+
+  out_head_size = static_cast<size_t>(head_size);
+  return true;
 }
 
 }  // namespace
@@ -938,6 +962,7 @@ CASE_TEST(atbus_connection_context_crosslang, generate_encrypted_test_files) {
       CASE_MSG_INFO() << "Cipher " << crypto_config.cipher_name << " not available, skipping" << std::endl;
       continue;
     }
+    const bool is_aead = test_cipher->is_aead();
 
     // 创建context并设置固定密钥
     auto ctx =
@@ -971,6 +996,23 @@ CASE_TEST(atbus_connection_context_crosslang, generate_encrypted_test_files) {
         auto* buffer = pack_result.get_success();
         write_binary_file(test_name + ".bytes", buffer->data(), buffer->used());
 
+        std::string aad_hex;
+        size_t aad_size = 0;
+        if (is_aead) {
+          ::atframework::atbus::protocol::message_head head;
+          size_t head_size = 0;
+          size_t head_vint_size = 0;
+          bool parsed = parse_message_head_from_buffer(buffer->data(), buffer->used(), head, head_size, head_vint_size);
+          CASE_EXPECT_TRUE(parsed);
+          if (parsed) {
+            const auto& crypt = head.crypto();
+            aad_size = crypt.aad().size();
+            if (aad_size > 0) {
+              aad_hex = bytes_to_hex(reinterpret_cast<const unsigned char*>(crypt.aad().data()), aad_size);
+            }
+          }
+        }
+
         std::ostringstream json;
         json << "{\n";
         json << "  \"name\": \"" << test_name << "\",\n";
@@ -985,6 +1027,10 @@ CASE_TEST(atbus_connection_context_crosslang, generate_encrypted_test_files) {
         if (crypto_config.iv != nullptr && crypto_config.iv_size > 0) {
           json << "  \"iv_hex\": \"" << bytes_to_hex(crypto_config.iv, crypto_config.iv_size) << "\",\n";
           json << "  \"iv_size\": " << crypto_config.iv_size << ",\n";
+        }
+        if (is_aead) {
+          json << "  \"aad_hex\": \"" << aad_hex << "\",\n";
+          json << "  \"aad_size\": " << aad_size << ",\n";
         }
         json << "  \"packed_size\": " << buffer->used() << ",\n";
         json << "  \"packed_hex\": \"" << bytes_to_hex(buffer->data(), buffer->used()) << "\",\n";
@@ -1021,6 +1067,23 @@ CASE_TEST(atbus_connection_context_crosslang, generate_encrypted_test_files) {
         auto* buffer = pack_result.get_success();
         write_binary_file(test_name + ".bytes", buffer->data(), buffer->used());
 
+        std::string aad_hex;
+        size_t aad_size = 0;
+        if (is_aead) {
+          ::atframework::atbus::protocol::message_head head;
+          size_t head_size = 0;
+          size_t head_vint_size = 0;
+          bool parsed = parse_message_head_from_buffer(buffer->data(), buffer->used(), head, head_size, head_vint_size);
+          CASE_EXPECT_TRUE(parsed);
+          if (parsed) {
+            const auto& crypt = head.crypto();
+            aad_size = crypt.aad().size();
+            if (aad_size > 0) {
+              aad_hex = bytes_to_hex(reinterpret_cast<const unsigned char*>(crypt.aad().data()), aad_size);
+            }
+          }
+        }
+
         std::ostringstream json;
         json << "{\n";
         json << "  \"name\": \"" << test_name << "\",\n";
@@ -1035,6 +1098,10 @@ CASE_TEST(atbus_connection_context_crosslang, generate_encrypted_test_files) {
         if (crypto_config.iv != nullptr && crypto_config.iv_size > 0) {
           json << "  \"iv_hex\": \"" << bytes_to_hex(crypto_config.iv, crypto_config.iv_size) << "\",\n";
           json << "  \"iv_size\": " << crypto_config.iv_size << ",\n";
+        }
+        if (is_aead) {
+          json << "  \"aad_hex\": \"" << aad_hex << "\",\n";
+          json << "  \"aad_size\": " << aad_size << ",\n";
         }
         json << "  \"packed_size\": " << buffer->used() << ",\n";
         json << "  \"packed_hex\": \"" << bytes_to_hex(buffer->data(), buffer->used()) << "\",\n";
@@ -1117,6 +1184,7 @@ CASE_TEST(atbus_connection_context_crosslang, verify_encrypted_test_files) {
       CASE_MSG_INFO() << "Cipher " << config.cipher_name << " not available, skipping verification" << std::endl;
       continue;
     }
+    const bool is_aead = test_cipher->is_aead();
 
     for (const auto& suffix : test_suffixes) {
       std::string test_name = std::string("enc_") + config.name + suffix;
@@ -1124,6 +1192,21 @@ CASE_TEST(atbus_connection_context_crosslang, verify_encrypted_test_files) {
       if (!read_binary_file(test_name + ".bytes", buffer)) {
         CASE_MSG_INFO() << "File not found: " << test_name << std::endl;
         continue;
+      }
+
+      ::atframework::atbus::protocol::message_head head;
+      size_t head_size = 0;
+      size_t head_vint_size = 0;
+      bool parsed = parse_message_head_from_buffer(buffer.data(), buffer.size(), head, head_size, head_vint_size);
+      CASE_EXPECT_TRUE(parsed);
+
+      std::string aad_value;
+      std::string iv_value;
+      if (parsed && is_aead) {
+        const auto& crypt = head.crypto();
+        aad_value = crypt.aad();
+        iv_value = crypt.iv();
+        CASE_EXPECT_FALSE(aad_value.empty());
       }
 
       // 创建context并设置相同的密钥
@@ -1134,6 +1217,46 @@ CASE_TEST(atbus_connection_context_crosslang, verify_encrypted_test_files) {
       if (setup_result != EN_ATBUS_ERR_SUCCESS) {
         CASE_MSG_INFO() << "Failed to setup crypto for verification: " << config.name << std::endl;
         continue;
+      }
+
+      if (parsed && is_aead && !aad_value.empty()) {
+        gsl::span<const unsigned char> iv_span;
+        if (!iv_value.empty()) {
+          iv_span =
+              gsl::span<const unsigned char>(reinterpret_cast<const unsigned char*>(iv_value.data()), iv_value.size());
+        } else if (config.iv != nullptr && config.iv_size > 0) {
+          iv_span = gsl::span<const unsigned char>(config.iv, config.iv_size);
+        }
+
+        auto decrypt_with_aad = [&](const std::string& aad) -> int {
+          atfw::util::crypto::cipher verify_cipher;
+          if (verify_cipher.init(config.cipher_name, atfw::util::crypto::cipher::mode_t::EN_CMODE_DECRYPT) !=
+              atfw::util::crypto::cipher::error_code_t::OK) {
+            return -1;
+          }
+          if (verify_cipher.set_key(gsl::span<const unsigned char>(config.key, config.key_size)) != 0) {
+            return -2;
+          }
+          if (!iv_span.empty()) {
+            if (verify_cipher.set_iv(iv_span.data(), iv_span.size()) != 0) {
+              return -3;
+            }
+          }
+
+          size_t body_offset = head_vint_size + head_size;
+          gsl::span<const unsigned char> cipher_span(buffer.data() + body_offset, buffer.size() - body_offset);
+          std::vector<unsigned char> plaintext(cipher_span.size() + verify_cipher.get_block_size());
+          size_t out_size = plaintext.size();
+          return verify_cipher.decrypt_aead(cipher_span.data(), cipher_span.size(), plaintext.data(), &out_size,
+                                            reinterpret_cast<const unsigned char*>(aad.data()), aad.size());
+        };
+
+        int correct_aad_result = decrypt_with_aad(aad_value);
+        CASE_EXPECT_EQ(0, correct_aad_result);
+
+        std::string wrong_aad = "wrong-aad";
+        int wrong_aad_result = decrypt_with_aad(wrong_aad);
+        CASE_EXPECT_NE(0, wrong_aad_result);
       }
 
       // 解包验证
