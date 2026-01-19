@@ -99,7 +99,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
     ATFW_UTIL_FORCEINLINE constexpr send_data_options_t(std::initializer_list<flag_type> flag_list) noexcept
         : flags(EN_SDOPT_NONE), sequence(0) {
       for (auto f : flag_list) {
-        flags |= f;
+        flags |= static_cast<uint32_t>(f);
       }
     }
 
@@ -107,7 +107,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
         : flags(EN_SDOPT_NONE), sequence(0) {
       flags = EN_SDOPT_NONE;
       for (auto f : flag_list) {
-        flags |= f;
+        flags |= static_cast<uint32_t>(f);
       }
     }
 

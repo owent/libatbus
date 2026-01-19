@@ -335,10 +335,6 @@ ATBUS_MACRO_API void node::reload_crypto(
     gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> crypto_allow_algorithms) {
   conf_.crypto_key_refresh_interval = crypto_key_refresh_interval;
 
-  if (crypto_key_exchange_type_ == crypto_key_exchange_type) {
-    return;
-  }
-
   if (crypto_key_exchange_type_ != crypto_key_exchange_type) {
     bool is_success = false;
     ::atfw::util::crypto::dh::shared_context::ptr_t new_dh_ctx;
@@ -1199,12 +1195,12 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::get_peer_channel(bus_id_t tid, endpoint::
     }
 
     // 自动发现邻居路由
-    //
-    //     F1 ----主动连接---- F2
-    //    /  \                /  \
-    //  C11  C12            C21  C22
-    // 当C11/F1发往C21或C22时触发这种情况
-    //
+    /**
+     *     F1 ----主动连接---- F2
+     *    /  \                /  \
+     *  C11  C12            C21  C22
+     * 当C11/F1发往C21或C22时触发这种情况
+     */
     if (relation == topology_relation_type::kOtherUpstreamPeer && topology_registry_) {
       auto find_nearest_neighbour_peer = topology_registry_->get_peer(tid);
       if (find_nearest_neighbour_peer) {
@@ -1226,12 +1222,12 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::get_peer_channel(bus_id_t tid, endpoint::
     }
 
     // Fallback到上游转发
-    //
-    //     F1
-    //    /  \
-    //  C11  C12
-    // 当C11发往C12时触发这种情况
-    //
+    /**
+     *     F1
+     *    /  \
+     *  C11  C12
+     * 当C11发往C12时触发这种情况
+     */
     if (!options.check_flag(get_peer_options_t::option_type::EN_GPOPT_NO_UPSTREAM) && node_upstream_.node_) {
       target = node_upstream_.node_.get();
       conn = (self_.get()->*fn)(target);
