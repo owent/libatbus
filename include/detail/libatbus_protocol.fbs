@@ -77,8 +77,6 @@ union message_body {
     custom_command_rsp  : custom_command_data = 2,
     data_transform_req  : forward_data        = 3,
     data_transform_rsp  : forward_data        = 4,
-    node_sync_req       : node_tree           = 5,
-    node_sync_rsp       : node_tree           = 6,
     node_register_req   : register_data       = 7,
     node_register_rsp   : register_data       = 8,
     node_ping_req       : ping_data           = 11,

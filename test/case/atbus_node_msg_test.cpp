@@ -1204,6 +1204,84 @@ CASE_TEST(atbus_node_msg, topology_registry_multi_level_route) {
   unit_test_setup_exit(&ev_loop);
 }
 
+// 基于拓扑关系的多级上游/下游反向转发路径测试（下游到上游）
+CASE_TEST(atbus_node_msg, topology_registry_multi_level_route_reverse) {
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+
+  conf.ev_loop = &ev_loop;
+
+  {
+    atbus::node::ptr_t node_upstream = atbus::node::create();
+    atbus::node::ptr_t node_mid = atbus::node::create();
+    atbus::node::ptr_t node_downstream = atbus::node::create();
+    setup_atbus_node_logger(*node_upstream);
+    setup_atbus_node_logger(*node_mid);
+    setup_atbus_node_logger(*node_downstream);
+
+    node_upstream->init(0x12345678, &conf);
+
+    conf.upstream_address = "ipv4://127.0.0.1:16387";
+    node_mid->init(0x12346789, &conf);
+
+    conf.upstream_address = "ipv4://127.0.0.1:16388";
+    node_downstream->init(0x12346890, &conf);
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->listen("ipv4://127.0.0.1:16387"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_mid->listen("ipv4://127.0.0.1:16388"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream->listen("ipv4://127.0.0.1:16389"));
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->start());
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_mid->start());
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream->start());
+
+    time_t proc_t = time(nullptr) + 1;
+    UNITTEST_WAIT_UNTIL(conf.ev_loop,
+                        node_mid->is_endpoint_available(node_upstream->get_id()) &&
+                            node_upstream->is_endpoint_available(node_mid->get_id()) &&
+                            node_downstream->is_endpoint_available(node_mid->get_id()) &&
+                            node_mid->is_endpoint_available(node_downstream->get_id()),
+                        8000, 64) {
+      node_upstream->proc(unit_test_make_timepoint(proc_t, 0));
+      node_mid->proc(unit_test_make_timepoint(proc_t, 0));
+      node_downstream->proc(unit_test_make_timepoint(proc_t, 0));
+      ++proc_t;
+    }
+
+    node_upstream->get_topology_registry()->update_peer(node_mid->get_id(), node_upstream->get_id(), nullptr);
+    node_upstream->get_topology_registry()->update_peer(node_downstream->get_id(), node_mid->get_id(), nullptr);
+
+    node_mid->get_topology_registry()->update_peer(node_downstream->get_id(), node_mid->get_id(), nullptr);
+
+    CASE_EXPECT_TRUE(
+        node_downstream->get_topology_registry()->update_peer(node_mid->get_id(), node_upstream->get_id(), nullptr));
+    CASE_EXPECT_FALSE(
+        node_downstream->get_topology_registry()->update_peer(node_upstream->get_id(), node_mid->get_id(), nullptr));
+
+    node_upstream->set_on_forward_request_handle(node_msg_test_recv_msg_test_record_fn);
+    int old_count = recv_msg_history.count;
+    recv_msg_history.data.clear();
+    std::string send_data = "topology multi-level route reverse\n";
+
+    node_downstream->send_data(
+        node_upstream->get_id(), 0,
+        gsl::span<const unsigned char>(reinterpret_cast<const unsigned char *>(send_data.data()), send_data.size()));
+
+    UNITTEST_WAIT_UNTIL(conf.ev_loop, recv_msg_history.count > old_count && !recv_msg_history.data.empty(), 8000, 0) {
+      node_upstream->proc(unit_test_make_timepoint(proc_t, 0));
+      node_mid->proc(unit_test_make_timepoint(proc_t, 0));
+      node_downstream->proc(unit_test_make_timepoint(proc_t, 0));
+      ++proc_t;
+    }
+
+    CASE_EXPECT_EQ(send_data, recv_msg_history.data);
+  }
+
+  unit_test_setup_exit(&ev_loop);
+}
+
 // 节点发送失败测试
 CASE_TEST(atbus_node_msg, send_failed) {
   atbus::node::conf_t conf;

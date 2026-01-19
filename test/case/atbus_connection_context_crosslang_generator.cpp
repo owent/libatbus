@@ -1174,8 +1174,6 @@ CASE_TEST(atbus_connection_context_crosslang, generate_full_index_file) {
       "no_enc_custom_command_rsp",
       "no_enc_node_register_req",
       "no_enc_node_register_rsp",
-      "no_enc_node_sync_req",
-      "no_enc_node_sync_rsp",
       "no_enc_data_transform_binary_content",
       "no_enc_data_transform_large_content",
       "no_enc_data_transform_utf8_content",
