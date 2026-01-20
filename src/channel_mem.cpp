@@ -330,8 +330,8 @@ static inline mem_block_head *mem_get_block_head(mem_channel *channel, size_t in
   if (data) (*data) = (void *)(buf + mem_block::block_head_size);
 
   if (data_len)
-    (*data_len) = channel->area_end_offset - channel->area_channel_offset +
-                  static_cast<size_t>((char *)channel - buf - mem_block::block_head_size);
+    (*data_len) = channel->area_end_offset - channel->area_channel_offset + static_cast<size_t>((char *)channel - buf) -
+                  mem_block::block_head_size;
 
   return (mem_block_head *)(void *)buf;
 }
