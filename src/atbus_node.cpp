@@ -108,6 +108,7 @@ ATBUS_MACRO_API node::conf_t &node::conf_t::operator=(const conf_t &other) {
   crypto_allow_algorithms = other.crypto_allow_algorithms;
 
   compression_allow_algorithms = other.compression_allow_algorithms;
+  compression_level = other.compression_level;
 
   message_size = other.message_size;
   receive_buffer_size = other.receive_buffer_size;
@@ -234,6 +235,7 @@ ATBUS_MACRO_API void node::default_conf(conf_t *conf) {
 #if defined(ATBUS_MACRO_COMPRESSION_ZLIB) && ATBUS_MACRO_COMPRESSION_ZLIB
   conf->compression_allow_algorithms.push_back(protocol::ATBUS_COMPRESSION_ALGORITHM_ZLIB);
 #endif
+  conf->compression_level = protocol::ATBUS_COMPRESSION_LEVEL_DEFAULT;
 
   // Message配置
   conf->message_size = ATBUS_MACRO_MESSAGE_LIMIT;
@@ -302,7 +304,8 @@ ATBUS_MACRO_API int node::init(bus_id_t id, const conf_t *conf) {
                 gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE>(conf_.crypto_allow_algorithms.data(),
                                                                        conf_.crypto_allow_algorithms.size()));
   reload_compression(gsl::span<const protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE>(
-      conf_.compression_allow_algorithms.data(), conf_.compression_allow_algorithms.size()));
+                         conf_.compression_allow_algorithms.data(), conf_.compression_allow_algorithms.size()),
+                     conf_.compression_level);
 
   if (conf_.access_tokens.size() > conf_.access_token_max_number) {
     conf_.access_tokens.resize(conf_.access_token_max_number);
@@ -394,13 +397,15 @@ ATBUS_MACRO_API void node::reload_crypto(
 }
 
 ATBUS_MACRO_API void node::reload_compression(
-    gsl::span<const protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> compression_allow_algorithms) {
+    gsl::span<const protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> compression_allow_algorithms,
+    protocol::ATBUS_COMPRESSION_LEVEL compression_level) {
   if (compression_allow_algorithms.data() == conf_.compression_allow_algorithms.data()) {
     return;
   }
 
   conf_.compression_allow_algorithms.reserve(compression_allow_algorithms.size());
   conf_.compression_allow_algorithms.assign(compression_allow_algorithms.begin(), compression_allow_algorithms.end());
+  conf_.compression_level = compression_level;
 }
 
 ATBUS_MACRO_API int node::start(const start_conf_t &start_conf) {

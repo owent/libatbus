@@ -207,6 +207,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
     // ===== 压缩算法配置 =====
     std::vector<protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> compression_allow_algorithms;
+    protocol::ATBUS_COMPRESSION_LEVEL compression_level;
 
     // ===== 缓冲区配置 =====
     size_t message_size;        /** max message size **/
@@ -328,7 +329,8 @@ class node final : public atfw::util::design_pattern::noncopyable {
    * @return 0或错误码
    */
   ATBUS_MACRO_API void reload_compression(
-      gsl::span<const protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> compression_allow_algorithms);
+      gsl::span<const protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> compression_allow_algorithms,
+      protocol::ATBUS_COMPRESSION_LEVEL compression_level);
 
   /**
    * @brief 启动连接流程
