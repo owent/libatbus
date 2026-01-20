@@ -59,54 +59,54 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   struct conf_flag_t {
     enum class type : uint32_t {
-      EN_CONF_MAX = 0,
+      kMax = 0,
     };
   };
 
   /** 并没有非常复杂的状态切换，所以没有引入状态机 **/
   struct state_t {
-    enum class type : uint32_t { CREATED = 0, INITED, LOST_UPSTREAM, CONNECTING_UPSTREAM, RUNNING };
+    enum class type : uint32_t { kCreated = 0, kInited, kLostUpstream, kConnectingUpstream, kRunning };
   };
 
   struct flag_t {
     enum class type : uint32_t {
-      EN_FT_RESETTING,         /** 正在重置 **/
-      EN_FT_RESETTING_GC,      /** 正在重置且正准备GC或GC流程已完成 **/
-      EN_FT_ACTIVED,           /** 已激活 **/
-      EN_FT_UPSTREAM_REG_DONE, /** 已通过父节点注册 **/
-      EN_FT_SHUTDOWN,          /** 已完成关闭前的资源回收 **/
-      EN_FT_RECV_SELF_MSG,     /** 正在接收发给自己的信息 **/
-      EN_FT_IN_CALLBACK,       /** 在回调函数中 **/
-      EN_FT_IN_PROC,           /** 在Proc函数中 **/
-      EN_FT_IN_POLL,           /** 在Poll函数中 **/
-      EN_FT_IN_GC_ENDPOINTS,   /** 在清理endpoint过程中 **/
-      EN_FT_IN_GC_CONNECTIONS, /** 在清理connection过程中 **/
-      EN_FT_MAX,               /** flag max **/
+      kResetting,       /** 正在重置 **/
+      kResettingGc,     /** 正在重置且正准备GC或GC流程已完成 **/
+      kActived,         /** 已激活 **/
+      kUpstreamRegDone, /** 已通过父节点注册 **/
+      kShutdown,        /** 已完成关闭前的资源回收 **/
+      kRecvSelfMsg,     /** 正在接收发给自己的信息 **/
+      kInCallback,      /** 在回调函数中 **/
+      kInProc,          /** 在Proc函数中 **/
+      kInPoll,          /** 在Poll函数中 **/
+      kInGcEndpoints,   /** 在清理endpoint过程中 **/
+      kInGcConnections, /** 在清理connection过程中 **/
+      kMax,             /** flag max **/
     };
   };
 
   struct send_data_options_t {
     enum class flag_type : uint32_t {
-      EN_SDOPT_NONE = 0,
-      EN_SDOPT_REQUIRE_RESPONSE = 0x01,  // 是否强制需要回包（默认情况下如果发送成功是没有回包通知的）
+      kNone = 0,
+      kRequireResponse = 0x01,  // 是否强制需要回包（默认情况下如果发送成功是没有回包通知的）
     };
 
     uint32_t flags;  // @see flag_type upper
     uint64_t sequence;
 
     ATFW_UTIL_FORCEINLINE constexpr send_data_options_t()
-        : flags(static_cast<uint32_t>(flag_type::EN_SDOPT_NONE)), sequence(0) {}
+        : flags(static_cast<uint32_t>(flag_type::kNone)), sequence(0) {}
 
     ATFW_UTIL_FORCEINLINE constexpr send_data_options_t(std::initializer_list<flag_type> flag_list) noexcept
-        : flags(static_cast<uint32_t>(flag_type::EN_SDOPT_NONE)), sequence(0) {
+        : flags(static_cast<uint32_t>(flag_type::kNone)), sequence(0) {
       for (auto f : flag_list) {
         flags |= static_cast<uint32_t>(f);
       }
     }
 
     ATFW_UTIL_FORCEINLINE constexpr send_data_options_t(gsl::span<flag_type> flag_list) noexcept
-        : flags(static_cast<uint32_t>(flag_type::EN_SDOPT_NONE)), sequence(0) {
-      flags = static_cast<uint32_t>(flag_type::EN_SDOPT_NONE);
+        : flags(static_cast<uint32_t>(flag_type::kNone)), sequence(0) {
+      flags = static_cast<uint32_t>(flag_type::kNone);
       for (auto f : flag_list) {
         flags |= static_cast<uint32_t>(f);
       }
@@ -139,8 +139,8 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   struct get_peer_options_t {
     enum class option_type : uint32_t {
-      EN_GPOPT_NONE = 0,
-      EN_GPOPT_NO_UPSTREAM = 0x01,  // 不允许上游转发
+      kNone = 0,
+      kNoUpstream = 0x01,  // 不允许上游转发
     };
 
     uint32_t flags;  // @see flag_type upper
@@ -182,9 +182,9 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   struct conf_t {
     adapter::loop_t *ev_loop;
-    std::bitset<static_cast<size_t>(conf_flag_t::type::EN_CONF_MAX)> flags; /** 开关配置 **/
-    std::string upstream_address;                                           /** 上游节点地址 **/
-    std::unordered_map<std::string, std::string> topology_labels;           /** 拓扑标签 **/
+    std::bitset<static_cast<size_t>(conf_flag_t::type::kMax)> flags; /** 开关配置 **/
+    std::string upstream_address;                                    /** 上游节点地址 **/
+    std::unordered_map<std::string, std::string> topology_labels;    /** 拓扑标签 **/
     int32_t loop_times; /** 消息循环次数限制，防止某些通道繁忙把其他通道堵死 **/
     int32_t ttl;        /** 消息转发跳转限制 **/
     int32_t protocol_version;
@@ -795,7 +795,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
   // ID
   endpoint::ptr_t self_;
   state_t::type state_;
-  std::bitset<static_cast<size_t>(flag_t::type::EN_FT_MAX)> flags_;
+  std::bitset<static_cast<size_t>(flag_t::type::kMax)> flags_;
   topology_registry::ptr_t topology_registry_;
 
   // 配置

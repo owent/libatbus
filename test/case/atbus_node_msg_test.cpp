@@ -165,7 +165,7 @@ static void node_msg_test_build_forward_message(atbus::node &sender, atbus::bus_
 
   uint64_t self_id = sender.get_id();
   uint32_t flags = 0;
-  if (options.check_flag(atbus::node::send_data_options_t::flag_type::EN_SDOPT_REQUIRE_RESPONSE)) {
+  if (options.check_flag(atbus::node::send_data_options_t::flag_type::kRequireResponse)) {
     flags |= atbus::protocol::FORWARD_DATA_FLAG_REQUIRE_RSP;
   }
 
@@ -716,8 +716,7 @@ static int node_msg_test_recv_and_send_msg_fn(const atbus::node &n, const atbus:
   np->set_on_forward_response_handle(node_msg_test_recv_and_send_msg_on_forward_response_fn);
 
   atbus::node::send_data_options_t options;
-  options.flags |=
-      static_cast<decltype(options.flags)>(atbus::node::send_data_options_t::flag_type::EN_SDOPT_REQUIRE_RESPONSE);
+  options.flags |= static_cast<decltype(options.flags)>(atbus::node::send_data_options_t::flag_type::kRequireResponse);
   np->send_data(
       n.get_id(), 0,
       gsl::span<const unsigned char>(reinterpret_cast<const unsigned char *>(sended_data.data()), sended_data.size()),
@@ -1098,7 +1097,7 @@ CASE_TEST(atbus_node_msg, topology_registry_multi_level_route) {
     {
       atbus::node::send_data_options_t options;
       options.flags |=
-          static_cast<decltype(options.flags)>(atbus::node::send_data_options_t::flag_type::EN_SDOPT_REQUIRE_RESPONSE);
+          static_cast<decltype(options.flags)>(atbus::node::send_data_options_t::flag_type::kRequireResponse);
       ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
       arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
       atbus::message msg{arena_options};
@@ -1140,7 +1139,7 @@ CASE_TEST(atbus_node_msg, topology_registry_multi_level_route) {
     {
       atbus::node::send_data_options_t options;
       options.flags |=
-          static_cast<decltype(options.flags)>(atbus::node::send_data_options_t::flag_type::EN_SDOPT_REQUIRE_RESPONSE);
+          static_cast<decltype(options.flags)>(atbus::node::send_data_options_t::flag_type::kRequireResponse);
       ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
       arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
       atbus::message msg{arena_options};

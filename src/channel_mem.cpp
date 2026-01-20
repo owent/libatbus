@@ -163,8 +163,8 @@ struct mem_block_head {
 };
 
 enum class mem_flag : uint32_t {
-  MF_WRITEN = 0x00000001,
-  MF_START_NODE = 0x00000002,
+  kWritten = 0x00000001,
+  kStartNode = 0x00000002,
 };
 
 namespace detail {
@@ -183,21 +183,21 @@ static mem_channel *last_action_channel_ptr = nullptr;
  */
 struct mem_block {
   enum class size_def : uint32_t {
-    channel_head_size = sizeof(mem_channel_head_align),
-    block_head_size = ((sizeof(mem_block_head) + ATBUS_MACRO_DATA_ALIGN_SIZE - 1) / ATBUS_MACRO_DATA_ALIGN_SIZE) *
-                      ATBUS_MACRO_DATA_ALIGN_SIZE,
-    node_head_size = ((sizeof(mem_node_head) + ATBUS_MACRO_DATA_ALIGN_SIZE - 1) / ATBUS_MACRO_DATA_ALIGN_SIZE) *
+    kChannelHeadSize = sizeof(mem_channel_head_align),
+    kBlockHeadSize = ((sizeof(mem_block_head) + ATBUS_MACRO_DATA_ALIGN_SIZE - 1) / ATBUS_MACRO_DATA_ALIGN_SIZE) *
                      ATBUS_MACRO_DATA_ALIGN_SIZE,
+    kNodeHeadSize = ((sizeof(mem_node_head) + ATBUS_MACRO_DATA_ALIGN_SIZE - 1) / ATBUS_MACRO_DATA_ALIGN_SIZE) *
+                    ATBUS_MACRO_DATA_ALIGN_SIZE,
 
-    node_data_size = ATBUS_MACRO_DATA_NODE_SIZE,
-    node_head_data_size = node_data_size - block_head_size,
+    kNodeDataSize = ATBUS_MACRO_DATA_NODE_SIZE,
+    kNodeHeadDataSize = kNodeDataSize - kBlockHeadSize,
   };
 
-  static constexpr size_t channel_head_size = static_cast<size_t>(size_def::channel_head_size);
-  static constexpr size_t block_head_size = static_cast<size_t>(size_def::block_head_size);
-  static constexpr size_t node_head_size = static_cast<size_t>(size_def::node_head_size);
-  static constexpr size_t node_data_size = static_cast<size_t>(size_def::node_data_size);
-  static constexpr size_t node_head_data_size = static_cast<size_t>(size_def::node_head_data_size);
+  static constexpr size_t channel_head_size = static_cast<size_t>(size_def::kChannelHeadSize);
+  static constexpr size_t block_head_size = static_cast<size_t>(size_def::kBlockHeadSize);
+  static constexpr size_t node_head_size = static_cast<size_t>(size_def::kNodeHeadSize);
+  static constexpr size_t node_data_size = static_cast<size_t>(size_def::kNodeDataSize);
+  static constexpr size_t node_head_data_size = static_cast<size_t>(size_def::kNodeHeadDataSize);
 };
 
 /**
@@ -606,7 +606,7 @@ static int mem_send_real(mem_channel *channel, const void *buf, size_t len) {
     block_head->buffer_size = 0;
 
     volatile mem_node_head *first_node_head = mem_get_node_head(channel, write_cur, nullptr, nullptr);
-    first_node_head->flag = set_flag(0, mem_flag::MF_START_NODE);
+    first_node_head->flag = set_flag(0, mem_flag::kStartNode);
     first_node_head->operation_seq = opr_seq;
 
     for (size_t i = mem_next_index(channel, write_cur, 1); i != new_write_cur; i = mem_next_index(channel, i, 1)) {
@@ -619,7 +619,7 @@ static int mem_send_real(mem_channel *channel, const void *buf, size_t len) {
       //     return EN_ATBUS_ERR_NODE_BAD_BLOCK_WSEQ_ID;
       // }
 
-      this_node_head->flag = set_flag(0, mem_flag::MF_WRITEN);
+      this_node_head->flag = set_flag(0, mem_flag::kWritten);
       this_node_head->operation_seq = opr_seq;
     }
   }
@@ -646,7 +646,7 @@ static int mem_send_real(mem_channel *channel, const void *buf, size_t len) {
     UTIL_LOCK_ATOMIC_THREAD_FENCE(atfw::util::lock::memory_order_acq_rel);
 
     volatile mem_node_head *first_node_head = mem_get_node_head(channel, write_cur, nullptr, nullptr);
-    first_node_head->flag = set_flag(first_node_head->flag, mem_flag::MF_WRITEN);
+    first_node_head->flag = set_flag(first_node_head->flag, mem_flag::kWritten);
 
     // 设置屏障，保证head内存同步，然后复查操作序号，writen标记延迟同步没关系
     UTIL_LOCK_ATOMIC_THREAD_FENCE(atfw::util::lock::memory_order_acquire);
@@ -722,9 +722,9 @@ ATBUS_MACRO_API int mem_recv(mem_channel *channel, void *buf, size_t len, size_t
      *   我们的数据通道不可能使用这么大的内存，所以加上operation_seq后能尽可能地消除空数据快的超时影响
      */
     // 容错处理 -- 未写入完成
-    UTIL_LIKELY_IF (check_flag(node_head->flag, mem_flag::MF_WRITEN)) {
+    UTIL_LIKELY_IF (check_flag(node_head->flag, mem_flag::kWritten)) {
       // 容错处理 -- 不是起始节点
-      UTIL_UNLIKELY_IF (!check_flag(node_head->flag, mem_flag::MF_START_NODE)) {
+      UTIL_UNLIKELY_IF (!check_flag(node_head->flag, mem_flag::kStartNode)) {
         read_begin_cur = mem_next_index(channel, read_begin_cur, 1);
         node_head->flag = 0;
 
@@ -742,7 +742,7 @@ ATBUS_MACRO_API int mem_recv(mem_channel *channel, void *buf, size_t len, size_t
 
       // 上面提到的快速跳过流程
       UTIL_UNLIKELY_IF (timeout_operation_seq && timeout_operation_seq == node_head->operation_seq &&
-                        !check_flag(node_head->flag, mem_flag::MF_START_NODE)) {
+                        !check_flag(node_head->flag, mem_flag::kStartNode)) {
         read_begin_cur = mem_next_index(channel, read_begin_cur, 1);
         node_head->flag = 0;
 
@@ -813,7 +813,7 @@ ATBUS_MACRO_API int mem_recv(mem_channel *channel, void *buf, size_t len, size_t
       }
 
       // 如果出现异常了两个连续写入块有相同的operation_seq，会在这里被会切割开
-      if (read_end_cur != read_begin_cur && check_flag(this_node_head->flag, mem_flag::MF_START_NODE)) {
+      if (read_end_cur != read_begin_cur && check_flag(this_node_head->flag, mem_flag::kStartNode)) {
         break;
       }
 
@@ -952,16 +952,16 @@ ATBUS_MACRO_API void mem_show_channel(mem_channel *channel, std::ostream &out, b
     for (size_t i = 0; i < channel->node_count; ++i) {
       void *data_ptr = 0;
       volatile mem_node_head *node_head = mem_get_node_head(channel, i, &data_ptr, nullptr);
-      bool start_node = check_flag(node_head->flag, mem_flag::MF_START_NODE);
+      bool start_node = check_flag(node_head->flag, mem_flag::kStartNode);
 
       if (start_node) {
         mem_block_head *block_head = mem_get_block_head(channel, i, nullptr, nullptr);
         out << "Node index: " << std::setw(10) << i << " => seq=" << node_head->operation_seq << ", is start node=Yes"
             << ", Data Length=" << block_head->buffer_size << ", Hash=" << block_head->fast_check
-            << ", is written=" << (check_flag(node_head->flag, mem_flag::MF_WRITEN) ? "Yes" : "No") << ", data(Hex): ";
+            << ", is written=" << (check_flag(node_head->flag, mem_flag::kWritten) ? "Yes" : "No") << ", data(Hex): ";
       } else {
         out << "Node index: " << std::setw(10) << i << " => seq=" << node_head->operation_seq << ", is start node=No"
-            << ", is written=" << (check_flag(node_head->flag, mem_flag::MF_WRITEN) ? "Yes" : "No") << ", data(Hex): ";
+            << ", is written=" << (check_flag(node_head->flag, mem_flag::kWritten) ? "Yes" : "No") << ", data(Hex): ";
       }
 
       if (need_node_data < mem_block::node_data_size) {

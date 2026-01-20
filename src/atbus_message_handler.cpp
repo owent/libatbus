@@ -100,7 +100,7 @@ static ATBUS_ERROR_TYPE _forward_data_message(::atframework::atbus::node &n,
   endpoint *target = nullptr;
   connection *target_conn = nullptr;
   ATBUS_ERROR_TYPE ret = n.get_peer_channel(to_server_id, &endpoint::get_data_connection, &target, &target_conn,
-                                            {atbus::node::get_peer_options_t::option_type::EN_GPOPT_NO_UPSTREAM});
+                                            {atbus::node::get_peer_options_t::option_type::kNoUpstream});
 
   if (nullptr != out_endpoint) {
     *out_endpoint = target;
@@ -369,7 +369,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::send_ping(node &n, connection 
       std::chrono::duration_cast<std::chrono::microseconds>(n.get_timer_tick().time_since_epoch()).count()));
 
   // 客户端创建己方密钥对，发给对方协商
-  if (conn.check_flag(connection::flag_t::type::CLIENT_MODE) &&
+  if (conn.check_flag(connection::flag_t::type::kClientMode) &&
       conn.get_connection_context().get_crypto_select_algorithm() != protocol::ATBUS_CRYPTO_ALGORITHM_NONE) {
     std::chrono::microseconds refresh_interval = n.get_conf().crypto_key_refresh_interval;
     if (refresh_interval > std::chrono::microseconds::zero() &&
@@ -467,7 +467,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::send_register(int32_t msg_id, 
 
   // 客户端创建己方密钥对，发给对方协商
   if (msg_id == ::atframework::atbus::protocol::message_body::kNodeRegisterReq &&
-      conn.check_flag(connection::flag_t::type::CLIENT_MODE) &&
+      conn.check_flag(connection::flag_t::type::kClientMode) &&
       conn.get_connection_context().get_crypto_key_exchange_algorithm() != protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE) {
     ATBUS_ERROR_TYPE res =
         conn.get_connection_context().handshake_generate_self_key(body->crypto_handshake().sequence());
@@ -482,7 +482,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::send_register(int32_t msg_id, 
     protocol::ATBUS_CRYPTO_ALGORITHM_TYPE selected_algo[1] = {
         conn.get_connection_context().get_crypto_select_algorithm()};
     gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> allowed_algorithms;
-    if (conn.check_flag(connection::flag_t::type::SERVER_MODE)) {
+    if (conn.check_flag(connection::flag_t::type::kServerMode)) {
       // 服务端发回协商结果即可
       allowed_algorithms = gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE>{selected_algo};
     } else {
@@ -663,7 +663,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_data_transfer_req(node
     return EN_ATBUS_ERR_BAD_DATA;
   }
 
-  if (nullptr != conn && ::atframework::atbus::connection::state_t::type::CONNECTED != conn->get_status()) {
+  if (nullptr != conn && ::atframework::atbus::connection::state_t::type::kConnected != conn->get_status()) {
     ATBUS_FUNC_NODE_ERROR(n, _get_binding(conn), conn, EN_ATBUS_ERR_NOT_READY, 0, "connection {} not ready",
                           conn->get_address().address);
     return EN_ATBUS_ERR_NOT_READY;
@@ -768,7 +768,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_data_transfer_rsp(node
     return EN_ATBUS_ERR_BAD_DATA;
   }
 
-  if (nullptr != conn && ::atframework::atbus::connection::state_t::type::CONNECTED != conn->get_status()) {
+  if (nullptr != conn && ::atframework::atbus::connection::state_t::type::kConnected != conn->get_status()) {
     ATBUS_FUNC_NODE_ERROR(n, _get_binding(conn), conn, EN_ATBUS_ERR_NOT_READY, 0, "connection {} not ready",
                           conn->get_address().address);
     return EN_ATBUS_ERR_NOT_READY;
@@ -858,7 +858,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_custom_command_req(nod
   std::list<std::string> rsp_data;
   ATBUS_ERROR_TYPE ret = n.on_custom_command_request(_get_binding(conn), conn, cmd_data->from(), cmd_args, rsp_data);
   // shm & mem ignore response from other node
-  if ((nullptr != conn && conn->is_running() && conn->check_flag(connection::flag_t::type::REG_FD)) ||
+  if ((nullptr != conn && conn->is_running() && conn->check_flag(connection::flag_t::type::kRegFd)) ||
       n.get_id() == cmd_data->from()) {
     ret = send_custom_command_response(n, conn, rsp_data, head->type(), 0, head->sequence(), cmd_data->from());
   }
@@ -950,7 +950,7 @@ static ATBUS_ERROR_TYPE accept_node_registration_step_make_endpoint(
                             ep->get_id(), ep->get_hostname(), ep->get_pid(), hostname, reg_data.pid());
       conn.reset();
       return EN_ATBUS_ERR_ATNODE_ID_CONFLICT;
-    } else if (false == ep->add_connection(&conn, conn.check_flag(connection::flag_t::type::ACCESS_SHARE_HOST))) {
+    } else if (false == ep->add_connection(&conn, conn.check_flag(connection::flag_t::type::kAccessShareHost))) {
       // 有共享物理机限制的连接只能加为数据节点（一般就是内存通道或者共享内存通道）
       ATBUS_FUNC_NODE_ERROR(n, ep, &conn, EN_ATBUS_ERR_ATNODE_NO_CONNECTION, EN_ATBUS_ERR_ATNODE_NO_CONNECTION,
                             "no permission to add connection to endpoint");
@@ -1023,7 +1023,7 @@ static ATBUS_ERROR_TYPE accept_node_registration_step_data_channel(
   bool has_data_connection_success = false;
 
   // 如果SERVER端判定出对方可能会通过双工通道再连接自己一次，就不用反向发起数据连接。
-  if (conn.check_flag(connection::flag_t::type::SERVER_MODE)) {
+  if (conn.check_flag(connection::flag_t::type::kServerMode)) {
     int endpoint_select_priority = 0;
     gsl::string_view endpoint_select_address;
     for (auto &addr : n.get_listen_list()) {
@@ -1111,7 +1111,7 @@ static ATBUS_ERROR_TYPE accept_node_registration(node &n, connection &conn, endp
                                                  const ::atframework::atbus::protocol::register_data &reg_data) {
   ATBUS_ERROR_TYPE ret = accept_node_registration_step_make_endpoint(n, conn, ep, m, reg_data);
   // 临时连接不需要创建数据通道
-  if (ret != EN_ATBUS_ERR_SUCCESS || conn.check_flag(connection::flag_t::type::TEMPORARY) || ep == nullptr) {
+  if (ret != EN_ATBUS_ERR_SUCCESS || conn.check_flag(connection::flag_t::type::kTemporary) || ep == nullptr) {
     return ret;
   }
 
@@ -1184,7 +1184,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_register_req(node
     }
 
     // 处理握手协商数据
-    if (conn->check_flag(connection::flag_t::type::SERVER_MODE) && reg_data->crypto_handshake().sequence() != 0 &&
+    if (conn->check_flag(connection::flag_t::type::kServerMode) && reg_data->crypto_handshake().sequence() != 0 &&
         reg_data->crypto_handshake().type() != protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE) {
       // 服务端读取对方公钥，创建己方密钥对，发给对方协商。自己可以完成协商过程
       response_code =
@@ -1234,7 +1234,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_register_req(node
   }
 
   // 仅fd连接发回注册回包，否则忽略（内存和共享内存通道为单工通道）
-  if (conn->check_flag(connection::flag_t::type::REG_FD)) {
+  if (conn->check_flag(connection::flag_t::type::kRegFd)) {
     ATBUS_ERROR_TYPE ret = send_register(::atframework::atbus::protocol::message_body::kNodeRegisterRsp, n, *conn,
                                          response_code, head->sequence());
     if (response_code != EN_ATBUS_ERR_SUCCESS) {
@@ -1297,7 +1297,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_register_rsp(node
     }
 
     // 处理握手协商数据
-    if (conn->check_flag(connection::flag_t::type::CLIENT_MODE) && reg_data->crypto_handshake().sequence() != 0 &&
+    if (conn->check_flag(connection::flag_t::type::kClientMode) && reg_data->crypto_handshake().sequence() != 0 &&
         reg_data->crypto_handshake().type() != protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE) {
       result_code = conn->get_connection_context().handshake_read_peer_key(
           reg_data->crypto_handshake(),
@@ -1339,8 +1339,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_register_rsp(node
     }
 
     // 如果是父节点回的错误注册包，且未被激活过，则要关闭进程
-    if (conn->get_address().address == n.get_conf().upstream_address &&
-        !n.check_flag(node::flag_t::type::EN_FT_ACTIVED)) {
+    if (conn->get_address().address == n.get_conf().upstream_address && !n.check_flag(node::flag_t::type::kActived)) {
       ATBUS_FUNC_NODE_DEBUG(n, ep, conn, &m, "node register to parent node failed, shutdown");
       ATBUS_FUNC_NODE_FATAL_SHUTDOWN(n, ep, conn, result_code, errcode);
     } else {
@@ -1357,7 +1356,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_register_rsp(node
   // 注册事件触发
   n.on_register(ep, conn, static_cast<ATBUS_ERROR_TYPE>(head->result_code()));
 
-  if (node::state_t::type::CONNECTING_UPSTREAM == n.get_state()) {
+  if (node::state_t::type::kConnectingUpstream == n.get_state()) {
     // 父节点返回的rsp成功则可以上线
     // 这时候父节点的endpoint不一定初始化完毕
     auto upstream_ep = n.get_upstream_endpoint();
@@ -1391,7 +1390,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_ping(node &n, con
     // 处理握手协商数据
     auto &ping_data = m.mutable_body().node_ping_req();
     bool with_handshake = nullptr != ep && ping_data.has_crypto_handshake() &&
-                          conn->check_flag(connection::flag_t::type::SERVER_MODE) &&
+                          conn->check_flag(connection::flag_t::type::kServerMode) &&
                           ping_data.crypto_handshake().sequence() != 0 &&
                           ping_data.crypto_handshake().type() != protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE;
     if (with_handshake) {
@@ -1462,7 +1461,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_pong(node &n, con
 
   if (nullptr != conn) {
     // 处理握手协商数据
-    if (conn->check_flag(connection::flag_t::type::CLIENT_MODE) &&
+    if (conn->check_flag(connection::flag_t::type::kClientMode) &&
         conn->get_connection_context().get_crypto_select_algorithm() != protocol::ATBUS_CRYPTO_ALGORITHM_NONE &&
         message_body.crypto_handshake().sequence() != 0 &&
         message_body.crypto_handshake().type() != protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE) {

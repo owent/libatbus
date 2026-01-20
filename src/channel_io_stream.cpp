@@ -122,7 +122,7 @@ static_assert(std::is_trivial<io_stream_conf>::value, "io_stream_conf should be 
 #  else
 static_assert(std::is_pod<io_stream_conf>::value, "io_stream_conf should be a pod type");
 #  endif
-static_assert(static_cast<int>(io_stream_channel::flag_t::EN_CF_MAX) <= sizeof(int) * 8,
+static_assert(static_cast<int>(io_stream_channel::flag_t::kMax) <= sizeof(int) * 8,
               "io_stream_channel::flag_t should has no more bits than io_stream_channel::flags");
 #endif
 
@@ -354,7 +354,7 @@ static adapter::loop_t *io_stream_get_loop(io_stream_channel *channel) {
     channel->ev_loop = reinterpret_cast<adapter::loop_t *>(malloc(sizeof(adapter::loop_t)));
     if (nullptr != channel->ev_loop) {
       uv_loop_init(channel->ev_loop);
-      ATBUS_CHANNEL_IOS_SET_FLAG(channel->flags, io_stream_channel::flag_t::EN_CF_IS_LOOP_OWNER);
+      ATBUS_CHANNEL_IOS_SET_FLAG(channel->flags, io_stream_channel::flag_t::kIsLoopOwner);
     }
   }
 
@@ -391,10 +391,10 @@ int io_stream_close(io_stream_channel *channel) {
     return EN_ATBUS_ERR_PARAMS;
   }
 
-  io_stream_flag_guard flag_guard(channel->flags, io_stream_channel::flag_t::EN_CF_CLOSING);
+  io_stream_flag_guard flag_guard(channel->flags, io_stream_channel::flag_t::kClosing);
 
   // 不允许在回调中关闭
-  if (ATBUS_CHANNEL_IOS_CHECK_FLAG(channel->flags, io_stream_channel::flag_t::EN_CF_IN_CALLBACK)) {
+  if (ATBUS_CHANNEL_IOS_CHECK_FLAG(channel->flags, io_stream_channel::flag_t::kInCallback)) {
     abort();
   }
 
@@ -417,7 +417,7 @@ int io_stream_close(io_stream_channel *channel) {
   // 当然也可以用另一种方法强行结束掉所有req，但是这样会造成丢失回调
   // 并且这会要求逻辑层设计相当完善，否则可能导致内存泄漏。所以为了简化逻辑层设计，还是block并销毁所有数据
 
-  if (ATBUS_CHANNEL_IOS_CHECK_FLAG(channel->flags, io_stream_channel::flag_t::EN_CF_IS_LOOP_OWNER) &&
+  if (ATBUS_CHANNEL_IOS_CHECK_FLAG(channel->flags, io_stream_channel::flag_t::kIsLoopOwner) &&
       nullptr != channel->ev_loop) {
     // 先清理掉所有可以完成的事件
     while (uv_run(channel->ev_loop, UV_RUN_NOWAIT)) {
@@ -472,10 +472,10 @@ static void io_stream_on_recv_alloc_fn(uv_handle_t *handle, size_t /*suggested_s
     return;
   }
 
-  io_stream_flag_guard flag_guard(conn_raw_ptr->channel->flags, io_stream_channel::flag_t::EN_CF_IN_CALLBACK);
+  io_stream_flag_guard flag_guard(conn_raw_ptr->channel->flags, io_stream_channel::flag_t::kInCallback);
 
   // 如果正处于关闭阶段，忽略所有数据
-  if (io_stream_connection::status_t::EN_ST_CONNECTED != conn_raw_ptr->status) {
+  if (io_stream_connection::status_t::kConnected != conn_raw_ptr->status) {
     buf->base = nullptr;
     buf->len = 0;
     return;
@@ -512,10 +512,10 @@ static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const 
   io_stream_channel *channel = conn_raw_ptr->channel;
   assert(channel);
 
-  io_stream_flag_guard flag_guard(channel->flags, io_stream_channel::flag_t::EN_CF_IN_CALLBACK);
+  io_stream_flag_guard flag_guard(channel->flags, io_stream_channel::flag_t::kInCallback);
 
   // 如果正处于关闭阶段，忽略所有数据
-  if (io_stream_connection::status_t::EN_ST_CONNECTED != conn_raw_ptr->status) {
+  if (io_stream_connection::status_t::kConnected != conn_raw_ptr->status) {
     uv_read_stop(conn_raw_ptr->handle.get());
     return;
   }
@@ -532,7 +532,7 @@ static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const 
 
   // 网络错误
   if (nread < 0) {
-    io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::EN_FN_RECEIVED, channel, conn_raw_ptr,
+    io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::kReceived, channel, conn_raw_ptr,
                                static_cast<int>(nread), EN_ATBUS_ERR_READ_FAILED, nullptr, 0);
 
     // 任何非重试的错误则关闭
@@ -590,8 +590,8 @@ static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const 
           }
         }
 
-        io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::EN_FN_RECEIVED, channel, conn_raw_ptr, 0,
-                                   errcode, buff_start + sizeof(uint32_t) + vint_len,
+        io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::kReceived, channel, conn_raw_ptr, 0, errcode,
+                                   buff_start + sizeof(uint32_t) + vint_len,
                                    // 这里的地址未对齐，所以buffer不能直接保存内存数据
                                    msg_len);
 
@@ -663,7 +663,7 @@ static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const 
       }
     }
 
-    io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::EN_FN_RECEIVED, channel, conn_raw_ptr, 0, errcode,
+    io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::kReceived, channel, conn_raw_ptr, 0, errcode,
                                reinterpret_cast<char *>(data) + sizeof(uint32_t),  // + hash32 header
                                // 由于buffer_block内取出的数据已经保证了字节对齐，所以这里一定是4字节对齐
                                msg_len);
@@ -674,7 +674,7 @@ static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const 
 
   if (is_free) {
     if (conn_raw_ptr->read_head.len > 0) {
-      io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::EN_FN_RECEIVED, channel, conn_raw_ptr, 0,
+      io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::kReceived, channel, conn_raw_ptr, 0,
                                  EN_ATBUS_ERR_INVALID_SIZE, conn_raw_ptr->read_head.buffer,
                                  // 由于buffer_block内取出的数据已经保证了字节对齐，所以这里一定是4字节对齐
                                  conn_raw_ptr->read_head.len);
@@ -760,14 +760,14 @@ static void io_stream_handle_on_close(uv_handle_t *handle) {
     return;
   }
 
-  io_stream_flag_guard flag_guard(channel->flags, io_stream_channel::flag_t::EN_CF_IN_CALLBACK);
+  io_stream_flag_guard flag_guard(channel->flags, io_stream_channel::flag_t::kInCallback);
 
   io_stream_channel::conn_gc_pool_t::iterator iter =
       channel->conn_gc_pool.find(reinterpret_cast<uintptr_t>(conn_raw_ptr));
   assert(iter != channel->conn_gc_pool.end());
 
-  iter->second->status = io_stream_connection::status_t::EN_ST_DISCONNECTED;
-  io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::EN_FN_DISCONNECTED, channel, iter->second.get(), 0,
+  iter->second->status = io_stream_connection::status_t::kDisconnected;
+  io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::kDisconnected, channel, iter->second.get(), 0,
                              EN_ATBUS_ERR_SUCCESS, nullptr, 0);
 
   if (nullptr != conn_raw_ptr->proactively_disconnect_callback) {
@@ -907,7 +907,7 @@ static ::atfw::util::memory::strong_rc_ptr<io_stream_connection> io_stream_make_
 
   memset(ret->evt.callbacks, 0, sizeof(ret->evt.callbacks));
   ret->proactively_disconnect_callback = nullptr;
-  ret->status = io_stream_connection::status_t::EN_ST_CREATED;
+  ret->status = io_stream_connection::status_t::kCreated;
 
   ret->read_buffer_manager.set_limit(channel->conf.receive_buffer_max_size, 0);
   if (channel->conf.receive_buffer_max_size > 0 && channel->conf.receive_buffer_static > 0) {
@@ -979,7 +979,7 @@ static adapter::tcp_t *io_stream_tcp_connection_common(
   }
 
   // 正在关闭，新连接直接断开，要在accept后执行，以保证连接会被正确断开
-  if (ATBUS_CHANNEL_IOS_CHECK_FLAG(channel->flags, io_stream_channel::flag_t::EN_CF_CLOSING)) {
+  if (ATBUS_CHANNEL_IOS_CHECK_FLAG(channel->flags, io_stream_channel::flag_t::kClosing)) {
     return nullptr;
   }
 
@@ -1001,7 +1001,7 @@ static void io_stream_tcp_connection_cb(uv_stream_t *req, int status) {
   assert(conn_raw_ptr);
   io_stream_channel *channel = conn_raw_ptr->channel;
   assert(channel);
-  io_stream_flag_guard flag_guard(channel->flags, io_stream_channel::flag_t::EN_CF_IN_CALLBACK);
+  io_stream_flag_guard flag_guard(channel->flags, io_stream_channel::flag_t::kInCallback);
 
   channel->error_code = status;
   ATBUS_ERROR_TYPE res = EN_ATBUS_ERR_SUCCESS;
@@ -1012,7 +1012,7 @@ static void io_stream_tcp_connection_cb(uv_stream_t *req, int status) {
   do {
     adapter::tcp_t *tcp_conn = io_stream_tcp_connection_common(conn, recv_conn, req, status);
     if (nullptr == tcp_conn || !conn) {
-      if (ATBUS_CHANNEL_IOS_CHECK_FLAG(channel->flags, io_stream_channel::flag_t::EN_CF_CLOSING)) {
+      if (ATBUS_CHANNEL_IOS_CHECK_FLAG(channel->flags, io_stream_channel::flag_t::kClosing)) {
         res = EN_ATBUS_ERR_CHANNEL_CLOSING;
       } else {
         res = EN_ATBUS_ERR_SOCK_CONNECT_FAILED;
@@ -1023,8 +1023,8 @@ static void io_stream_tcp_connection_cb(uv_stream_t *req, int status) {
 
     // 后面不会再失败了
 
-    conn->status = io_stream_connection::status_t::EN_ST_CONNECTED;
-    ATBUS_CHANNEL_IOS_SET_FLAG(conn->flags, io_stream_connection::flag_t::EN_CF_ACCEPT);
+    conn->status = io_stream_connection::status_t::kConnected;
+    ATBUS_CHANNEL_IOS_SET_FLAG(conn->flags, io_stream_connection::flag_t::kAccept);
 
     union io_stream_sockaddr_switcher sock_addr;
     int name_len = sizeof(sock_addr);
@@ -1041,7 +1041,7 @@ static void io_stream_tcp_connection_cb(uv_stream_t *req, int status) {
   } while (false);
 
   // 回调函数，如果发起连接接口调用成功一定要调用回调函数
-  io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::EN_FN_ACCEPTED, channel, conn_raw_ptr, conn.get(),
+  io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::kAccepted, channel, conn_raw_ptr, conn.get(),
                              channel->error_code, res, nullptr, 0);
 
   if (!conn && recv_conn) {
@@ -1062,7 +1062,7 @@ static void io_stream_pipe_connection_cb(uv_stream_t *req, int status) {
   if (!channel) {
     return;
   }
-  io_stream_flag_guard flag_guard(channel->flags, io_stream_channel::flag_t::EN_CF_IN_CALLBACK);
+  io_stream_flag_guard flag_guard(channel->flags, io_stream_channel::flag_t::kInCallback);
 
   channel->error_code = status;
   ATBUS_ERROR_TYPE res = EN_ATBUS_ERR_SUCCESS;
@@ -1089,7 +1089,7 @@ static void io_stream_pipe_connection_cb(uv_stream_t *req, int status) {
     }
 
     // 正在关闭，新连接直接断开，要在accept后执行，以保证新连接能被正确断开
-    if (ATBUS_CHANNEL_IOS_CHECK_FLAG(channel->flags, io_stream_channel::flag_t::EN_CF_CLOSING)) {
+    if (ATBUS_CHANNEL_IOS_CHECK_FLAG(channel->flags, io_stream_channel::flag_t::kClosing)) {
       res = EN_ATBUS_ERR_CHANNEL_CLOSING;
       break;
     }
@@ -1103,7 +1103,7 @@ static void io_stream_pipe_connection_cb(uv_stream_t *req, int status) {
 
     // 后面不会再失败了
 
-    conn->status = io_stream_connection::status_t::EN_ST_CONNECTED;
+    conn->status = io_stream_connection::status_t::kConnected;
 
     io_stream_pipe_setup(channel, pipe_conn);
     io_stream_pipe_init(channel, conn.get(), pipe_conn);
@@ -1129,7 +1129,7 @@ static void io_stream_pipe_connection_cb(uv_stream_t *req, int status) {
   } while (false);
 
   // 回调函数，如果发起连接接口调用成功一定要调用回调函数
-  io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::EN_FN_ACCEPTED, channel, conn_raw_ptr, conn.get(),
+  io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::kAccepted, channel, conn_raw_ptr, conn.get(),
                              channel->error_code, res, nullptr, 0);
 
   if (!conn && recv_conn) {
@@ -1160,7 +1160,7 @@ static void io_stream_dns_connection_cb(uv_getaddrinfo_t *req, int status, struc
     }
     ATBUS_CHANNEL_REQ_END(async_data->channel);
 
-    io_stream_flag_guard flag_guard(async_data->channel->flags, io_stream_channel::flag_t::EN_CF_IN_CALLBACK);
+    io_stream_flag_guard flag_guard(async_data->channel->flags, io_stream_channel::flag_t::kInCallback);
 
     async_data->channel->error_code = status;
 
@@ -1199,7 +1199,7 @@ static void io_stream_dns_connection_cb(uv_getaddrinfo_t *req, int status, struc
 
   // 接口调用不成功则要调用回调函数
   if (0 != listen_res && nullptr != async_data) {
-    io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::EN_FN_CONNECTED, async_data->channel,
+    io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::kConnected, async_data->channel,
                                async_data->callback, nullptr, listen_res, EN_ATBUS_ERR_DNS_GETADDR_FAILED,
                                async_data->priv_data, async_data->priv_size);
   }
@@ -1220,7 +1220,7 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
   }
 
   // 正在关闭，不允许启用新的监听
-  if (ATBUS_CHANNEL_IOS_CHECK_FLAG(channel->flags, io_stream_channel::flag_t::EN_CF_CLOSING)) {
+  if (ATBUS_CHANNEL_IOS_CHECK_FLAG(channel->flags, io_stream_channel::flag_t::kClosing)) {
     return EN_ATBUS_ERR_CHANNEL_CLOSING;
   }
 
@@ -1289,12 +1289,12 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
         break;
       }
       conn->addr = addr;
-      conn->status = io_stream_connection::status_t::EN_ST_CONNECTED;
-      ATBUS_CHANNEL_IOS_SET_FLAG(conn->flags, io_stream_connection::flag_t::EN_CF_LISTEN);
+      conn->status = io_stream_connection::status_t::kConnected;
+      ATBUS_CHANNEL_IOS_SET_FLAG(conn->flags, io_stream_connection::flag_t::kListen);
 
       io_stream_tcp_init(channel, conn.get(), handle);
-      io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::EN_FN_CONNECTED, channel, callback, conn.get(),
-                                 0, ret, priv_data, priv_size);
+      io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::kConnected, channel, callback, conn.get(), 0,
+                                 ret, priv_data, priv_size);
       return ret;
     } while (false);
 
@@ -1352,12 +1352,12 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
       }
 
       conn->addr = addr;
-      conn->status = io_stream_connection::status_t::EN_ST_CONNECTED;
-      ATBUS_CHANNEL_IOS_SET_FLAG(conn->flags, io_stream_connection::flag_t::EN_CF_LISTEN);
+      conn->status = io_stream_connection::status_t::kConnected;
+      ATBUS_CHANNEL_IOS_SET_FLAG(conn->flags, io_stream_connection::flag_t::kListen);
 
       io_stream_pipe_init(channel, conn.get(), handle);
-      io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::EN_FN_CONNECTED, channel, callback, conn.get(),
-                                 0, ret, priv_data, priv_size);
+      io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::kConnected, channel, callback, conn.get(), 0,
+                                 ret, priv_data, priv_size);
       return ret;
     } while (false);
 
@@ -1398,7 +1398,7 @@ static void io_stream_all_connected_cb(uv_connect_t *req, int status) {
   assert(async_data->channel);
   ATBUS_CHANNEL_REQ_END(async_data->channel);
 
-  io_stream_flag_guard flag_guard(async_data->channel->flags, io_stream_channel::flag_t::EN_CF_IN_CALLBACK);
+  io_stream_flag_guard flag_guard(async_data->channel->flags, io_stream_channel::flag_t::kInCallback);
 
   ATBUS_ERROR_TYPE errcode = EN_ATBUS_ERR_SUCCESS;
   async_data->channel->error_code = status;
@@ -1415,7 +1415,7 @@ static void io_stream_all_connected_cb(uv_connect_t *req, int status) {
     }
 
     // 正在关闭，新连接直接断开
-    if (ATBUS_CHANNEL_IOS_CHECK_FLAG(async_data->channel->flags, io_stream_channel::flag_t::EN_CF_CLOSING)) {
+    if (ATBUS_CHANNEL_IOS_CHECK_FLAG(async_data->channel->flags, io_stream_channel::flag_t::kClosing)) {
       errcode = EN_ATBUS_ERR_CHANNEL_CLOSING;
       break;
     }
@@ -1433,11 +1433,11 @@ static void io_stream_all_connected_cb(uv_connect_t *req, int status) {
       io_stream_tcp_init(async_data->channel, conn.get(), reinterpret_cast<adapter::tcp_t *>(req->handle));
     }
 
-    conn->status = io_stream_connection::status_t::EN_ST_CONNECTED;
-    ATBUS_CHANNEL_IOS_SET_FLAG(conn->flags, io_stream_connection::flag_t::EN_CF_CONNECT);
+    conn->status = io_stream_connection::status_t::kConnected;
+    ATBUS_CHANNEL_IOS_SET_FLAG(conn->flags, io_stream_connection::flag_t::kConnect);
   } while (false);
 
-  io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::EN_FN_CONNECTED, async_data->channel,
+  io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::kConnected, async_data->channel,
                              async_data->callback, conn.get(), status, errcode, async_data->priv_data,
                              async_data->priv_size);
 
@@ -1468,7 +1468,7 @@ static void io_stream_dns_connect_cb(uv_getaddrinfo_t *req, int status, struct a
 
   ATBUS_CHANNEL_REQ_END(async_data->channel);
 
-  io_stream_flag_guard flag_guard(async_data->channel->flags, io_stream_channel::flag_t::EN_CF_IN_CALLBACK);
+  io_stream_flag_guard flag_guard(async_data->channel->flags, io_stream_channel::flag_t::kInCallback);
 
   int listen_res = status;
   do {
@@ -1509,7 +1509,7 @@ static void io_stream_dns_connect_cb(uv_getaddrinfo_t *req, int status, struct a
 
   // 接口调用不成功则要调用回调函数
   if (0 != listen_res) {
-    io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::EN_FN_CONNECTED, async_data->channel,
+    io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::kConnected, async_data->channel,
                                async_data->callback, nullptr, listen_res, EN_ATBUS_ERR_DNS_GETADDR_FAILED,
                                async_data->priv_data, async_data->priv_size);
   }
@@ -1530,7 +1530,7 @@ int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr,
   }
 
   // 正在关闭，不允许启动新连接
-  if (ATBUS_CHANNEL_IOS_CHECK_FLAG(channel->flags, io_stream_channel::flag_t::EN_CF_CLOSING)) {
+  if (ATBUS_CHANNEL_IOS_CHECK_FLAG(channel->flags, io_stream_channel::flag_t::kClosing)) {
     return EN_ATBUS_ERR_CHANNEL_CLOSING;
   }
 
@@ -1669,12 +1669,12 @@ static int io_stream_disconnect_run(io_stream_connection *connection) {
   }
 
   // already running closing, skip
-  if (ATBUS_CHANNEL_IOS_CHECK_FLAG(connection->flags, io_stream_connection::flag_t::EN_CF_CLOSING)) {
+  if (ATBUS_CHANNEL_IOS_CHECK_FLAG(connection->flags, io_stream_connection::flag_t::kClosing)) {
     return EN_ATBUS_ERR_SUCCESS;
   }
 
   // real do closing
-  ATBUS_CHANNEL_IOS_SET_FLAG(connection->flags, io_stream_connection::flag_t::EN_CF_CLOSING);
+  ATBUS_CHANNEL_IOS_SET_FLAG(connection->flags, io_stream_connection::flag_t::kClosing);
   io_stream_shutdown_connection(connection);
 
   return EN_ATBUS_ERR_SUCCESS;
@@ -1688,14 +1688,14 @@ static int io_stream_disconnect_internal(io_stream_channel *channel, io_stream_c
 
   connection->proactively_disconnect_callback = callback;
 
-  if (io_stream_connection::status_t::EN_ST_CONNECTED != connection->status) {
+  if (io_stream_connection::status_t::kConnected != connection->status) {
     return EN_ATBUS_ERR_SUCCESS;
   }
 
-  connection->status = io_stream_connection::status_t::EN_ST_DISCONNECTING;
+  connection->status = io_stream_connection::status_t::kDisconnecting;
 
   // if there is any writing data, closing this connection later
-  if (!force && ATBUS_CHANNEL_IOS_CHECK_FLAG(connection->flags, io_stream_connection::flag_t::EN_CF_WRITING)) {
+  if (!force && ATBUS_CHANNEL_IOS_CHECK_FLAG(connection->flags, io_stream_connection::flag_t::kWriting)) {
     return EN_ATBUS_ERR_SUCCESS;
   }
 
@@ -1730,7 +1730,7 @@ static void io_stream_on_written_fn(uv_write_t *req, int status) {
 
   ATBUS_CHANNEL_REQ_END(connection->channel);
 
-  io_stream_flag_guard flag_guard(connection->channel->flags, io_stream_channel::flag_t::EN_CF_IN_CALLBACK);
+  io_stream_flag_guard flag_guard(connection->channel->flags, io_stream_channel::flag_t::kInCallback);
 
   void *data = nullptr;
   size_t nread, nwrite;
@@ -1768,7 +1768,7 @@ static void io_stream_on_written_fn(uv_write_t *req, int status) {
         left_length = 0;
       }
 
-      io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::EN_FN_WRITEN, connection->channel, connection,
+      io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::kWritten, connection->channel, connection,
                                  status, req == data ? EN_ATBUS_ERR_SUCCESS : EN_ATBUS_ERR_NODE_TIMEOUT, buff_start,
                                  out);
 
@@ -1788,14 +1788,14 @@ static void io_stream_on_written_fn(uv_write_t *req, int status) {
   }
 
   // unset writing mode
-  ATBUS_CHANNEL_IOS_UNSET_FLAG(connection->flags, io_stream_connection::flag_t::EN_CF_WRITING);
+  ATBUS_CHANNEL_IOS_UNSET_FLAG(connection->flags, io_stream_connection::flag_t::kWriting);
 
   // Write left data
   io_stream_try_write(connection);
 
   // if in disconnecting status and there is no more data to write, close it
-  if (io_stream_connection::status_t::EN_ST_DISCONNECTING == connection->status &&
-      !ATBUS_CHANNEL_IOS_CHECK_FLAG(connection->flags, io_stream_connection::flag_t::EN_CF_WRITING)) {
+  if (io_stream_connection::status_t::kDisconnecting == connection->status &&
+      !ATBUS_CHANNEL_IOS_CHECK_FLAG(connection->flags, io_stream_connection::flag_t::kWriting)) {
     io_stream_disconnect_run(connection);
   }
 }
@@ -1806,7 +1806,7 @@ int io_stream_try_write(io_stream_connection *connection) {
   }
 
   int ret = EN_ATBUS_ERR_SUCCESS;
-  if (ATBUS_CHANNEL_IOS_CHECK_FLAG(connection->flags, io_stream_connection::flag_t::EN_CF_WRITING)) {
+  if (ATBUS_CHANNEL_IOS_CHECK_FLAG(connection->flags, io_stream_connection::flag_t::kWriting)) {
     return ret;
   }
 
@@ -1817,7 +1817,7 @@ int io_stream_try_write(io_stream_connection *connection) {
 
   // closing or closed, cancle writing
   // If this connection is closing, it's maybe reset by peer, write data may cause SIGPIPE
-  if (ATBUS_CHANNEL_IOS_CHECK_FLAG(connection->flags, io_stream_connection::flag_t::EN_CF_CLOSING)) {
+  if (ATBUS_CHANNEL_IOS_CHECK_FLAG(connection->flags, io_stream_connection::flag_t::kClosing)) {
     while (!connection->write_buffer_manager.empty()) {
       ::atframework::atbus::detail::buffer_block *bb = connection->write_buffer_manager.front();
       size_t nwrite = bb->raw_size();
@@ -1838,7 +1838,7 @@ int io_stream_try_write(io_stream_connection *connection) {
           assert(false);
           left_length = 0;
         }
-        io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::EN_FN_WRITEN, connection->channel, connection,
+        io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::kWritten, connection->channel, connection,
                                    UV_ECANCELED, EN_ATBUS_ERR_CLOSING, buff_start, out);
 
         buff_start += static_cast<size_t>(out);
@@ -1925,11 +1925,11 @@ int io_stream_try_write(io_stream_connection *connection) {
   uv_buf_t bufs[1] = {
       uv_buf_init(buff_start, static_cast<unsigned int>(writing_block->raw_size() - sizeof(uv_write_t)))};
 
-  ATBUS_CHANNEL_IOS_SET_FLAG(connection->flags, io_stream_connection::flag_t::EN_CF_WRITING);
+  ATBUS_CHANNEL_IOS_SET_FLAG(connection->flags, io_stream_connection::flag_t::kWriting);
   int res = uv_write(req, connection->handle.get(), bufs, 1, io_stream_on_written_fn);
   if (0 != res) {
     connection->channel->error_code = res;
-    ATBUS_CHANNEL_IOS_UNSET_FLAG(connection->flags, io_stream_connection::flag_t::EN_CF_WRITING);
+    ATBUS_CHANNEL_IOS_UNSET_FLAG(connection->flags, io_stream_connection::flag_t::kWriting);
     return EN_ATBUS_ERR_WRITE_FAILED;
   }
   ATBUS_CHANNEL_REQ_START(connection->channel);
@@ -1946,7 +1946,7 @@ int io_stream_send(io_stream_connection *connection, const void *buf, size_t len
     return EN_ATBUS_ERR_INVALID_SIZE;
   }
 
-  if (io_stream_connection::status_t::EN_ST_CONNECTED != connection->status) {
+  if (io_stream_connection::status_t::kConnected != connection->status) {
     return EN_ATBUS_ERR_CLOSING;
   }
 
