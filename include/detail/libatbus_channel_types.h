@@ -202,9 +202,9 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_channel {
   void *data;
 };
 
-#define ATBUS_CHANNEL_IOS_CHECK_FLAG(f, v) (0 != ((f) & (1 << static_cast<int>(v))))
-#define ATBUS_CHANNEL_IOS_SET_FLAG(f, v) (f) |= (1 << static_cast<int>(v))
-#define ATBUS_CHANNEL_IOS_UNSET_FLAG(f, v) (f) &= ~(1 << static_cast<int>(v))
+#define ATBUS_CHANNEL_IOS_CHECK_FLAG(f, v) (0 != ((f) & (1 << static_cast<decltype(f)>(v))))
+#define ATBUS_CHANNEL_IOS_SET_FLAG(f, v) (f) |= (1 << static_cast<decltype(f)>(v))
+#define ATBUS_CHANNEL_IOS_UNSET_FLAG(f, v) (f) &= ~(1 << static_cast<decltype(f)>(v))
 #define ATBUS_CHANNEL_IOS_CLEAR_FLAG(f) (f) = 0
 
 #define ATBUS_CHANNEL_REQ_START(channel) (channel)->active_reqs.inc()

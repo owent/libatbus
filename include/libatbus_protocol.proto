@@ -75,12 +75,14 @@ enum ATBUS_COMPRESSION_LEVEL {
   //   zlib   : level 6
   ATBUS_COMPRESSION_LEVEL_DEFAULT = 0;
 
-  // 存储优先的均衡压缩
+  // 存储优先：最低 CPU 开销，允许不压缩直接存储
   //
   // 典型映射：
-  //   zstd   : level 3
-  //   lz4    : fast(6)
-  //   zlib   : level 6
+  //   zstd   : level 1（或 0）
+  //   lz4    : fast(1)
+  //   snappy : 默认配置
+  //   zlib   : level 1
+  //   none   : 不压缩
   ATBUS_COMPRESSION_LEVEL_STORAGE = 100;
 
   // 极速压缩，强调最低 CPU 与延迟
