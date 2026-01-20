@@ -119,8 +119,7 @@ ATBUS_MACRO_API int io_stream_init(io_stream_channel *channel, adapter::loop_t *
 // it will block and wait for all connections are disconnected success.
 ATBUS_MACRO_API int io_stream_close(io_stream_channel *channel);
 
-ATBUS_MACRO_API int io_stream_run(io_stream_channel *channel,
-                                  adapter::run_mode_t mode = adapter::run_mode_t::RUN_NOWAIT);
+ATBUS_MACRO_API int io_stream_run(io_stream_channel *channel, adapter::run_mode_t mode = adapter::run_mode_t::kNoWait);
 
 ATBUS_MACRO_API int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr,
                                      io_stream_callback_t callback, void *priv_data, size_t priv_size);

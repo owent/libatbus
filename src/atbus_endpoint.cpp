@@ -35,7 +35,7 @@ ATBUS_MACRO_API endpoint::ptr_t endpoint::create(node *owner, bus_id_t id, int32
 
   ret->owner_ = owner;
   if (node_access_controller::add_ping_timer(*owner, ret)) {
-    ret->set_flag(flag_t::type::HAS_PING_TIMER, true);
+    ret->set_flag(flag_t::type::kHasPingTimer, true);
   }
   ret->watcher_ = ret;
 
@@ -49,17 +49,17 @@ ATBUS_MACRO_API endpoint::~endpoint() {
     ATBUS_FUNC_NODE_INFO(*owner_, this, nullptr, "endpoint deallocated");
   }
 
-  flags_.set(static_cast<size_t>(flag_t::type::DESTRUCTING), true);
+  flags_.set(static_cast<size_t>(flag_t::type::kDestructing), true);
 
   reset();
 }
 
 ATBUS_MACRO_API void endpoint::reset() {
   // 这个函数可能会在析构时被调用，这时候不能使用watcher_.lock()
-  if (flags_.test(static_cast<size_t>(flag_t::type::RESETTING))) {
+  if (flags_.test(static_cast<size_t>(flag_t::type::kResetting))) {
     return;
   }
-  flags_.set(static_cast<size_t>(flag_t::type::RESETTING), true);
+  flags_.set(static_cast<size_t>(flag_t::type::kResetting), true);
 
   // 需要临时给自身加引用计数，否则后续移除的过程中可能导致数据被提前释放
   ptr_t tmp_holder = watch();
@@ -112,7 +112,7 @@ ATBUS_MACRO_API bool endpoint::add_connection(connection *conn, bool force_data)
     return false;
   }
 
-  if (flags_.test(static_cast<size_t>(flag_t::type::RESETTING))) {
+  if (flags_.test(static_cast<size_t>(flag_t::type::kResetting))) {
     return false;
   }
 
@@ -126,15 +126,15 @@ ATBUS_MACRO_API bool endpoint::add_connection(connection *conn, bool force_data)
 
   if (force_data || ctrl_conn_) {
     data_conn_.push_back(conn->watch());
-    flags_.set(static_cast<size_t>(flag_t::type::CONNECTION_SORTED), false);  // 置为未排序状态
+    flags_.set(static_cast<size_t>(flag_t::type::kConnectionSorted), false);  // 置为未排序状态
   } else {
     ctrl_conn_ = conn->watch();
   }
 
   // 已经成功连接可以不需要握手
   conn->binding_ = this;
-  if (connection::state_t::type::HANDSHAKING == conn->get_status()) {
-    conn->set_status(connection::state_t::type::CONNECTED);
+  if (connection::state_t::type::kHandshaking == conn->get_status()) {
+    conn->set_status(connection::state_t::type::kConnected);
   }
   return true;
 }
@@ -147,7 +147,7 @@ ATBUS_MACRO_API bool endpoint::remove_connection(connection *conn) {
   assert(this == conn->binding_);
 
   // 重置流程会在reset里清理对象，不需要再进行一次查找
-  if (flags_.test(static_cast<size_t>(flag_t::type::RESETTING))) {
+  if (flags_.test(static_cast<size_t>(flag_t::type::kResetting))) {
     conn->binding_ = nullptr;
     return true;
   }
@@ -194,7 +194,7 @@ ATBUS_MACRO_API bool endpoint::is_available() const {
 }
 
 ATBUS_MACRO_API bool endpoint::get_flag(flag_t::type f) const {
-  if (static_cast<size_t>(f) >= static_cast<size_t>(flag_t::type::MAX)) {
+  if (static_cast<size_t>(f) >= static_cast<size_t>(flag_t::type::kMax)) {
     return false;
   }
 
@@ -202,8 +202,8 @@ ATBUS_MACRO_API bool endpoint::get_flag(flag_t::type f) const {
 }
 
 ATBUS_MACRO_API int endpoint::set_flag(flag_t::type f, bool v) {
-  if (static_cast<size_t>(f) >= static_cast<size_t>(flag_t::type::MAX) ||
-      static_cast<size_t>(f) < static_cast<size_t>(flag_t::type::MUTABLE_FLAGS)) {
+  if (static_cast<size_t>(f) >= static_cast<size_t>(flag_t::type::kMax) ||
+      static_cast<size_t>(f) < static_cast<size_t>(flag_t::type::kMutableFlags)) {
     return EN_ATBUS_ERR_PARAMS;
   }
 
@@ -215,7 +215,7 @@ ATBUS_MACRO_API int endpoint::set_flag(flag_t::type f, bool v) {
 ATBUS_MACRO_API uint32_t endpoint::get_flags() const { return static_cast<uint32_t>(flags_.to_ulong()); }
 
 ATBUS_MACRO_API endpoint::ptr_t endpoint::watch() const {
-  if (flags_.test(static_cast<size_t>(flag_t::type::DESTRUCTING)) || watcher_.expired()) {
+  if (flags_.test(static_cast<size_t>(flag_t::type::kDestructing)) || watcher_.expired()) {
     return endpoint::ptr_t();
   }
 
@@ -226,8 +226,8 @@ ATBUS_MACRO_API const std::list<channel::channel_address_t> &endpoint::get_liste
 
 ATBUS_MACRO_API void endpoint::clear_listen() {
   listen_address_.clear();
-  flags_.set(static_cast<size_t>(flag_t::type::HAS_LISTEN_PORC), false);
-  flags_.set(static_cast<size_t>(flag_t::type::HAS_LISTEN_FD), false);
+  flags_.set(static_cast<size_t>(flag_t::type::kHasListenPorc), false);
+  flags_.set(static_cast<size_t>(flag_t::type::kHasListenFd), false);
 }
 
 ATBUS_MACRO_API void endpoint::add_listen(gsl::string_view addr) {
@@ -237,9 +237,9 @@ ATBUS_MACRO_API void endpoint::add_listen(gsl::string_view addr) {
 
   if (addr.size() >= 4 && (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr.data(), 4) ||
                            0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr.data(), 4))) {
-    flags_.set(static_cast<size_t>(flag_t::type::HAS_LISTEN_PORC), true);
+    flags_.set(static_cast<size_t>(flag_t::type::kHasListenPorc), true);
   } else {
-    flags_.set(static_cast<size_t>(flag_t::type::HAS_LISTEN_FD), true);
+    flags_.set(static_cast<size_t>(flag_t::type::kHasListenFd), true);
   }
 
   channel::channel_address_t parsed_addr;
@@ -263,37 +263,37 @@ ATBUS_MACRO_API void endpoint::add_ping_timer() {
 
   clear_ping_timer();
 
-  if (flags_.test(static_cast<size_t>(flag_t::type::RESETTING))) {
+  if (flags_.test(static_cast<size_t>(flag_t::type::kResetting))) {
     return;
   }
 
   if (node_access_controller::add_ping_timer(*owner_, watch())) {
-    set_flag(flag_t::type::HAS_PING_TIMER, true);
+    set_flag(flag_t::type::kHasPingTimer, true);
   }
 }
 
 ATBUS_MACRO_API void endpoint::clear_ping_timer() {
-  if (nullptr == owner_ || false == get_flag(flag_t::type::HAS_PING_TIMER)) {
+  if (nullptr == owner_ || false == get_flag(flag_t::type::kHasPingTimer)) {
     return;
   }
 
   node_access_controller::remove_ping_timer(*owner_, this);
-  set_flag(flag_t::type::HAS_PING_TIMER, false);
+  set_flag(flag_t::type::kHasPingTimer, false);
 }
 
 bool endpoint::sort_connection_cmp_fn(const connection::ptr_t &left, const connection::ptr_t &right) {
   int lscore = 0, rscore = 0;
-  if (!left->check_flag(connection::flag_t::type::ACCESS_SHARE_ADDR)) {
+  if (!left->check_flag(connection::flag_t::type::kAccessShareAddr)) {
     lscore += 0x08;
   }
-  if (!left->check_flag(connection::flag_t::type::ACCESS_SHARE_HOST)) {
+  if (!left->check_flag(connection::flag_t::type::kAccessShareHost)) {
     lscore += 0x04;
   }
 
-  if (!right->check_flag(connection::flag_t::type::ACCESS_SHARE_ADDR)) {
+  if (!right->check_flag(connection::flag_t::type::kAccessShareAddr)) {
     rscore += 0x08;
   }
-  if (!right->check_flag(connection::flag_t::type::ACCESS_SHARE_HOST)) {
+  if (!right->check_flag(connection::flag_t::type::kAccessShareHost)) {
     rscore += 0x04;
   }
 
@@ -309,7 +309,7 @@ ATBUS_MACRO_API connection *endpoint::get_ctrl_connection(const endpoint *ep) co
     return nullptr;
   }
 
-  if (ep->ctrl_conn_ && connection::state_t::type::CONNECTED == ep->ctrl_conn_->get_status()) {
+  if (ep->ctrl_conn_ && connection::state_t::type::kConnected == ep->ctrl_conn_->get_status()) {
     return ep->ctrl_conn_.get();
   }
 
@@ -338,25 +338,25 @@ ATBUS_MACRO_API connection *endpoint::get_data_connection(const endpoint *ep, bo
   }
 
   // 按性能优先级排序mem>shm>fd
-  if (false == ep->flags_.test(static_cast<size_t>(flag_t::type::CONNECTION_SORTED))) {
+  if (false == ep->flags_.test(static_cast<size_t>(flag_t::type::kConnectionSorted))) {
     const_cast<endpoint *>(ep)->data_conn_.sort(sort_connection_cmp_fn);
-    const_cast<endpoint *>(ep)->flags_.set(static_cast<size_t>(flag_t::type::CONNECTION_SORTED), true);
+    const_cast<endpoint *>(ep)->flags_.set(static_cast<size_t>(flag_t::type::kConnectionSorted), true);
   }
 
   for (auto &conn : ep->data_conn_) {
-    if (connection::state_t::type::CONNECTED != conn->get_status()) {
+    if (connection::state_t::type::kConnected != conn->get_status()) {
       continue;
     }
 
-    if (share_pid && conn->check_flag(connection::flag_t::type::ACCESS_SHARE_ADDR)) {
+    if (share_pid && conn->check_flag(connection::flag_t::type::kAccessShareAddr)) {
       return conn.get();
     }
 
-    if (share_host && conn->check_flag(connection::flag_t::type::ACCESS_SHARE_HOST)) {
+    if (share_host && conn->check_flag(connection::flag_t::type::kAccessShareHost)) {
       return conn.get();
     }
 
-    if (!conn->check_flag(connection::flag_t::type::ACCESS_SHARE_HOST)) {
+    if (!conn->check_flag(connection::flag_t::type::kAccessShareHost)) {
       return conn.get();
     }
   }
@@ -371,8 +371,8 @@ ATBUS_MACRO_API connection *endpoint::get_data_connection(const endpoint *ep, bo
 ATBUS_MACRO_API size_t endpoint::get_data_connection_count(bool enable_fallback_ctrl) const noexcept {
   size_t count = 0;
   for (auto &conn : data_conn_) {
-    if (connection::state_t::type::DISCONNECTING == conn->get_status() ||
-        connection::state_t::type::DISCONNECTED == conn->get_status()) {
+    if (connection::state_t::type::kDisconnecting == conn->get_status() ||
+        connection::state_t::type::kDisconnected == conn->get_status()) {
       continue;
     }
 
@@ -380,8 +380,8 @@ ATBUS_MACRO_API size_t endpoint::get_data_connection_count(bool enable_fallback_
   }
 
   if (count == 0 && enable_fallback_ctrl) {
-    if (ctrl_conn_ && connection::state_t::type::DISCONNECTING != ctrl_conn_->get_status() &&
-        connection::state_t::type::DISCONNECTED != ctrl_conn_->get_status()) {
+    if (ctrl_conn_ && connection::state_t::type::kDisconnecting != ctrl_conn_->get_status() &&
+        connection::state_t::type::kDisconnected != ctrl_conn_->get_status()) {
       ++count;
     }
   }

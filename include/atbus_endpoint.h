@@ -38,15 +38,15 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
 
   struct flag_t {
     enum class type : uint32_t {
-      RESETTING, /** 正在执行重置（防止递归死循环） **/
-      CONNECTION_SORTED,
-      DESTRUCTING,     /** 正在执行析构 **/
-      HAS_LISTEN_PORC, /** 是否有proc类的listen地址 **/
-      HAS_LISTEN_FD,   /** 是否有fd类的listen地址 **/
+      kResetting, /** 正在执行重置（防止递归死循环） **/
+      kConnectionSorted,
+      kDestructing,   /** 正在执行析构 **/
+      kHasListenPorc, /** 是否有proc类的listen地址 **/
+      kHasListenFd,   /** 是否有fd类的listen地址 **/
 
-      MUTABLE_FLAGS,  /** 可动态变化的属性起始边界 **/
-      HAS_PING_TIMER, /** 是否设置了ping定时器 **/
-      MAX
+      kMutableFlags, /** 可动态变化的属性起始边界 **/
+      kHasPingTimer, /** 是否设置了ping定时器 **/
+      kMax
     };
   };
 
@@ -165,7 +165,7 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
  private:
   bus_id_t id_;
   std::string hash_code_;
-  std::bitset<static_cast<size_t>(flag_t::type::MAX)> flags_;
+  std::bitset<static_cast<size_t>(flag_t::type::kMax)> flags_;
   std::string hostname_;
   int32_t pid_;
 

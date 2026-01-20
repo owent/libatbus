@@ -70,7 +70,7 @@ static void listen_callback_test_fn(atbus::channel::io_stream_channel *channel, 
   CASE_EXPECT_EQ(0, channel->error_code);
 
   // listen accepted event
-  connection->evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::EN_FN_ACCEPTED)] =
+  connection->evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::kAccepted)] =
       accepted_callback_test_fn;
 
   ++g_check_flag;
@@ -204,9 +204,9 @@ CASE_TEST(channel, io_stream_tcp_basic) {
     uv_run(&loop, UV_RUN_ONCE);
   }
 
-  svr.evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::EN_FN_RECEIVED)] =
+  svr.evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::kReceived)] =
       recv_callback_check_fn;
-  cli.evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::EN_FN_RECEIVED)] =
+  cli.evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::kReceived)] =
       recv_callback_check_fn;
   char *buf = get_test_buffer();
 
@@ -275,7 +275,7 @@ CASE_TEST(channel, io_stream_tcp_reset_by_client) {
   atbus::channel::io_stream_init(&svr, nullptr, nullptr);
   atbus::channel::io_stream_init(&cli, nullptr, nullptr);
 
-  svr.evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::EN_FN_DISCONNECTED)] =
+  svr.evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::kDisconnected)] =
       disconnected_callback_test_fn;
 
   int check_flag = g_check_flag = 0;
@@ -294,8 +294,8 @@ CASE_TEST(channel, io_stream_tcp_reset_by_client) {
   inited_fds += setup_channel(cli, nullptr, "ipv6://::1:16387");
 
   while (g_check_flag - check_flag < 2 * inited_fds + 1) {
-    atbus::channel::io_stream_run(&svr, atbus::adapter::run_mode_t::RUN_NOWAIT);
-    atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::RUN_NOWAIT);
+    atbus::channel::io_stream_run(&svr, atbus::adapter::run_mode_t::kNoWait);
+    atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::kNoWait);
     CASE_THREAD_SLEEP_MS(8);
   }
   CASE_EXPECT_NE(0, cli.conn_pool.size());
@@ -305,7 +305,7 @@ CASE_TEST(channel, io_stream_tcp_reset_by_client) {
   CASE_EXPECT_EQ(0, cli.conn_pool.size());
 
   while (g_check_flag - check_flag < inited_fds) {
-    atbus::channel::io_stream_run(&svr, atbus::adapter::run_mode_t::RUN_NOWAIT);
+    atbus::channel::io_stream_run(&svr, atbus::adapter::run_mode_t::kNoWait);
     CASE_THREAD_SLEEP_MS(8);
   }
   CASE_EXPECT_EQ(1, svr.conn_pool.size());
@@ -320,7 +320,7 @@ CASE_TEST(channel, io_stream_tcp_reset_by_server) {
   atbus::channel::io_stream_init(&svr, nullptr, nullptr);
   atbus::channel::io_stream_init(&cli, nullptr, nullptr);
 
-  cli.evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::EN_FN_DISCONNECTED)] =
+  cli.evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::kDisconnected)] =
       disconnected_callback_test_fn;
 
   int check_flag = g_check_flag = 0;
@@ -339,8 +339,8 @@ CASE_TEST(channel, io_stream_tcp_reset_by_server) {
   inited_fds += setup_channel(cli, nullptr, "ipv6://::1:16387");
 
   while (g_check_flag - check_flag < 2 * inited_fds + 1) {
-    atbus::channel::io_stream_run(&svr, atbus::adapter::run_mode_t::RUN_NOWAIT);
-    atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::RUN_NOWAIT);
+    atbus::channel::io_stream_run(&svr, atbus::adapter::run_mode_t::kNoWait);
+    atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::kNoWait);
     CASE_THREAD_SLEEP_MS(8);
   }
   CASE_EXPECT_NE(0, cli.conn_pool.size());
@@ -350,7 +350,7 @@ CASE_TEST(channel, io_stream_tcp_reset_by_server) {
   CASE_EXPECT_EQ(0, svr.conn_pool.size());
 
   while (g_check_flag - check_flag < inited_fds) {
-    atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::RUN_NOWAIT);
+    atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::kNoWait);
     CASE_THREAD_SLEEP_MS(8);
   }
   CASE_EXPECT_EQ(0, cli.conn_pool.size());
@@ -393,13 +393,13 @@ CASE_TEST(channel, io_stream_tcp_size_extended) {
   atbus::channel::io_stream_init(&svr, nullptr, &conf);
   atbus::channel::io_stream_init(&cli, nullptr, &conf);
 
-  svr.evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::EN_FN_RECEIVED)] =
+  svr.evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::kReceived)] =
       recv_size_err_callback_check_fn;
-  cli.evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::EN_FN_RECEIVED)] =
+  cli.evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::kReceived)] =
       recv_size_err_callback_check_fn;
-  svr.evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::EN_FN_DISCONNECTED)] =
+  svr.evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::kDisconnected)] =
       disconnected_callback_test_fn;
-  svr.evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::EN_FN_DISCONNECTED)] =
+  svr.evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::kDisconnected)] =
       disconnected_callback_test_fn;
 
   int check_flag = g_check_flag = 0;
@@ -412,8 +412,8 @@ CASE_TEST(channel, io_stream_tcp_size_extended) {
   inited_fds += setup_channel(cli, nullptr, "ipv4://127.0.0.1:16387");
 
   while (g_check_flag - check_flag < 2 * inited_fds) {
-    atbus::channel::io_stream_run(&svr, atbus::adapter::run_mode_t::RUN_NOWAIT);
-    atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::RUN_NOWAIT);
+    atbus::channel::io_stream_run(&svr, atbus::adapter::run_mode_t::kNoWait);
+    atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::kNoWait);
     CASE_THREAD_SLEEP_MS(8);
   }
   CASE_EXPECT_NE(0, cli.conn_pool.size());
@@ -429,8 +429,8 @@ CASE_TEST(channel, io_stream_tcp_size_extended) {
   CASE_EXPECT_EQ(EN_ATBUS_ERR_INVALID_SIZE, res);
 
   while (g_check_flag - check_flag < 1) {
-    atbus::channel::io_stream_run(&svr, atbus::adapter::run_mode_t::RUN_NOWAIT);
-    atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::RUN_NOWAIT);
+    atbus::channel::io_stream_run(&svr, atbus::adapter::run_mode_t::kNoWait);
+    atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::kNoWait);
     CASE_THREAD_SLEEP_MS(32);
   }
 
@@ -442,8 +442,8 @@ CASE_TEST(channel, io_stream_tcp_size_extended) {
   // 有接收端关闭，所以一定是接收端先出发关闭连接。
   // 这里只要判定后触发方完成回调，那么先触发方必然已经完成
   while (!cli.conn_pool.empty()) {
-    atbus::channel::io_stream_run(&svr, atbus::adapter::run_mode_t::RUN_NOWAIT);
-    atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::RUN_NOWAIT);
+    atbus::channel::io_stream_run(&svr, atbus::adapter::run_mode_t::kNoWait);
+    atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::kNoWait);
     CASE_THREAD_SLEEP_MS(32);
   }
 
@@ -512,7 +512,7 @@ CASE_TEST(channel, io_stream_tcp_connect_failed) {
   }
 
   while (g_check_flag - check_flag < inited_fds) {
-    atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::RUN_ONCE);
+    atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::kOnce);
   }
 
   atbus::channel::io_stream_close(&cli);

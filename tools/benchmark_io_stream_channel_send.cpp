@@ -146,8 +146,8 @@ int main(int argc, char *argv[]) {
 
   io_stream_channel channel;
   io_stream_init(&channel, uv_default_loop(), &cfg);
-  channel.evt.callbacks[io_stream_callback_event_t::EN_FN_WRITEN] = sended_callback;
-  channel.evt.callbacks[io_stream_callback_event_t::EN_FN_DISCONNECTED] = closed_callback;
+  channel.evt.callbacks[static_cast<size_t>(io_stream_callback_event_t::ios_fn_t::kWritten)] = sended_callback;
+  channel.evt.callbacks[static_cast<size_t>(io_stream_callback_event_t::ios_fn_t::kDisconnected)] = closed_callback;
 
   channel_address_t addr;
   make_address(argv[1], addr);

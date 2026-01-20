@@ -93,14 +93,14 @@ using io_stream_callback_t = void (*)(io_stream_channel *channel,        // 事�
 
 struct ATBUS_MACRO_API_HEAD_ONLY io_stream_callback_event_t {
   enum class ios_fn_t : uint32_t {
-    EN_FN_ACCEPTED = 0,
-    EN_FN_CONNECTED,  // 连接或listen成功
-    EN_FN_DISCONNECTED,
-    EN_FN_RECEIVED,
-    EN_FN_WRITEN,
-    MAX
+    kAccepted = 0,
+    kConnected,  // 连接或listen成功
+    kDisconnected,
+    kReceived,
+    kWritten,
+    kMax
   };
-  static constexpr size_t kCallbackCount = static_cast<size_t>(ios_fn_t::MAX);
+  static constexpr size_t kCallbackCount = static_cast<size_t>(ios_fn_t::kMax);
   // 回调函数
   io_stream_callback_t callbacks[kCallbackCount];
 };
@@ -108,19 +108,19 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_callback_event_t {
 // 以下不是POD类型，所以不得不暴露出来
 struct ATBUS_MACRO_API_HEAD_ONLY io_stream_connection {
   enum class flag_t : uint32_t {
-    EN_CF_LISTEN = 0,
-    EN_CF_CONNECT,
-    EN_CF_ACCEPT,
-    EN_CF_WRITING,
-    EN_CF_CLOSING,
-    EN_CF_MAX,
+    kListen = 0,
+    kConnect,
+    kAccept,
+    kWriting,
+    kClosing,
+    kMax,
   };
 
   channel_address_t addr;
   ::atfw::util::memory::strong_rc_ptr<adapter::stream_t> handle;  // 流设备
   adapter::fd_t fd;                                               // 文件描述符
 
-  enum class status_t : uint32_t { EN_ST_CREATED = 0, EN_ST_CONNECTED, EN_ST_DISCONNECTING, EN_ST_DISCONNECTED };
+  enum class status_t : uint32_t { kCreated = 0, kConnected, kDisconnecting, kDisconnected };
   status_t status;  // 状态
   uint32_t flags;   // flag
   io_stream_channel *channel;
@@ -172,10 +172,10 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_conf {
 
 struct ATBUS_MACRO_API_HEAD_ONLY io_stream_channel {
   enum class flag_t : uint32_t {
-    EN_CF_IS_LOOP_OWNER = 0,
-    EN_CF_CLOSING,
-    EN_CF_IN_CALLBACK,
-    EN_CF_MAX,
+    kIsLoopOwner = 0,
+    kClosing,
+    kInCallback,
+    kMax,
   };
 
   adapter::loop_t *ev_loop;
