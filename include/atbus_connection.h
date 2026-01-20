@@ -49,7 +49,7 @@ class connection final : public atfw::util::design_pattern::noncopyable {
 
   /** 并没有非常复杂的状态切换，所以没有引入状态机 **/
   struct state_t {
-    enum type {
+    enum class type : uint32_t {
       DISCONNECTED = 0, /** 未连接 **/
       CONNECTING,       /** 正在连接 **/
       HANDSHAKING,      /** 正在握手 **/
@@ -59,7 +59,7 @@ class connection final : public atfw::util::design_pattern::noncopyable {
   };
 
   struct flag_t {
-    enum type {
+    enum class type : uint32_t {
       REG_PROC = 0,      /** 注册了proc记录到node，清理的时候需要移除 **/
       REG_FD,            /** 关联了fd到node或endpoint，清理的时候需要移除 **/
       ACCESS_SHARE_ADDR, /** 共享内部地址（内存通道的地址共享） **/
@@ -248,7 +248,7 @@ class connection final : public atfw::util::design_pattern::noncopyable {
   int address_lock_;
   std::string address_lock_path_;
 #endif
-  std::bitset<flag_t::MAX> flags_;
+  std::bitset<static_cast<size_t>(flag_t::type::MAX)> flags_;
 
   // 这里不用智能指针是为了该值在上层对象（node或者endpoint）析构时仍然可用
   node *owner_;

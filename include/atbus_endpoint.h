@@ -37,7 +37,7 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
   using ptr_t = ::atfw::util::memory::strong_rc_ptr<endpoint>;
 
   struct flag_t {
-    enum type {
+    enum class type : uint32_t {
       RESETTING, /** 正在执行重置（防止递归死循环） **/
       CONNECTION_SORTED,
       DESTRUCTING,     /** 正在执行析构 **/
@@ -165,7 +165,7 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
  private:
   bus_id_t id_;
   std::string hash_code_;
-  std::bitset<flag_t::MAX> flags_;
+  std::bitset<static_cast<size_t>(flag_t::type::MAX)> flags_;
   std::string hostname_;
   int32_t pid_;
 
