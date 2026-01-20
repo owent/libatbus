@@ -58,18 +58,18 @@ class node final : public atfw::util::design_pattern::noncopyable {
   using message_builder_ref_t = ::atframework::atbus::message &;
 
   struct conf_flag_t {
-    enum type {
+    enum class type : uint32_t {
       EN_CONF_MAX = 0,
     };
   };
 
   /** 并没有非常复杂的状态切换，所以没有引入状态机 **/
   struct state_t {
-    enum type { CREATED = 0, INITED, LOST_UPSTREAM, CONNECTING_UPSTREAM, RUNNING };
+    enum class type : uint32_t { CREATED = 0, INITED, LOST_UPSTREAM, CONNECTING_UPSTREAM, RUNNING };
   };
 
   struct flag_t {
-    enum type {
+    enum class type : uint32_t {
       EN_FT_RESETTING,         /** 正在重置 **/
       EN_FT_RESETTING_GC,      /** 正在重置且正准备GC或GC流程已完成 **/
       EN_FT_ACTIVED,           /** 已激活 **/
@@ -86,7 +86,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
   };
 
   struct send_data_options_t {
-    enum flag_type {
+    enum class flag_type : uint32_t {
       EN_SDOPT_NONE = 0,
       EN_SDOPT_REQUIRE_RESPONSE = 0x01,  // 是否强制需要回包（默认情况下如果发送成功是没有回包通知的）
     };
@@ -94,18 +94,19 @@ class node final : public atfw::util::design_pattern::noncopyable {
     uint32_t flags;  // @see flag_type upper
     uint64_t sequence;
 
-    ATFW_UTIL_FORCEINLINE constexpr send_data_options_t() : flags(EN_SDOPT_NONE), sequence(0) {}
+    ATFW_UTIL_FORCEINLINE constexpr send_data_options_t()
+        : flags(static_cast<uint32_t>(flag_type::EN_SDOPT_NONE)), sequence(0) {}
 
     ATFW_UTIL_FORCEINLINE constexpr send_data_options_t(std::initializer_list<flag_type> flag_list) noexcept
-        : flags(EN_SDOPT_NONE), sequence(0) {
+        : flags(static_cast<uint32_t>(flag_type::EN_SDOPT_NONE)), sequence(0) {
       for (auto f : flag_list) {
         flags |= static_cast<uint32_t>(f);
       }
     }
 
     ATFW_UTIL_FORCEINLINE constexpr send_data_options_t(gsl::span<flag_type> flag_list) noexcept
-        : flags(EN_SDOPT_NONE), sequence(0) {
-      flags = EN_SDOPT_NONE;
+        : flags(static_cast<uint32_t>(flag_type::EN_SDOPT_NONE)), sequence(0) {
+      flags = static_cast<uint32_t>(flag_type::EN_SDOPT_NONE);
       for (auto f : flag_list) {
         flags |= static_cast<uint32_t>(f);
       }
@@ -137,12 +138,12 @@ class node final : public atfw::util::design_pattern::noncopyable {
   };
 
   struct get_peer_options_t {
-    enum class option_type : uint16_t {
+    enum class option_type : uint32_t {
       EN_GPOPT_NONE = 0,
       EN_GPOPT_NO_UPSTREAM = 0x01,  // 不允许上游转发
     };
 
-    uint16_t flags;  // @see flag_type upper
+    uint32_t flags;  // @see flag_type upper
 
     ATFW_UTIL_FORCEINLINE constexpr get_peer_options_t() : flags(0) {}
     ATFW_UTIL_FORCEINLINE constexpr ~get_peer_options_t() {}
@@ -150,13 +151,13 @@ class node final : public atfw::util::design_pattern::noncopyable {
     ATFW_UTIL_FORCEINLINE constexpr get_peer_options_t(std::initializer_list<option_type> flag_list) noexcept
         : flags(0) {
       for (auto f : flag_list) {
-        flags |= static_cast<uint16_t>(f);
+        flags |= static_cast<uint32_t>(f);
       }
     }
 
     ATFW_UTIL_FORCEINLINE constexpr get_peer_options_t(gsl::span<option_type> flag_list) noexcept : flags(0) {
       for (auto f : flag_list) {
-        flags |= static_cast<uint16_t>(f);
+        flags |= static_cast<uint32_t>(f);
       }
     }
 
@@ -175,15 +176,15 @@ class node final : public atfw::util::design_pattern::noncopyable {
     }
 
     ATFW_UTIL_FORCEINLINE constexpr bool check_flag(option_type f) const noexcept {
-      return (flags & static_cast<uint16_t>(f)) != 0;
+      return (flags & static_cast<uint32_t>(f)) != 0;
     }
   };
 
   struct conf_t {
     adapter::loop_t *ev_loop;
-    std::bitset<conf_flag_t::EN_CONF_MAX> flags;                  /** 开关配置 **/
-    std::string upstream_address;                                 /** 上游节点地址 **/
-    std::unordered_map<std::string, std::string> topology_labels; /** 拓扑标签 **/
+    std::bitset<static_cast<size_t>(conf_flag_t::type::EN_CONF_MAX)> flags; /** 开关配置 **/
+    std::string upstream_address;                                           /** 上游节点地址 **/
+    std::unordered_map<std::string, std::string> topology_labels;           /** 拓扑标签 **/
     int32_t loop_times; /** 消息循环次数限制，防止某些通道繁忙把其他通道堵死 **/
     int32_t ttl;        /** 消息转发跳转限制 **/
     int32_t protocol_version;
@@ -792,7 +793,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
   // ID
   endpoint::ptr_t self_;
   state_t::type state_;
-  std::bitset<flag_t::EN_FT_MAX> flags_;
+  std::bitset<static_cast<size_t>(flag_t::type::EN_FT_MAX)> flags_;
   topology_registry::ptr_t topology_registry_;
 
   // 配置

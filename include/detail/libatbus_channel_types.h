@@ -92,7 +92,7 @@ using io_stream_callback_t = void (*)(io_stream_channel *channel,        // 事�
 );
 
 struct ATBUS_MACRO_API_HEAD_ONLY io_stream_callback_event_t {
-  enum ios_fn_t {
+  enum class ios_fn_t : uint32_t {
     EN_FN_ACCEPTED = 0,
     EN_FN_CONNECTED,  // 连接或listen成功
     EN_FN_DISCONNECTED,
@@ -100,13 +100,14 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_callback_event_t {
     EN_FN_WRITEN,
     MAX
   };
+  static constexpr size_t kCallbackCount = static_cast<size_t>(ios_fn_t::MAX);
   // 回调函数
-  io_stream_callback_t callbacks[MAX];
+  io_stream_callback_t callbacks[kCallbackCount];
 };
 
 // 以下不是POD类型，所以不得不暴露出来
 struct ATBUS_MACRO_API_HEAD_ONLY io_stream_connection {
-  enum flag_t {
+  enum class flag_t : uint32_t {
     EN_CF_LISTEN = 0,
     EN_CF_CONNECT,
     EN_CF_ACCEPT,
@@ -119,9 +120,9 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_connection {
   ::atfw::util::memory::strong_rc_ptr<adapter::stream_t> handle;  // 流设备
   adapter::fd_t fd;                                               // 文件描述符
 
-  enum status_t { EN_ST_CREATED = 0, EN_ST_CONNECTED, EN_ST_DISCONNECTING, EN_ST_DISCONNECTED };
+  enum class status_t : uint32_t { EN_ST_CREATED = 0, EN_ST_CONNECTED, EN_ST_DISCONNECTING, EN_ST_DISCONNECTED };
   status_t status;  // 状态
-  int flags;        // flag
+  uint32_t flags;   // flag
   io_stream_channel *channel;
 
   // 事件响应
@@ -170,7 +171,7 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_conf {
 };
 
 struct ATBUS_MACRO_API_HEAD_ONLY io_stream_channel {
-  enum flag_t {
+  enum class flag_t : uint32_t {
     EN_CF_IS_LOOP_OWNER = 0,
     EN_CF_CLOSING,
     EN_CF_IN_CALLBACK,
@@ -178,7 +179,7 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_channel {
   };
 
   adapter::loop_t *ev_loop;
-  int flags;
+  uint32_t flags;
 
   io_stream_conf conf;
 
@@ -201,9 +202,9 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_channel {
   void *data;
 };
 
-#define ATBUS_CHANNEL_IOS_CHECK_FLAG(f, v) (0 != ((f) & (1 << (v))))
-#define ATBUS_CHANNEL_IOS_SET_FLAG(f, v) (f) |= (1 << (v))
-#define ATBUS_CHANNEL_IOS_UNSET_FLAG(f, v) (f) &= ~(1 << (v))
+#define ATBUS_CHANNEL_IOS_CHECK_FLAG(f, v) (0 != ((f) & (1 << static_cast<int>(v))))
+#define ATBUS_CHANNEL_IOS_SET_FLAG(f, v) (f) |= (1 << static_cast<int>(v))
+#define ATBUS_CHANNEL_IOS_UNSET_FLAG(f, v) (f) &= ~(1 << static_cast<int>(v))
 #define ATBUS_CHANNEL_IOS_CLEAR_FLAG(f) (f) = 0
 
 #define ATBUS_CHANNEL_REQ_START(channel) (channel)->active_reqs.inc()

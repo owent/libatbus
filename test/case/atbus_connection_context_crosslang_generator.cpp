@@ -964,20 +964,20 @@ CASE_TEST(atbus_connection_context_crosslang, generate_encrypted_test_files) {
     }
     const bool is_aead = test_cipher->is_aead();
 
-    // 创建context并设置固定密钥
-    auto ctx =
-        atfw::atbus::connection_context::create(atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE, nullptr);
-    CASE_EXPECT_NE(nullptr, ctx.get());
-
-    int setup_result = ctx->setup_crypto_with_key(crypto_config.algorithm, crypto_config.key, crypto_config.key_size,
-                                                  crypto_config.iv, crypto_config.iv_size);
-    if (setup_result != EN_ATBUS_ERR_SUCCESS) {
-      CASE_MSG_INFO() << "Failed to setup crypto " << crypto_config.name << ": " << setup_result << std::endl;
-      continue;
-    }
-
     // 生成 data_transform_req 测试用例
     {
+      auto ctx = atfw::atbus::connection_context::create(
+          atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE, nullptr);
+      CASE_EXPECT_NE(nullptr, ctx.get());
+
+      int setup_result =
+          ctx->setup_crypto_with_key(crypto_config.algorithm, crypto_config.key, crypto_config.key_size,
+                                     crypto_config.iv, crypto_config.iv_size);
+      if (setup_result != EN_ATBUS_ERR_SUCCESS) {
+        CASE_MSG_INFO() << "Failed to setup crypto " << crypto_config.name << ": " << setup_result << std::endl;
+        continue;
+      }
+
       std::string test_name = std::string("enc_") + crypto_config.name + "_data_transform_req";
       uint64_t from = 0x123456789ABCDEF0ULL;
       uint64_t to = 0x0FEDCBA987654321ULL;
@@ -1050,6 +1050,18 @@ CASE_TEST(atbus_connection_context_crosslang, generate_encrypted_test_files) {
 
     // 生成 custom_command_req 测试用例
     {
+      auto ctx = atfw::atbus::connection_context::create(
+          atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE, nullptr);
+      CASE_EXPECT_NE(nullptr, ctx.get());
+
+      int setup_result =
+          ctx->setup_crypto_with_key(crypto_config.algorithm, crypto_config.key, crypto_config.key_size,
+                                     crypto_config.iv, crypto_config.iv_size);
+      if (setup_result != EN_ATBUS_ERR_SUCCESS) {
+        CASE_MSG_INFO() << "Failed to setup crypto " << crypto_config.name << ": " << setup_result << std::endl;
+        continue;
+      }
+
       std::string test_name = std::string("enc_") + crypto_config.name + "_custom_cmd";
       uint64_t from = 0xABCDEF0123456789ULL;
       std::vector<std::string> commands = {"cmd1", "arg1", "arg2"};

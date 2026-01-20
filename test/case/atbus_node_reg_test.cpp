@@ -721,7 +721,7 @@ CASE_TEST(atbus_node_reg, destruct) {
     {
       atbus::node::send_data_options_t options;
       options.flags |=
-          static_cast<decltype(options.flags)>(atbus::node::send_data_options_t::EN_SDOPT_REQUIRE_RESPONSE);
+          static_cast<decltype(options.flags)>(atbus::node::send_data_options_t::flag_type::EN_SDOPT_REQUIRE_RESPONSE);
       CASE_EXPECT_EQ(EN_ATBUS_ERR_NOT_INITED,
                      node1->send_data(0x12345678, 213, gsl::span<const unsigned char>(), options));
     }
@@ -750,7 +750,7 @@ CASE_TEST(atbus_node_reg, destruct) {
     {
       atbus::node::send_data_options_t options;
       options.flags |=
-          static_cast<decltype(options.flags)>(atbus::node::send_data_options_t::EN_SDOPT_REQUIRE_RESPONSE);
+          static_cast<decltype(options.flags)>(atbus::node::send_data_options_t::flag_type::EN_SDOPT_REQUIRE_RESPONSE);
       CASE_EXPECT_EQ(EN_ATBUS_ERR_INVALID_SIZE,
                      node1->send_data(0x12345678, 213,
                                       gsl::span<const unsigned char>(reinterpret_cast<const unsigned char *>(&conf),
@@ -1086,8 +1086,8 @@ CASE_TEST(atbus_node_reg, reg_pc_failed_with_subnet_mismatch) {
     node_downstream->proc(unit_test_make_timepoint(proc_t, proc_us));
 
     // in windows CI, connection will be closed sometimes, it will lead to add one endpoint more than one times
-    CASE_EXPECT_TRUE(node_downstream->get_state() == atbus::node::state_t::CREATED ||
-                     node_downstream->get_state() == atbus::node::state_t::RUNNING);
+    CASE_EXPECT_TRUE(node_downstream->get_state() == atbus::node::state_t::type::CREATED ||
+                     node_downstream->get_state() == atbus::node::state_t::type::RUNNING);
     CASE_EXPECT_LE(check_ep_count, recv_msg_history.add_endpoint_count);
     CASE_EXPECT_LE(old_register_count, recv_msg_history.register_count);
     CASE_EXPECT_LE(old_available_count, recv_msg_history.availavle_count);
@@ -1255,8 +1255,8 @@ CASE_TEST(atbus_node_reg, conflict) {
     time_t proc_t = time(nullptr) + 1;
     // 必然有一个失败的
     UNITTEST_WAIT_UNTIL(conf.ev_loop,
-                        atbus::node::state_t::CREATED != node_downstream->get_state() &&
-                            atbus::node::state_t::CREATED != node_downstream_fail->get_state(),
+                        atbus::node::state_t::type::CREATED != node_downstream->get_state() &&
+                            atbus::node::state_t::type::CREATED != node_downstream_fail->get_state(),
                         8000, 64) {
       node_upstream->proc(unit_test_make_timepoint(proc_t, 0));
       node_downstream->proc(unit_test_make_timepoint(proc_t, 0));
@@ -1270,9 +1270,10 @@ CASE_TEST(atbus_node_reg, conflict) {
     }
 
     // 注册到下游节点失败不会导致下线的流程测试
-    CASE_EXPECT_TRUE(atbus::node::state_t::RUNNING == node_downstream->get_state() ||
-                     atbus::node::state_t::RUNNING == node_downstream_fail->get_state());
-    CASE_EXPECT_EQ(atbus::node::state_t::RUNNING, node_upstream->get_state());
+    CASE_EXPECT_TRUE(atbus::node::state_t::type::RUNNING == node_downstream->get_state() ||
+                     atbus::node::state_t::type::RUNNING == node_downstream_fail->get_state());
+    CASE_EXPECT_EQ(static_cast<uint32_t>(atbus::node::state_t::type::RUNNING),
+                   static_cast<uint32_t>(node_upstream->get_state()));
   }
 
   unit_test_setup_exit(&ev_loop);
@@ -1311,7 +1312,7 @@ CASE_TEST(atbus_node_reg, reconnect_upstream_failed) {
 
     time_t proc_t = time(nullptr) + 1;
     // 先等连接成功
-    UNITTEST_WAIT_UNTIL(conf.ev_loop, atbus::node::state_t::RUNNING == node_downstream->get_state(), 8000, 64) {
+    UNITTEST_WAIT_UNTIL(conf.ev_loop, atbus::node::state_t::type::RUNNING == node_downstream->get_state(), 8000, 64) {
       node_upstream->proc(unit_test_make_timepoint(proc_t, 0));
       node_downstream->proc(unit_test_make_timepoint(proc_t, 0));
       ++proc_t;
@@ -1323,18 +1324,19 @@ CASE_TEST(atbus_node_reg, reconnect_upstream_failed) {
     // 重连上游节点，但是连接不成功也不会导致下线
     // 连接过程中的转态变化
     size_t retry_times = 0;
-    UNITTEST_WAIT_IF(conf.ev_loop, atbus::node::state_t::RUNNING == node_downstream->get_state() || retry_times < 16,
-                     8000, 64) {
+    UNITTEST_WAIT_IF(conf.ev_loop,
+                     atbus::node::state_t::type::RUNNING == node_downstream->get_state() || retry_times < 16, 8000,
+                     64) {
       proc_t += static_cast<time_t>(conf.retry_interval.count() / 1000000) + 1;
 
       node_downstream->proc(unit_test_make_timepoint(proc_t, 0));
 
-      if (atbus::node::state_t::RUNNING != node_downstream->get_state()) {
+      if (atbus::node::state_t::type::RUNNING != node_downstream->get_state()) {
         ++retry_times;
-        CASE_EXPECT_TRUE(atbus::node::state_t::LOST_UPSTREAM == node_downstream->get_state() ||
-                         atbus::node::state_t::CONNECTING_UPSTREAM == node_downstream->get_state());
-        CASE_EXPECT_NE(atbus::node::state_t::CREATED, node_downstream->get_state());
-        CASE_EXPECT_NE(atbus::node::state_t::INITED, node_downstream->get_state());
+        CASE_EXPECT_TRUE(atbus::node::state_t::type::LOST_UPSTREAM == node_downstream->get_state() ||
+                         atbus::node::state_t::type::CONNECTING_UPSTREAM == node_downstream->get_state());
+        CASE_EXPECT_NE(atbus::node::state_t::type::CREATED, node_downstream->get_state());
+        CASE_EXPECT_NE(atbus::node::state_t::type::INITED, node_downstream->get_state());
       }
 
       CASE_THREAD_SLEEP_MS(4);
@@ -1351,7 +1353,7 @@ CASE_TEST(atbus_node_reg, reconnect_upstream_failed) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->start());
 
     UNITTEST_WAIT_IF(conf.ev_loop,
-                     atbus::node::state_t::RUNNING != node_downstream->get_state() ||
+                     atbus::node::state_t::type::RUNNING != node_downstream->get_state() ||
                          nullptr == node_upstream->get_endpoint(node_downstream->get_id()),
                      8000, 64) {
       proc_t += static_cast<time_t>(conf.retry_interval.count() / 1000000);
@@ -1365,11 +1367,13 @@ CASE_TEST(atbus_node_reg, reconnect_upstream_failed) {
 
       CASE_EXPECT_NE(nullptr, ep1);
       CASE_EXPECT_NE(nullptr, ep2);
-      CASE_EXPECT_EQ(atbus::node::state_t::RUNNING, node_downstream->get_state());
+      CASE_EXPECT_EQ(static_cast<uint32_t>(atbus::node::state_t::type::RUNNING),
+                     static_cast<uint32_t>(node_downstream->get_state()));
     }
 
     // 注册到子节点失败不会导致下线的流程测试
-    CASE_EXPECT_EQ(atbus::node::state_t::RUNNING, node_upstream->get_state());
+    CASE_EXPECT_EQ(static_cast<uint32_t>(atbus::node::state_t::type::RUNNING),
+                   static_cast<uint32_t>(node_upstream->get_state()));
   }
 
   unit_test_setup_exit(&ev_loop);
@@ -1462,7 +1466,7 @@ CASE_TEST(atbus_node_reg, mem_and_send) {
       if (nullptr != test_conn) {
         CASE_EXPECT_TRUE(test_conn->is_connected());
         // connect的节点是不注册REG_PROC的
-        CASE_EXPECT_FALSE(test_conn->check_flag(atbus::connection::flag_t::REG_PROC));
+        CASE_EXPECT_FALSE(test_conn->check_flag(atbus::connection::flag_t::type::REG_PROC));
       }
     }
 
@@ -1629,7 +1633,7 @@ CASE_TEST(atbus_node_reg, shm_and_send) {
       if (nullptr != test_conn) {
         CASE_EXPECT_TRUE(test_conn->is_connected());
         // connect的节点是不注册REG_PROC的
-        CASE_EXPECT_FALSE(test_conn->check_flag(atbus::connection::flag_t::REG_PROC));
+        CASE_EXPECT_FALSE(test_conn->check_flag(atbus::connection::flag_t::type::REG_PROC));
       }
     }
 

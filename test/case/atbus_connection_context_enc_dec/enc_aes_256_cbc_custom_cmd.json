@@ -11,7 +11,7 @@
   "iv_hex": "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf",
   "iv_size": 16,
   "packed_size": 75,
-  "packed_hex": "1a08033214080d121064ad6cbcec16cd12b8e45ad6d6b9f00748253a2ed8e5ae8a75e8327b134a144910906eb36512d7fe56764eb875839e8a7856645bbd507637a7eb5409c50319534946",
+  "packed_hex": "1a08033214080d1210a0a1a2a3a4a5a6a7a8a9aaabacadaeaf48258f5c147e299050b0e7e5c8e5b06aaca8c4b292a8b5a2eed2f70c0394d98780dac5f52d50cfff01a1d9de1cde559dd6d7",
   "expected": {
     "from": 12379813738877118345,
     "commands": ["cmd1", "arg1", "arg2"]

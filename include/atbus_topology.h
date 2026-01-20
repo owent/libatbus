@@ -34,7 +34,7 @@ struct topology_test_handles;
  *
  * The relation is evaluated based on the upstream chain (parent links).
  */
-enum class topology_relation_type : uint8_t {
+enum class topology_relation_type : uint32_t {
   /** @brief Invalid input or one/both peers not found. */
   kInvalid = 0,
 

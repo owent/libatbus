@@ -25,7 +25,7 @@ using shutdown_t = uv_shutdown_t;
 
 using fd_t = uv_os_fd_t;
 
-enum run_mode_t {
+enum class run_mode_t : uint32_t {
   RUN_DEFAULT = UV_RUN_DEFAULT,
   RUN_ONCE = UV_RUN_ONCE,
   RUN_NOWAIT = UV_RUN_NOWAIT,
