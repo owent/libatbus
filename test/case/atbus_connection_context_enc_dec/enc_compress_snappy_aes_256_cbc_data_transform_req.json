@@ -1,0 +1,20 @@
+{
+  "name": "enc_compress_snappy_aes_256_cbc_data_transform_req",
+  "description": "Data transform request with compression + AES-256-CBC",
+  "protocol_version": 3,
+  "body_type": "data_transform_req",
+  "body_type_case": 13,
+  "compression_algorithm": "snappy",
+  "compression_algorithm_type": 300,
+  "compression_original_size": 214,
+  "crypto_algorithm": "aes_256_cbc",
+  "crypto_algorithm_type": 13,
+  "key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "iv_hex": "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf",
+  "packed_size": 260,
+  "packed_hex": "2308033214080d1210a0a1a2a3a4a5a6a7a8a9aaabacadaeaf3a0608ac0210d601489220449c3d170d52f57c0165cb49276514ebcc9dceb37def0e879868d6f3a067e3e501cd24bd181d26603f0456d74ca1ada576536b4dc3d4c7de85f24db6c82ddfc0bdf3e4f932d1b1afd38ee5e5c0a985451f6b416b4560ba5b10cf259f785fe51c1993b46c74495019658862639b348a9bfbbe0ce5eeb8f05040cff5d69c0cbb325b1cde3803f5f69e7a172b3a455f4590a34e29e71c21e68d25bb89523fc6fe4fc7e274bc466733df6c201761537756510aeb8e5daf20c06ba0321ebd3cdaaf004b9e27ebb7a6bb8d678c683e14d60f2333e07e7c3e57edbdc63b556e71c18028",
+  "expected": {
+    "from": 324508639,
+    "to": 610839776
+  }
+}

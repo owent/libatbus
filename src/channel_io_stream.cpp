@@ -1820,6 +1820,10 @@ int io_stream_try_write(io_stream_connection *connection) {
   if (ATBUS_CHANNEL_IOS_CHECK_FLAG(connection->flags, io_stream_connection::flag_t::kClosing)) {
     while (!connection->write_buffer_manager.empty()) {
       ::atframework::atbus::detail::buffer_block *bb = connection->write_buffer_manager.front();
+      if (bb == nullptr) {
+        connection->write_buffer_manager.pop_front(0, true);
+        continue;
+      }
       size_t nwrite = bb->raw_size();
       // nwrite = sizeof(uv_write_t) + [data block...]
       // data block = 32bits hash+vint+data length

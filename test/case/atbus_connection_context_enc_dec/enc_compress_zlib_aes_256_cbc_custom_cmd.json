@@ -1,0 +1,19 @@
+{
+  "name": "enc_compress_zlib_aes_256_cbc_custom_cmd",
+  "description": "Custom command request with compression + AES-256-CBC",
+  "protocol_version": 3,
+  "body_type": "custom_command_req",
+  "body_type_case": 11,
+  "compression_algorithm": "zlib",
+  "compression_algorithm_type": 400,
+  "compression_original_size": 60,
+  "crypto_algorithm": "aes_256_cbc",
+  "crypto_algorithm_type": 13,
+  "key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "iv_hex": "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf",
+  "packed_size": 99,
+  "packed_hex": "2208033214080d1210a0a1a2a3a4a5a6a7a8a9aaabacadaeaf3a05089003103c489c20eeb95bb72a8a0cd63f3c9f5b0d18f84e0300733b3767f8a3b7612d6a0a29425ac40cb14694abd215cc3bc28233c3c190cf3586dea7e11a8319a78039a0f18e53",
+  "expected": {
+    "from": 286335522
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "compress_lz4_data_transform_req",
+  "description": "Data transform request with compression",
+  "protocol_version": 3,
+  "body_type": "data_transform_req",
+  "body_type_case": 13,
+  "compression_algorithm": "lz4",
+  "compression_algorithm_type": 200,
+  "compression_original_size": 50,
+  "packed_size": 63,
+  "packed_hex": "0c08033a0508c8011032489220ff096a8f200881deb7de0a10f8acd191012280204141414141410600fffffffffffffffffffffffffffffff1504141414141",
+  "expected": {
+    "from": 2882400001,
+    "to": 305419896,
+    "content_size": 4096
+  }
+}

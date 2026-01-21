@@ -1,0 +1,19 @@
+{
+  "name": "enc_compress_snappy_aes_256_cbc_custom_cmd",
+  "description": "Custom command request with compression + AES-256-CBC",
+  "protocol_version": 3,
+  "body_type": "custom_command_req",
+  "body_type_case": 11,
+  "compression_algorithm": "snappy",
+  "compression_algorithm_type": 300,
+  "compression_original_size": 221,
+  "crypto_algorithm": "aes_256_cbc",
+  "crypto_algorithm_type": 13,
+  "key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "iv_hex": "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf",
+  "packed_size": 260,
+  "packed_hex": "2308033214080d1210a0a1a2a3a4a5a6a7a8a9aaabacadaeaf3a0608ac0210dd01489c206479af9099c42e9a76a3720f48fbca3b51a4b1827105844f6f99220e70b6aa6a6423cc11071eaae80b5d0c2983ce81d32a71d77ab8b04d242aad92279dd59725c8f1211a039d49f79b71d7a52325787b9eb644b98daee1f2af8ec873fef401fb8c6bb28291d7e9e4956ba0d511c7ff41161d2f3da1923dce8e82fea26547b8dcf4b6e7010846febf36d53ddd4e855b0b0f3de8cbd41e875a84da3357bf0256323b875019744a23f3c470803bb7739016399be1b7494db499a802d73d22864064904d4e36ce4624e5031f2f93e46240dc811d53aef956b9112447555629b5e8fe",
+  "expected": {
+    "from": 286335522
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "compress_zstd_custom_cmd",
+  "description": "Custom command request with compression",
+  "protocol_version": 3,
+  "body_type": "custom_command_req",
+  "body_type_case": 11,
+  "compression_algorithm": "zstd",
+  "compression_algorithm_type": 100,
+  "compression_original_size": 45,
+  "packed_size": 57,
+  "packed_hex": "0b08033a040864102d489c2028b52ffd601c0f1d0100b85a992008aad5d6aa0512050a03636d641283100a8010420200034800f441fe7fd004",
+  "expected": {
+    "from": 1431677610
+  }
+}
