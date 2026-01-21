@@ -1,0 +1,22 @@
+{
+  "name": "enc_compress_zstd_aes_256_gcm_data_transform_req",
+  "description": "Data transform request with compression + AES-256-GCM",
+  "protocol_version": 3,
+  "body_type": "data_transform_req",
+  "body_type_case": 13,
+  "compression_algorithm": "zstd",
+  "compression_algorithm_type": 100,
+  "compression_original_size": 36,
+  "crypto_algorithm": "aes_256_gcm",
+  "crypto_algorithm_type": 16,
+  "key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "iv_hex": "b0b1b2b3b4b5b6b7b8b9babb",
+  "aad_hex": "307836393730613535352e307831316662612d307864666536313334633537376332343639",
+  "aad_size": 37,
+  "packed_size": 121,
+  "packed_hex": "44080332370810120cb0b1b2b3b4b5b6b7b8b9babb5a25307836393730613535352e307831316662612d3078646665363133346335373763323436393a0408641024489220b1e075568cdfb48a47f80fc8427d801d33e2d3d305ce5697fdcca0717cc1f316fca4a00a091231a21c2970e7fc176111a14949e9",
+  "expected": {
+    "from": 324508639,
+    "to": 610839776
+  }
+}

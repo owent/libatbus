@@ -1,0 +1,15 @@
+{
+  "name": "compress_zlib_custom_cmd",
+  "description": "Custom command request with compression",
+  "protocol_version": 3,
+  "body_type": "custom_command_req",
+  "body_type_case": 11,
+  "compression_algorithm": "zlib",
+  "compression_algorithm_type": 400,
+  "compression_original_size": 60,
+  "packed_size": 73,
+  "packed_hex": "0c08033a05089003103c489c20789c8b9aa9c0b1eaeab555ac42ac5cccc9b92942cd025c0d024ea360148c8251300a46c128187160b415300a46c1281805a360148c54000054732832",
+  "expected": {
+    "from": 1431677610
+  }
+}

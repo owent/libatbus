@@ -1,0 +1,17 @@
+{
+  "name": "compress_zlib_data_transform_req",
+  "description": "Data transform request with compression",
+  "protocol_version": 3,
+  "body_type": "data_transform_req",
+  "body_type_case": 13,
+  "compression_algorithm": "zlib",
+  "compression_algorithm_type": 400,
+  "compression_original_size": 54,
+  "packed_size": 67,
+  "packed_hex": "0c08033a050890031036489220789ccbea57e068bcb7fd1e97c08f351727322a3528388e8251300a46c1281805a360148c8251300a46c1281805a360d80300d5c91835",
+  "expected": {
+    "from": 2882400001,
+    "to": 305419896,
+    "content_size": 4096
+  }
+}

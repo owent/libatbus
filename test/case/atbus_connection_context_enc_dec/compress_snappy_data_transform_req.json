@@ -1,0 +1,17 @@
+{
+  "name": "compress_snappy_data_transform_req",
+  "description": "Data transform request with compression",
+  "protocol_version": 3,
+  "body_type": "data_transform_req",
+  "body_type_case": 13,
+  "compression_algorithm": "snappy",
+  "compression_algorithm_type": 300,
+  "compression_original_size": 214,
+  "packed_size": 228,
+  "packed_hex": "0d08033a0608ac0210d6014892209220486a8f200881deb7de0a10f8acd1910122802041fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fa0100",
+  "expected": {
+    "from": 2882400001,
+    "to": 305419896,
+    "content_size": 4096
+  }
+}

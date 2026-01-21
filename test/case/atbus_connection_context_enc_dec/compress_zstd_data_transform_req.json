@@ -1,0 +1,17 @@
+{
+  "name": "compress_zstd_data_transform_req",
+  "description": "Data transform request with compression",
+  "protocol_version": 3,
+  "body_type": "data_transform_req",
+  "body_type_case": 13,
+  "compression_algorithm": "zstd",
+  "compression_algorithm_type": 100,
+  "compression_original_size": 36,
+  "packed_size": 48,
+  "packed_hex": "0b08033a040864102448922028b52ffd60120fd50000986a8f200881deb7de0a10f8acd19101228020410100f9ef8330",
+  "expected": {
+    "from": 2882400001,
+    "to": 305419896,
+    "content_size": 4096
+  }
+}

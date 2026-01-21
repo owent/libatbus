@@ -3,6 +3,7 @@
 #include "atbus_connection_context.h"
 
 #include <algorithm/bit.h>
+#include <algorithm/compression.h>
 #include <algorithm/crypto_hmac.h>
 #include <time/time_utility.h>
 
@@ -33,19 +34,53 @@ static bool _allow_crypto(protocol::message_body::MessageTypeCase message_type) 
   }
 }
 
-static bool _allow_compress(protocol::message_body::MessageTypeCase /*message_type*/, size_t body_size) {
+static bool _allow_compress(protocol::message_body::MessageTypeCase message_type, size_t body_size) {
   // TODO: 需要进一步测试确定实际案例中的阈值
   // 如果body本身太小，压缩的头部反而会导致整体膨胀，那就不如不压缩
-  if (body_size <= 512) {
+  constexpr size_t kMinCompressSize = 512;
+  constexpr size_t kLikelyCompressSize = 1024;
+  constexpr size_t kGenericCompressSize = 2048;
+
+  if (body_size <= kMinCompressSize) {
     return false;
   }
 
-  return true;
+  switch (message_type) {
+    case protocol::message_body::kDataTransformReq:
+    case protocol::message_body::kDataTransformRsp:
+    case protocol::message_body::kCustomCommandReq:
+    case protocol::message_body::kCustomCommandRsp:
+      // These messages typically contain user payload and are more likely compressible.
+      return body_size >= kLikelyCompressSize;
+    default:
+      // For control-style messages, require a larger size to amortize CPU and header overhead.
+      return body_size >= kGenericCompressSize;
+  }
 }
 
 static std::unordered_set<protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> _build_all_supported_compression_algorithms() {
   std::unordered_set<protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> ret;
-  // TODO: 接入压缩算法
+#ifdef ATFW_UTIL_MACRO_COMPRESSION_ENABLED
+  auto supported = ::atfw::util::compression::get_supported_algorithms();
+  for (const auto &alg : supported) {
+    switch (alg) {
+      case ::atfw::util::compression::algorithm_t::kZstd:
+        ret.insert(protocol::ATBUS_COMPRESSION_ALGORITHM_ZSTD);
+        break;
+      case ::atfw::util::compression::algorithm_t::kLz4:
+        ret.insert(protocol::ATBUS_COMPRESSION_ALGORITHM_LZ4);
+        break;
+      case ::atfw::util::compression::algorithm_t::kSnappy:
+        ret.insert(protocol::ATBUS_COMPRESSION_ALGORITHM_SNAPPY);
+        break;
+      case ::atfw::util::compression::algorithm_t::kZlib:
+        ret.insert(protocol::ATBUS_COMPRESSION_ALGORITHM_ZLIB);
+        break;
+      default:
+        break;
+    }
+  }
+#endif
   return ret;
 }
 
@@ -55,6 +90,24 @@ _get_all_supported_compression_algorithms() {
       _build_all_supported_compression_algorithms();
   return ret;
 }
+
+#ifdef ATFW_UTIL_MACRO_COMPRESSION_ENABLED
+static ::atfw::util::compression::algorithm_t _to_compression_algorithm(
+    protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE type) noexcept {
+  switch (type) {
+    case protocol::ATBUS_COMPRESSION_ALGORITHM_ZSTD:
+      return ::atfw::util::compression::algorithm_t::kZstd;
+    case protocol::ATBUS_COMPRESSION_ALGORITHM_LZ4:
+      return ::atfw::util::compression::algorithm_t::kLz4;
+    case protocol::ATBUS_COMPRESSION_ALGORITHM_SNAPPY:
+      return ::atfw::util::compression::algorithm_t::kSnappy;
+    case protocol::ATBUS_COMPRESSION_ALGORITHM_ZLIB:
+      return ::atfw::util::compression::algorithm_t::kZlib;
+    default:
+      return ::atfw::util::compression::algorithm_t::kNone;
+  }
+}
+#endif
 
 static std::unordered_set<protocol::ATBUS_CRYPTO_KDF_TYPE> _build_all_supported_kdf_types() {
   std::unordered_set<protocol::ATBUS_CRYPTO_KDF_TYPE> ret;
@@ -420,26 +473,47 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE connection_context::unpack_message(message &m, 
   }
 
   // Step - 2: 解压阶段
+  size_t body_size = static_cast<size_t>(head.body_size());
   auto &compression_info = head.compression();
   if (compression_info.type() != protocol::ATBUS_COMPRESSION_ALGORITHM_NONE) {
-    // TODO: 压缩算法接入,解压前忽略掉padding部分
-    // if (compression_info.original_size() > next_block.size()) {
-    //   return buffer_result_t::make_error(EN_ATBUS_ERR_INVALID_SIZE);
-    // }
-    // if (compression_info.original_size() < next_block.size()) {
-    //   next_block = next_block.subspan(0, compression_info.original_size());
-    // }
+#ifdef ATFW_UTIL_MACRO_COMPRESSION_ENABLED
+    if (_get_all_supported_compression_algorithms().count(compression_info.type()) == 0) {
+      return EN_ATBUS_ERR_COMPRESSION_ALGORITHM_NOT_SUPPORT;
+    }
+
+    if (compression_info.original_size() > next_block.size()) {
+      return EN_ATBUS_ERR_INVALID_SIZE;
+    }
+
+    gsl::span<const unsigned char> compressed_span =
+        next_block.subspan(0, static_cast<size_t>(compression_info.original_size()));
+    std::vector<unsigned char> decompressed;
+    auto comp_alg = _to_compression_algorithm(compression_info.type());
+    int decompress_ret = ::atfw::util::compression::decompress(comp_alg, compressed_span, body_size, decompressed);
+    if (decompress_ret != ::atfw::util::compression::error_code_t::kOk) {
+      return EN_ATBUS_ERR_UNPACK;
+    }
+
+    if (decompressed.size() < body_size) {
+      return EN_ATBUS_ERR_INVALID_SIZE;
+    }
+
+    if (!m.mutable_body().ParseFromArray(reinterpret_cast<const void *>(decompressed.data()),
+                                         static_cast<int>(body_size))) {
+      return EN_ATBUS_ERR_UNPACK;
+    }
+#else
     return EN_ATBUS_ERR_COMPRESSION_ALGORITHM_NOT_SUPPORT;
-  }
-
-  size_t body_size = static_cast<size_t>(head.body_size());
-  if (body_size > next_block.size()) {
-    return EN_ATBUS_ERR_INVALID_SIZE;
-  }
-
-  if (!m.mutable_body().ParseFromArray(reinterpret_cast<const void *>(next_block.data()),
-                                       static_cast<int>(body_size))) {
-    return EN_ATBUS_ERR_UNPACK;
+#endif
+  } else {
+    if (body_size > next_block.size()) {
+      return EN_ATBUS_ERR_INVALID_SIZE;
+    }
+    gsl::span<const unsigned char> plain_span = next_block.subspan(0, body_size);
+    if (!m.mutable_body().ParseFromArray(reinterpret_cast<const void *>(plain_span.data()),
+                                         static_cast<int>(plain_span.size()))) {
+      return EN_ATBUS_ERR_UNPACK;
+    }
   }
 
   return EN_ATBUS_ERR_SUCCESS;
@@ -739,12 +813,12 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
     message &m, protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE compression_algorithm,
     protocol::ATBUS_CRYPTO_ALGORITHM_TYPE crypto_algorithm, random_engine_t &random_engine) noexcept {
   auto &head = m.mutable_head();
-  size_t body_size = static_cast<size_t>(head.body_size());
   size_t block_size = 0;
   if (send_cipher_) {
     block_size = send_cipher_->get_block_size();
   }
-  static_buffer_block origin_buffer = _allocate_temporary_buffer_block(body_size + block_size);
+  static_buffer_block origin_buffer =
+      _allocate_temporary_buffer_block(static_cast<size_t>(head.body_size()) + block_size);
 
   if (crypto_algorithm != protocol::ATBUS_CRYPTO_ALGORITHM_NONE &&
       (!send_cipher_ || crypto_algorithm != crypto_select_algorithm_)) {
@@ -752,7 +826,7 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
   }
 
   auto body = m.get_body();
-  if (body != nullptr && body_size > 0) {
+  if (body != nullptr && static_cast<size_t>(head.body_size()) > 0) {
     body->SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t *>(origin_buffer.data()));
   }
 
@@ -762,28 +836,91 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
   static_buffer_block final_buffer;
 
   // Step - 1: body压缩
+  std::vector<unsigned char> compressed_buffer;
+  gsl::span<const unsigned char> body_data_compressed_span{origin_buffer.data(), static_cast<size_t>(head.body_size())};
+  compressed_buffer.reserve(origin_buffer.size());
+
   if (compression_algorithm != protocol::ATBUS_COMPRESSION_ALGORITHM_NONE) {
-    // TODO: 压缩算法接入
-    // TODO: 如果仅压缩，不加密，可以直接压缩到 final_buffer, 少一次copy
+#ifdef ATFW_UTIL_MACRO_COMPRESSION_ENABLED
+    size_t origin_body_size = body_data_compressed_span.size();
+    if (_get_all_supported_compression_algorithms().count(compression_algorithm) == 0) {
+      return buffer_result_t::make_error(EN_ATBUS_ERR_COMPRESSION_ALGORITHM_NOT_SUPPORT);
+    }
+
+    auto comp_alg = _to_compression_algorithm(compression_algorithm);
+    int compress_ret = ::atfw::util::compression::compress(comp_alg, body_data_compressed_span, compressed_buffer,
+                                                           ::atfw::util::compression::level_t::kBalanced);
+    if (compress_ret != ::atfw::util::compression::error_code_t::kOk) {
+      if (compress_ret == ::atfw::util::compression::error_code_t::kNotSupport ||
+          compress_ret == ::atfw::util::compression::error_code_t::kDisabled) {
+        return buffer_result_t::make_error(EN_ATBUS_ERR_COMPRESSION_ALGORITHM_NOT_SUPPORT);
+      }
+      return buffer_result_t::make_error(EN_ATBUS_ERR_PACK);
+    }
+
+    if (!compressed_buffer.empty() && compressed_buffer.size() < origin_body_size) {
+      auto compression_info = head.mutable_compression();
+      if (compression_info == nullptr) {
+        return buffer_result_t::make_error(EN_ATBUS_ERR_MALLOC);
+      }
+      compression_info->set_type(compression_algorithm);
+      compression_info->set_original_size(static_cast<uint64_t>(compressed_buffer.size()));
+      body_data_compressed_span = gsl::span<const unsigned char>{compressed_buffer.data(), compressed_buffer.size()};
+    } else {
+      compression_algorithm = protocol::ATBUS_COMPRESSION_ALGORITHM_NONE;
+    }
+#else
     return buffer_result_t::make_error(EN_ATBUS_ERR_COMPRESSION_ALGORITHM_NOT_SUPPORT);
+#endif
   }
 
   // 对齐到加密算法的block size，有些套件需要我们手动对齐
-  gsl::span<unsigned char> body_data_span;
+  gsl::span<const unsigned char> body_data_span;
   if (block_size > 1 && send_cipher_ && !send_cipher_->is_aead()) {
     // 对于非AEAD加密算法（如CBC），需要对齐到block size
-    size_t padded_size = ((body_size + block_size - 1) / block_size) * block_size;
+    size_t padded_size = ((body_data_compressed_span.size() + block_size - 1) / block_size) * block_size;
     // 填充字节使用 PKCS#7 padding
-    if (padded_size > body_size) {
-      unsigned char padding_value = static_cast<unsigned char>(padded_size - body_size);
-      memset(origin_buffer.data() + body_size, padding_value, padded_size - body_size);
+    // body_data_compressed_span 和 origin_buffer 如果是同一块内存说明未压缩。
+    if (body_data_compressed_span.data() == origin_buffer.data()) {
+      if (padded_size > body_data_compressed_span.size()) {
+        assert(padded_size <= origin_buffer.size());
+        unsigned char padding_value = static_cast<unsigned char>(padded_size - body_data_compressed_span.size());
+        memset(origin_buffer.data() + body_data_compressed_span.size(), padding_value,
+               padded_size - body_data_compressed_span.size());
+      }
+      body_data_span = gsl::span<const unsigned char>{origin_buffer.data(), padded_size};
+    } else {
+      assert(compressed_buffer.data() == body_data_compressed_span.data());
+      if (padded_size > body_data_compressed_span.size()) {
+        compressed_buffer.resize(padded_size);
+        unsigned char padding_value = static_cast<unsigned char>(padded_size - body_data_compressed_span.size());
+        memset(compressed_buffer.data() + body_data_compressed_span.size(), padding_value,
+               padded_size - body_data_compressed_span.size());
+      }
+      body_data_span = gsl::span<const unsigned char>{compressed_buffer.data(), padded_size};
     }
-    body_data_span = gsl::span<unsigned char>{origin_buffer.data(), padded_size};
   } else {
-    body_data_span = gsl::span<unsigned char>{origin_buffer.data(), body_size};
+    body_data_span = body_data_compressed_span;
   }
 
   // Step - 2: body加密
+  if (crypto_algorithm == protocol::ATBUS_CRYPTO_ALGORITHM_NONE) {
+    head_size = head.ByteSizeLong();
+    head_vint_size = ::atframework::atbus::detail::fn::write_vint(
+        static_cast<uint64_t>(head_size), reinterpret_cast<void *>(head_len_buffer), sizeof(head_len_buffer));
+
+    size_t total_size = head_vint_size + head_size + body_data_span.size();
+    final_buffer = _allocate_temporary_buffer_block(total_size);
+
+    memcpy(final_buffer.data(), head_len_buffer, head_vint_size);
+    head.SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t *>(final_buffer.data() + head_vint_size));
+    if (!body_data_span.empty()) {
+      memcpy(final_buffer.data() + head_vint_size + head_size, body_data_span.data(), body_data_span.size());
+    }
+    final_buffer.set_used(head_vint_size + head_size + body_data_span.size());
+    return buffer_result_t::make_success(std::move(final_buffer));
+  }
+
   auto crypto_info = head.mutable_crypto();
   if (crypto_info == nullptr) {
     return buffer_result_t::make_error(EN_ATBUS_ERR_MALLOC);

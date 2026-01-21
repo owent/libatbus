@@ -1,0 +1,15 @@
+{
+  "name": "compress_snappy_custom_cmd",
+  "description": "Custom command request with compression",
+  "protocol_version": 3,
+  "body_type": "custom_command_req",
+  "body_type_case": 11,
+  "compression_algorithm": "snappy",
+  "compression_algorithm_type": 300,
+  "compression_original_size": 221,
+  "packed_size": 235,
+  "packed_hex": "0d08033a0608ac0210dd01489c209c20585a992008aad5d6aa0512050a03636d641283100a801042fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fe0100fa0100fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608fe0608160608",
+  "expected": {
+    "from": 1431677610
+  }
+}

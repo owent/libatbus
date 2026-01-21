@@ -1,0 +1,21 @@
+{
+  "name": "enc_compress_zstd_aes_256_gcm_custom_cmd",
+  "description": "Custom command request with compression + AES-256-GCM",
+  "protocol_version": 3,
+  "body_type": "custom_command_req",
+  "body_type_case": 11,
+  "compression_algorithm": "zstd",
+  "compression_algorithm_type": 100,
+  "compression_original_size": 45,
+  "crypto_algorithm": "aes_256_gcm",
+  "crypto_algorithm_type": 16,
+  "key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "iv_hex": "b0b1b2b3b4b5b6b7b8b9babb",
+  "aad_hex": "307836393730613535352e307831316662612d307836373535303630363030643836643736",
+  "aad_size": 37,
+  "packed_size": 130,
+  "packed_hex": "44080332370810120cb0b1b2b3b4b5b6b7b8b9babb5a25307836393730613535352e307831316662612d3078363735353036303630306438366437363a040864102d489c20b1e075568cd1b44246f82ff8547d806040f8c1d3072b85363da3e6e3df92f896150f213a6096a64ce4a5df9a383d0f5134615f5896dd3c8d0be25cad5a",
+  "expected": {
+    "from": 286335522
+  }
+}
