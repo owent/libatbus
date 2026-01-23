@@ -1066,7 +1066,7 @@ ATBUS_MACRO_API int node::send_data(bus_id_t tid, int type, gsl::span<const unsi
   body->mutable_content()->assign(reinterpret_cast<const char *>(data.data()), data.size());
   body->set_flags(flags);
 
-  return send_data_message(tid, m);
+  return send_data_message(tid, m, options);
 }
 
 ATBUS_MACRO_API int node::send_custom_command(bus_id_t tid, gsl::span<gsl::span<const unsigned char>> args) {
@@ -1129,11 +1129,12 @@ ATBUS_MACRO_API int node::send_custom_command(bus_id_t tid, gsl::span<gsl::span<
         static_cast<uint64_t>(random_engine_.random()), gsl::make_span(get_conf().access_tokens), *body);
   }
 
-  return send_data_message(tid, m);
+  return send_data_message(tid, m, options);
 }
 
 ATBUS_MACRO_API ATBUS_ERROR_TYPE node::get_peer_channel(bus_id_t tid, endpoint::get_connection_fn_t fn,
                                                         endpoint **ep_out, connection **conn_out,
+                                                        topology_peer::ptr_t *next_hop_peer,
                                                         get_peer_options_t options) {
   if (!self_) {
     return EN_ATBUS_ERR_NOT_INITED;
@@ -1162,6 +1163,10 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::get_peer_channel(bus_id_t tid, endpoint::
       target = node_upstream_.node_.get();
       conn = (self_.get()->*fn)(target);
 
+      if (next_hop_peer != nullptr && topology_registry_) {
+        *next_hop_peer = topology_registry_->get_peer(target->get_id());
+      }
+
       ASSIGN_EPCONN();
       break;
     }
@@ -1171,21 +1176,29 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::get_peer_channel(bus_id_t tid, endpoint::
     if (nullptr != target) {
       conn = (self_.get()->*fn)(target);
 
+      if (next_hop_peer != nullptr && topology_registry_) {
+        *next_hop_peer = topology_registry_->get_peer(target->get_id());
+      }
+
       ASSIGN_EPCONN();
       break;
     }
 
-    topology_peer::ptr_t next_hop_peer = nullptr;
-    topology_relation_type relation = get_topology_relation(tid, &next_hop_peer);
+    topology_peer::ptr_t next_hop_try_peer = nullptr;
+    topology_relation_type relation = get_topology_relation(tid, &next_hop_try_peer);
     // 子节点
     if (relation == topology_relation_type::kImmediateDownstream ||
         relation == topology_relation_type::kTransitiveDownstream) {
-      if (!next_hop_peer) {
+      if (!next_hop_try_peer) {
         return EN_ATBUS_ERR_ATNODE_INVALID_ID;
       }
-      target = find_route(node_route_, next_hop_peer->get_bus_id());
+      target = find_route(node_route_, next_hop_try_peer->get_bus_id());
       if (nullptr != target) {
         conn = (self_.get()->*fn)(target);
+
+        if (next_hop_peer != nullptr) {
+          *next_hop_peer = next_hop_try_peer;
+        }
 
         ASSIGN_EPCONN();
         break;
@@ -1216,6 +1229,10 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::get_peer_channel(bus_id_t tid, endpoint::
         if (nullptr != target) {
           conn = (self_.get()->*fn)(target);
 
+          if (next_hop_peer != nullptr) {
+            *next_hop_peer = find_nearest_neighbour_peer;
+          }
+
           ASSIGN_EPCONN();
           break;
         }
@@ -1236,6 +1253,10 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::get_peer_channel(bus_id_t tid, endpoint::
     if (!options.check_flag(get_peer_options_t::option_type::kNoUpstream) && node_upstream_.node_) {
       target = node_upstream_.node_.get();
       conn = (self_.get()->*fn)(target);
+
+      if (next_hop_peer != nullptr && topology_registry_) {
+        *next_hop_peer = topology_registry_->get_peer(target->get_id());
+      }
 
       ASSIGN_EPCONN();
       break;
@@ -2521,27 +2542,29 @@ ATBUS_ERROR_TYPE node::remove_endpoint(bus_id_t tid, endpoint *expected) {
   }
 }
 
-ATBUS_MACRO_API ATBUS_ERROR_TYPE node::send_data_message(bus_id_t tid, message_builder_ref_t mb) {
-  return send_data_message(tid, mb, nullptr, nullptr);
+ATBUS_MACRO_API ATBUS_ERROR_TYPE node::send_data_message(bus_id_t tid, message_builder_ref_t mb,
+                                                         const send_data_options_t &options) {
+  return send_data_message(tid, mb, nullptr, nullptr, options);
 }
 
 ATBUS_MACRO_API ATBUS_ERROR_TYPE node::send_data_message(bus_id_t tid, message_builder_ref_t mb, endpoint **ep_out,
-                                                         connection **conn_out) {
-  return send_message(tid, mb, &endpoint::get_data_connection, ep_out, conn_out);
+                                                         connection **conn_out, const send_data_options_t &options) {
+  return send_message(tid, mb, &endpoint::get_data_connection, ep_out, conn_out, options);
 }
 
-ATBUS_MACRO_API ATBUS_ERROR_TYPE node::send_ctrl_message(bus_id_t tid, message_builder_ref_t mb) {
-  return send_ctrl_message(tid, mb, nullptr, nullptr);
+ATBUS_MACRO_API ATBUS_ERROR_TYPE node::send_ctrl_message(bus_id_t tid, message_builder_ref_t mb,
+                                                         const send_data_options_t &options) {
+  return send_ctrl_message(tid, mb, nullptr, nullptr, options);
 }
 
 ATBUS_MACRO_API ATBUS_ERROR_TYPE node::send_ctrl_message(bus_id_t tid, message_builder_ref_t mb, endpoint **ep_out,
-                                                         connection **conn_out) {
-  return send_message(tid, mb, &endpoint::get_ctrl_connection, ep_out, conn_out);
+                                                         connection **conn_out, const send_data_options_t &options) {
+  return send_message(tid, mb, &endpoint::get_ctrl_connection, ep_out, conn_out, options);
 }
 
 ATBUS_MACRO_API ATBUS_ERROR_TYPE node::send_message(bus_id_t tid, message_builder_ref_t mb,
                                                     endpoint::get_connection_fn_t fn, endpoint **ep_out,
-                                                    connection **conn_out) {
+                                                    connection **conn_out, const send_data_options_t &options) {
   if (state_t::type::kCreated == state_) {
     return EN_ATBUS_ERR_NOT_INITED;
   }
@@ -2587,7 +2610,11 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::send_message(bus_id_t tid, message_builde
   }
 
   connection *conn = nullptr;
-  ATBUS_ERROR_TYPE res = get_peer_channel(tid, fn, ep_out, &conn);
+  atframework::atbus::v3000::node::get_peer_options_t get_peer_options;
+  if (options.check_flag(send_data_options_t::flag_type::kNoUpstream)) {
+    get_peer_options.set_flag(atframework::atbus::v3000::node::get_peer_options_t::option_type::kNoUpstream, true);
+  }
+  ATBUS_ERROR_TYPE res = get_peer_channel(tid, fn, ep_out, &conn, nullptr);
   if (nullptr != conn_out) {
     *conn_out = conn;
   }
