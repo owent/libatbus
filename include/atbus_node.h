@@ -89,6 +89,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
     enum class flag_type : uint32_t {
       kNone = 0,
       kRequireResponse = 0x01,  // 是否强制需要回包（默认情况下如果发送成功是没有回包通知的）
+      kNoUpstream = 0x02,       // 是否禁止上游转发
     };
 
     uint32_t flags;  // @see flag_type upper
@@ -114,6 +115,14 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
     ATFW_UTIL_FORCEINLINE constexpr bool check_flag(flag_type f) const noexcept {
       return (flags & static_cast<uint32_t>(f)) != 0;
+    }
+
+    ATFW_UTIL_FORCEINLINE constexpr void set_flag(flag_type f, bool v) noexcept {
+      if (v) {
+        flags |= static_cast<uint32_t>(f);
+      } else {
+        flags &= ~static_cast<uint32_t>(f);
+      }
     }
 
     ATFW_UTIL_FORCEINLINE constexpr ~send_data_options_t() {}
@@ -177,6 +186,14 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
     ATFW_UTIL_FORCEINLINE constexpr bool check_flag(option_type f) const noexcept {
       return (flags & static_cast<uint32_t>(f)) != 0;
+    }
+
+    ATFW_UTIL_FORCEINLINE constexpr void set_flag(option_type f, bool v) noexcept {
+      if (v) {
+        flags |= static_cast<uint32_t>(f);
+      } else {
+        flags &= ~static_cast<uint32_t>(f);
+      }
     }
   };
 
@@ -456,10 +473,13 @@ class node final : public atfw::util::design_pattern::noncopyable {
    * @param fn 获取有效连接的接口，用以区分数据通道和控制通道
    * @param ep_out 如果发送成功，导出发送目标，否则导出NULL
    * @param conn_out 如果发送成功，导出发送连接，否则导出NULL
+   * @param next_hop_peer 导出下一跳的拓扑节点指针
+   * @param options 获取选项
    * @return 0或错误码
    */
   ATBUS_MACRO_API ATBUS_ERROR_TYPE get_peer_channel(bus_id_t tid, endpoint::get_connection_fn_t fn, endpoint **ep_out,
-                                                    connection **conn_out, get_peer_options_t options = {});
+                                                    connection **conn_out, topology_peer::ptr_t *next_hop_peer,
+                                                    get_peer_options_t options = {});
 
   /**
    * @brief 设置当前节点的上游端点拓扑关系
@@ -542,7 +562,8 @@ class node final : public atfw::util::design_pattern::noncopyable {
    * @param message_builder 消息构建器
    * @return 0或错误码
    */
-  ATBUS_MACRO_API ATBUS_ERROR_TYPE send_data_message(bus_id_t tid, message_builder_ref_t mb);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE send_data_message(bus_id_t tid, message_builder_ref_t mb,
+                                                     const send_data_options_t &options);
 
   /**
    * @brief 发送数据消息
@@ -553,7 +574,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
    * @return 0或错误码
    */
   ATBUS_MACRO_API ATBUS_ERROR_TYPE send_data_message(bus_id_t tid, message_builder_ref_t mb, endpoint **ep_out,
-                                                     connection **conn_out);
+                                                     connection **conn_out, const send_data_options_t &options);
 
   /**
    * @brief 发送控制消息
@@ -561,7 +582,8 @@ class node final : public atfw::util::design_pattern::noncopyable {
    * @param message_builder 消息构建器
    * @return 0或错误码
    */
-  ATBUS_MACRO_API ATBUS_ERROR_TYPE send_ctrl_message(bus_id_t tid, message_builder_ref_t mb);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE send_ctrl_message(bus_id_t tid, message_builder_ref_t mb,
+                                                     const send_data_options_t &options);
 
   /**
    * @brief 发送控制消息
@@ -572,7 +594,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
    * @return 0或错误码
    */
   ATBUS_MACRO_API ATBUS_ERROR_TYPE send_ctrl_message(bus_id_t tid, message_builder_ref_t mb, endpoint **ep_out,
-                                                     connection **conn_out);
+                                                     connection **conn_out, const send_data_options_t &options);
 
   /**
    * @brief 发送消息
@@ -585,7 +607,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
    */
   ATBUS_MACRO_API ATBUS_ERROR_TYPE send_message(bus_id_t tid, message_builder_ref_t message_builder,
                                                 endpoint::get_connection_fn_t fn, endpoint **ep_out,
-                                                connection **conn_out);
+                                                connection **conn_out, const send_data_options_t &options);
 
   channel::io_stream_conf *get_iostream_conf();
 
