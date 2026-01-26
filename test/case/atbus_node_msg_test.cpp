@@ -42,9 +42,9 @@ static void setup_atbus_node_logger(atbus::node &n) {
 
 ATBUS_MACRO_NAMESPACE_BEGIN
 struct node_msg_test_access {
-  static ATBUS_ERROR_TYPE send_data_message(node &n, bus_id_t tid, message &m, endpoint **ep_out,
-                                            connection **conn_out) {
-    return n.send_data_message(tid, m, ep_out, conn_out);
+  static ATBUS_ERROR_TYPE send_data_message(node &n, bus_id_t tid, message &m, endpoint **ep_out, connection **conn_out,
+                                            const ::atbus::node::send_data_options_t &options) {
+    return n.send_data_message(tid, m, ep_out, conn_out, options);
   }
 };
 ATBUS_MACRO_NAMESPACE_END
@@ -1108,7 +1108,7 @@ CASE_TEST(atbus_node_msg, topology_registry_multi_level_route) {
       atbus::endpoint *next_ep = nullptr;
       atbus::connection *next_conn = nullptr;
       int ret = atframework::atbus::node_msg_test_access::send_data_message(*node_upstream, node_downstream->get_id(),
-                                                                            msg, &next_ep, &next_conn);
+                                                                            msg, &next_ep, &next_conn, options);
       CASE_EXPECT_NE(EN_ATBUS_ERR_SUCCESS, ret);
       CASE_EXPECT_EQ(nullptr, next_ep);
     }
@@ -1149,8 +1149,9 @@ CASE_TEST(atbus_node_msg, topology_registry_multi_level_route) {
           options, msg);
       atbus::endpoint *next_ep = nullptr;
       atbus::connection *next_conn = nullptr;
-      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, atframework::atbus::node_msg_test_access::send_data_message(
-                                               *node_upstream, node_downstream->get_id(), msg, &next_ep, &next_conn));
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS,
+                     atframework::atbus::node_msg_test_access::send_data_message(
+                         *node_upstream, node_downstream->get_id(), msg, &next_ep, &next_conn, options));
       CASE_EXPECT_TRUE(nullptr != next_ep);
       CASE_EXPECT_EQ(node_mid->get_id(), next_ep->get_id());
       CASE_EXPECT_TRUE(nullptr != next_conn);
@@ -1184,8 +1185,9 @@ CASE_TEST(atbus_node_msg, topology_registry_multi_level_route) {
           options, msg);
       atbus::endpoint *next_ep = nullptr;
       atbus::connection *next_conn = nullptr;
-      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, atframework::atbus::node_msg_test_access::send_data_message(
-                                               *node_upstream, node_downstream->get_id(), msg, &next_ep, &next_conn));
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS,
+                     atframework::atbus::node_msg_test_access::send_data_message(
+                         *node_upstream, node_downstream->get_id(), msg, &next_ep, &next_conn, options));
       CASE_EXPECT_TRUE(nullptr != next_ep);
       CASE_EXPECT_EQ(node_mid->get_id(), next_ep->get_id());
     }

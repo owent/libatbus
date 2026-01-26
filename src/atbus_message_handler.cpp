@@ -539,7 +539,8 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::send_transfer_response(node &n
     fwd_data->add_router(self_id);
   }
 
-  ATBUS_ERROR_TYPE ret = n.send_ctrl_message(origin_from, m);
+  node::send_data_options_t options;
+  ATBUS_ERROR_TYPE ret = n.send_ctrl_message(origin_from, m, options);
   if (ret != EN_ATBUS_ERR_SUCCESS) {
     ATBUS_FUNC_NODE_ERROR(n, nullptr, nullptr, ret, 0, "send control message to {:#x} failed", origin_from);
   }
@@ -588,7 +589,8 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::send_custom_command_response(n
   if (nullptr != conn) {
     ret = message_handler::send_message(n, *conn, m);
   } else {
-    ret = n.send_ctrl_message(from_bus_id, m);
+    node::send_data_options_t options;
+    ret = n.send_ctrl_message(from_bus_id, m, options);
   }
 
   return ret;
