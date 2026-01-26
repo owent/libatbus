@@ -100,7 +100,7 @@ static ATBUS_ERROR_TYPE _forward_data_message(::atframework::atbus::node &n,
   endpoint *target = nullptr;
   connection *target_conn = nullptr;
   ATBUS_ERROR_TYPE ret = n.get_peer_channel(to_server_id, &endpoint::get_data_connection, &target, &target_conn,
-                                            {atbus::node::get_peer_options_t::option_type::kNoUpstream});
+                                            nullptr, {atbus::node::get_peer_options_t::option_type::kNoUpstream});
 
   if (nullptr != out_endpoint) {
     *out_endpoint = target;
