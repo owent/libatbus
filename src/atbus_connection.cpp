@@ -651,15 +651,9 @@ ATBUS_MACRO_API void connection::iostream_on_connected_cb(channel::io_stream_cha
   } else {
     async_data->conn->flags_.set(static_cast<size_t>(flag_t::type::kRegFd), true);
     async_data->conn->flags_.set(static_cast<size_t>(flag_t::type::kClientMode), true);
-    if (nullptr == async_data->conn->binding_) {
-      async_data->conn->set_status(state_t::type::kHandshaking);
-      ATBUS_FUNC_NODE_INFO(*async_data->conn->owner_, async_data->conn->binding_, async_data->conn.get(),
-                           "channel handshaking(connect callback)");
-    } else {
-      async_data->conn->set_status(state_t::type::kConnected);
-      ATBUS_FUNC_NODE_INFO(*async_data->conn->owner_, async_data->conn->binding_, async_data->conn.get(),
-                           "channel connected(connect callback)");
-    }
+    async_data->conn->set_status(state_t::type::kHandshaking);
+    ATBUS_FUNC_NODE_INFO(*async_data->conn->owner_, async_data->conn->binding_, async_data->conn.get(),
+                         "channel handshaking(connect callback)");
 
     async_data->conn->conn_data_.shared.ios_fd.channel = channel;
     async_data->conn->conn_data_.shared.ios_fd.conn = connection;

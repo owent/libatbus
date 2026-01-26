@@ -2,6 +2,8 @@
 
 #include <atbus_topology.h>
 
+#include <unordered_set>
+
 #include "frame/test_macros.h"
 
 ATBUS_MACRO_NAMESPACE_BEGIN
@@ -21,6 +23,16 @@ struct topology_test_handles {
 
   static void update_data(atbus::topology_peer &peer, atbus::topology_data::ptr_t data) noexcept {
     peer.update_data(std::move(data));
+  }
+
+  static bool foreach_downstream(
+      const atbus::topology_peer &peer,
+      ::atfw::util::nostd::function_ref<bool(const atbus::topology_peer::ptr_t &)> fn) noexcept {
+    return peer.foreach_downstream(fn);
+  }
+
+  static const atbus::topology_peer::downstream_map_t &get_all_downstream(const atbus::topology_peer &peer) noexcept {
+    return peer.get_all_downstream();
   }
 };
 ATBUS_MACRO_NAMESPACE_END
@@ -62,6 +74,63 @@ CASE_TEST(atbus_topology, topology_peer_basic) {
   CASE_EXPECT_EQ(2u, ret_data.labels.size());
   CASE_EXPECT_EQ(std::string("value1"), ret_data.labels.at("key1"));
   CASE_EXPECT_EQ(std::string("value2"), ret_data.labels.at("key2"));
+}
+
+CASE_TEST(atbus_topology, topology_peer_downstream_iteration) {
+  atbus::topology_peer::ptr_t peer_root = atbus::topology_peer::create(0x1);
+
+  size_t count_empty = 0;
+  CASE_EXPECT_TRUE(
+      atbus::topology_test_handles::foreach_downstream(*peer_root, [&count_empty](const atbus::topology_peer::ptr_t &) {
+        ++count_empty;
+        return true;
+      }));
+  CASE_EXPECT_EQ(0u, count_empty);
+  CASE_EXPECT_TRUE(atbus::topology_test_handles::get_all_downstream(*peer_root).empty());
+
+  atbus::topology_peer::ptr_t peer_a = atbus::topology_peer::create(0x2);
+  atbus::topology_peer::ptr_t peer_b = atbus::topology_peer::create(0x3);
+
+  atbus::topology_test_handles::add_downstream(*peer_root, peer_a);
+  atbus::topology_test_handles::add_downstream(*peer_root, peer_b);
+
+  std::unordered_set<atbus::bus_id_t> downstream_ids;
+  CASE_EXPECT_TRUE(atbus::topology_test_handles::foreach_downstream(
+      *peer_root, [&downstream_ids](const atbus::topology_peer::ptr_t &p) {
+        downstream_ids.insert(p->get_bus_id());
+        return true;
+      }));
+  CASE_EXPECT_EQ(2u, downstream_ids.size());
+  CASE_EXPECT_TRUE(downstream_ids.find(0x2) != downstream_ids.end());
+  CASE_EXPECT_TRUE(downstream_ids.find(0x3) != downstream_ids.end());
+
+  const auto &downstream_map = atbus::topology_test_handles::get_all_downstream(*peer_root);
+  CASE_EXPECT_EQ(2u, downstream_map.size());
+  CASE_EXPECT_TRUE(downstream_map.find(0x2) != downstream_map.end());
+  CASE_EXPECT_TRUE(downstream_map.find(0x3) != downstream_map.end());
+
+  size_t count_break = 0;
+  CASE_EXPECT_FALSE(
+      atbus::topology_test_handles::foreach_downstream(*peer_root, [&count_break](const atbus::topology_peer::ptr_t &) {
+        ++count_break;
+        return false;
+      }));
+  CASE_EXPECT_EQ(1u, count_break);
+
+  atbus::topology_peer::ptr_t peer_expired = atbus::topology_peer::create(0x4);
+  atbus::topology_test_handles::add_downstream(*peer_root, peer_expired);
+  CASE_EXPECT_EQ(3u, atbus::topology_test_handles::get_all_downstream(*peer_root).size());
+  peer_expired.reset();
+
+  auto expired_iter = atbus::topology_test_handles::get_all_downstream(*peer_root).find(0x4);
+  CASE_EXPECT_TRUE(expired_iter != atbus::topology_test_handles::get_all_downstream(*peer_root).end());
+  if (expired_iter != atbus::topology_test_handles::get_all_downstream(*peer_root).end()) {
+    CASE_EXPECT_FALSE(expired_iter->second.lock());
+  }
+
+  atbus::topology_test_handles::foreach_downstream(*peer_root,
+                                                   [](const atbus::topology_peer::ptr_t &) { return true; });
+  CASE_EXPECT_EQ(2u, atbus::topology_test_handles::get_all_downstream(*peer_root).size());
 }
 
 static atbus::topology_data::ptr_t make_topology_data(int32_t pid, const char *hostname) {

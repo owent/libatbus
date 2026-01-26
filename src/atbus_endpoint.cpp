@@ -116,7 +116,11 @@ ATBUS_MACRO_API bool endpoint::add_connection(connection *conn, bool force_data)
     return false;
   }
 
+  // 如果进入了handshake流程会第二次添加同一个连接
   if (this == conn->binding_) {
+    if (connection::state_t::type::kHandshaking == conn->get_status()) {
+      conn->set_status(connection::state_t::type::kConnected);
+    }
     return true;
   }
 
@@ -132,6 +136,8 @@ ATBUS_MACRO_API bool endpoint::add_connection(connection *conn, bool force_data)
   }
 
   // 已经成功连接可以不需要握手
+  // 注意这里新连接要控制时序，Handshaking检查之后才允许发起连接/响应连接回调流程
+  // 目前走libuv流程connection和endpoint管理都是单线程的，不会有时序问题
   conn->binding_ = this;
   if (connection::state_t::type::kHandshaking == conn->get_status()) {
     conn->set_status(connection::state_t::type::kConnected);

@@ -157,6 +157,8 @@ class topology_peer {
    */
   ATBUS_MACRO_API bool contains_downstream(bus_id_t downstream_bus_id) const noexcept;
 
+  ATBUS_MACRO_API bool foreach_downstream(::atfw::util::nostd::function_ref<bool(const ptr_t &)> fn) const noexcept;
+
  private:
   ATBUS_MACRO_API void set_proactively_added(bool v) noexcept;
 

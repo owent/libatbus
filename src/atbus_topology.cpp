@@ -115,6 +115,30 @@ ATBUS_MACRO_API bool topology_peer::contains_downstream(bus_id_t downstream_bus_
   return true;
 }
 
+ATBUS_MACRO_API bool topology_peer::foreach_downstream(
+    ::atfw::util::nostd::function_ref<bool(const ptr_t &)> fn) const noexcept {
+  std::unordered_set<bus_id_t> expired_keys;
+  bool ret = true;
+  for (const auto &pair : downstream_) {
+    auto ptr = pair.second.lock();
+    if (!ptr) {
+      expired_keys.insert(pair.first);
+      continue;
+    }
+
+    if (!fn(ptr)) {
+      ret = false;
+      break;
+    }
+  }
+
+  for (const auto &key : expired_keys) {
+    downstream_.erase(key);
+  }
+
+  return ret;
+}
+
 ATBUS_MACRO_API void topology_peer::set_proactively_added(bool v) noexcept { proactively_added_ = v; }
 
 ATBUS_MACRO_API bool topology_peer::get_proactively_added() const noexcept { return proactively_added_; }
