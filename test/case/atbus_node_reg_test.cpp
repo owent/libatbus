@@ -861,8 +861,9 @@ CASE_TEST(atbus_node_reg, reg_pc_success) {
     {
       atbus::endpoint *test_ep = nullptr;
       atbus::connection *test_conn = nullptr;
+      atbus::topology_peer::ptr_t next_hop;
       node_upstream->get_peer_channel(node_downstream->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
-                                      &test_conn);
+                                      &test_conn, &next_hop);
       CASE_EXPECT_NE(nullptr, test_ep);
       CASE_EXPECT_NE(nullptr, test_conn);
       if (nullptr != test_ep) {
@@ -875,18 +876,34 @@ CASE_TEST(atbus_node_reg, reg_pc_success) {
         CASE_EXPECT_EQ(node_downstream->get_self_endpoint()->get_hash_code(), test_ep->get_hash_code());
       }
       node_upstream->get_topology_registry()->update_peer(node_downstream->get_id(), node_upstream->get_id(), nullptr);
-      atbus::topology_peer::ptr_t next_hop;
+      next_hop.reset();
       CASE_EXPECT_EQ(static_cast<int>(atbus::topology_relation_type::kImmediateDownstream),
                      static_cast<int>(node_upstream->get_topology_relation(node_downstream->get_id(), &next_hop)));
       CASE_EXPECT_TRUE(next_hop);
+      if (next_hop) {
+        CASE_EXPECT_EQ(node_downstream->get_id(), next_hop->get_bus_id());
+      }
+      atbus::endpoint *route_ep = nullptr;
+      atbus::connection *route_conn = nullptr;
+      atbus::topology_peer::ptr_t route_next_hop;
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS,
+                     node_upstream->get_peer_channel(node_downstream->get_id(), &atbus::endpoint::get_data_connection,
+                                                     &route_ep, &route_conn, &route_next_hop));
+      CASE_EXPECT_NE(nullptr, route_ep);
+      CASE_EXPECT_NE(nullptr, route_conn);
+      CASE_EXPECT_TRUE(route_next_hop);
+      if (route_next_hop) {
+        CASE_EXPECT_EQ(node_downstream->get_id(), route_next_hop->get_bus_id());
+      }
     }
 
     // API - test
     {
       atbus::endpoint *test_ep = nullptr;
       atbus::connection *test_conn = nullptr;
+      atbus::topology_peer::ptr_t next_hop;
       node_downstream->get_peer_channel(node_upstream->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
-                                        &test_conn);
+                                        &test_conn, &next_hop);
       CASE_EXPECT_NE(nullptr, test_ep);
       CASE_EXPECT_NE(nullptr, test_conn);
       if (nullptr != test_ep) {
@@ -897,10 +914,25 @@ CASE_TEST(atbus_node_reg, reg_pc_success) {
         CASE_EXPECT_FALSE(test_ep->get_hash_code().empty());
         CASE_EXPECT_EQ(node_upstream->get_self_endpoint()->get_hash_code(), test_ep->get_hash_code());
       }
-      atbus::topology_peer::ptr_t next_hop;
+      next_hop.reset();
       CASE_EXPECT_EQ(static_cast<int>(atbus::topology_relation_type::kImmediateUpstream),
                      static_cast<int>(node_downstream->get_topology_relation(node_upstream->get_id(), &next_hop)));
       CASE_EXPECT_TRUE(next_hop);
+      if (next_hop) {
+        CASE_EXPECT_EQ(node_upstream->get_id(), next_hop->get_bus_id());
+      }
+      atbus::endpoint *route_ep = nullptr;
+      atbus::connection *route_conn = nullptr;
+      atbus::topology_peer::ptr_t route_next_hop;
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS,
+                     node_downstream->get_peer_channel(node_upstream->get_id(), &atbus::endpoint::get_data_connection,
+                                                       &route_ep, &route_conn, &route_next_hop));
+      CASE_EXPECT_NE(nullptr, route_ep);
+      CASE_EXPECT_NE(nullptr, route_conn);
+      CASE_EXPECT_TRUE(route_next_hop);
+      if (route_next_hop) {
+        CASE_EXPECT_EQ(node_upstream->get_id(), route_next_hop->get_bus_id());
+      }
     }
 
     // disconnect - upstream and downstream
@@ -985,20 +1017,24 @@ CASE_TEST(atbus_node_reg, reg_pc_success_cross_subnet) {
     {
       atbus::endpoint *test_ep = nullptr;
       atbus::connection *test_conn = nullptr;
+      atbus::topology_peer::ptr_t next_hop;
       node_upstream->get_peer_channel(node_downstream->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
-                                      &test_conn);
+                                      &test_conn, &next_hop);
       CASE_EXPECT_NE(nullptr, test_ep);
       CASE_EXPECT_NE(nullptr, test_conn);
+      CASE_EXPECT_TRUE(!next_hop || next_hop->get_bus_id() == node_downstream->get_id());
     }
 
     // API - test
     {
       atbus::endpoint *test_ep = nullptr;
       atbus::connection *test_conn = nullptr;
+      atbus::topology_peer::ptr_t next_hop;
       node_downstream->get_peer_channel(node_upstream->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
-                                        &test_conn);
+                                        &test_conn, &next_hop);
       CASE_EXPECT_NE(nullptr, test_ep);
       CASE_EXPECT_NE(nullptr, test_conn);
+      CASE_EXPECT_TRUE(!next_hop || next_hop->get_bus_id() == node_upstream->get_id());
     }
 
     // disconnect - upstream and downstream
@@ -1098,8 +1134,9 @@ CASE_TEST(atbus_node_reg, reg_pc_failed_with_subnet_mismatch) {
     {
       atbus::endpoint *test_ep = nullptr;
       atbus::connection *test_conn = nullptr;
+      atbus::topology_peer::ptr_t next_hop;
       node_upstream->get_peer_channel(node_downstream->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
-                                      &test_conn);
+                                      &test_conn, &next_hop);
       CASE_EXPECT_NE(nullptr, test_ep);
       CASE_EXPECT_NE(nullptr, test_conn);
     }
@@ -1108,8 +1145,9 @@ CASE_TEST(atbus_node_reg, reg_pc_failed_with_subnet_mismatch) {
     {
       atbus::endpoint *test_ep = nullptr;
       atbus::connection *test_conn = nullptr;
+      atbus::topology_peer::ptr_t next_hop;
       node_downstream->get_peer_channel(node_upstream->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
-                                        &test_conn);
+                                        &test_conn, &next_hop);
       CASE_EXPECT_NE(nullptr, test_ep);
       CASE_EXPECT_NE(nullptr, test_conn);
     }
@@ -1179,7 +1217,9 @@ CASE_TEST(atbus_node_reg, reg_bro_success) {
     {
       atbus::endpoint *test_ep = nullptr;
       atbus::connection *test_conn = nullptr;
-      node_1->get_peer_channel(node_2->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
+      atbus::topology_peer::ptr_t next_hop;
+      node_1->get_peer_channel(node_2->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn,
+                               &next_hop);
       CASE_EXPECT_NE(nullptr, test_ep);
       CASE_EXPECT_NE(nullptr, test_conn);
     }
@@ -1188,7 +1228,9 @@ CASE_TEST(atbus_node_reg, reg_bro_success) {
     {
       atbus::endpoint *test_ep = nullptr;
       atbus::connection *test_conn = nullptr;
-      node_2->get_peer_channel(node_1->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
+      atbus::topology_peer::ptr_t next_hop;
+      node_2->get_peer_channel(node_1->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn,
+                               &next_hop);
       CASE_EXPECT_NE(nullptr, test_ep);
       CASE_EXPECT_NE(nullptr, test_conn);
     }
@@ -1467,7 +1509,8 @@ CASE_TEST(atbus_node_reg, mem_and_send) {
     {
       atbus::endpoint *test_ep = nullptr;
       atbus::connection *test_conn = nullptr;
-      node1->get_peer_channel(node2->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
+      atbus::topology_peer::ptr_t next_hop;
+      node1->get_peer_channel(node2->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn, &next_hop);
       CASE_EXPECT_NE(nullptr, test_ep);
       CASE_EXPECT_NE(nullptr, test_conn);
 
@@ -1634,7 +1677,8 @@ CASE_TEST(atbus_node_reg, shm_and_send) {
     {
       atbus::endpoint *test_ep = nullptr;
       atbus::connection *test_conn = nullptr;
-      node1->get_peer_channel(node2->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn);
+      atbus::topology_peer::ptr_t next_hop;
+      node1->get_peer_channel(node2->get_id(), &atbus::endpoint::get_data_connection, &test_ep, &test_conn, &next_hop);
       CASE_EXPECT_NE(nullptr, test_ep);
       CASE_EXPECT_NE(nullptr, test_conn);
 
