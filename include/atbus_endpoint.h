@@ -56,13 +56,20 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
   UTIL_DESIGN_PATTERN_NOMOVABLE(endpoint)
 
  private:
-  endpoint();
+  struct ctor_t {
+    node *owner;
+    bus_id_t id;
+    int32_t pid;
+    gsl::string_view hostname;
+  };
 
  public:
   /**
    * @brief 创建端点
    */
   static ATBUS_MACRO_API ptr_t create(node *owner, bus_id_t id, int32_t pid, gsl::string_view hn);
+
+  ATBUS_MACRO_API endpoint(ctor_t &guard);
   ATBUS_MACRO_API ~endpoint();
 
   ATBUS_MACRO_API void reset();
@@ -160,7 +167,7 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
 
   ATBUS_MACRO_API std::chrono::system_clock::time_point get_stat_created_time();
 
-  ATBUS_MACRO_API const node *get_owner() const;
+  ATBUS_MACRO_API const node *get_owner() const ATFW_UTIL_MACRO_NONNULL;
 
  private:
   bus_id_t id_;
@@ -170,7 +177,7 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
   int32_t pid_;
 
   // 这里不用智能指针是为了该值在上层对象（node）析构时仍然可用
-  node *owner_;
+  node *ATFW_UTIL_MACRO_NONNULL owner_;
   ::atfw::util::memory::weak_rc_ptr<endpoint> watcher_;
 
   std::list<channel::channel_address_t> listen_address_;

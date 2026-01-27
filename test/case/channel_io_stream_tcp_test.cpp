@@ -517,3 +517,101 @@ CASE_TEST(channel, io_stream_tcp_connect_failed) {
 
   atbus::channel::io_stream_close(&cli);
 }
+
+// written callback test
+static int g_written_callback_count = 0;
+static size_t g_written_callback_total_size = 0;
+
+static void written_callback_test_fn(atbus::channel::io_stream_channel *channel,
+                                     atbus::channel::io_stream_connection *connection, int status, void *, size_t s) {
+  CASE_EXPECT_NE(nullptr, channel);
+  CASE_EXPECT_NE(nullptr, connection);
+  CASE_EXPECT_EQ(0, status);
+
+  if (0 != status) {
+    CASE_MSG_INFO() << "write failed: " << uv_err_name(channel->error_code) << ":" << uv_strerror(channel->error_code)
+                    << std::endl;
+  } else {
+    CASE_MSG_INFO() << "write done, size: " << s << std::endl;
+  }
+
+  ++g_written_callback_count;
+  g_written_callback_total_size += s;
+}
+
+CASE_TEST(channel, io_stream_callback_on_written) {
+  atbus::adapter::loop_t loop;
+  uv_loop_init(&loop);
+
+  atbus::channel::io_stream_channel svr, cli;
+  atbus::channel::io_stream_init(&svr, &loop, nullptr);
+  atbus::channel::io_stream_init(&cli, &loop, nullptr);
+
+  g_check_flag = 0;
+  g_written_callback_count = 0;
+  g_written_callback_total_size = 0;
+
+  int inited_fds = 0;
+  inited_fds += setup_channel(svr, "ipv4://127.0.0.1:16389", nullptr);
+  CASE_EXPECT_EQ(1, g_check_flag);
+
+  if (0 == inited_fds) {
+    uv_loop_close(&loop);
+    return;
+  }
+
+  inited_fds = 0;
+  inited_fds += setup_channel(cli, nullptr, "ipv4://127.0.0.1:16389");
+
+  int check_flag = g_check_flag;
+  while (g_check_flag - check_flag < 2 * inited_fds) {
+    uv_run(&loop, UV_RUN_ONCE);
+  }
+
+  // Set written callback on client connection
+  CASE_EXPECT_FALSE(cli.conn_pool.empty());
+  if (!cli.conn_pool.empty()) {
+    cli.conn_pool.begin()
+        ->second->evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::kWritten)] =
+        written_callback_test_fn;
+  }
+
+  // Set received callback on server to verify data
+  svr.evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::kReceived)] =
+      recv_callback_check_fn;
+
+  char *buf = get_test_buffer();
+
+  // Send some data
+  g_check_buff_sequence.clear();
+  check_flag = g_check_flag;
+
+  // Send small buffer
+  atbus::channel::io_stream_send(cli.conn_pool.begin()->second.get(), buf, 64);
+  g_check_buff_sequence.push_back(std::make_pair(0, 64));
+
+  // Send medium buffer
+  atbus::channel::io_stream_send(cli.conn_pool.begin()->second.get(), buf + 64, 256);
+  g_check_buff_sequence.push_back(std::make_pair(64, 256));
+
+  // Send large buffer
+  atbus::channel::io_stream_send(cli.conn_pool.begin()->second.get(), buf + 320, 1024);
+  g_check_buff_sequence.push_back(std::make_pair(320, 1024));
+
+  // Wait for receive callbacks
+  while (g_check_flag - check_flag < 3) {
+    uv_run(&loop, UV_RUN_ONCE);
+  }
+
+  // Verify written callback was called
+  CASE_EXPECT_GT(g_written_callback_count, 0);
+  CASE_MSG_INFO() << "Written callback count: " << g_written_callback_count
+                  << ", total size: " << g_written_callback_total_size << std::endl;
+
+  atbus::channel::io_stream_close(&svr);
+  atbus::channel::io_stream_close(&cli);
+  CASE_EXPECT_EQ(0, svr.conn_pool.size());
+  CASE_EXPECT_EQ(0, cli.conn_pool.size());
+
+  uv_loop_close(&loop);
+}
