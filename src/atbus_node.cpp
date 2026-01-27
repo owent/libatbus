@@ -1847,7 +1847,7 @@ ATBUS_MACRO_API void node::on_receive_forward_response(const endpoint *ep, const
   }
 }
 
-ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_disconnect(const connection *conn) {
+ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_disconnect(const endpoint *ep, const connection *conn) {
   if (nullptr == conn) {
     return EN_ATBUS_ERR_PARAMS;
   }
@@ -1866,6 +1866,13 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_disconnect(const connection *conn) {
       ATBUS_FUNC_NODE_FATAL_SHUTDOWN(*this, nullptr, conn, UV_ECANCELED, EN_ATBUS_ERR_ATNODE_MASK_CONFLICT);
     }
   }
+
+  // event
+  if (event_message_.on_close_connection) {
+    flag_guard_t fgd(this, flag_t::type::kInCallback);
+    event_message_.on_close_connection(std::cref(*this), ep, conn);
+  }
+
   return EN_ATBUS_ERR_SUCCESS;
 }
 
@@ -2208,6 +2215,13 @@ ATBUS_MACRO_API const node::event_handle_set_t::on_new_connection_fn_t &node::ge
   return event_message_.on_new_connection;
 }
 
+ATBUS_MACRO_API void node::set_on_close_connection_handle(event_handle_set_t::on_close_connection_fn_t fn) {
+  event_message_.on_close_connection = fn;
+}
+ATBUS_MACRO_API const node::event_handle_set_t::on_close_connection_fn_t &node::get_on_close_connection_handle() const {
+  return event_message_.on_close_connection;
+}
+
 ATBUS_MACRO_API void node::set_on_custom_command_request_handle(event_handle_set_t::on_custom_command_request_fn_t fn) {
   event_message_.on_custom_command_request = fn;
 }
@@ -2513,10 +2527,15 @@ ATBUS_ERROR_TYPE node::remove_endpoint(bus_id_t tid, endpoint *expected) {
     endpoint::ptr_t ep = node_upstream_.node_;
 
     node_upstream_.node_.reset();
-    state_ = state_t::type::kLostUpstream;
 
-    // set reconnect to upstream into retry interval
-    event_timer_.upstream_op_timepoint = get_timer_tick() + conf_.retry_interval;
+    if (state_ == state_t::type::kRunning || state_ == state_t::type::kConnectingUpstream) {
+      state_ = state_t::type::kLostUpstream;
+      // Immediately try to reconnect upstream when first lost upstream
+      event_timer_.upstream_op_timepoint = get_timer_tick();
+    } else {
+      // set reconnect to upstream into retry interval
+      event_timer_.upstream_op_timepoint = get_timer_tick() + conf_.retry_interval;
+    }
 
     // event
     if (event_message_.on_endpoint_removed) {

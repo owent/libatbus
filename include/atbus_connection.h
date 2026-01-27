@@ -10,6 +10,7 @@
 #include <design_pattern/nomovable.h>
 #include <design_pattern/noncopyable.h>
 #include <gsl/select-gsl.h>
+#include <nostd/nullability.h>
 
 #include <memory/lru_map.h>
 
@@ -94,6 +95,7 @@ class connection final : public atfw::util::design_pattern::noncopyable {
 
  private:
   struct ctor_guard_t {
+    node *owner;
     gsl::string_view addr;
     protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE crypto_algorithm;
     ::atfw::util::crypto::dh::shared_context::ptr_t shared_dh_context;
@@ -251,8 +253,8 @@ class connection final : public atfw::util::design_pattern::noncopyable {
   std::bitset<static_cast<size_t>(flag_t::type::kMax)> flags_;
 
   // 这里不用智能指针是为了该值在上层对象（node或者endpoint）析构时仍然可用
-  node *owner_;
-  endpoint *binding_;
+  node *ATFW_UTIL_MACRO_NONNULL owner_;
+  endpoint *ATFW_UTIL_MACRO_NULLABLE binding_;
   ::atfw::util::memory::weak_rc_ptr<connection> watcher_;
 
   struct conn_data_mem {

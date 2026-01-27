@@ -102,7 +102,7 @@ connection::connection(ctor_guard_t &guard)
 #if !defined(_WIN32)
       address_lock_(0),
 #endif
-      owner_(nullptr),
+      owner_(guard.owner),
       binding_(nullptr),
       conn_context_(connection_context::create(guard.crypto_algorithm, guard.shared_dh_context)) {
 
@@ -119,6 +119,7 @@ ATBUS_MACRO_API connection::ptr_t connection::create(node *owner, gsl::string_vi
   }
 
   ctor_guard_t guard;
+  guard.owner = owner;
   guard.addr = addr;
   guard.crypto_algorithm = owner->get_crypto_key_exchange_type();
   guard.shared_dh_context = owner->get_crypto_key_exchange_context();
@@ -128,7 +129,6 @@ ATBUS_MACRO_API connection::ptr_t connection::create(node *owner, gsl::string_vi
     return ret;
   }
 
-  ret->owner_ = owner;
   ret->watcher_ = ret;
 
   owner->add_connection_timer(ret);
@@ -164,7 +164,9 @@ ATBUS_MACRO_API void connection::reset() {
 
   disconnect();
 
+  endpoint::ptr_t binding_ep;
   if (nullptr != binding_) {
+    binding_ep = binding_->watch();
     binding_->remove_connection(this);
 
     // 只能由上层设置binding_所属的节点
@@ -177,11 +179,13 @@ ATBUS_MACRO_API void connection::reset() {
   if (tmp_holder) {
     owner_->add_connection_gc_list(tmp_holder);
   }
-  // owner_ = nullptr;
 
   flags_.reset();
   // reset statistics
   memset(&stat_, 0, sizeof(stat_));
+
+  ATBUS_FUNC_NODE_DEBUG(*owner_, get_binding(), this, nullptr, "connection disconnected");
+  owner_->on_disconnect(binding_ep.get(), this);
 }
 
 ATBUS_MACRO_API int connection::proc(node &n, std::chrono::system_clock::time_point now) {
@@ -478,11 +482,6 @@ ATBUS_MACRO_API int connection::disconnect() {
         ATBUS_FUNC_NODE_DEBUG(*owner_, get_binding(), this, nullptr, "destroy connection failed, res: {}", res);
       }
     }
-  }
-
-  if (nullptr != owner_) {
-    ATBUS_FUNC_NODE_DEBUG(*owner_, get_binding(), this, nullptr, "connection disconnected");
-    owner_->on_disconnect(this);
   }
 
   // 移除proc队列

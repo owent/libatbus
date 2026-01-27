@@ -1760,3 +1760,470 @@ CASE_TEST(atbus_node_reg, shm_and_send) {
   unit_test_setup_exit(&ev_loop);
 }
 #endif
+
+// ============ close_connection callback tests ============
+static int g_close_connection_callback_count_node1 = 0;
+static int g_close_connection_callback_count_node2 = 0;
+static const atbus::endpoint *g_close_connection_last_endpoint = nullptr;
+static const atbus::connection *g_close_connection_last_connection = nullptr;
+
+static int node_reg_test_close_connection_fn_node1(const atbus::node &, const atbus::endpoint *ep,
+                                                   const atbus::connection *conn) {
+  ++g_close_connection_callback_count_node1;
+  g_close_connection_last_endpoint = ep;
+  g_close_connection_last_connection = conn;
+
+  CASE_MSG_INFO() << "close_connection callback (node1): endpoint=" << (ep ? ep->get_id() : 0)
+                  << ", connection=" << (conn ? conn->get_address().address.c_str() : "null") << std::endl;
+  return 0;
+}
+
+static int node_reg_test_close_connection_fn_node2(const atbus::node &, const atbus::endpoint *ep,
+                                                   const atbus::connection *conn) {
+  ++g_close_connection_callback_count_node2;
+  g_close_connection_last_endpoint = ep;
+  g_close_connection_last_connection = conn;
+
+  CASE_MSG_INFO() << "close_connection callback (node2): endpoint=" << (ep ? ep->get_id() : 0)
+                  << ", connection=" << (conn ? conn->get_address().address.c_str() : "null") << std::endl;
+  return 0;
+}
+
+CASE_TEST(atbus_node_reg, on_close_connection_normal) {
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+  conf.access_tokens.push_back(std::vector<unsigned char>());
+  unsigned char access_token[] = "test access token";
+  conf.access_tokens.back().assign(access_token, access_token + sizeof(access_token) - 1);
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+
+  conf.ev_loop = &ev_loop;
+
+  {
+    atbus::node::ptr_t node1 = atbus::node::create();
+    atbus::node::ptr_t node2 = atbus::node::create();
+    setup_atbus_node_logger(*node1);
+    setup_atbus_node_logger(*node2);
+
+    node1->init(0x12345678, &conf);
+    node2->init(0x12356789, &conf);
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->listen("ipv4://127.0.0.1:16387"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->listen("ipv4://127.0.0.1:16388"));
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
+
+    // Set close_connection callback with separate counters for each node
+    g_close_connection_callback_count_node1 = 0;
+    g_close_connection_callback_count_node2 = 0;
+    g_close_connection_last_endpoint = nullptr;
+    g_close_connection_last_connection = nullptr;
+    node1->set_on_close_connection_handle(node_reg_test_close_connection_fn_node1);
+    node2->set_on_close_connection_handle(node_reg_test_close_connection_fn_node2);
+
+    time_t proc_t = time(nullptr);
+    node1->poll();
+    node2->poll();
+    node1->proc(unit_test_make_timepoint(proc_t + 1, 0));
+    node2->proc(unit_test_make_timepoint(proc_t + 1, 0));
+
+    // Connect nodes
+    node1->connect("ipv4://127.0.0.1:16388");
+
+    UNITTEST_WAIT_UNTIL(conf.ev_loop,
+                        node1->is_endpoint_available(node2->get_id()) && node2->is_endpoint_available(node1->get_id()),
+                        8000, 0) {}
+
+    // Send some data to ensure connection is fully established
+    std::string send_data = "test data";
+    recv_msg_history.count = 0;
+    node2->set_on_forward_request_handle(node_reg_test_recv_msg_test_record_fn);
+    node1->send_data(
+        node2->get_id(), 0,
+        gsl::span<const unsigned char>(reinterpret_cast<const unsigned char *>(send_data.data()), send_data.size()));
+
+    UNITTEST_WAIT_UNTIL(conf.ev_loop, recv_msg_history.count > 0, 8000, 0) {}
+
+    int close_count_node1_before = g_close_connection_callback_count_node1;
+    int close_count_node2_before = g_close_connection_callback_count_node2;
+
+    // Shutdown node1 (active close) to trigger close_connection callback
+    node1->shutdown(EN_ATBUS_ERR_SUCCESS);
+
+    UNITTEST_WAIT_UNTIL(
+        conf.ev_loop,
+        nullptr == node1->get_endpoint(node2->get_id()) && nullptr == node2->get_endpoint(node1->get_id()), 8000, 64) {
+      ++proc_t;
+      node1->proc(unit_test_make_timepoint(proc_t, 0));
+      node2->proc(unit_test_make_timepoint(proc_t, 0));
+    }
+
+    // Verify close_connection callback was called on both nodes
+    // node1 is the active closer, node2 receives peer close
+    CASE_EXPECT_GT(g_close_connection_callback_count_node1, close_count_node1_before);
+    CASE_EXPECT_GT(g_close_connection_callback_count_node2, close_count_node2_before);
+    CASE_MSG_INFO() << "close_connection callback count: node1=" << g_close_connection_callback_count_node1
+                    << ", node2=" << g_close_connection_callback_count_node2 << std::endl;
+
+    node2->reset();
+  }
+
+  unit_test_setup_exit(&ev_loop);
+}
+
+CASE_TEST(atbus_node_reg, on_close_connection_by_peer) {
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+  conf.access_tokens.push_back(std::vector<unsigned char>());
+  unsigned char access_token[] = "test access token";
+  conf.access_tokens.back().assign(access_token, access_token + sizeof(access_token) - 1);
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+
+  conf.ev_loop = &ev_loop;
+
+  {
+    atbus::node::ptr_t node1 = atbus::node::create();
+    atbus::node::ptr_t node2 = atbus::node::create();
+    setup_atbus_node_logger(*node1);
+    setup_atbus_node_logger(*node2);
+
+    node1->init(0x12345678, &conf);
+    node2->init(0x12356789, &conf);
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->listen("ipv4://127.0.0.1:16387"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->listen("ipv4://127.0.0.1:16388"));
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
+
+    // Set close_connection callback only on node2 (the peer that will receive close event)
+    g_close_connection_callback_count_node2 = 0;
+    node2->set_on_close_connection_handle(node_reg_test_close_connection_fn_node2);
+
+    time_t proc_t = time(nullptr);
+    node1->poll();
+    node2->poll();
+    node1->proc(unit_test_make_timepoint(proc_t + 1, 0));
+    node2->proc(unit_test_make_timepoint(proc_t + 1, 0));
+
+    // Connect nodes
+    node1->connect("ipv4://127.0.0.1:16388");
+
+    UNITTEST_WAIT_UNTIL(conf.ev_loop,
+                        node1->is_endpoint_available(node2->get_id()) && node2->is_endpoint_available(node1->get_id()),
+                        8000, 0) {}
+
+    int close_count_before = g_close_connection_callback_count_node2;
+
+    // Reset node1 (peer close) to trigger close_connection callback on node2
+    node1->reset();
+
+    UNITTEST_WAIT_UNTIL(conf.ev_loop, nullptr == node2->get_endpoint(node1->get_id()), 8000, 64) {
+      ++proc_t;
+      node2->proc(unit_test_make_timepoint(proc_t, 0));
+    }
+
+    // Verify close_connection callback was called on node2
+    CASE_EXPECT_GT(g_close_connection_callback_count_node2, close_count_before);
+    CASE_MSG_INFO() << "close_connection callback count (by peer): " << g_close_connection_callback_count_node2
+                    << std::endl;
+
+    node2->reset();
+  }
+
+  unit_test_setup_exit(&ev_loop);
+}
+
+// ============ topology_update_upstream callback tests ============
+static int g_topology_upstream_callback_count = 0;
+static uint64_t g_topology_upstream_self_id = 0;
+static uint64_t g_topology_upstream_new_id = 0;
+
+static void node_reg_test_topology_upstream_fn(const atbus::node &, const atbus::topology_peer::ptr_t &self_peer,
+                                               const atbus::topology_peer::ptr_t &new_upstream_peer,
+                                               const atbus::topology_data::ptr_t &) {
+  ++g_topology_upstream_callback_count;
+  g_topology_upstream_self_id = self_peer ? self_peer->get_bus_id() : 0;
+  g_topology_upstream_new_id = new_upstream_peer ? new_upstream_peer->get_bus_id() : 0;
+
+  CASE_MSG_INFO() << "topology_update_upstream callback: self_peer=" << g_topology_upstream_self_id
+                  << ", new_upstream_peer=" << g_topology_upstream_new_id << std::endl;
+}
+
+// Test topology_update_upstream callback when downstream node connects to upstream
+// This tests the callback triggered via conf.upstream_address configuration
+CASE_TEST(atbus_node_reg, on_topology_upstream_set) {
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+  conf.access_tokens.push_back(std::vector<unsigned char>());
+  unsigned char access_token[] = "test access token";
+  conf.access_tokens.back().assign(access_token, access_token + sizeof(access_token) - 1);
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+
+  conf.ev_loop = &ev_loop;
+
+  {
+    // Create upstream node first
+    atbus::node::ptr_t node_upstream = atbus::node::create();
+    setup_atbus_node_logger(*node_upstream);
+    node_upstream->init(0x12356789, &conf);
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->listen("ipv4://127.0.0.1:16389"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->start());
+
+    // Create downstream node with upstream_address configured
+    atbus::node::conf_t downstream_conf = conf;
+    downstream_conf.upstream_address = "ipv4://127.0.0.1:16389";
+
+    atbus::node::ptr_t node_downstream = atbus::node::create();
+    setup_atbus_node_logger(*node_downstream);
+
+    // Set topology_update_upstream callback before init
+    g_topology_upstream_callback_count = 0;
+    g_topology_upstream_self_id = 0;
+    g_topology_upstream_new_id = 0;
+    node_downstream->set_on_topology_update_upstream_handle(node_reg_test_topology_upstream_fn);
+
+    node_downstream->init(0x12345678, &downstream_conf);
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream->listen("ipv4://127.0.0.1:16390"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream->start());
+
+    time_t proc_t = time(nullptr);
+
+    // Wait for downstream to connect to upstream and trigger topology callback
+    UNITTEST_WAIT_UNTIL(
+        conf.ev_loop,
+        atbus::node::state_t::type::kRunning == node_downstream->get_state() && g_topology_upstream_callback_count > 0,
+        8000, 64) {
+      ++proc_t;
+      node_upstream->proc(unit_test_make_timepoint(proc_t, 0));
+      node_downstream->proc(unit_test_make_timepoint(proc_t, 0));
+    }
+
+    // Verify callback was called
+    CASE_EXPECT_GT(g_topology_upstream_callback_count, 0);
+    CASE_EXPECT_EQ(node_downstream->get_id(), g_topology_upstream_self_id);
+    CASE_EXPECT_EQ(node_upstream->get_id(), g_topology_upstream_new_id);
+
+    CASE_MSG_INFO() << "topology_update_upstream callback count: " << g_topology_upstream_callback_count << std::endl;
+
+    // Clear the callback before reset to avoid accessing deallocated objects
+    node_downstream->set_on_topology_update_upstream_handle(nullptr);
+
+    // Clean shutdown
+    node_downstream->shutdown(EN_ATBUS_ERR_SUCCESS);
+    UNITTEST_WAIT_UNTIL(conf.ev_loop, nullptr == node_upstream->get_endpoint(node_downstream->get_id()), 8000, 64) {
+      ++proc_t;
+      node_upstream->proc(unit_test_make_timepoint(proc_t, 0));
+      node_downstream->proc(unit_test_make_timepoint(proc_t, 0));
+    }
+
+    node_upstream->reset();
+  }
+
+  unit_test_setup_exit(&ev_loop);
+}
+
+// Test topology_update_upstream callback when upstream is lost
+// This tests the callback triggered when upstream node goes offline
+CASE_TEST(atbus_node_reg, on_topology_upstream_clear) {
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+  conf.access_tokens.push_back(std::vector<unsigned char>());
+  unsigned char access_token[] = "test access token";
+  conf.access_tokens.back().assign(access_token, access_token + sizeof(access_token) - 1);
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+
+  conf.ev_loop = &ev_loop;
+
+  {
+    // Create upstream node first
+    atbus::node::ptr_t node_upstream = atbus::node::create();
+    setup_atbus_node_logger(*node_upstream);
+    node_upstream->init(0x12356789, &conf);
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->listen("ipv4://127.0.0.1:16391"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->start());
+
+    // Create downstream node with upstream_address configured
+    atbus::node::conf_t downstream_conf = conf;
+    downstream_conf.upstream_address = "ipv4://127.0.0.1:16391";
+
+    atbus::node::ptr_t node_downstream = atbus::node::create();
+    setup_atbus_node_logger(*node_downstream);
+
+    // Set topology_update_upstream callback before init
+    g_topology_upstream_callback_count = 0;
+    g_topology_upstream_self_id = 0;
+    g_topology_upstream_new_id = 0;
+    node_downstream->set_on_topology_update_upstream_handle(node_reg_test_topology_upstream_fn);
+
+    node_downstream->init(0x12345678, &downstream_conf);
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream->listen("ipv4://127.0.0.1:16392"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream->start());
+
+    time_t proc_t = time(nullptr);
+
+    // Wait for downstream to connect to upstream and trigger topology callback
+    UNITTEST_WAIT_UNTIL(
+        conf.ev_loop,
+        atbus::node::state_t::type::kRunning == node_downstream->get_state() && g_topology_upstream_callback_count > 0,
+        8000, 64) {
+      ++proc_t;
+      node_upstream->proc(unit_test_make_timepoint(proc_t, 0));
+      node_downstream->proc(unit_test_make_timepoint(proc_t, 0));
+    }
+
+    // First callback should have set upstream
+    CASE_EXPECT_GT(g_topology_upstream_callback_count, 0);
+    CASE_EXPECT_EQ(node_upstream->get_id(), g_topology_upstream_new_id);
+    int callback_count_after_connect = g_topology_upstream_callback_count;
+
+    CASE_MSG_INFO() << "After connect - topology_update_upstream callback count: " << g_topology_upstream_callback_count
+                    << ", upstream_id: " << g_topology_upstream_new_id << std::endl;
+
+    // Now reset upstream node to trigger upstream clear callback
+    node_upstream->reset();
+
+    // Wait for downstream to detect upstream loss
+    UNITTEST_WAIT_UNTIL(conf.ev_loop,
+                        g_topology_upstream_callback_count > callback_count_after_connect ||
+                            atbus::node::state_t::type::kLostUpstream == node_downstream->get_state(),
+                        8000, 64) {
+      proc_t += static_cast<time_t>(conf.retry_interval.count() / 1000000) + 1;
+      node_downstream->proc(unit_test_make_timepoint(proc_t, 0));
+    }
+
+    CASE_MSG_INFO() << "After upstream reset - topology_update_upstream callback count: "
+                    << g_topology_upstream_callback_count << ", upstream_id: " << g_topology_upstream_new_id
+                    << ", downstream state: " << static_cast<int>(node_downstream->get_state()) << std::endl;
+
+    // Clear the callback before reset
+    node_downstream->set_on_topology_update_upstream_handle(nullptr);
+
+    node_downstream->reset();
+  }
+
+  unit_test_setup_exit(&ev_loop);
+}
+
+// Test topology_update_upstream callback when upstream node changes ID
+// (same address, different ID - simulating upstream restart with new ID)
+CASE_TEST(atbus_node_reg, on_topology_upstream_change_id) {
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+  conf.access_tokens.push_back(std::vector<unsigned char>());
+  unsigned char access_token[] = "test access token";
+  conf.access_tokens.back().assign(access_token, access_token + sizeof(access_token) - 1);
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+
+  conf.ev_loop = &ev_loop;
+
+  {
+    // Create first upstream node
+    atbus::node::ptr_t node_upstream1 = atbus::node::create();
+    setup_atbus_node_logger(*node_upstream1);
+    node_upstream1->init(0x12356789, &conf);  // First upstream ID
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream1->listen("ipv4://127.0.0.1:16393"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream1->start());
+
+    // Create downstream node with upstream_address configured
+    atbus::node::conf_t downstream_conf = conf;
+    downstream_conf.upstream_address = "ipv4://127.0.0.1:16393";
+
+    atbus::node::ptr_t node_downstream = atbus::node::create();
+    setup_atbus_node_logger(*node_downstream);
+
+    // Set topology_update_upstream callback before init
+    g_topology_upstream_callback_count = 0;
+    g_topology_upstream_self_id = 0;
+    g_topology_upstream_new_id = 0;
+    node_downstream->set_on_topology_update_upstream_handle(node_reg_test_topology_upstream_fn);
+
+    node_downstream->init(0x12345678, &downstream_conf);
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream->listen("ipv4://127.0.0.1:16394"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream->start());
+
+    time_t proc_t = time(nullptr);
+
+    // Wait for downstream to connect to first upstream
+    UNITTEST_WAIT_UNTIL(
+        conf.ev_loop,
+        atbus::node::state_t::type::kRunning == node_downstream->get_state() && g_topology_upstream_callback_count > 0,
+        8000, 64) {
+      ++proc_t;
+      node_upstream1->proc(unit_test_make_timepoint(proc_t, 0));
+      node_downstream->proc(unit_test_make_timepoint(proc_t, 0));
+    }
+
+    // Verify first upstream connection
+    CASE_EXPECT_GT(g_topology_upstream_callback_count, 0);
+    CASE_EXPECT_EQ(node_downstream->get_id(), g_topology_upstream_self_id);
+    CASE_EXPECT_EQ(node_upstream1->get_id(), g_topology_upstream_new_id);
+    uint64_t first_upstream_id = g_topology_upstream_new_id;
+
+    CASE_MSG_INFO() << "First upstream connected - callback count: " << g_topology_upstream_callback_count
+                    << ", upstream_id: " << g_topology_upstream_new_id << std::endl;
+
+    // Reset first upstream to release the port
+    node_upstream1->reset();
+
+    // Wait for downstream to detect upstream loss
+    UNITTEST_WAIT_UNTIL(conf.ev_loop, atbus::node::state_t::type::kLostUpstream == node_downstream->get_state(), 8000,
+                        64) {
+      proc_t += static_cast<time_t>(conf.retry_interval.count() / 1000000) + 1;
+      node_downstream->proc(unit_test_make_timepoint(proc_t, 0));
+    }
+
+    CASE_MSG_INFO() << "First upstream disconnected - callback count: " << g_topology_upstream_callback_count
+                    << ", downstream state: " << static_cast<int>(node_downstream->get_state()) << std::endl;
+
+    // Create second upstream node with different ID on the same address
+    atbus::node::ptr_t node_upstream2 = atbus::node::create();
+    setup_atbus_node_logger(*node_upstream2);
+    node_upstream2->init(0x12357890, &conf);                                                 // Different upstream ID!
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream2->listen("ipv4://127.0.0.1:16393"));  // Same address
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream2->start());
+
+    int callback_count_before_second = g_topology_upstream_callback_count;
+
+    // Wait for downstream to connect to the new upstream with different ID
+    UNITTEST_WAIT_UNTIL(conf.ev_loop,
+                        atbus::node::state_t::type::kRunning == node_downstream->get_state() &&
+                            g_topology_upstream_new_id == node_upstream2->get_id(),
+                        8000, 64) {
+      ++proc_t;
+      node_upstream2->proc(unit_test_make_timepoint(proc_t, 0));
+      node_downstream->proc(unit_test_make_timepoint(proc_t, 0));
+    }
+
+    // Verify that topology callback was called with new upstream ID
+    CASE_EXPECT_GT(g_topology_upstream_callback_count, callback_count_before_second);
+    CASE_EXPECT_EQ(node_downstream->get_id(), g_topology_upstream_self_id);
+    CASE_EXPECT_EQ(node_upstream2->get_id(), g_topology_upstream_new_id);
+    CASE_EXPECT_NE(first_upstream_id, g_topology_upstream_new_id);  // ID should be different
+
+    CASE_MSG_INFO() << "Second upstream connected - callback count: " << g_topology_upstream_callback_count
+                    << ", old_upstream_id: " << first_upstream_id << ", new_upstream_id: " << g_topology_upstream_new_id
+                    << std::endl;
+
+    // Clear the callback before reset
+    node_downstream->set_on_topology_update_upstream_handle(nullptr);
+
+    // Clean shutdown
+    node_downstream->shutdown(EN_ATBUS_ERR_SUCCESS);
+    UNITTEST_WAIT_UNTIL(conf.ev_loop, nullptr == node_upstream2->get_endpoint(node_downstream->get_id()), 8000, 64) {
+      ++proc_t;
+      node_upstream2->proc(unit_test_make_timepoint(proc_t, 0));
+      node_downstream->proc(unit_test_make_timepoint(proc_t, 0));
+    }
+
+    node_upstream2->reset();
+  }
+
+  unit_test_setup_exit(&ev_loop);
+}

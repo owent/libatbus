@@ -24,16 +24,17 @@ ATBUS_MACRO_API endpoint::ptr_t endpoint::create(node *owner, bus_id_t id, int32
     return endpoint::ptr_t();
   }
 
-  endpoint::ptr_t ret(new endpoint());
+  ctor_t ctor_guard;
+  ctor_guard.owner = owner;
+  ctor_guard.id = id;
+  ctor_guard.pid = pid;
+  ctor_guard.hostname = hn;
+
+  endpoint::ptr_t ret = atfw::util::memory::make_strong_rc<endpoint>(ctor_guard);
   if (!ret) {
     return ret;
   }
 
-  ret->id_ = id;
-  ret->pid_ = pid;
-  ret->hostname_ = std::string(hn);
-
-  ret->owner_ = owner;
   if (node_access_controller::add_ping_timer(*owner, ret)) {
     ret->set_flag(flag_t::type::kHasPingTimer, true);
   }
@@ -42,7 +43,10 @@ ATBUS_MACRO_API endpoint::ptr_t endpoint::create(node *owner, bus_id_t id, int32
   return ret;
 }
 
-endpoint::endpoint() : id_(0), pid_(0), owner_(nullptr) { flags_.reset(); }
+ATBUS_MACRO_API endpoint::endpoint(ctor_t &guard)
+    : id_(guard.id), hostname_(guard.hostname), pid_(guard.pid), owner_(guard.owner) {
+  flags_.reset();
+}
 
 ATBUS_MACRO_API endpoint::~endpoint() {
   if (nullptr != owner_) {

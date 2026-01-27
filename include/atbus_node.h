@@ -261,7 +261,10 @@ class node final : public atfw::util::design_pattern::noncopyable {
     using on_node_up_fn_t = std::function<int(const node &, ATBUS_ERROR_TYPE)>;
     // 失效连接事件回调 => 参数列表: 发起节点，来源连接，错误码，通常是 EN_ATBUS_ERR_NODE_TIMEOUT
     using on_invalid_connection_fn_t = std::function<int(const node &, const connection *, ATBUS_ERROR_TYPE)>;
+    // 新连接事件回调 => 参数列表: 发起节点，来源连接
     using on_new_connection_fn_t = std::function<int(const node &, const connection *)>;
+    // 关闭连接事件回调 => 参数列表: 发起节点，来源对端，来源连接
+    using on_close_connection_fn_t = std::function<int(const node &, const endpoint *, const connection *)>;
     // 接收到命令消息事件回调 => 参数列表:
     //      发起节点，来源对端，来源连接，来源节点ID，命令参数列表，返回信息列表（跨节点的共享内存和内存通道的返回消息将被忽略）
     using on_custom_command_request_fn_t =
@@ -290,6 +293,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
     on_node_up_fn_t on_node_up;
     on_invalid_connection_fn_t on_invalid_connection;
     on_new_connection_fn_t on_new_connection;
+    on_close_connection_fn_t on_close_connection;
     on_custom_command_request_fn_t on_custom_command_request;
     on_custom_command_response_fn_t on_custom_command_response;
     on_add_endpoint_fn_t on_endpoint_added;
@@ -659,7 +663,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   ATBUS_MACRO_API void on_receive_forward_response(const endpoint *, const connection *, const message *m);
 
-  ATBUS_MACRO_API ATBUS_ERROR_TYPE on_disconnect(const connection *);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE on_disconnect(const endpoint *, const connection *);
   ATBUS_MACRO_API ATBUS_ERROR_TYPE on_new_connection(connection *);
   ATBUS_MACRO_API ATBUS_ERROR_TYPE on_shutdown(ATBUS_ERROR_TYPE errcode);
   ATBUS_MACRO_API ATBUS_ERROR_TYPE on_register(const endpoint *, const connection *, ATBUS_ERROR_TYPE);
@@ -725,6 +729,9 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   ATBUS_MACRO_API void set_on_new_connection_handle(event_handle_set_t::on_new_connection_fn_t fn);
   ATBUS_MACRO_API const event_handle_set_t::on_new_connection_fn_t &get_on_new_connection_handle() const;
+
+  ATBUS_MACRO_API void set_on_close_connection_handle(event_handle_set_t::on_close_connection_fn_t fn);
+  ATBUS_MACRO_API const event_handle_set_t::on_close_connection_fn_t &get_on_close_connection_handle() const;
 
   ATBUS_MACRO_API void set_on_custom_command_request_handle(event_handle_set_t::on_custom_command_request_fn_t fn);
   ATBUS_MACRO_API const event_handle_set_t::on_custom_command_request_fn_t &get_on_custom_command_request_handle()
