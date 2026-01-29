@@ -1,3 +1,5 @@
+// Copyright 2026 atframework
+
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -6,7 +8,6 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
-#include <map>
 #include <memory>
 #include <thread>
 
@@ -256,3 +257,4 @@ CASE_TEST(channel, shm_siso) {
 }
 
 #endif
+

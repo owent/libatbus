@@ -1,6 +1,6 @@
+// Copyright 2026 atframework
 //
 // Created by owent on 2015/8/11.
-//
 
 #ifndef LIBATBUS_BUFFER_H
 #define LIBATBUS_BUFFER_H
@@ -309,3 +309,4 @@ class ATFW_UTIL_SYMBOL_VISIBLE static_buffer_block {
 ATBUS_MACRO_NAMESPACE_END
 
 #endif  // LIBATBUS_BUFFER_H
+

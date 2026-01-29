@@ -1,14 +1,18 @@
 // Copyright 2026 atframework
+//
 // This file generates binary test data files for cross-language pack/unpack verification.
 
 #include <atbus_connection_context.h>
 #include <libatbus_protocol.h>
 
+#include <detail/buffer.h>
 #include <detail/libatbus_error.h>
 
+#include <algorithm/compression.h>
 #include <algorithm/crypto_cipher.h>
 #include <algorithm/crypto_dh.h>
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -178,16 +182,59 @@ static std::string string_vector_to_json_array(const std::vector<std::string>& v
   return oss.str();
 }
 
-static std::string uint64_vector_to_json_array(const std::vector<uint64_t>& vec) {
-  std::ostringstream oss;
-  oss << "[";
-  for (size_t i = 0; i < vec.size(); ++i) {
-    if (i > 0) oss << ", ";
-    oss << vec[i];
+static bool parse_message_head_from_buffer(const unsigned char* data, size_t size,
+                                           ::atframework::atbus::protocol::message_head& out_head,
+                                           size_t& out_head_size, size_t& out_head_vint_size) {
+  if (data == nullptr || size == 0) {
+    return false;
   }
-  oss << "]";
-  return oss.str();
+
+  uint64_t head_size = 0;
+  out_head_vint_size = ::atframework::atbus::detail::fn::read_vint(head_size, data, size);
+  if (out_head_vint_size == 0 || head_size == 0) {
+    return false;
+  }
+  if (out_head_vint_size + static_cast<size_t>(head_size) > size) {
+    return false;
+  }
+  if (!out_head.ParseFromArray(data + out_head_vint_size, static_cast<int>(head_size))) {
+    return false;
+  }
+
+  out_head_size = static_cast<size_t>(head_size);
+  return true;
 }
+
+#ifdef ATFW_UTIL_MACRO_COMPRESSION_ENABLED
+struct compression_algorithm_info {
+  atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE type;
+  std::string name;
+};
+
+static std::vector<compression_algorithm_info> build_supported_compression_algorithms() {
+  std::vector<compression_algorithm_info> ret;
+  auto supported = ::atfw::util::compression::get_supported_algorithms();
+  for (const auto& alg : supported) {
+    switch (alg) {
+      case ::atfw::util::compression::algorithm_t::kZstd:
+        ret.push_back({atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_ZSTD, "zstd"});
+        break;
+      case ::atfw::util::compression::algorithm_t::kLz4:
+        ret.push_back({atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_LZ4, "lz4"});
+        break;
+      case ::atfw::util::compression::algorithm_t::kSnappy:
+        ret.push_back({atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_SNAPPY, "snappy"});
+        break;
+      case ::atfw::util::compression::algorithm_t::kZlib:
+        ret.push_back({atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_ZLIB, "zlib"});
+        break;
+      default:
+        break;
+    }
+  }
+  return ret;
+}
+#endif
 
 }  // namespace
 
@@ -595,117 +642,6 @@ CASE_TEST(atbus_connection_context_crosslang, generate_no_encryption_test_files)
   }
 
   // ============================================================================
-  // Test Case 10: node_sync_req
-  // ============================================================================
-  {
-    const char* test_name = "no_enc_node_sync_req";
-    std::vector<uint64_t> bus_ids = {0x50001, 0x50002, 0x50003};
-
-    atfw::atbus::message msg(arena_options);
-    auto* tree = msg.mutable_body().mutable_node_sync_req();
-    for (auto id : bus_ids) {
-      auto* node = tree->add_nodes();
-      node->set_bus_id(id);
-    }
-
-    auto pack_result = ctx->pack_message(msg, protocol_version, random_engine, 1024 * 1024);
-    if (pack_result.is_success()) {
-      auto* buffer = pack_result.get_success();
-      write_binary_file(std::string(test_name) + ".bytes", buffer->data(), buffer->used());
-
-      std::ostringstream json;
-      json << "{\n";
-      json << "  \"name\": \"" << test_name << "\",\n";
-      json << "  \"description\": \"Node tree sync request\",\n";
-      json << "  \"protocol_version\": " << protocol_version << ",\n";
-      json << "  \"body_type\": \"node_sync_req\",\n";
-      json << "  \"body_type_case\": 15,\n";
-      json << "  \"crypto_algorithm\": \"NONE\",\n";
-      json << "  \"packed_size\": " << buffer->used() << ",\n";
-      json << "  \"packed_hex\": \"" << bytes_to_hex(buffer->data(), buffer->used()) << "\",\n";
-      json << "  \"expected\": {\n";
-      json << "    \"node_bus_ids\": " << uint64_vector_to_json_array(bus_ids) << "\n";
-      json << "  }\n";
-      json << "}\n";
-      write_json_file(std::string(test_name) + ".json", json.str());
-      generated_count++;
-    }
-  }
-
-  // ============================================================================
-  // Test Case 11: node_sync_rsp
-  // ============================================================================
-  {
-    const char* test_name = "no_enc_node_sync_rsp";
-    std::vector<uint64_t> bus_ids = {0x60001, 0x60002};
-
-    atfw::atbus::message msg(arena_options);
-    auto* tree = msg.mutable_body().mutable_node_sync_rsp();
-    for (auto id : bus_ids) {
-      auto* node = tree->add_nodes();
-      node->set_bus_id(id);
-    }
-
-    auto pack_result = ctx->pack_message(msg, protocol_version, random_engine, 1024 * 1024);
-    if (pack_result.is_success()) {
-      auto* buffer = pack_result.get_success();
-      write_binary_file(std::string(test_name) + ".bytes", buffer->data(), buffer->used());
-
-      std::ostringstream json;
-      json << "{\n";
-      json << "  \"name\": \"" << test_name << "\",\n";
-      json << "  \"description\": \"Node tree sync response\",\n";
-      json << "  \"protocol_version\": " << protocol_version << ",\n";
-      json << "  \"body_type\": \"node_sync_rsp\",\n";
-      json << "  \"body_type_case\": 16,\n";
-      json << "  \"crypto_algorithm\": \"NONE\",\n";
-      json << "  \"packed_size\": " << buffer->used() << ",\n";
-      json << "  \"packed_hex\": \"" << bytes_to_hex(buffer->data(), buffer->used()) << "\",\n";
-      json << "  \"expected\": {\n";
-      json << "    \"node_bus_ids\": " << uint64_vector_to_json_array(bus_ids) << "\n";
-      json << "  }\n";
-      json << "}\n";
-      write_json_file(std::string(test_name) + ".json", json.str());
-      generated_count++;
-    }
-  }
-
-  // ============================================================================
-  // Test Case 12: node_connect_sync
-  // ============================================================================
-  {
-    const char* test_name = "no_enc_node_connect_sync";
-    std::string address = "ipv4://10.0.0.1:9000";
-
-    atfw::atbus::message msg(arena_options);
-    auto* conn = msg.mutable_body().mutable_node_connect_sync();
-    conn->mutable_address()->set_address(address);
-
-    auto pack_result = ctx->pack_message(msg, protocol_version, random_engine, 1024 * 1024);
-    if (pack_result.is_success()) {
-      auto* buffer = pack_result.get_success();
-      write_binary_file(std::string(test_name) + ".bytes", buffer->data(), buffer->used());
-
-      std::ostringstream json;
-      json << "{\n";
-      json << "  \"name\": \"" << test_name << "\",\n";
-      json << "  \"description\": \"Node connection sync message\",\n";
-      json << "  \"protocol_version\": " << protocol_version << ",\n";
-      json << "  \"body_type\": \"node_connect_sync\",\n";
-      json << "  \"body_type_case\": 20,\n";
-      json << "  \"crypto_algorithm\": \"NONE\",\n";
-      json << "  \"packed_size\": " << buffer->used() << ",\n";
-      json << "  \"packed_hex\": \"" << bytes_to_hex(buffer->data(), buffer->used()) << "\",\n";
-      json << "  \"expected\": {\n";
-      json << "    \"address\": \"" << escape_json_string(address) << "\"\n";
-      json << "  }\n";
-      json << "}\n";
-      write_json_file(std::string(test_name) + ".json", json.str());
-      generated_count++;
-    }
-  }
-
-  // ============================================================================
   // Test Case 13: data_transform_req with binary content (all byte values 0-255)
   // ============================================================================
   {
@@ -858,7 +794,7 @@ CASE_TEST(atbus_connection_context_crosslang, generate_no_encryption_test_files)
 
   CASE_MSG_INFO() << "Generated " << generated_count << " no-encryption test files in " << get_output_dir()
                   << std::endl;
-  CASE_EXPECT_EQ(15, generated_count);
+  CASE_EXPECT_EQ(12, generated_count);
 }
 
 // ============================================================================
@@ -881,9 +817,6 @@ CASE_TEST(atbus_connection_context_crosslang, verify_generated_no_encryption_fil
       "no_enc_custom_command_rsp",
       "no_enc_node_register_req",
       "no_enc_node_register_rsp",
-      "no_enc_node_sync_req",
-      "no_enc_node_sync_rsp",
-      "no_enc_node_connect_sync",
       "no_enc_data_transform_binary_content",
       "no_enc_data_transform_large_content",
       "no_enc_data_transform_utf8_content",
@@ -922,6 +855,194 @@ CASE_TEST(atbus_connection_context_crosslang, verify_generated_no_encryption_fil
   CASE_MSG_INFO() << "Verified " << verified_count << " files" << std::endl;
 }
 
+#ifdef ATFW_UTIL_MACRO_COMPRESSION_ENABLED
+// ============================================================================
+// 生成仅压缩的测试数据文件
+// ============================================================================
+
+CASE_TEST(atbus_connection_context_crosslang, generate_compressed_test_files) {
+  CASE_EXPECT_TRUE(ensure_output_dir());
+
+  auto compression_algorithms = build_supported_compression_algorithms();
+  if (compression_algorithms.empty()) {
+    CASE_MSG_INFO() << "No compression algorithm available, skipping generation" << std::endl;
+    return;
+  }
+
+  atfw::atbus::random_engine_t random_engine;
+  random_engine.init_seed(12345);
+
+  int32_t protocol_version = atframework::atbus::protocol::ATBUS_PROTOCOL_VERSION;
+  ::google::protobuf::ArenaOptions arena_options;
+
+  int generated_count = 0;
+
+  for (const auto& alg : compression_algorithms) {
+    auto ctx =
+        atfw::atbus::connection_context::create(atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE, nullptr);
+    CASE_EXPECT_NE(nullptr, ctx.get());
+
+    std::vector<atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> algorithms = {alg.type};
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, ctx->update_compression_algorithm(algorithms));
+
+    // Test Case 1: data_transform_req with large content (compressible)
+    {
+      std::string test_name = std::string("compress_") + alg.name + "_data_transform_req";
+      uint64_t from = 0xABCDEF01ULL;
+      uint64_t to = 0x12345678ULL;
+      std::string content(4096, 'A');
+
+      atfw::atbus::message msg(arena_options);
+      auto* req = msg.mutable_body().mutable_data_transform_req();
+      req->set_from(from);
+      req->set_to(to);
+      req->set_content(content);
+      req->set_flags(0);
+
+      auto pack_result = ctx->pack_message(msg, protocol_version, random_engine, 1024 * 1024);
+      if (pack_result.is_success()) {
+        auto* buffer = pack_result.get_success();
+        write_binary_file(test_name + ".bytes", buffer->data(), buffer->used());
+
+        ::atframework::atbus::protocol::message_head head;
+        size_t head_size = 0;
+        size_t head_vint_size = 0;
+        bool parsed = parse_message_head_from_buffer(buffer->data(), buffer->used(), head, head_size, head_vint_size);
+        CASE_EXPECT_TRUE(parsed);
+
+        std::ostringstream json;
+        json << "{\n";
+        json << "  \"name\": \"" << test_name << "\",\n";
+        json << "  \"description\": \"Data transform request with compression\",\n";
+        json << "  \"protocol_version\": " << protocol_version << ",\n";
+        json << "  \"body_type\": \"data_transform_req\",\n";
+        json << "  \"body_type_case\": 13,\n";
+        json << "  \"compression_algorithm\": \"" << alg.name << "\",\n";
+        json << "  \"compression_algorithm_type\": " << static_cast<int>(alg.type) << ",\n";
+        if (parsed) {
+          json << "  \"compression_original_size\": " << head.compression().original_size() << ",\n";
+        }
+        json << "  \"packed_size\": " << buffer->used() << ",\n";
+        json << "  \"packed_hex\": \"" << bytes_to_hex(buffer->data(), buffer->used()) << "\",\n";
+        json << "  \"expected\": {\n";
+        json << "    \"from\": " << from << ",\n";
+        json << "    \"to\": " << to << ",\n";
+        json << "    \"content_size\": " << content.size() << "\n";
+        json << "  }\n";
+        json << "}\n";
+        write_json_file(test_name + ".json", json.str());
+        generated_count++;
+      }
+    }
+
+    // Test Case 2: custom_command_req with large arguments (compressible)
+    {
+      std::string test_name = std::string("compress_") + alg.name + "_custom_cmd";
+      uint64_t from = 0x5555AAAAULL;
+      std::string large_arg(2048, 'B');
+      std::vector<std::string> commands = {"cmd", large_arg, large_arg};
+
+      atfw::atbus::message msg(arena_options);
+      auto* req = msg.mutable_body().mutable_custom_command_req();
+      req->set_from(from);
+      for (const auto& cmd : commands) {
+        auto* command = req->add_commands();
+        command->set_arg(cmd);
+      }
+
+      auto pack_result = ctx->pack_message(msg, protocol_version, random_engine, 1024 * 1024);
+      if (pack_result.is_success()) {
+        auto* buffer = pack_result.get_success();
+        write_binary_file(test_name + ".bytes", buffer->data(), buffer->used());
+
+        ::atframework::atbus::protocol::message_head head;
+        size_t head_size = 0;
+        size_t head_vint_size = 0;
+        bool parsed = parse_message_head_from_buffer(buffer->data(), buffer->used(), head, head_size, head_vint_size);
+        CASE_EXPECT_TRUE(parsed);
+
+        std::ostringstream json;
+        json << "{\n";
+        json << "  \"name\": \"" << test_name << "\",\n";
+        json << "  \"description\": \"Custom command request with compression\",\n";
+        json << "  \"protocol_version\": " << protocol_version << ",\n";
+        json << "  \"body_type\": \"custom_command_req\",\n";
+        json << "  \"body_type_case\": 11,\n";
+        json << "  \"compression_algorithm\": \"" << alg.name << "\",\n";
+        json << "  \"compression_algorithm_type\": " << static_cast<int>(alg.type) << ",\n";
+        if (parsed) {
+          json << "  \"compression_original_size\": " << head.compression().original_size() << ",\n";
+        }
+        json << "  \"packed_size\": " << buffer->used() << ",\n";
+        json << "  \"packed_hex\": \"" << bytes_to_hex(buffer->data(), buffer->used()) << "\",\n";
+        json << "  \"expected\": {\n";
+        json << "    \"from\": " << from << "\n";
+        json << "  }\n";
+        json << "}\n";
+        write_json_file(test_name + ".json", json.str());
+        generated_count++;
+      }
+    }
+  }
+
+  CASE_MSG_INFO() << "Generated " << generated_count << " compressed test files in " << get_output_dir() << std::endl;
+  CASE_EXPECT_GE(generated_count, 1);
+}
+
+// ============================================================================
+// 验证生成的压缩文件可以正确解包
+// ============================================================================
+
+CASE_TEST(atbus_connection_context_crosslang, verify_generated_compressed_files) {
+  auto compression_algorithms = build_supported_compression_algorithms();
+  if (compression_algorithms.empty()) {
+    CASE_MSG_INFO() << "No compression algorithm available, skipping verification" << std::endl;
+    return;
+  }
+
+  ::google::protobuf::ArenaOptions arena_options;
+  int verified_count = 0;
+
+  for (const auto& alg : compression_algorithms) {
+    std::vector<std::string> test_files = {
+        std::string("compress_") + alg.name + "_data_transform_req",
+        std::string("compress_") + alg.name + "_custom_cmd",
+    };
+
+    auto ctx =
+        atfw::atbus::connection_context::create(atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE, nullptr);
+    CASE_EXPECT_NE(nullptr, ctx.get());
+
+    for (const auto& test_name : test_files) {
+      std::vector<unsigned char> buffer;
+      if (!read_binary_file(test_name + ".bytes", buffer)) {
+        CASE_MSG_INFO() << "File not found (run generate test first): " << test_name << std::endl;
+        continue;
+      }
+
+      atfw::atbus::message msg(arena_options);
+      gsl::span<const unsigned char> input_span(buffer.data(), buffer.size());
+      int result = ctx->unpack_message(msg, input_span, 1024 * 1024);
+      if (result != EN_ATBUS_ERR_SUCCESS) {
+        CASE_MSG_INFO() << "Failed to unpack " << test_name << ": error " << result << std::endl;
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
+        continue;
+      }
+
+      auto* body = msg.get_body();
+      CASE_EXPECT_NE(nullptr, body);
+      if (body != nullptr) {
+        CASE_MSG_INFO() << "Verified: " << test_name << " (body_type_case=" << body->message_type_case() << ")"
+                        << std::endl;
+        verified_count++;
+      }
+    }
+  }
+
+  CASE_MSG_INFO() << "Verified " << verified_count << " compressed files" << std::endl;
+}
+#endif  // ATFW_UTIL_MACRO_COMPRESSION_ENABLED
+
 // ============================================================================
 // 生成综合索引文件
 // ============================================================================
@@ -939,13 +1060,18 @@ CASE_TEST(atbus_connection_context_crosslang, generate_index_file) {
       "no_enc_custom_command_rsp",
       "no_enc_node_register_req",
       "no_enc_node_register_rsp",
-      "no_enc_node_sync_req",
-      "no_enc_node_sync_rsp",
-      "no_enc_node_connect_sync",
       "no_enc_data_transform_binary_content",
       "no_enc_data_transform_large_content",
       "no_enc_data_transform_utf8_content",
   };
+
+#ifdef ATFW_UTIL_MACRO_COMPRESSION_ENABLED
+  auto compression_algorithms = build_supported_compression_algorithms();
+  for (const auto& alg : compression_algorithms) {
+    test_files.push_back(std::string("compress_") + alg.name + "_data_transform_req");
+    test_files.push_back(std::string("compress_") + alg.name + "_custom_cmd");
+  }
+#endif
 
   std::ostringstream json;
   json << "{\n";
@@ -1066,21 +1192,21 @@ CASE_TEST(atbus_connection_context_crosslang, generate_encrypted_test_files) {
       CASE_MSG_INFO() << "Cipher " << crypto_config.cipher_name << " not available, skipping" << std::endl;
       continue;
     }
-
-    // 创建context并设置固定密钥
-    auto ctx =
-        atfw::atbus::connection_context::create(atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE, nullptr);
-    CASE_EXPECT_NE(nullptr, ctx.get());
-
-    int setup_result = ctx->setup_crypto_with_key(crypto_config.algorithm, crypto_config.key, crypto_config.key_size,
-                                                  crypto_config.iv, crypto_config.iv_size);
-    if (setup_result != EN_ATBUS_ERR_SUCCESS) {
-      CASE_MSG_INFO() << "Failed to setup crypto " << crypto_config.name << ": " << setup_result << std::endl;
-      continue;
-    }
+    const bool is_aead = test_cipher->is_aead();
 
     // 生成 data_transform_req 测试用例
     {
+      auto ctx = atfw::atbus::connection_context::create(atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE,
+                                                         nullptr);
+      CASE_EXPECT_NE(nullptr, ctx.get());
+
+      int setup_result = ctx->setup_crypto_with_key(crypto_config.algorithm, crypto_config.key, crypto_config.key_size,
+                                                    crypto_config.iv, crypto_config.iv_size);
+      if (setup_result != EN_ATBUS_ERR_SUCCESS) {
+        CASE_MSG_INFO() << "Failed to setup crypto " << crypto_config.name << ": " << setup_result << std::endl;
+        continue;
+      }
+
       std::string test_name = std::string("enc_") + crypto_config.name + "_data_transform_req";
       uint64_t from = 0x123456789ABCDEF0ULL;
       uint64_t to = 0x0FEDCBA987654321ULL;
@@ -1099,6 +1225,23 @@ CASE_TEST(atbus_connection_context_crosslang, generate_encrypted_test_files) {
         auto* buffer = pack_result.get_success();
         write_binary_file(test_name + ".bytes", buffer->data(), buffer->used());
 
+        std::string aad_hex;
+        size_t aad_size = 0;
+        if (is_aead) {
+          ::atframework::atbus::protocol::message_head head;
+          size_t head_size = 0;
+          size_t head_vint_size = 0;
+          bool parsed = parse_message_head_from_buffer(buffer->data(), buffer->used(), head, head_size, head_vint_size);
+          CASE_EXPECT_TRUE(parsed);
+          if (parsed) {
+            const auto& crypt = head.crypto();
+            aad_size = crypt.aad().size();
+            if (aad_size > 0) {
+              aad_hex = bytes_to_hex(reinterpret_cast<const unsigned char*>(crypt.aad().data()), aad_size);
+            }
+          }
+        }
+
         std::ostringstream json;
         json << "{\n";
         json << "  \"name\": \"" << test_name << "\",\n";
@@ -1113,6 +1256,10 @@ CASE_TEST(atbus_connection_context_crosslang, generate_encrypted_test_files) {
         if (crypto_config.iv != nullptr && crypto_config.iv_size > 0) {
           json << "  \"iv_hex\": \"" << bytes_to_hex(crypto_config.iv, crypto_config.iv_size) << "\",\n";
           json << "  \"iv_size\": " << crypto_config.iv_size << ",\n";
+        }
+        if (is_aead) {
+          json << "  \"aad_hex\": \"" << aad_hex << "\",\n";
+          json << "  \"aad_size\": " << aad_size << ",\n";
         }
         json << "  \"packed_size\": " << buffer->used() << ",\n";
         json << "  \"packed_hex\": \"" << bytes_to_hex(buffer->data(), buffer->used()) << "\",\n";
@@ -1132,6 +1279,17 @@ CASE_TEST(atbus_connection_context_crosslang, generate_encrypted_test_files) {
 
     // 生成 custom_command_req 测试用例
     {
+      auto ctx = atfw::atbus::connection_context::create(atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE,
+                                                         nullptr);
+      CASE_EXPECT_NE(nullptr, ctx.get());
+
+      int setup_result = ctx->setup_crypto_with_key(crypto_config.algorithm, crypto_config.key, crypto_config.key_size,
+                                                    crypto_config.iv, crypto_config.iv_size);
+      if (setup_result != EN_ATBUS_ERR_SUCCESS) {
+        CASE_MSG_INFO() << "Failed to setup crypto " << crypto_config.name << ": " << setup_result << std::endl;
+        continue;
+      }
+
       std::string test_name = std::string("enc_") + crypto_config.name + "_custom_cmd";
       uint64_t from = 0xABCDEF0123456789ULL;
       std::vector<std::string> commands = {"cmd1", "arg1", "arg2"};
@@ -1149,6 +1307,23 @@ CASE_TEST(atbus_connection_context_crosslang, generate_encrypted_test_files) {
         auto* buffer = pack_result.get_success();
         write_binary_file(test_name + ".bytes", buffer->data(), buffer->used());
 
+        std::string aad_hex;
+        size_t aad_size = 0;
+        if (is_aead) {
+          ::atframework::atbus::protocol::message_head head;
+          size_t head_size = 0;
+          size_t head_vint_size = 0;
+          bool parsed = parse_message_head_from_buffer(buffer->data(), buffer->used(), head, head_size, head_vint_size);
+          CASE_EXPECT_TRUE(parsed);
+          if (parsed) {
+            const auto& crypt = head.crypto();
+            aad_size = crypt.aad().size();
+            if (aad_size > 0) {
+              aad_hex = bytes_to_hex(reinterpret_cast<const unsigned char*>(crypt.aad().data()), aad_size);
+            }
+          }
+        }
+
         std::ostringstream json;
         json << "{\n";
         json << "  \"name\": \"" << test_name << "\",\n";
@@ -1163,6 +1338,10 @@ CASE_TEST(atbus_connection_context_crosslang, generate_encrypted_test_files) {
         if (crypto_config.iv != nullptr && crypto_config.iv_size > 0) {
           json << "  \"iv_hex\": \"" << bytes_to_hex(crypto_config.iv, crypto_config.iv_size) << "\",\n";
           json << "  \"iv_size\": " << crypto_config.iv_size << ",\n";
+        }
+        if (is_aead) {
+          json << "  \"aad_hex\": \"" << aad_hex << "\",\n";
+          json << "  \"aad_size\": " << aad_size << ",\n";
         }
         json << "  \"packed_size\": " << buffer->used() << ",\n";
         json << "  \"packed_hex\": \"" << bytes_to_hex(buffer->data(), buffer->used()) << "\",\n";
@@ -1180,6 +1359,390 @@ CASE_TEST(atbus_connection_context_crosslang, generate_encrypted_test_files) {
   CASE_MSG_INFO() << "Generated " << generated_count << " encrypted test files" << std::endl;
   CASE_EXPECT_GT(generated_count, 0);
 }
+
+#  ifdef ATFW_UTIL_MACRO_COMPRESSION_ENABLED
+// ============================================================================
+// 生成同时压缩+加密的测试数据文件
+// ============================================================================
+
+CASE_TEST(atbus_connection_context_crosslang, generate_compressed_encrypted_test_files) {
+  ensure_openssl_initialized_for_generator();
+  CASE_EXPECT_TRUE(ensure_output_dir());
+
+  auto compression_algorithms = build_supported_compression_algorithms();
+  if (compression_algorithms.empty()) {
+    CASE_MSG_INFO() << "No compression algorithm available, skipping generation" << std::endl;
+    return;
+  }
+
+  atfw::atbus::random_engine_t random_engine;
+  random_engine.init_seed(12345);
+
+  int32_t protocol_version = atframework::atbus::protocol::ATBUS_PROTOCOL_VERSION;
+  ::google::protobuf::ArenaOptions arena_options;
+
+  // Fixed test key/iv (AES-256-CBC/GCM)
+  static const unsigned char test_key_256[32] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a,
+                                                 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15,
+                                                 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f};
+  static const unsigned char test_iv_16[16] = {0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7,
+                                               0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf};
+  static const unsigned char test_iv_12[12] = {0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb};
+
+  int generated_count = 0;
+
+  for (const auto& alg : compression_algorithms) {
+    // data_transform_req (CBC)
+    {
+      std::string test_name = std::string("enc_compress_") + alg.name + "_aes_256_cbc_data_transform_req";
+      auto ctx = atfw::atbus::connection_context::create(atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE,
+                                                         nullptr);
+      CASE_EXPECT_NE(nullptr, ctx.get());
+
+      int setup_result = ctx->setup_crypto_with_key(atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_CBC,
+                                                    test_key_256, sizeof(test_key_256), test_iv_16, sizeof(test_iv_16));
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, setup_result);
+
+      std::vector<atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> algorithms = {alg.type};
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, ctx->update_compression_algorithm(algorithms));
+
+      atfw::atbus::message msg(arena_options);
+      auto* req = msg.mutable_body().mutable_data_transform_req();
+      req->set_from(0x13579BDFULL);
+      req->set_to(0x2468ACE0ULL);
+      req->set_content(std::string(4096, 'C'));
+      req->set_flags(0);
+
+      auto pack_result = ctx->pack_message(msg, protocol_version, random_engine, 1024 * 1024);
+      if (pack_result.is_success()) {
+        auto* buffer = pack_result.get_success();
+        write_binary_file(test_name + ".bytes", buffer->data(), buffer->used());
+
+        ::atframework::atbus::protocol::message_head head;
+        size_t head_size = 0;
+        size_t head_vint_size = 0;
+        bool parsed = parse_message_head_from_buffer(buffer->data(), buffer->used(), head, head_size, head_vint_size);
+        CASE_EXPECT_TRUE(parsed);
+
+        std::ostringstream json;
+        json << "{\n";
+        json << "  \"name\": \"" << test_name << "\",\n";
+        json << "  \"description\": \"Data transform request with compression + AES-256-CBC\",\n";
+        json << "  \"protocol_version\": " << protocol_version << ",\n";
+        json << "  \"body_type\": \"data_transform_req\",\n";
+        json << "  \"body_type_case\": 13,\n";
+        json << "  \"compression_algorithm\": \"" << alg.name << "\",\n";
+        json << "  \"compression_algorithm_type\": " << static_cast<int>(alg.type) << ",\n";
+        if (parsed) {
+          json << "  \"compression_original_size\": " << head.compression().original_size() << ",\n";
+        }
+        json << "  \"crypto_algorithm\": \"aes_256_cbc\",\n";
+        json << "  \"crypto_algorithm_type\": "
+             << static_cast<int>(atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_CBC) << ",\n";
+        json << "  \"key_hex\": \"" << bytes_to_hex(test_key_256, sizeof(test_key_256)) << "\",\n";
+        json << "  \"iv_hex\": \"" << bytes_to_hex(test_iv_16, sizeof(test_iv_16)) << "\",\n";
+        json << "  \"packed_size\": " << buffer->used() << ",\n";
+        json << "  \"packed_hex\": \"" << bytes_to_hex(buffer->data(), buffer->used()) << "\",\n";
+        json << "  \"expected\": {\n";
+        json << "    \"from\": " << 0x13579BDFULL << ",\n";
+        json << "    \"to\": " << 0x2468ACE0ULL << "\n";
+        json << "  }\n";
+        json << "}\n";
+        write_json_file(test_name + ".json", json.str());
+        generated_count++;
+      }
+    }
+
+    // custom_command_req (CBC)
+    {
+      std::string test_name = std::string("enc_compress_") + alg.name + "_aes_256_cbc_custom_cmd";
+      auto ctx = atfw::atbus::connection_context::create(atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE,
+                                                         nullptr);
+      CASE_EXPECT_NE(nullptr, ctx.get());
+
+      int setup_result = ctx->setup_crypto_with_key(atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_CBC,
+                                                    test_key_256, sizeof(test_key_256), test_iv_16, sizeof(test_iv_16));
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, setup_result);
+
+      std::vector<atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> algorithms = {alg.type};
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, ctx->update_compression_algorithm(algorithms));
+
+      atfw::atbus::message msg(arena_options);
+      auto* req = msg.mutable_body().mutable_custom_command_req();
+      req->set_from(0x11112222ULL);
+      std::string large_arg(2048, 'D');
+      std::vector<std::string> commands = {"cmd", large_arg, large_arg};
+      for (const auto& cmd : commands) {
+        auto* command = req->add_commands();
+        command->set_arg(cmd);
+      }
+
+      auto pack_result = ctx->pack_message(msg, protocol_version, random_engine, 1024 * 1024);
+      if (pack_result.is_success()) {
+        auto* buffer = pack_result.get_success();
+        write_binary_file(test_name + ".bytes", buffer->data(), buffer->used());
+
+        ::atframework::atbus::protocol::message_head head;
+        size_t head_size = 0;
+        size_t head_vint_size = 0;
+        bool parsed = parse_message_head_from_buffer(buffer->data(), buffer->used(), head, head_size, head_vint_size);
+        CASE_EXPECT_TRUE(parsed);
+
+        std::ostringstream json;
+        json << "{\n";
+        json << "  \"name\": \"" << test_name << "\",\n";
+        json << "  \"description\": \"Custom command request with compression + AES-256-CBC\",\n";
+        json << "  \"protocol_version\": " << protocol_version << ",\n";
+        json << "  \"body_type\": \"custom_command_req\",\n";
+        json << "  \"body_type_case\": 11,\n";
+        json << "  \"compression_algorithm\": \"" << alg.name << "\",\n";
+        json << "  \"compression_algorithm_type\": " << static_cast<int>(alg.type) << ",\n";
+        if (parsed) {
+          json << "  \"compression_original_size\": " << head.compression().original_size() << ",\n";
+        }
+        json << "  \"crypto_algorithm\": \"aes_256_cbc\",\n";
+        json << "  \"crypto_algorithm_type\": "
+             << static_cast<int>(atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_CBC) << ",\n";
+        json << "  \"key_hex\": \"" << bytes_to_hex(test_key_256, sizeof(test_key_256)) << "\",\n";
+        json << "  \"iv_hex\": \"" << bytes_to_hex(test_iv_16, sizeof(test_iv_16)) << "\",\n";
+        json << "  \"packed_size\": " << buffer->used() << ",\n";
+        json << "  \"packed_hex\": \"" << bytes_to_hex(buffer->data(), buffer->used()) << "\",\n";
+        json << "  \"expected\": {\n";
+        json << "    \"from\": " << 0x11112222ULL << "\n";
+        json << "  }\n";
+        json << "}\n";
+        write_json_file(test_name + ".json", json.str());
+        generated_count++;
+      }
+    }
+
+    // data_transform_req (GCM)
+    {
+      std::string test_name = std::string("enc_compress_") + alg.name + "_aes_256_gcm_data_transform_req";
+      auto ctx = atfw::atbus::connection_context::create(atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE,
+                                                         nullptr);
+      CASE_EXPECT_NE(nullptr, ctx.get());
+
+      int setup_result = ctx->setup_crypto_with_key(atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM,
+                                                    test_key_256, sizeof(test_key_256), test_iv_12, sizeof(test_iv_12));
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, setup_result);
+
+      std::vector<atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> algorithms = {alg.type};
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, ctx->update_compression_algorithm(algorithms));
+
+      atfw::atbus::message msg(arena_options);
+      auto* req = msg.mutable_body().mutable_data_transform_req();
+      req->set_from(0x13579BDFULL);
+      req->set_to(0x2468ACE0ULL);
+      req->set_content(std::string(4096, 'C'));
+      req->set_flags(0);
+
+      auto pack_result = ctx->pack_message(msg, protocol_version, random_engine, 1024 * 1024);
+      if (pack_result.is_success()) {
+        auto* buffer = pack_result.get_success();
+        write_binary_file(test_name + ".bytes", buffer->data(), buffer->used());
+
+        ::atframework::atbus::protocol::message_head head;
+        size_t head_size = 0;
+        size_t head_vint_size = 0;
+        bool parsed = parse_message_head_from_buffer(buffer->data(), buffer->used(), head, head_size, head_vint_size);
+        CASE_EXPECT_TRUE(parsed);
+
+        std::string aad_hex;
+        size_t aad_size = 0;
+        if (parsed) {
+          const auto& crypt = head.crypto();
+          aad_size = crypt.aad().size();
+          if (aad_size > 0) {
+            aad_hex = bytes_to_hex(reinterpret_cast<const unsigned char*>(crypt.aad().data()), aad_size);
+          }
+        }
+
+        std::ostringstream json;
+        json << "{\n";
+        json << "  \"name\": \"" << test_name << "\",\n";
+        json << "  \"description\": \"Data transform request with compression + AES-256-GCM\",\n";
+        json << "  \"protocol_version\": " << protocol_version << ",\n";
+        json << "  \"body_type\": \"data_transform_req\",\n";
+        json << "  \"body_type_case\": 13,\n";
+        json << "  \"compression_algorithm\": \"" << alg.name << "\",\n";
+        json << "  \"compression_algorithm_type\": " << static_cast<int>(alg.type) << ",\n";
+        if (parsed) {
+          json << "  \"compression_original_size\": " << head.compression().original_size() << ",\n";
+        }
+        json << "  \"crypto_algorithm\": \"aes_256_gcm\",\n";
+        json << "  \"crypto_algorithm_type\": "
+             << static_cast<int>(atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM) << ",\n";
+        json << "  \"key_hex\": \"" << bytes_to_hex(test_key_256, sizeof(test_key_256)) << "\",\n";
+        json << "  \"iv_hex\": \"" << bytes_to_hex(test_iv_12, sizeof(test_iv_12)) << "\",\n";
+        if (!aad_hex.empty()) {
+          json << "  \"aad_hex\": \"" << aad_hex << "\",\n";
+          json << "  \"aad_size\": " << aad_size << ",\n";
+        }
+        json << "  \"packed_size\": " << buffer->used() << ",\n";
+        json << "  \"packed_hex\": \"" << bytes_to_hex(buffer->data(), buffer->used()) << "\",\n";
+        json << "  \"expected\": {\n";
+        json << "    \"from\": " << 0x13579BDFULL << ",\n";
+        json << "    \"to\": " << 0x2468ACE0ULL << "\n";
+        json << "  }\n";
+        json << "}\n";
+        write_json_file(test_name + ".json", json.str());
+        generated_count++;
+      }
+    }
+
+    // custom_command_req (GCM)
+    {
+      std::string test_name = std::string("enc_compress_") + alg.name + "_aes_256_gcm_custom_cmd";
+      auto ctx = atfw::atbus::connection_context::create(atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE,
+                                                         nullptr);
+      CASE_EXPECT_NE(nullptr, ctx.get());
+
+      int setup_result = ctx->setup_crypto_with_key(atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM,
+                                                    test_key_256, sizeof(test_key_256), test_iv_12, sizeof(test_iv_12));
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, setup_result);
+
+      std::vector<atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> algorithms = {alg.type};
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, ctx->update_compression_algorithm(algorithms));
+
+      atfw::atbus::message msg(arena_options);
+      auto* req = msg.mutable_body().mutable_custom_command_req();
+      req->set_from(0x11112222ULL);
+      std::string large_arg(2048, 'D');
+      std::vector<std::string> commands = {"cmd", large_arg, large_arg};
+      for (const auto& cmd : commands) {
+        auto* command = req->add_commands();
+        command->set_arg(cmd);
+      }
+
+      auto pack_result = ctx->pack_message(msg, protocol_version, random_engine, 1024 * 1024);
+      if (pack_result.is_success()) {
+        auto* buffer = pack_result.get_success();
+        write_binary_file(test_name + ".bytes", buffer->data(), buffer->used());
+
+        ::atframework::atbus::protocol::message_head head;
+        size_t head_size = 0;
+        size_t head_vint_size = 0;
+        bool parsed = parse_message_head_from_buffer(buffer->data(), buffer->used(), head, head_size, head_vint_size);
+        CASE_EXPECT_TRUE(parsed);
+
+        std::string aad_hex;
+        size_t aad_size = 0;
+        if (parsed) {
+          const auto& crypt = head.crypto();
+          aad_size = crypt.aad().size();
+          if (aad_size > 0) {
+            aad_hex = bytes_to_hex(reinterpret_cast<const unsigned char*>(crypt.aad().data()), aad_size);
+          }
+        }
+
+        std::ostringstream json;
+        json << "{\n";
+        json << "  \"name\": \"" << test_name << "\",\n";
+        json << "  \"description\": \"Custom command request with compression + AES-256-GCM\",\n";
+        json << "  \"protocol_version\": " << protocol_version << ",\n";
+        json << "  \"body_type\": \"custom_command_req\",\n";
+        json << "  \"body_type_case\": 11,\n";
+        json << "  \"compression_algorithm\": \"" << alg.name << "\",\n";
+        json << "  \"compression_algorithm_type\": " << static_cast<int>(alg.type) << ",\n";
+        if (parsed) {
+          json << "  \"compression_original_size\": " << head.compression().original_size() << ",\n";
+        }
+        json << "  \"crypto_algorithm\": \"aes_256_gcm\",\n";
+        json << "  \"crypto_algorithm_type\": "
+             << static_cast<int>(atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM) << ",\n";
+        json << "  \"key_hex\": \"" << bytes_to_hex(test_key_256, sizeof(test_key_256)) << "\",\n";
+        json << "  \"iv_hex\": \"" << bytes_to_hex(test_iv_12, sizeof(test_iv_12)) << "\",\n";
+        if (!aad_hex.empty()) {
+          json << "  \"aad_hex\": \"" << aad_hex << "\",\n";
+          json << "  \"aad_size\": " << aad_size << ",\n";
+        }
+        json << "  \"packed_size\": " << buffer->used() << ",\n";
+        json << "  \"packed_hex\": \"" << bytes_to_hex(buffer->data(), buffer->used()) << "\",\n";
+        json << "  \"expected\": {\n";
+        json << "    \"from\": " << 0x11112222ULL << "\n";
+        json << "  }\n";
+        json << "}\n";
+        write_json_file(test_name + ".json", json.str());
+        generated_count++;
+      }
+    }
+  }
+
+  CASE_MSG_INFO() << "Generated " << generated_count << " compressed+encrypted test files" << std::endl;
+  CASE_EXPECT_GE(generated_count, 1);
+}
+
+// ============================================================================
+// 验证压缩+加密测试文件可以正确解包
+// ============================================================================
+
+CASE_TEST(atbus_connection_context_crosslang, verify_compressed_encrypted_test_files) {
+  ensure_openssl_initialized_for_generator();
+
+  auto compression_algorithms = build_supported_compression_algorithms();
+  if (compression_algorithms.empty()) {
+    CASE_MSG_INFO() << "No compression algorithm available, skipping verification" << std::endl;
+    return;
+  }
+
+  static const unsigned char test_key_256[32] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a,
+                                                 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15,
+                                                 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f};
+  static const unsigned char test_iv_16[16] = {0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7,
+                                               0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf};
+  static const unsigned char test_iv_12[12] = {0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb};
+
+  ::google::protobuf::ArenaOptions arena_options;
+  int verified_count = 0;
+
+  for (const auto& alg : compression_algorithms) {
+    std::vector<std::string> test_files = {
+        std::string("enc_compress_") + alg.name + "_aes_256_cbc_data_transform_req",
+        std::string("enc_compress_") + alg.name + "_aes_256_cbc_custom_cmd",
+        std::string("enc_compress_") + alg.name + "_aes_256_gcm_data_transform_req",
+        std::string("enc_compress_") + alg.name + "_aes_256_gcm_custom_cmd",
+    };
+
+    for (const auto& test_name : test_files) {
+      std::vector<unsigned char> buffer;
+      if (!read_binary_file(test_name + ".bytes", buffer)) {
+        CASE_MSG_INFO() << "File not found: " << test_name << std::endl;
+        continue;
+      }
+
+      auto ctx = atfw::atbus::connection_context::create(atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE,
+                                                         nullptr);
+      bool is_gcm = (test_name.find("_aes_256_gcm_") != std::string::npos);
+      int setup_result =
+          ctx->setup_crypto_with_key(is_gcm ? atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM
+                                            : atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_CBC,
+                                     test_key_256, sizeof(test_key_256), is_gcm ? test_iv_12 : test_iv_16,
+                                     is_gcm ? sizeof(test_iv_12) : sizeof(test_iv_16));
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, setup_result);
+
+      atfw::atbus::message msg(arena_options);
+      gsl::span<const unsigned char> input_span(buffer.data(), buffer.size());
+      int result = ctx->unpack_message(msg, input_span, 1024 * 1024);
+      if (result != EN_ATBUS_ERR_SUCCESS) {
+        CASE_MSG_INFO() << "Failed to unpack " << test_name << ": error " << result << std::endl;
+        CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
+        continue;
+      }
+
+      auto* body = msg.get_body();
+      CASE_EXPECT_NE(nullptr, body);
+      if (body != nullptr) {
+        CASE_MSG_INFO() << "Verified: " << test_name << " (body_type_case=" << body->message_type_case() << ")"
+                        << std::endl;
+        verified_count++;
+      }
+    }
+  }
+
+  CASE_MSG_INFO() << "Verified " << verified_count << " compressed+encrypted files" << std::endl;
+}
+#  endif  // ATFW_UTIL_MACRO_COMPRESSION_ENABLED
 
 // 验证加密测试文件可以正确解包
 CASE_TEST(atbus_connection_context_crosslang, verify_encrypted_test_files) {
@@ -1245,6 +1808,7 @@ CASE_TEST(atbus_connection_context_crosslang, verify_encrypted_test_files) {
       CASE_MSG_INFO() << "Cipher " << config.cipher_name << " not available, skipping verification" << std::endl;
       continue;
     }
+    const bool is_aead = test_cipher->is_aead();
 
     for (const auto& suffix : test_suffixes) {
       std::string test_name = std::string("enc_") + config.name + suffix;
@@ -1252,6 +1816,21 @@ CASE_TEST(atbus_connection_context_crosslang, verify_encrypted_test_files) {
       if (!read_binary_file(test_name + ".bytes", buffer)) {
         CASE_MSG_INFO() << "File not found: " << test_name << std::endl;
         continue;
+      }
+
+      ::atframework::atbus::protocol::message_head head;
+      size_t head_size = 0;
+      size_t head_vint_size = 0;
+      bool parsed = parse_message_head_from_buffer(buffer.data(), buffer.size(), head, head_size, head_vint_size);
+      CASE_EXPECT_TRUE(parsed);
+
+      std::string aad_value;
+      std::string iv_value;
+      if (parsed && is_aead) {
+        const auto& crypt = head.crypto();
+        aad_value = crypt.aad();
+        iv_value = crypt.iv();
+        CASE_EXPECT_FALSE(aad_value.empty());
       }
 
       // 创建context并设置相同的密钥
@@ -1262,6 +1841,46 @@ CASE_TEST(atbus_connection_context_crosslang, verify_encrypted_test_files) {
       if (setup_result != EN_ATBUS_ERR_SUCCESS) {
         CASE_MSG_INFO() << "Failed to setup crypto for verification: " << config.name << std::endl;
         continue;
+      }
+
+      if (parsed && is_aead && !aad_value.empty()) {
+        gsl::span<const unsigned char> iv_span;
+        if (!iv_value.empty()) {
+          iv_span =
+              gsl::span<const unsigned char>(reinterpret_cast<const unsigned char*>(iv_value.data()), iv_value.size());
+        } else if (config.iv != nullptr && config.iv_size > 0) {
+          iv_span = gsl::span<const unsigned char>(config.iv, config.iv_size);
+        }
+
+        auto decrypt_with_aad = [&](const std::string& aad) -> int {
+          atfw::util::crypto::cipher verify_cipher;
+          if (verify_cipher.init(config.cipher_name, atfw::util::crypto::cipher::mode_t::EN_CMODE_DECRYPT) !=
+              atfw::util::crypto::cipher::error_code_t::OK) {
+            return -1;
+          }
+          if (verify_cipher.set_key(gsl::span<const unsigned char>(config.key, config.key_size)) != 0) {
+            return -2;
+          }
+          if (!iv_span.empty()) {
+            if (verify_cipher.set_iv(iv_span.data(), iv_span.size()) != 0) {
+              return -3;
+            }
+          }
+
+          size_t body_offset = head_vint_size + head_size;
+          gsl::span<const unsigned char> cipher_span(buffer.data() + body_offset, buffer.size() - body_offset);
+          std::vector<unsigned char> plaintext(cipher_span.size() + verify_cipher.get_block_size());
+          size_t out_size = plaintext.size();
+          return verify_cipher.decrypt_aead(cipher_span.data(), cipher_span.size(), plaintext.data(), &out_size,
+                                            reinterpret_cast<const unsigned char*>(aad.data()), aad.size());
+        };
+
+        int correct_aad_result = decrypt_with_aad(aad_value);
+        CASE_EXPECT_EQ(0, correct_aad_result);
+
+        std::string wrong_aad = "wrong-aad";
+        int wrong_aad_result = decrypt_with_aad(wrong_aad);
+        CASE_EXPECT_NE(0, wrong_aad_result);
       }
 
       // 解包验证
@@ -1302,9 +1921,6 @@ CASE_TEST(atbus_connection_context_crosslang, generate_full_index_file) {
       "no_enc_custom_command_rsp",
       "no_enc_node_register_req",
       "no_enc_node_register_rsp",
-      "no_enc_node_sync_req",
-      "no_enc_node_sync_rsp",
-      "no_enc_node_connect_sync",
       "no_enc_data_transform_binary_content",
       "no_enc_data_transform_large_content",
       "no_enc_data_transform_utf8_content",
@@ -1321,6 +1937,18 @@ CASE_TEST(atbus_connection_context_crosslang, generate_full_index_file) {
     all_files.push_back(std::string("enc_") + crypto + "_data_transform_req");
     all_files.push_back(std::string("enc_") + crypto + "_custom_cmd");
   }
+
+#  ifdef ATFW_UTIL_MACRO_COMPRESSION_ENABLED
+  auto compression_algorithms = build_supported_compression_algorithms();
+  for (const auto& alg : compression_algorithms) {
+    all_files.push_back(std::string("compress_") + alg.name + "_data_transform_req");
+    all_files.push_back(std::string("compress_") + alg.name + "_custom_cmd");
+    all_files.push_back(std::string("enc_compress_") + alg.name + "_aes_256_cbc_data_transform_req");
+    all_files.push_back(std::string("enc_compress_") + alg.name + "_aes_256_cbc_custom_cmd");
+    all_files.push_back(std::string("enc_compress_") + alg.name + "_aes_256_gcm_data_transform_req");
+    all_files.push_back(std::string("enc_compress_") + alg.name + "_aes_256_gcm_custom_cmd");
+  }
+#  endif
 
   // 过滤出实际存在的文件
   std::vector<std::string> existing_files;
@@ -1375,3 +2003,4 @@ CASE_TEST(atbus_connection_context_crosslang, generate_full_index_file) {
   write_json_file("index.json", json.str());
 }
 #endif
+

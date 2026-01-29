@@ -3,9 +3,11 @@
 #include <atbus_connection_context.h>
 #include <libatbus_protocol.h>
 
+#include <algorithm/compression.h>
 #include <algorithm/crypto_cipher.h>
 #include <algorithm/crypto_dh.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -463,7 +465,26 @@ CASE_TEST(atbus_connection_context, get_crypto_select_kdf_type_default) {
 
 // Test compression algorithm support - currently none should be supported
 CASE_TEST(atbus_connection_context, is_compression_algorithm_supported) {
-  // Currently no compression algorithms are supported
+#ifdef ATFW_UTIL_MACRO_COMPRESSION_ENABLED
+  auto supported = ::atfw::util::compression::get_supported_algorithms();
+  auto has_algo = [&supported](::atfw::util::compression::algorithm_t algo) {
+    return std::find(supported.begin(), supported.end(), algo) != supported.end();
+  };
+  CASE_EXPECT_EQ(has_algo(::atfw::util::compression::algorithm_t::kZstd),
+                 atfw::atbus::connection_context::is_compression_algorithm_supported(
+                     atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_ZSTD));
+  CASE_EXPECT_EQ(has_algo(::atfw::util::compression::algorithm_t::kLz4),
+                 atfw::atbus::connection_context::is_compression_algorithm_supported(
+                     atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_LZ4));
+  CASE_EXPECT_EQ(has_algo(::atfw::util::compression::algorithm_t::kSnappy),
+                 atfw::atbus::connection_context::is_compression_algorithm_supported(
+                     atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_SNAPPY));
+  CASE_EXPECT_EQ(has_algo(::atfw::util::compression::algorithm_t::kZlib),
+                 atfw::atbus::connection_context::is_compression_algorithm_supported(
+                     atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_ZLIB));
+  CASE_EXPECT_FALSE(atfw::atbus::connection_context::is_compression_algorithm_supported(
+      atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_NONE));
+#else
   CASE_EXPECT_FALSE(atfw::atbus::connection_context::is_compression_algorithm_supported(
       atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_ZSTD));
   CASE_EXPECT_FALSE(atfw::atbus::connection_context::is_compression_algorithm_supported(
@@ -474,6 +495,7 @@ CASE_TEST(atbus_connection_context, is_compression_algorithm_supported) {
       atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_ZLIB));
   CASE_EXPECT_FALSE(atfw::atbus::connection_context::is_compression_algorithm_supported(
       atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_NONE));
+#endif
 }
 
 // ============================================================================
@@ -509,9 +531,39 @@ CASE_TEST(atbus_connection_context, update_compression_algorithm_unsupported) {
   int result = ctx->update_compression_algorithm(algorithms);
 
   CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
-  // Since none are supported, should remain NONE
+#ifdef ATFW_UTIL_MACRO_COMPRESSION_ENABLED
+  auto supported = ::atfw::util::compression::get_supported_algorithms();
+  auto supported_to_protocol = [](const ::atfw::util::compression::algorithm_t algo) {
+    switch (algo) {
+      case ::atfw::util::compression::algorithm_t::kZstd:
+        return atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_ZSTD;
+      case ::atfw::util::compression::algorithm_t::kLz4:
+        return atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_LZ4;
+      case ::atfw::util::compression::algorithm_t::kSnappy:
+        return atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_SNAPPY;
+      case ::atfw::util::compression::algorithm_t::kZlib:
+        return atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_ZLIB;
+      default:
+        return atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_NONE;
+    }
+  };
+
+  atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE expected =
+      atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_NONE;
+  for (const auto& algo : supported) {
+    auto mapped = supported_to_protocol(algo);
+    if (mapped == atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_ZSTD ||
+        mapped == atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_LZ4) {
+      if (expected == atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_NONE || mapped < expected) {
+        expected = mapped;
+      }
+    }
+  }
+  CASE_EXPECT_EQ(expected, ctx->get_compression_select_algorithm());
+#else
   CASE_EXPECT_EQ(atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_NONE,
                  ctx->get_compression_select_algorithm());
+#endif
 }
 
 // ============================================================================
@@ -853,6 +905,83 @@ CASE_TEST(atbus_connection_context, pack_unpack_message_no_encryption) {
       CASE_EXPECT_EQ(12345678, recv_body->node_ping_req().time_point());
     }
   }
+}
+
+// Test pack and unpack message with compression (no encryption)
+CASE_TEST(atbus_connection_context, pack_unpack_message_with_compression) {
+#  ifdef ATFW_UTIL_MACRO_COMPRESSION_ENABLED
+  auto supported = ::atfw::util::compression::get_supported_algorithms();
+  if (supported.empty()) {
+    CASE_MSG_INFO() << "No compression algorithm available, skipping test" << std::endl;
+    return;
+  }
+
+  auto to_protocol = [](const ::atfw::util::compression::algorithm_t algo) {
+    switch (algo) {
+      case ::atfw::util::compression::algorithm_t::kZstd:
+        return atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_ZSTD;
+      case ::atfw::util::compression::algorithm_t::kLz4:
+        return atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_LZ4;
+      case ::atfw::util::compression::algorithm_t::kSnappy:
+        return atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_SNAPPY;
+      case ::atfw::util::compression::algorithm_t::kZlib:
+        return atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_ZLIB;
+      default:
+        return atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_NONE;
+    }
+  };
+
+  ::google::protobuf::ArenaOptions arena_options;
+  atfw::atbus::random_engine_t random_engine;
+  random_engine.init_seed(static_cast<uint64_t>(time(nullptr)));
+
+  for (const auto& algo : supported) {
+    auto selected_alg = to_protocol(algo);
+    if (selected_alg == atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_NONE) {
+      continue;
+    }
+
+    auto ctx =
+        atfw::atbus::connection_context::create(atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE, nullptr);
+    CASE_EXPECT_NE(nullptr, ctx.get());
+
+    std::vector<atframework::atbus::protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> algorithms = {selected_alg};
+    int update_ret = ctx->update_compression_algorithm(algorithms);
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, update_ret);
+
+    atfw::atbus::message send_msg(arena_options);
+    auto& body = send_msg.mutable_body();
+    auto* forward_data = body.mutable_data_transform_req();
+    forward_data->set_from(1001);
+    forward_data->set_to(1002);
+    std::string content(4096, 'A');
+    forward_data->set_content(content);
+
+    auto pack_result =
+        ctx->pack_message(send_msg, atframework::atbus::protocol::ATBUS_PROTOCOL_VERSION, random_engine, 1024 * 1024);
+    CASE_EXPECT_TRUE(pack_result.is_success());
+
+    if (pack_result.is_success()) {
+      auto* buffer = pack_result.get_success();
+      CASE_EXPECT_NE(nullptr, buffer);
+
+      atfw::atbus::message recv_msg(arena_options);
+      gsl::span<const unsigned char> input_span(buffer->data(), buffer->used());
+      int unpack_result = ctx->unpack_message(recv_msg, input_span, 1024 * 1024);
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, unpack_result);
+
+      auto* recv_body = recv_msg.get_body();
+      CASE_EXPECT_NE(nullptr, recv_body);
+      if (recv_body != nullptr) {
+        CASE_EXPECT_EQ(atframework::atbus::protocol::message_body::kDataTransformReq, recv_body->message_type_case());
+        CASE_EXPECT_EQ(content, recv_body->data_transform_req().content());
+        CASE_EXPECT_EQ(selected_alg, recv_msg.head().compression().type());
+      }
+    }
+  }
+#  else
+  CASE_MSG_INFO() << "Compression disabled at build time, skipping test" << std::endl;
+#  endif
 }
 
 // Test pack and unpack message with encryption
@@ -1796,3 +1925,4 @@ CASE_TEST(atbus_connection_context, list_available_algorithms) {
 }
 
 #endif  // CRYPTO_DH_ENABLED
+

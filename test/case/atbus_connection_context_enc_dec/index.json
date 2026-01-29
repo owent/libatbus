@@ -51,21 +51,6 @@
       "metadata": "no_enc_node_register_rsp.json"
     },
     {
-      "name": "no_enc_node_sync_req",
-      "binary": "no_enc_node_sync_req.bytes",
-      "metadata": "no_enc_node_sync_req.json"
-    },
-    {
-      "name": "no_enc_node_sync_rsp",
-      "binary": "no_enc_node_sync_rsp.bytes",
-      "metadata": "no_enc_node_sync_rsp.json"
-    },
-    {
-      "name": "no_enc_node_connect_sync",
-      "binary": "no_enc_node_connect_sync.bytes",
-      "metadata": "no_enc_node_connect_sync.json"
-    },
-    {
       "name": "no_enc_data_transform_binary_content",
       "binary": "no_enc_data_transform_binary_content.bytes",
       "metadata": "no_enc_data_transform_binary_content.json"
@@ -159,6 +144,126 @@
       "name": "enc_chacha20_poly1305_custom_cmd",
       "binary": "enc_chacha20_poly1305_custom_cmd.bytes",
       "metadata": "enc_chacha20_poly1305_custom_cmd.json"
+    },
+    {
+      "name": "compress_zstd_data_transform_req",
+      "binary": "compress_zstd_data_transform_req.bytes",
+      "metadata": "compress_zstd_data_transform_req.json"
+    },
+    {
+      "name": "compress_zstd_custom_cmd",
+      "binary": "compress_zstd_custom_cmd.bytes",
+      "metadata": "compress_zstd_custom_cmd.json"
+    },
+    {
+      "name": "enc_compress_zstd_aes_256_cbc_data_transform_req",
+      "binary": "enc_compress_zstd_aes_256_cbc_data_transform_req.bytes",
+      "metadata": "enc_compress_zstd_aes_256_cbc_data_transform_req.json"
+    },
+    {
+      "name": "enc_compress_zstd_aes_256_cbc_custom_cmd",
+      "binary": "enc_compress_zstd_aes_256_cbc_custom_cmd.bytes",
+      "metadata": "enc_compress_zstd_aes_256_cbc_custom_cmd.json"
+    },
+    {
+      "name": "enc_compress_zstd_aes_256_gcm_data_transform_req",
+      "binary": "enc_compress_zstd_aes_256_gcm_data_transform_req.bytes",
+      "metadata": "enc_compress_zstd_aes_256_gcm_data_transform_req.json"
+    },
+    {
+      "name": "enc_compress_zstd_aes_256_gcm_custom_cmd",
+      "binary": "enc_compress_zstd_aes_256_gcm_custom_cmd.bytes",
+      "metadata": "enc_compress_zstd_aes_256_gcm_custom_cmd.json"
+    },
+    {
+      "name": "compress_lz4_data_transform_req",
+      "binary": "compress_lz4_data_transform_req.bytes",
+      "metadata": "compress_lz4_data_transform_req.json"
+    },
+    {
+      "name": "compress_lz4_custom_cmd",
+      "binary": "compress_lz4_custom_cmd.bytes",
+      "metadata": "compress_lz4_custom_cmd.json"
+    },
+    {
+      "name": "enc_compress_lz4_aes_256_cbc_data_transform_req",
+      "binary": "enc_compress_lz4_aes_256_cbc_data_transform_req.bytes",
+      "metadata": "enc_compress_lz4_aes_256_cbc_data_transform_req.json"
+    },
+    {
+      "name": "enc_compress_lz4_aes_256_cbc_custom_cmd",
+      "binary": "enc_compress_lz4_aes_256_cbc_custom_cmd.bytes",
+      "metadata": "enc_compress_lz4_aes_256_cbc_custom_cmd.json"
+    },
+    {
+      "name": "enc_compress_lz4_aes_256_gcm_data_transform_req",
+      "binary": "enc_compress_lz4_aes_256_gcm_data_transform_req.bytes",
+      "metadata": "enc_compress_lz4_aes_256_gcm_data_transform_req.json"
+    },
+    {
+      "name": "enc_compress_lz4_aes_256_gcm_custom_cmd",
+      "binary": "enc_compress_lz4_aes_256_gcm_custom_cmd.bytes",
+      "metadata": "enc_compress_lz4_aes_256_gcm_custom_cmd.json"
+    },
+    {
+      "name": "compress_snappy_data_transform_req",
+      "binary": "compress_snappy_data_transform_req.bytes",
+      "metadata": "compress_snappy_data_transform_req.json"
+    },
+    {
+      "name": "compress_snappy_custom_cmd",
+      "binary": "compress_snappy_custom_cmd.bytes",
+      "metadata": "compress_snappy_custom_cmd.json"
+    },
+    {
+      "name": "enc_compress_snappy_aes_256_cbc_data_transform_req",
+      "binary": "enc_compress_snappy_aes_256_cbc_data_transform_req.bytes",
+      "metadata": "enc_compress_snappy_aes_256_cbc_data_transform_req.json"
+    },
+    {
+      "name": "enc_compress_snappy_aes_256_cbc_custom_cmd",
+      "binary": "enc_compress_snappy_aes_256_cbc_custom_cmd.bytes",
+      "metadata": "enc_compress_snappy_aes_256_cbc_custom_cmd.json"
+    },
+    {
+      "name": "enc_compress_snappy_aes_256_gcm_data_transform_req",
+      "binary": "enc_compress_snappy_aes_256_gcm_data_transform_req.bytes",
+      "metadata": "enc_compress_snappy_aes_256_gcm_data_transform_req.json"
+    },
+    {
+      "name": "enc_compress_snappy_aes_256_gcm_custom_cmd",
+      "binary": "enc_compress_snappy_aes_256_gcm_custom_cmd.bytes",
+      "metadata": "enc_compress_snappy_aes_256_gcm_custom_cmd.json"
+    },
+    {
+      "name": "compress_zlib_data_transform_req",
+      "binary": "compress_zlib_data_transform_req.bytes",
+      "metadata": "compress_zlib_data_transform_req.json"
+    },
+    {
+      "name": "compress_zlib_custom_cmd",
+      "binary": "compress_zlib_custom_cmd.bytes",
+      "metadata": "compress_zlib_custom_cmd.json"
+    },
+    {
+      "name": "enc_compress_zlib_aes_256_cbc_data_transform_req",
+      "binary": "enc_compress_zlib_aes_256_cbc_data_transform_req.bytes",
+      "metadata": "enc_compress_zlib_aes_256_cbc_data_transform_req.json"
+    },
+    {
+      "name": "enc_compress_zlib_aes_256_cbc_custom_cmd",
+      "binary": "enc_compress_zlib_aes_256_cbc_custom_cmd.bytes",
+      "metadata": "enc_compress_zlib_aes_256_cbc_custom_cmd.json"
+    },
+    {
+      "name": "enc_compress_zlib_aes_256_gcm_data_transform_req",
+      "binary": "enc_compress_zlib_aes_256_gcm_data_transform_req.bytes",
+      "metadata": "enc_compress_zlib_aes_256_gcm_data_transform_req.json"
+    },
+    {
+      "name": "enc_compress_zlib_aes_256_gcm_custom_cmd",
+      "binary": "enc_compress_zlib_aes_256_gcm_custom_cmd.bytes",
+      "metadata": "enc_compress_zlib_aes_256_gcm_custom_cmd.json"
     }
   ],
   "crypto_algorithms": [

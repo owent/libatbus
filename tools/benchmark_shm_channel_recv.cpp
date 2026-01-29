@@ -1,3 +1,5 @@
+// Copyright 2026 atframework
+
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -5,7 +7,6 @@
 #include <ctime>
 #include <functional>
 #include <iostream>
-#include <map>
 #include <memory>
 #include <thread>
 #include <vector>
@@ -163,3 +164,4 @@ int main() {
 }
 
 #endif
+

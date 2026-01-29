@@ -1,3 +1,4 @@
+# Copyright 2026 atframework
 echowithcolor(COLOR GREEN "-- Configure ${CMAKE_CURRENT_LIST_DIR}")
 
 file(RELATIVE_PATH PROJECT_ROOT_RELINC_DIR ${CMAKE_CURRENT_LIST_DIR} ${PROJECT_LIBATBUS_ROOT_INC_DIR})
@@ -9,6 +10,7 @@ set(PROJECT_LIB_SRC_LIST
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/detail/libatbus_channel_types.h"
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/detail/libatbus_error.h"
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/atbus_connection.h"
+    "${PROJECT_LIBATBUS_ROOT_INC_DIR}/atbus_topology.h"
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/atbus_endpoint.h"
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/atbus_message_handler.h"
     "${PROJECT_LIBATBUS_ROOT_INC_DIR}/atbus_connection_context.h"
@@ -18,6 +20,7 @@ set(PROJECT_LIB_SRC_LIST
     "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/detail/buffer.cpp"
     "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/detail/libatbus_error.cpp"
     "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/atbus_connection.cpp"
+    "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/atbus_topology.cpp"
     "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/atbus_endpoint.cpp"
     "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/atbus_message_handler.cpp"
     "${PROJECT_LIBATBUS_ROOT_SRC_DIR}/atbus_connection_context.cpp"
@@ -174,3 +177,4 @@ install(FILES "${PROJECT_LIBATBUS_GENERATED_DIR}/include/detail/libatbus_config.
 
 install(FILES "${PROJECT_LIBATBUS_GENERATED_DIR}/include/libatbus_protocol.pb.h"
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+

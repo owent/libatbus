@@ -1,4 +1,5 @@
-// Copyright 2025 atframework
+// Copyright 2026 atframework
+
 /**
  * @brief 所有channel文件的模式均为 c + channel<br />
  *        使用c的模式是为了简单、结构清晰并且避免异常<br />
@@ -101,7 +102,8 @@ struct shm_mapped_record_type {
   atfw::util::lock::atomic_int_type<size_t> reference_count;
 };
 
-using shm_mapped_by_key_t = std::unordered_map<std::string, std::shared_ptr<shm_mapped_record_type>>;
+using shm_mapped_by_key_t =
+    std::unordered_map<std::string, ::atfw::util::memory::strong_rc_ptr<shm_mapped_record_type>>;
 static shm_mapped_by_key_t shm_mapped_by_key_records;
 static ::atfw::util::lock::spin_lock shm_mapped_records_lock;
 
@@ -210,7 +212,8 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
 
   ::atfw::util::lock::lock_holder<::atfw::util::lock::spin_lock> lock_guard(shm_mapped_records_lock);
 
-  std::shared_ptr<shm_mapped_record_type> shm_record = std::make_shared<shm_mapped_record_type>();
+  ::atfw::util::memory::strong_rc_ptr<shm_mapped_record_type> shm_record =
+      ::atfw::util::memory::make_strong_rc<shm_mapped_record_type>();
   if (!shm_record) {
     return EN_ATBUS_ERR_MALLOC;
   }
@@ -510,3 +513,4 @@ ATBUS_MACRO_API void shm_stats_get_error(shm_channel *channel, shm_stats_block_e
 ATBUS_MACRO_NAMESPACE_END
 
 #endif
+

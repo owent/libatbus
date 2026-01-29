@@ -1,0 +1,21 @@
+{
+  "name": "enc_compress_zlib_aes_256_gcm_custom_cmd",
+  "description": "Custom command request with compression + AES-256-GCM",
+  "protocol_version": 3,
+  "body_type": "custom_command_req",
+  "body_type_case": 11,
+  "compression_algorithm": "zlib",
+  "compression_algorithm_type": 400,
+  "compression_original_size": 60,
+  "crypto_algorithm": "aes_256_gcm",
+  "crypto_algorithm_type": 16,
+  "key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "iv_hex": "b0b1b2b3b4b5b6b7b8b9babb",
+  "aad_hex": "307836393737366565372e307865663061312d307834346366646239393763336536343932",
+  "aad_size": 37,
+  "packed_size": 146,
+  "packed_hex": "45080332370810120cb0b1b2b3b4b5b6b7b8b9babb5a25307836393737366565372e307865663061312d3078343463666462393937633365363439323a05089003103c489c20e1c9d131450d0ab78f6999e4ec0ba62460e05d73732f21335f59d3c156c4333e1d4e805a77529e887f51b84f9fd99639af3c27cd5d1142f0f1b12bd120f1d0e6a01761cf5ab1e93c2db30658",
+  "expected": {
+    "from": 286335522
+  }
+}

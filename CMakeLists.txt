@@ -1,3 +1,4 @@
+# Copyright 2026 atframework
 cmake_minimum_required(VERSION 3.24.0)
 
 if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.27.0")
@@ -110,3 +111,4 @@ install(
   EXPORT ${PROJECT_LIBATBUS_EXPORT_NAME}
   NAMESPACE "atframework::"
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}")
+

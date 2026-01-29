@@ -1,3 +1,4 @@
+# Copyright 2026 atframework
 name: "main"
 
 on: # @see https://help.github.com/en/articles/events-that-trigger-workflows#webhook-events
@@ -169,3 +170,4 @@ jobs:
         uses: github/codeql-action/analyze@v3
         with:
           category: "/language:cpp"
+

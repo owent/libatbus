@@ -1,4 +1,6 @@
 
+// Copyright 2026 atframework
+
 #include <signal.h>
 
 #include <cstdlib>
@@ -170,3 +172,4 @@ CASE_TEST(atbus_node_setup, compression_algorithms) {
 
   CASE_EXPECT_GT(count, 0);
 }
+

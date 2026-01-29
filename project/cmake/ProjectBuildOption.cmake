@@ -1,3 +1,4 @@
+# Copyright 2026 atframework
 # 默认配置选项
 # ######################################################################################################################
 
@@ -44,10 +45,10 @@ set(ATBUS_MACRO_CONNECTION_BACKLOG
     256
     CACHE STRING "tcp backlog")
 set(ATBUS_MACRO_SHM_MEM_CHANNEL_LENGTH
-    167510016
+    268435456
     CACHE STRING "channel size for shm/mem channel")
 set(ATBUS_MACRO_IOS_SEND_BUFFER_LENGTH
-    4194304
+    8388608
     CACHE STRING "send buffer size for iostream channel")
 
 math(EXPR ATFRAMEWORK_ATBUS_ABI_NUMBER "${LIBATBUS_VERSION_MAJOR}*1000+${LIBATBUS_VERSION_MINOR}")
@@ -76,3 +77,4 @@ option(PROJECT_TEST_ENABLE_BOOST_UNIT_TEST "Enable boost unit test." OFF)
 # find if we have Unix Sock
 include(CheckIncludeFiles)
 check_include_files("sys/un.h;sys/socket.h" ATBUS_MACRO_WITH_UNIX_SOCK)
+

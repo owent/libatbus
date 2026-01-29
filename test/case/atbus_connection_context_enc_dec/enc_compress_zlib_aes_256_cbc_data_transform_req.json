@@ -1,0 +1,20 @@
+{
+  "name": "enc_compress_zlib_aes_256_cbc_data_transform_req",
+  "description": "Data transform request with compression + AES-256-CBC",
+  "protocol_version": 3,
+  "body_type": "data_transform_req",
+  "body_type_case": 13,
+  "compression_algorithm": "zlib",
+  "compression_algorithm_type": 400,
+  "compression_original_size": 54,
+  "crypto_algorithm": "aes_256_cbc",
+  "crypto_algorithm_type": 13,
+  "key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "iv_hex": "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf",
+  "packed_size": 99,
+  "packed_hex": "2208033214080d1210a0a1a2a3a4a5a6a7a8a9aaabacadaeaf3a050890031036489220c875f2cae56a216e40ebf5102f57792d0c06ccddbe9948e5b8aa2e591c0845b32ec3abee2e9bca31cf967f7ed512537e6a781976cb5b4b791ea8aa970107bf4d",
+  "expected": {
+    "from": 324508639,
+    "to": 610839776
+  }
+}

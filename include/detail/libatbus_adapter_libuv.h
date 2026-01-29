@@ -1,6 +1,6 @@
+// Copyright 2026 atframework
 //
 // Created by owent on 2015/9/15.
-//
 
 #ifndef LIBATBUS_LIBATBUS_ADAPTER_LIBUV_H
 #define LIBATBUS_LIBATBUS_ADAPTER_LIBUV_H
@@ -25,12 +25,13 @@ using shutdown_t = uv_shutdown_t;
 
 using fd_t = uv_os_fd_t;
 
-enum run_mode_t {
-  RUN_DEFAULT = UV_RUN_DEFAULT,
-  RUN_ONCE = UV_RUN_ONCE,
-  RUN_NOWAIT = UV_RUN_NOWAIT,
+enum class run_mode_t : uint32_t {
+  kDefault = UV_RUN_DEFAULT,
+  kOnce = UV_RUN_ONCE,
+  kNoWait = UV_RUN_NOWAIT,
 };
 }  // namespace adapter
 ATBUS_MACRO_NAMESPACE_END
 
 #endif  // LIBATBUS_LIBATBUS_ADAPTER_LIBUV_H
+
