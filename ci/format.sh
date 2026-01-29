@@ -1,4 +1,5 @@
 #!/bin/bash
+# Copyright 2026 atframework
 
 find . -type f                                        \
   -regex "^./third_party/packages/.*" -prune          \
@@ -24,3 +25,4 @@ find . -type f                                        \
   -o -name '*.cc' -print                              \
   -o -name '*.c' -print                               \
   | xargs -r -n 32 clang-format -i --style=file --fallback-style=none
+

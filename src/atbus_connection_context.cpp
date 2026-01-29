@@ -1,4 +1,4 @@
-// Copyright 2025 atframework
+// Copyright 2026 atframework
 
 #include "atbus_connection_context.h"
 
@@ -981,3 +981,4 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
 }
 
 ATBUS_MACRO_NAMESPACE_END
+

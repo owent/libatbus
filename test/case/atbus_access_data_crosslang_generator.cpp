@@ -1,4 +1,5 @@
 // Copyright 2026 atframework
+//
 // This file generates test data files for cross-language access_data verification.
 
 #include <atbus_message_handler.h>
@@ -1309,3 +1310,4 @@ CASE_TEST(atbus_access_data_crosslang, verify_access_data_from_generated_files) 
                   << " failed" << std::endl;
   CASE_EXPECT_EQ(0, failed_count);
 }
+

@@ -1,3 +1,4 @@
+# Copyright 2026 atframework
 ignore:
   - "**/sample/**"
   - "**/test/**"

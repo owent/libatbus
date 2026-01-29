@@ -1,6 +1,6 @@
-// Copyright 2025 atframework
-// Created by owent on 2025/12/16.
+// Copyright 2026 atframework
 //
+// Created by owent on 2025/12/16.
 
 #include "detail/libatbus_error.h"
 
@@ -192,3 +192,4 @@ ATBUS_MACRO_API const std::basic_string<char8_t> &libatbus_u8strerror(ATBUS_ERRO
   return libatbus_strerror_cached<char8_t>(errcode);
 }
 #endif
+

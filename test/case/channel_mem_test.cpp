@@ -1,3 +1,5 @@
+// Copyright 2026 atframework
+
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -395,3 +397,4 @@ CASE_TEST(channel, mem_miso) {
 }
 
 #endif
+

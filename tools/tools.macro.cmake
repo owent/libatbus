@@ -1,4 +1,6 @@
+# Copyright 2026 atframework
 # =========== tools ===========
 set(PROJECT_TOOLS_BAS_DIR ${CMAKE_CURRENT_LIST_DIR})
 set(PROJECT_TOOLS_INC_DIR ${PROJECT_TOOLS_BAS_DIR})
 set(PROJECT_TOOLS_SRC_DIR ${PROJECT_TOOLS_BAS_DIR})
+

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Copyright 2026 atframework
 
 cd "$(cd "$(dirname $0)" && pwd)/.."
 
@@ -136,3 +137,4 @@ elif [[ "$1" == "msys2.mingw.test" ]]; then
   # done
   # ctest -VV . -C $CONFIGURATION -L libatbus.unit_test
 fi
+

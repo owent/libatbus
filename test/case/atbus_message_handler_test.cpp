@@ -539,3 +539,4 @@ CASE_TEST(atbus_message_handler, integration_deterministic_output) {
   std::string plaintext2 = atbus::message_handler::make_access_data_plaintext(bus_id, ad2, hd);
   CASE_EXPECT_EQ(plaintext1, plaintext2);
 }
+

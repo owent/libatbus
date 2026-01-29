@@ -1,3 +1,5 @@
+// Copyright 2026 atframework
+
 #ifndef UNITTEST_LIBATBUS_TEST_UTILS_H_
 #define UNITTEST_LIBATBUS_TEST_UTILS_H_
 
@@ -44,3 +46,4 @@ struct unit_test_libuv_wait_manager {
     if (!libuv_wait_mgr.is_timeout_)
 
 #endif
+

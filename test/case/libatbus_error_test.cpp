@@ -1,3 +1,5 @@
+// Copyright 2026 atframework
+
 #include <detail/libatbus_error.h>
 
 #include <cstdint>
@@ -90,3 +92,4 @@ CASE_TEST(libatbus_error, u8_strerror) {
   CASE_EXPECT_TRUE(msg == unit_test_ascii_to_basic_string<char8_t>("EN_ATBUS_ERR_SUCCESS(0): success"));
 }
 #endif
+

@@ -1,3 +1,5 @@
+// Copyright 2026 atframework
+
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -615,3 +617,4 @@ CASE_TEST(channel, io_stream_callback_on_written) {
 
   uv_loop_close(&loop);
 }
+

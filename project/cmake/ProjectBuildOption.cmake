@@ -1,3 +1,4 @@
+# Copyright 2026 atframework
 # 默认配置选项
 # ######################################################################################################################
 
@@ -76,3 +77,4 @@ option(PROJECT_TEST_ENABLE_BOOST_UNIT_TEST "Enable boost unit test." OFF)
 # find if we have Unix Sock
 include(CheckIncludeFiles)
 check_include_files("sys/un.h;sys/socket.h" ATBUS_MACRO_WITH_UNIX_SOCK)
+

@@ -1,3 +1,4 @@
+# Copyright 2026 atframework
 echowithcolor(COLOR GREEN "-- Configure Unit Test ${CMAKE_CURRENT_LIST_DIR}")
 
 include("${PROJECT_TEST_BAS_DIR}/test.build_bin.cmake")
@@ -31,3 +32,4 @@ target_include_directories(atbus_unit_test PRIVATE "$<BUILD_INTERFACE:${PROJECT_
 
 add_test(NAME "libatbus.unit_test" COMMAND "$<TARGET_FILE:atbus_unit_test>")
 set_tests_properties("libatbus.unit_test" PROPERTIES LABELS "libatbus;libatbus.unit_test")
+

@@ -1,3 +1,5 @@
+// Copyright 2026 atframework
+
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -531,3 +533,4 @@ CASE_TEST(channel, io_stream_unix_connect_failed) {
 }
 
 #endif
+

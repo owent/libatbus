@@ -1,4 +1,5 @@
 #!/bin/sh
+# Copyright 2026 atframework
 
 # valgrind --vgdb=full --vgdb-error=0 --leak-check=full --tool=memcheck --show-leak-kinds=all --log-file=memcheck.log --malloc-fill=0x5E "$@";
 # valgrind --vgdb=yes --vgdb-error=0 --leak-check=full --tool=memcheck --show-leak-kinds=all --log-file=memcheck.log --malloc-fill=0x5E "$@";

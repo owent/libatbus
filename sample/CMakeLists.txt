@@ -1,3 +1,4 @@
+# Copyright 2026 atframework
 echowithcolor(COLOR GREEN "-- Configure ${CMAKE_CURRENT_LIST_DIR}")
 
 include("${CMAKE_CURRENT_LIST_DIR}/sample.custom-macro.cmake")
@@ -29,3 +30,4 @@ foreach(SAMPLE_SRC_FILE IN LISTS SAMPLE_SRC_LIST)
     add_target_properties(${SAMPLE_SRC_BIN_NAME} LINK_FLAGS /NODEFAULTLIB:library)
   endif()
 endforeach()
+

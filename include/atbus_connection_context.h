@@ -127,3 +127,4 @@ class ATFW_UTIL_SYMBOL_VISIBLE connection_context final {
   ::atfw::util::memory::strong_rc_ptr<::atfw::util::crypto::cipher> receive_cipher_;
 };
 ATBUS_MACRO_NAMESPACE_END
+

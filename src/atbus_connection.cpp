@@ -1,4 +1,5 @@
-// Copyright 2025 atframework
+// Copyright 2026 atframework
+//
 // Created by owent on on 2015-11-20
 
 #include "atbus_connection.h"  // NOLINT: build/include_subdir
@@ -983,3 +984,4 @@ ATBUS_MACRO_API bool connection::unpack(connection &conn, message &m, gsl::span<
   return true;
 }
 ATBUS_MACRO_NAMESPACE_END
+

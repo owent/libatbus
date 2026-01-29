@@ -1,3 +1,4 @@
+# Copyright 2026 atframework
 name: "Mark and close stale issues"
 on:
   schedule:
@@ -12,3 +13,4 @@ jobs:
           stale-issue-message: "This issue was marked as stale due to lack of activity."
           days-before-issue-stale: 90
           exempt-issue-labels: "do-not-stale"
+

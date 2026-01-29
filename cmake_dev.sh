@@ -1,4 +1,5 @@
 #!/bin/bash
+# Copyright 2026 atframework
 
 SYS_NAME="$(uname -s)";
 SYS_NAME="$(basename $SYS_NAME)";
@@ -204,3 +205,4 @@ if [ 1 -eq $CMAKE_CLANG_ANALYZER ]; then
     echo "Now, you can run those code above to get a static analysis report";
     echo "You can get help and binary of clang-analyzer and scan-build at http://clang-analyzer.llvm.org/scan-build.html"
 fi
+

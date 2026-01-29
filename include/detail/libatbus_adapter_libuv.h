@@ -1,6 +1,6 @@
+// Copyright 2026 atframework
 //
 // Created by owent on 2015/9/15.
-//
 
 #ifndef LIBATBUS_LIBATBUS_ADAPTER_LIBUV_H
 #define LIBATBUS_LIBATBUS_ADAPTER_LIBUV_H
@@ -34,3 +34,4 @@ enum class run_mode_t : uint32_t {
 ATBUS_MACRO_NAMESPACE_END
 
 #endif  // LIBATBUS_LIBATBUS_ADAPTER_LIBUV_H
+

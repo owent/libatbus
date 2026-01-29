@@ -1,3 +1,5 @@
+// Copyright 2026 atframework
+
 #include <errno.h>
 #include <fcntl.h> /* For O_* constants */
 #include <sys/mman.h>
@@ -101,3 +103,4 @@ int main() {
   close(test_fd);
   return 0;
 }
+

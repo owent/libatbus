@@ -1,3 +1,4 @@
+# Copyright 2026 atframework
 # @see https://cmake-format.readthedocs.io/en/latest/configuration.html for more details
 
 format:
@@ -8,3 +9,4 @@ format:
 
 markup:
   first_comment_is_literal: True
+

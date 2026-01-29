@@ -1,3 +1,5 @@
+// Copyright 2026 atframework
+
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
@@ -136,3 +138,4 @@ CASE_TEST(atbus_channel, address) {
   CASE_EXPECT_FALSE(atbus::channel::is_local_process_address({}));
   CASE_EXPECT_TRUE(atbus::channel::is_local_process_address("mem://0x1234"));
 }
+

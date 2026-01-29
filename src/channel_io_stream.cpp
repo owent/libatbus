@@ -1,4 +1,5 @@
-// Copyright 2025 atframework
+// Copyright 2026 atframework
+
 /**
  * @brief 所有channel文件的模式均为 c + channel<br />
  *        使用c的模式是为了简单、结构清晰并且避免异常<br />
@@ -2035,3 +2036,4 @@ void io_stream_show_channel(io_stream_channel *channel, std::ostream &out) {
 }
 }  // namespace channel
 ATBUS_MACRO_NAMESPACE_END
+

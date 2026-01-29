@@ -1,3 +1,4 @@
+# Copyright 2026 atframework
 languages:
   - cpp
 queries:
@@ -10,3 +11,4 @@ queries:
 # paths-ignore:
 #   - third_party
 #   - test
+

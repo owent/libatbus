@@ -431,3 +431,4 @@ topology_peer::ptr_t topology_registry::mutable_peer(bus_id_t target_bus_id) {
 }
 
 ATBUS_MACRO_NAMESPACE_END
+

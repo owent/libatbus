@@ -1,3 +1,5 @@
+// Copyright 2026 atframework
+
 #include <assert.h>
 #include <cstdio>
 #include <cstdlib>
@@ -200,3 +202,4 @@ static void send_data(atbus::channel::io_stream_connection *connection) {
     }
   }
 }
+

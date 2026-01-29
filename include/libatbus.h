@@ -1,9 +1,9 @@
-/**
- * libatbus.h
- *
- *  Created on: 2014年8月11日
- *      Author: owent
- */
+// Copyright 2026 atframework
+//
+// libatbus.h
+//
+//  Created on: 2014年8月11日
+//      Author: owent
 
 #pragma once
 
@@ -16,3 +16,4 @@
 #  include "atbus_node.h"
 
 #endif /* LIBATBUS_H_ */
+

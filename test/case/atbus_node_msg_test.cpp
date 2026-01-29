@@ -1,3 +1,5 @@
+// Copyright 2026 atframework
+
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
@@ -2273,3 +2275,4 @@ CASE_TEST(atbus_node_msg, crypto_list_available_algorithms) {
 }
 
 #endif  // ATFW_UTIL_MACRO_CRYPTO_CIPHER_ENABLED
+

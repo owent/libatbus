@@ -1,5 +1,7 @@
 
 
+// Copyright 2026 atframework
+
 #include <atbus_topology.h>
 
 #include <unordered_set>
@@ -596,3 +598,4 @@ CASE_TEST(atbus_topology, topology_registry_update_peer_cycle_detection) {
     CASE_EXPECT_EQ(1, peer2->get_upstream()->get_bus_id());
   }
 }
+

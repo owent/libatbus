@@ -1,3 +1,4 @@
+# Copyright 2026 atframework
 echowithcolor(COLOR GREEN "-- Configure Tools ${CMAKE_CURRENT_LIST_DIR}")
 
 # ============ TOOLS - [...] ============
@@ -22,3 +23,4 @@ foreach(TOOLS_SRC_FILE IN LISTS TOOLS_SRC_LIST)
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
 
 endforeach()
+
