@@ -1,4 +1,6 @@
 
+// Copyright 2026 atframework
+
 #include "atbus_test_utils.h"
 
 #include <time/time_utility.h>
@@ -90,3 +92,4 @@ unit_test_libuv_wait_manager::~unit_test_libuv_wait_manager() {
 }
 
 void unit_test_libuv_wait_manager::run(uv_loop_t *ev) { uv_run(ev, UV_RUN_ONCE); }
+

@@ -1,4 +1,5 @@
-// Copyright 2025 atframework
+// Copyright 2026 atframework
+
 /**
  * @brief 所有channel文件的模式均为 c + channel<br />
  *        使用c的模式是为了简单、结构清晰并且避免异常<br />
@@ -50,8 +51,8 @@
 
 ATBUS_MACRO_NAMESPACE_BEGIN
 
+namespace {
 #if defined(ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD) && ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD
-namespace detail {
 static pthread_once_t gt_atbus_node_global_init_once = PTHREAD_ONCE_INIT;
 static void atbus_node_global_init_once() {
   uv_loop_t loop;
@@ -60,9 +61,7 @@ static void atbus_node_global_init_once() {
   uv_loop_configure(&loop, UV_METRICS_IDLE_TIME);
   uv_loop_close(&loop);
 }
-}  // namespace detail
 #elif __cplusplus >= 201103L
-namespace detail {
 static std::once_flag gt_atbus_node_global_init_once;
 static void atbus_node_global_init_once() {
   uv_loop_t loop;
@@ -71,8 +70,18 @@ static void atbus_node_global_init_once() {
   uv_loop_configure(&loop, UV_METRICS_IDLE_TIME);
   uv_loop_close(&loop);
 }
-}  // namespace detail
+
+static bool is_in_blacklist(bus_id_t tid, const node::get_peer_options_t &options) {
+  for (auto id : options.blacklist) {
+    if (id == tid) {
+      return true;
+    }
+  }
+
+  return false;
+}
 #endif
+}  // namespace
 
 bool node_access_controller::add_ping_timer(node &n, const endpoint::ptr_t &ep) { return n.add_ping_timer(ep); }
 
@@ -147,9 +156,9 @@ node::node()
   flags_.reset();
 
 #if defined(ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD) && ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD
-  (void)pthread_once(&detail::gt_atbus_node_global_init_once, detail::atbus_node_global_init_once);
+  (void)pthread_once(&gt_atbus_node_global_init_once, atbus_node_global_init_once);
 #elif __cplusplus >= 201103L
-  std::call_once(detail::gt_atbus_node_global_init_once, detail::atbus_node_global_init_once);
+  std::call_once(gt_atbus_node_global_init_once, atbus_node_global_init_once);
 #endif
 
   logger_ = atfw::util::log::log_wrapper::create_user_logger();
@@ -383,7 +392,12 @@ ATBUS_MACRO_API void node::reload_crypto(
   }
 
   conf_.crypto_key_exchange_type = crypto_key_exchange_type_;
+  if (crypto_allow_algorithms.data() == conf_.crypto_allow_algorithms.data() &&
+      crypto_allow_algorithms.size() == conf_.crypto_allow_algorithms.size()) {
+    return;
+  }
   if (crypto_allow_algorithms.data() == conf_.crypto_allow_algorithms.data()) {
+    conf_.crypto_allow_algorithms.resize(crypto_allow_algorithms.size());
     return;
   }
   conf_.crypto_allow_algorithms.reserve(crypto_allow_algorithms.size());
@@ -399,13 +413,19 @@ ATBUS_MACRO_API void node::reload_crypto(
 ATBUS_MACRO_API void node::reload_compression(
     gsl::span<const protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> compression_allow_algorithms,
     protocol::ATBUS_COMPRESSION_LEVEL compression_level) {
+  conf_.compression_level = compression_level;
+  if (compression_allow_algorithms.data() == conf_.compression_allow_algorithms.data() &&
+      compression_allow_algorithms.size() == conf_.compression_allow_algorithms.size()) {
+    return;
+  }
+
   if (compression_allow_algorithms.data() == conf_.compression_allow_algorithms.data()) {
+    conf_.compression_allow_algorithms.resize(compression_allow_algorithms.size());
     return;
   }
 
   conf_.compression_allow_algorithms.reserve(compression_allow_algorithms.size());
   conf_.compression_allow_algorithms.assign(compression_allow_algorithms.begin(), compression_allow_algorithms.end());
-  conf_.compression_level = compression_level;
 }
 
 ATBUS_MACRO_API int node::start(const start_conf_t &start_conf) {
@@ -1160,6 +1180,10 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::get_peer_channel(bus_id_t tid, endpoint::
   do {
     // 上游节点
     if (node_upstream_.node_ && node_upstream_.node_->get_id() == tid) {
+      if (is_in_blacklist(tid, options)) {
+        break;
+      }
+
       target = node_upstream_.node_.get();
       conn = (self_.get()->*fn)(target);
 
@@ -1174,6 +1198,10 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::get_peer_channel(bus_id_t tid, endpoint::
     // 直连节点
     target = find_route(node_route_, tid);
     if (nullptr != target) {
+      if (is_in_blacklist(tid, options)) {
+        break;
+      }
+
       conn = (self_.get()->*fn)(target);
 
       if (next_hop_peer != nullptr && topology_registry_) {
@@ -1194,6 +1222,9 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::get_peer_channel(bus_id_t tid, endpoint::
       }
       target = find_route(node_route_, next_hop_try_peer->get_bus_id());
       if (nullptr != target) {
+        if (is_in_blacklist(next_hop_try_peer->get_bus_id(), options)) {
+          break;
+        }
         conn = (self_.get()->*fn)(target);
 
         if (next_hop_peer != nullptr) {
@@ -1217,7 +1248,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::get_peer_channel(bus_id_t tid, endpoint::
      *     F1 ----主动连接---- F2
      *    /  \                /  \
      *  C11  C12            C21  C22
-     * 当C11/F1发往C21或C22时触发这种情况
+     * 当F1发往C21或C22时触发这种情况
      */
     if (relation == topology_relation_type::kOtherUpstreamPeer && topology_registry_) {
       auto find_nearest_neighbour_peer = topology_registry_->get_peer(tid);
@@ -1225,6 +1256,11 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::get_peer_channel(bus_id_t tid, endpoint::
         find_nearest_neighbour_peer = find_nearest_neighbour_peer->get_upstream();
       }
       while (find_nearest_neighbour_peer) {
+        if (is_in_blacklist(find_nearest_neighbour_peer->get_bus_id(), options)) {
+          find_nearest_neighbour_peer = find_nearest_neighbour_peer->get_upstream();
+          continue;
+        }
+
         target = find_route(node_route_, find_nearest_neighbour_peer->get_bus_id());
         if (nullptr != target) {
           conn = (self_.get()->*fn)(target);
@@ -1245,12 +1281,16 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::get_peer_channel(bus_id_t tid, endpoint::
 
     // Fallback到上游转发
     /**
-     *     F1
-     *    /  \
-     *  C11  C12
-     * 当C11发往C12时触发这种情况
+     *     F1     |    F1 ----主动连接---- F2
+     *    /  \    |   /  \                /  \
+     *  C11  C12  | C11  C12            C21  C22
+     * 当C11发往C12和C11/C12发往C21/C22时触发这种情况
      */
     if (!options.check_flag(get_peer_options_t::option_type::kNoUpstream) && node_upstream_.node_) {
+      if (is_in_blacklist(node_upstream_.node_->get_id(), options)) {
+        break;
+      }
+
       target = node_upstream_.node_.get();
       conn = (self_.get()->*fn)(target);
 
@@ -1673,6 +1713,11 @@ ATBUS_MACRO_API const std::string &node::get_hostname() {
   }
 #endif
 
+  if (!hn.empty()) {
+    hn = atfw::util::hash::sha::hash_to_hex(atfw::util::hash::sha::EN_ALGORITHM_SHA256,
+                                            reinterpret_cast<const void *>(hn.data()), hn.size(), false);
+  }
+
   return hn;
 }
 
@@ -1893,7 +1938,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_new_connection(connection *conn) {
       conn->check_flag(connection::flag_t::type::kClientMode)) {
     ATBUS_ERROR_TYPE ret = message_handler::send_register(message_body_type::kNodeRegisterReq, *this, *conn, 0,
                                                           allocate_message_sequence());
-    if (ret < 0) {
+    if (ret != EN_ATBUS_ERR_SUCCESS) {
       ATBUS_FUNC_NODE_ERROR(*this, nullptr, conn, ret, 0, "send node register message to {} failed",
                             conn->get_address().address);
       conn->reset();
@@ -2686,3 +2731,4 @@ channel::io_stream_conf *node::get_iostream_conf() {
 
 node::stat_info_t::stat_info_t() : dispatch_times(0) {}
 ATBUS_MACRO_NAMESPACE_END
+

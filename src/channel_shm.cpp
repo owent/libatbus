@@ -1,4 +1,5 @@
-// Copyright 2025 atframework
+// Copyright 2026 atframework
+
 /**
  * @brief 所有channel文件的模式均为 c + channel<br />
  *        使用c的模式是为了简单、结构清晰并且避免异常<br />
@@ -512,3 +513,4 @@ ATBUS_MACRO_API void shm_stats_get_error(shm_channel *channel, shm_stats_block_e
 ATBUS_MACRO_NAMESPACE_END
 
 #endif
+

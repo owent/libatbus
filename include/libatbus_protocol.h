@@ -1,9 +1,9 @@
-/**
- * libatbus.h
- *
- *  Created on: 2014年8月11日
- *      Author: owent
- */
+// Copyright 2026 atframework
+//
+// libatbus.h
+//
+//  Created on: 2014年8月11日
+//      Author: owent
 
 #pragma once
 
@@ -89,3 +89,4 @@ ATBUS_MACRO_NAMESPACE_END
 #ifndef ATBUS_MACRO_PROTOBUF_NAMESPACE_ID
 #  define ATBUS_MACRO_PROTOBUF_NAMESPACE_ID google::protobuf
 #endif
+

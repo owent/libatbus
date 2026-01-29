@@ -1,4 +1,4 @@
-// Copyright 2026 Atframework.
+// Copyright 2026 atframework
 
 #pragma once
 
@@ -197,3 +197,4 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
   stat_t stat_;
 };
 ATBUS_MACRO_NAMESPACE_END
+

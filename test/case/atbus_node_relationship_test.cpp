@@ -1,3 +1,5 @@
+// Copyright 2026 atframework
+
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -110,3 +112,4 @@ CASE_TEST(atbus_node_rela, child_endpoint_opr) {
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node->remove_endpoint(0x12345589));
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node->remove_endpoint(0x12345680));
 }
+

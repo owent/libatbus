@@ -1,4 +1,5 @@
 #!/bin/sh
+# Copyright 2026 atframework
 
 ADDRESS=12345679 ;
 UNIT_SIZE=1024 ;
@@ -19,4 +20,5 @@ sleep 2;
 for ((i=1;i<=16;++i)); do
     ./benchmark_shm_channel_send $ADDRESS $UNIT_SIZE $SHM_SIZE > send-shm-$i.log 2>&1 &
 done
+
 

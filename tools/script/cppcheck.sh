@@ -1,4 +1,5 @@
 #!/bin/sh
+# Copyright 2026 atframework
 
 SCRIPT_DIR="$( cd "$( dirname "$0" )" && pwd )";
 SCRIPT_DIR="$( readlink -f $SCRIPT_DIR )";
@@ -16,3 +17,4 @@ if [ 0 -eq $? ]; then
     mkdir -p "$WORK_DIR/cppcheck.html";
     cppcheck-htmlreport --title=libatbus.cppcheck --file="$WORK_DIR/cppcheck.xml" --report-dir="$WORK_DIR/cppcheck.html" --source-dir=. --source-encoding=utf-8 ;
 fi
+

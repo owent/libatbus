@@ -1,4 +1,5 @@
 // Copyright 2026 atframework
+//
 // This file generates binary test data files for cross-language pack/unpack verification.
 
 #include <atbus_connection_context.h>
@@ -2002,3 +2003,4 @@ CASE_TEST(atbus_connection_context_crosslang, generate_full_index_file) {
   write_json_file("index.json", json.str());
 }
 #endif
+

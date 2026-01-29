@@ -1,3 +1,5 @@
+// Copyright 2026 atframework
+
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
@@ -96,3 +98,4 @@ int main() {
   }
   return 0;
 }
+

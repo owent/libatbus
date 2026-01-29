@@ -1,3 +1,4 @@
+# Copyright 2026 atframework
 echowithcolor(COLOR GREEN "-- Configure ${CMAKE_CURRENT_LIST_DIR}")
 
 file(RELATIVE_PATH PROJECT_ROOT_RELINC_DIR ${CMAKE_CURRENT_LIST_DIR} ${PROJECT_LIBATBUS_ROOT_INC_DIR})
@@ -176,3 +177,4 @@ install(FILES "${PROJECT_LIBATBUS_GENERATED_DIR}/include/detail/libatbus_config.
 
 install(FILES "${PROJECT_LIBATBUS_GENERATED_DIR}/include/libatbus_protocol.pb.h"
         DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+

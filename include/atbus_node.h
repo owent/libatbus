@@ -1,9 +1,9 @@
-/**
- * atbus_node.h
- *
- *  Created on: 2015年10月29日
- *      Author: owent
- */
+// Copyright 2026 atframework
+//
+// atbus_node.h
+//
+//  Created on: 2015年10月29日
+//      Author: owent
 
 #pragma once
 
@@ -153,6 +153,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
     };
 
     uint32_t flags;  // @see flag_type upper
+    gsl::span<const bus_id_t> blacklist;
 
     ATFW_UTIL_FORCEINLINE constexpr get_peer_options_t() : flags(0) {}
     ATFW_UTIL_FORCEINLINE constexpr ~get_peer_options_t() {}
@@ -170,17 +171,21 @@ class node final : public atfw::util::design_pattern::noncopyable {
       }
     }
 
-    ATFW_UTIL_FORCEINLINE constexpr get_peer_options_t(const get_peer_options_t &other) : flags(other.flags) {}
+    ATFW_UTIL_FORCEINLINE constexpr get_peer_options_t(const get_peer_options_t &other)
+        : flags(other.flags), blacklist(other.blacklist) {}
 
     ATFW_UTIL_FORCEINLINE constexpr get_peer_options_t &operator=(const get_peer_options_t &other) {
       flags = other.flags;
+      blacklist = other.blacklist;
       return *this;
     }
 
-    ATFW_UTIL_FORCEINLINE constexpr get_peer_options_t(get_peer_options_t &&other) : flags(other.flags) {}
+    ATFW_UTIL_FORCEINLINE constexpr get_peer_options_t(get_peer_options_t &&other)
+        : flags(other.flags), blacklist(other.blacklist) {}
 
     ATFW_UTIL_FORCEINLINE constexpr get_peer_options_t &operator=(get_peer_options_t &&other) {
       flags = other.flags;
+      blacklist = other.blacklist;
       return *this;
     }
 
@@ -195,6 +200,8 @@ class node final : public atfw::util::design_pattern::noncopyable {
         flags &= ~static_cast<uint32_t>(f);
       }
     }
+
+    ATFW_UTIL_FORCEINLINE constexpr void set_blacklist(gsl::span<const bus_id_t> bl) noexcept { blacklist = bl; }
   };
 
   struct conf_t {
@@ -1000,3 +1007,4 @@ ATBUS_MACRO_NAMESPACE_END
       }                                                                                                         \
     }
 #endif
+

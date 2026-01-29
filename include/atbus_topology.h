@@ -271,3 +271,4 @@ class topology_registry {
 };
 
 ATBUS_MACRO_NAMESPACE_END
+

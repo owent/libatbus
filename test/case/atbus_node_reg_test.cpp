@@ -1,3 +1,5 @@
+// Copyright 2026 atframework
+
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
@@ -2227,3 +2229,4 @@ CASE_TEST(atbus_node_reg, on_topology_upstream_change_id) {
 
   unit_test_setup_exit(&ev_loop);
 }
+

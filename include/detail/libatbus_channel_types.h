@@ -1,9 +1,10 @@
-/**
- * libatbus_channel_types.h
- *
- *  Created on: 2014年8月13日
- *      Author: owent
- */
+// Copyright 2026 atframework
+//
+// libatbus_channel_types.h
+//
+//  Created on: 2014年8月13日
+//      Author: owent
+
 #ifndef LIBATBUS_CHANNEL_TYPES_H
 #define LIBATBUS_CHANNEL_TYPES_H
 
@@ -217,3 +218,4 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_channel {
 ATBUS_MACRO_NAMESPACE_END
 
 #endif /* LIBATBUS_CHANNEL_EXPORT_H_ */
+

@@ -1,4 +1,5 @@
-// Copyright 2022 atframework
+// Copyright 2026 atframework
+//
 // Created by owent on on 2015-11-20
 
 #pragma once
@@ -299,3 +300,4 @@ class connection final : public atfw::util::design_pattern::noncopyable {
   friend class endpoint;
 };
 ATBUS_MACRO_NAMESPACE_END
+

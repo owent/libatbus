@@ -1,4 +1,4 @@
-// Copyright 2025 atframework
+// Copyright 2026 atframework
 
 #include "libatbus_protocol.h"
 
@@ -176,3 +176,4 @@ ATBUS_MACRO_API std::string message::get_unpack_error_message() const noexcept {
 }
 
 ATBUS_MACRO_NAMESPACE_END
+

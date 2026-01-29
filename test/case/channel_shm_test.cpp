@@ -1,3 +1,5 @@
+// Copyright 2026 atframework
+
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -255,3 +257,4 @@ CASE_TEST(channel, shm_siso) {
 }
 
 #endif
+

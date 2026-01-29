@@ -1,3 +1,4 @@
+# Copyright 2026 atframework
 set(ATFRAMEWORK_ATFRAME_UTILS_REPO_DIR
     "${PROJECT_SOURCE_DIR}/atframework/atframe_utils"
     CACHE PATH "PATH to atframe_utils")
@@ -26,3 +27,4 @@ else()
   add_subdirectory("${ATFRAMEWORK_ATFRAME_UTILS_REPO_DIR}"
                    "${CMAKE_CURRENT_BINARY_DIR}/_deps/${ATFRAMEWORK_ATFRAME_UTILS_LINK_NAME}")
 endif()
+

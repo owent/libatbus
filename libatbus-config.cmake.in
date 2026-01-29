@@ -30,7 +30,7 @@ The following :prop_tgt:`IMPORTED` targets are also defined:
   The libatbus library
 
 =============================================================================
-Copyright 2020 OWenT.
+Copyright 2026 OWenT.
 
 Distributed under the OSI-approved BSD License (the "License");
 see accompanying file Copyright.txt for details.
@@ -75,3 +75,4 @@ if(${CMAKE_FIND_PACKAGE_NAME}_FOUND)
 endif()
 
 # check_required_components(${CMAKE_FIND_PACKAGE_NAME})
+

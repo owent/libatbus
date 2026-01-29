@@ -99,3 +99,4 @@ struct message_handler {
                                                             ATBUS_ERROR_TYPE errcode);
 };
 ATBUS_MACRO_NAMESPACE_END
+

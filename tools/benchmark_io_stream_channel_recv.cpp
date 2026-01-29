@@ -1,3 +1,5 @@
+// Copyright 2026 atframework
+
 #include <assert.h>
 #include <cstdio>
 #include <cstdlib>
@@ -163,3 +165,4 @@ int main(int argc, char *argv[]) {
   io_stream_close(&channel);
   return ret;
 }
+

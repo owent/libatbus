@@ -1,3 +1,5 @@
+// Copyright 2026 atframework
+
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -49,3 +51,4 @@ int main() {
   return 0;
 }
 #endif
+

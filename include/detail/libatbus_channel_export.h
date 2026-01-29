@@ -1,9 +1,9 @@
-/**
- * libatbus_channel_export.h
- *
- *  Created on: 2014年8月13日
- *      Author: owent
- */
+// Copyright 2026 atframework
+//
+// libatbus_channel_export.h
+//
+//  Created on: 2014年8月13日
+//      Author: owent
 
 #pragma once
 
@@ -140,3 +140,4 @@ ATBUS_MACRO_API void io_stream_show_channel(io_stream_channel *channel, std::ost
 ATBUS_MACRO_NAMESPACE_END
 
 #endif /* LIBATBUS_CHANNEL_EXPORT_H_ */
+

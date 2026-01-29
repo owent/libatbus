@@ -1,4 +1,5 @@
 #!/bin/sh
+# Copyright 2026 atframework
 
 ADDRESS="ipv6://::1:16389";
 UNIT_SIZE=1024 ;
@@ -28,4 +29,5 @@ sleep 2;
 for ((i=1;i<=16;++i)); do
     ./benchmark_io_stream_channel_send "$ADDRESS" $UNIT_SIZE $LIMIT_SIZE $STATIC_LIMIT_NUM > send-ios-$i.log 2>&1 &
 done
+
 

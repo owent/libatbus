@@ -1,6 +1,6 @@
-// Copyright 2025 atframework
-// Created by owent on 2015/8/11.
+// Copyright 2026 atframework
 //
+// Created by owent on 2015/8/11.
 
 #include <assert.h>
 #include <cstdlib>
@@ -981,3 +981,4 @@ ATBUS_MACRO_API bool buffer_manager::is_static_mode() const { return nullptr != 
 ATBUS_MACRO_API bool buffer_manager::is_dynamic_mode() const { return nullptr == static_buffer_.buffer_; }
 }  // namespace detail
 ATBUS_MACRO_NAMESPACE_END
+

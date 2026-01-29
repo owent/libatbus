@@ -1,3 +1,4 @@
+# Copyright 2026 atframework
 # =========== libatbus/src ===========
 set(PROJECT_LIBATBUS_ROOT_SRC_DIR ${CMAKE_CURRENT_LIST_DIR})
 
@@ -33,3 +34,4 @@ add_custom_target("atbus-generate-protocol" SOURCES "${PROJECT_LIBATBUS_GENERATE
                                                     "${PROJECT_LIBATBUS_GENERATED_DIR}/src/libatbus_protocol.pb.cc")
 
 set_property(TARGET "atbus-generate-protocol" PROPERTY FOLDER "atframework/atbus")
+

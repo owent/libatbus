@@ -1,3 +1,4 @@
+# Copyright 2026 atframework
 # CodeChecker check --config ../.codechecker.yaml -i ../.codechecker.skipfile -l compile_commands.json -j 30 -o codechecker-result || true
 analyzer:
   # Disable unused cases
@@ -25,3 +26,4 @@ analyzer:
   # PCH support
   # - --ctu
   # - --ctu-ast-mode=load-from-pch
+

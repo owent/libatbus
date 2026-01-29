@@ -1,4 +1,4 @@
-// Copyright 2025 atframework
+// Copyright 2026 atframework
 
 #include <algorithm>
 #include <sstream>
@@ -99,8 +99,11 @@ static ATBUS_ERROR_TYPE _forward_data_message(::atframework::atbus::node &n,
   // 检查如果发送目标不是来源，则转发失败消息
   endpoint *target = nullptr;
   connection *target_conn = nullptr;
+  atbus::node::get_peer_options_t get_peer_options;
+  bus_id_t blacklist_ids[] = {from_server_id};
+  get_peer_options.set_blacklist(gsl::span<const bus_id_t>(blacklist_ids));
   ATBUS_ERROR_TYPE ret = n.get_peer_channel(to_server_id, &endpoint::get_data_connection, &target, &target_conn,
-                                            nullptr, {atbus::node::get_peer_options_t::option_type::kNoUpstream});
+                                            nullptr, get_peer_options);
 
   if (nullptr != out_endpoint) {
     *out_endpoint = target;
@@ -1493,3 +1496,4 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_pong(node &n, con
   return EN_ATBUS_ERR_SUCCESS;
 }
 ATBUS_MACRO_NAMESPACE_END
+

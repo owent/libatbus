@@ -1,4 +1,4 @@
-// Copyright 2025 atframework
+// Copyright 2026 atframework
 
 #include <common/string_oprs.h>
 
@@ -560,3 +560,4 @@ ATBUS_MACRO_API std::chrono::system_clock::time_point endpoint::get_stat_created
 ATBUS_MACRO_API const node *endpoint::get_owner() const { return owner_; }
 
 ATBUS_MACRO_NAMESPACE_END
+
