@@ -50,31 +50,27 @@ class connection final : public atfw::util::design_pattern::noncopyable {
   using ptr_t = ::atfw::util::memory::strong_rc_ptr<connection>;
 
   /** 并没有非常复杂的状态切换，所以没有引入状态机 **/
-  struct state_t {
-    enum class type : uint32_t {
-      kDisconnected = 0, /** 未连接 **/
-      kConnecting,       /** 正在连接 **/
-      kHandshaking,      /** 正在握手 **/
-      kConnected,        /** 已连接 **/
-      kDisconnecting,    /** 正在断开连接 **/
-    };
+  enum class state_t : uint32_t {
+    kDisconnected = 0, /** 未连接 **/
+    kConnecting,       /** 正在连接 **/
+    kHandshaking,      /** 正在握手 **/
+    kConnected,        /** 已连接 **/
+    kDisconnecting,    /** 正在断开连接 **/
   };
 
-  struct flag_t {
-    enum class type : uint32_t {
-      kRegProc = 0,     /** 注册了proc记录到node，清理的时候需要移除 **/
-      kRegFd,           /** 关联了fd到node或endpoint，清理的时候需要移除 **/
-      kAccessShareAddr, /** 共享内部地址（内存通道的地址共享） **/
-      kAccessShareHost, /** 共享物理机（共享内存通道的物理机共享） **/
-      kResetting,       /** 正在执行重置（防止递归死循环） **/
-      kDestructing,     /** 正在执行析构（屏蔽某些接口） **/
-      kListenFd,        /** 是否是用于listen的连接 **/
-      kTemporary,       /** 是否是临时连接 **/
-      kPeerClosed,      /** 对端已关闭 **/
-      kServerMode,      /** 连接处于服务端模式 **/
-      kClientMode,      /** 连接处于客户端模式 **/
-      kMax
-    };
+  enum class flag_t : uint32_t {
+    kRegProc = 0,     /** 注册了proc记录到node，清理的时候需要移除 **/
+    kRegFd,           /** 关联了fd到node或endpoint，清理的时候需要移除 **/
+    kAccessShareAddr, /** 共享内部地址（内存通道的地址共享） **/
+    kAccessShareHost, /** 共享物理机（共享内存通道的物理机共享） **/
+    kResetting,       /** 正在执行重置（防止递归死循环） **/
+    kDestructing,     /** 正在执行析构（屏蔽某些接口） **/
+    kListenFd,        /** 是否是用于listen的连接 **/
+    kTemporary,       /** 是否是临时连接 **/
+    kPeerClosed,      /** 对端已关闭 **/
+    kServerMode,      /** 连接处于服务端模式 **/
+    kClientMode,      /** 连接处于客户端模式 **/
+    kMax
   };
 
   struct stat_t {
@@ -172,8 +168,8 @@ class connection final : public atfw::util::design_pattern::noncopyable {
    */
   ATBUS_MACRO_API const endpoint *get_binding() const;
 
-  ATBUS_MACRO_API state_t::type get_status() const;
-  ATBUS_MACRO_API bool check_flag(flag_t::type f) const;
+  ATBUS_MACRO_API state_t get_status() const;
+  ATBUS_MACRO_API bool check_flag(flag_t f) const;
 
   ATBUS_MACRO_API void set_temporary();
 
@@ -193,7 +189,7 @@ class connection final : public atfw::util::design_pattern::noncopyable {
   ATBUS_MACRO_API connection_context &get_connection_context() noexcept;
 
  private:
-  ATBUS_MACRO_API void set_status(state_t::type v);
+  ATBUS_MACRO_API void set_status(state_t v);
 #if !defined(_WIN32)
   ATBUS_MACRO_API void unlock_address() noexcept;
 #endif
@@ -245,13 +241,13 @@ class connection final : public atfw::util::design_pattern::noncopyable {
   static ATBUS_MACRO_API bool unpack(connection &conn, message &m, gsl::span<const unsigned char> in);
 
  private:
-  state_t::type state_;
+  state_t state_;
   channel::channel_address_t address_;
 #if !defined(_WIN32)
   int address_lock_;
   std::string address_lock_path_;
 #endif
-  std::bitset<static_cast<size_t>(flag_t::type::kMax)> flags_;
+  std::bitset<static_cast<size_t>(flag_t::kMax)> flags_;
 
   // 这里不用智能指针是为了该值在上层对象（node或者endpoint）析构时仍然可用
   node *ATFW_UTIL_MACRO_NONNULL owner_;

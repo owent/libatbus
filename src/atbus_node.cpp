@@ -127,7 +127,7 @@ ATBUS_MACRO_API node::conf_t &node::conf_t::operator=(const conf_t &other) {
   return *this;
 }
 
-ATBUS_MACRO_API node::flag_guard_t::flag_guard_t(const node *o, flag_t::type f)
+ATBUS_MACRO_API node::flag_guard_t::flag_guard_t(const node *o, flag_t f)
     : owner(const_cast<node *>(o)), flag(f), holder(false) {
   if (owner && !owner->flags_.test(static_cast<size_t>(flag))) {
     holder = true;
@@ -142,7 +142,7 @@ ATBUS_MACRO_API node::flag_guard_t::~flag_guard_t() {
 }
 
 node::node()
-    : state_(state_t::type::kCreated),
+    : state_(state_t::kCreated),
       crypto_key_exchange_type_(protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE),
       ev_loop_(nullptr),
       static_buffer_(nullptr),
@@ -276,7 +276,7 @@ ATBUS_MACRO_API node::ptr_t node::create() {
 }
 
 ATBUS_MACRO_API node::~node() {
-  if (state_t::type::kCreated != state_) {
+  if (state_t::kCreated != state_) {
     reset();
   }
 
@@ -285,7 +285,7 @@ ATBUS_MACRO_API node::~node() {
 }
 
 ATBUS_MACRO_API int node::init(bus_id_t id, const conf_t *conf) {
-  if (state_t::type::kCreated != state_) {
+  if (state_t::kCreated != state_) {
     reset();
   }
 
@@ -337,7 +337,7 @@ ATBUS_MACRO_API int node::init(bus_id_t id, const conf_t *conf) {
   self_data_messages_.clear();
   self_command_messages_.clear();
 
-  state_ = state_t::type::kInited;
+  state_ = state_t::kInited;
   return EN_ATBUS_ERR_SUCCESS;
 }
 
@@ -429,7 +429,7 @@ ATBUS_MACRO_API void node::reload_compression(
 }
 
 ATBUS_MACRO_API int node::start(const start_conf_t &start_conf) {
-  if (state_t::type::kCreated == state_) {
+  if (state_t::kCreated == state_) {
     return EN_ATBUS_ERR_NOT_INITED;
   }
 
@@ -452,10 +452,10 @@ ATBUS_MACRO_API int node::start(const start_conf_t &start_conf) {
       // 如果上游节点被激活了，那么上游节点操作时间必须更新到非0值，以启用这个功能
       if (connect(conf_.upstream_address.c_str()) >= 0) {
         event_timer_.upstream_op_timepoint = event_timer_.tick + conf_.first_idle_timeout;
-        state_ = state_t::type::kConnectingUpstream;
+        state_ = state_t::kConnectingUpstream;
       } else {
         event_timer_.upstream_op_timepoint = event_timer_.tick + conf_.retry_interval;
-        state_ = state_t::type::kLostUpstream;
+        state_ = state_t::kLostUpstream;
       }
     }
   } else {
@@ -473,10 +473,10 @@ ATBUS_MACRO_API int node::start() {
 
 ATBUS_MACRO_API int node::reset() {
   // 这个函数可能会在析构时被调用，这时候不能使用watcher_.lock()
-  if (flags_.test(static_cast<size_t>(flag_t::type::kResetting))) {
+  if (flags_.test(static_cast<size_t>(flag_t::kResetting))) {
     return EN_ATBUS_ERR_SUCCESS;
   }
-  flags_.set(static_cast<size_t>(flag_t::type::kResetting), true);
+  flags_.set(static_cast<size_t>(flag_t::kResetting), true);
   ATBUS_FUNC_NODE_INFO(*this, nullptr, nullptr, "node reset");
 
   // dispatch all self messages
@@ -534,7 +534,7 @@ ATBUS_MACRO_API int node::reset() {
   }
 
   // 清空检测列表和ping列表
-  flags_.set(static_cast<size_t>(flag_t::type::kResettingGc), true);
+  flags_.set(static_cast<size_t>(flag_t::kResettingGc), true);
   event_timer_.pending_endpoint_gc_list.clear();
   event_timer_.pending_connection_gc_list.clear();
   {
@@ -586,7 +586,7 @@ ATBUS_MACRO_API int node::reset() {
   }
 
   conf_.flags.reset();
-  state_ = state_t::type::kCreated;
+  state_ = state_t::kCreated;
   flags_.reset();
 
   self_data_messages_.clear();
@@ -596,7 +596,7 @@ ATBUS_MACRO_API int node::reset() {
 }
 
 ATBUS_MACRO_API int node::proc(std::chrono::system_clock::time_point now) {
-  flag_guard_t fgd_proc(this, flag_t::type::kInProc);
+  flag_guard_t fgd_proc(this, flag_t::kInProc);
   if (!fgd_proc) {
     return 0;
   }
@@ -605,13 +605,13 @@ ATBUS_MACRO_API int node::proc(std::chrono::system_clock::time_point now) {
     event_timer_.tick = now;
   }
 
-  if (state_t::type::kCreated == state_) {
+  if (state_t::kCreated == state_) {
     return EN_ATBUS_ERR_NOT_INITED;
   }
 
   int ret = 0;
   // stop action happened between previous proc and this one
-  if (flags_.test(static_cast<size_t>(flag_t::type::kShutdown))) {
+  if (flags_.test(static_cast<size_t>(flag_t::kShutdown))) {
     ret = 1 + dispatch_all_self_messages();
     reset();
     return ret;
@@ -653,7 +653,7 @@ ATBUS_MACRO_API int node::proc(std::chrono::system_clock::time_point now) {
       break;
     }
 
-    if (!timer_obj_ptr->second->check_flag(connection::flag_t::type::kTemporary)) {
+    if (!timer_obj_ptr->second->check_flag(connection::flag_t::kTemporary)) {
       ATBUS_FUNC_NODE_ERROR(*this, nullptr, timer_obj_ptr->second.get(), EN_ATBUS_ERR_NODE_TIMEOUT, 0,
                             "connection {} timeout", timer_obj_ptr->second->get_address().address);
     }
@@ -662,7 +662,7 @@ ATBUS_MACRO_API int node::proc(std::chrono::system_clock::time_point now) {
     // 保护性清理操作
     if (!event_timer_.connecting_list.empty() && event_timer_.connecting_list.begin() == iter) {
       if (event_message_.on_invalid_connection) {
-        flag_guard_t fgd(this, flag_t::type::kInCallback);
+        flag_guard_t fgd(this, flag_t::kInCallback);
         event_message_.on_invalid_connection(std::cref(*this), timer_obj_ptr->second.get(), EN_ATBUS_ERR_NODE_TIMEOUT);
       }
       event_timer_.connecting_list.erase(iter);
@@ -690,7 +690,7 @@ ATBUS_MACRO_API int node::proc(std::chrono::system_clock::time_point now) {
       } else {
         // 下一次判定上游节点连接超时再重新连接
         event_timer_.upstream_op_timepoint = now + conf_.first_idle_timeout;
-        state_ = state_t::type::kConnectingUpstream;
+        state_ = state_t::kConnectingUpstream;
       }
     } else {
       if (node_upstream_.node_ && !node_upstream_.node_->is_available() &&
@@ -793,7 +793,7 @@ ATBUS_MACRO_API int node::proc(std::chrono::system_clock::time_point now) {
 
   // GC - endpoint
   if (!event_timer_.pending_endpoint_gc_list.empty()) {
-    flag_guard_t fgd_gc_endpoints(this, flag_t::type::kInGcEndpoints);
+    flag_guard_t fgd_gc_endpoints(this, flag_t::kInGcEndpoints);
     std::list<endpoint::ptr_t> checked;
     checked.swap(event_timer_.pending_endpoint_gc_list);
 
@@ -813,12 +813,12 @@ ATBUS_MACRO_API int node::proc(std::chrono::system_clock::time_point now) {
 
   // GC - connection
   if (!event_timer_.pending_connection_gc_list.empty()) {
-    flag_guard_t fgd_gc_connections(this, flag_t::type::kInGcConnections);
+    flag_guard_t fgd_gc_connections(this, flag_t::kInGcConnections);
     event_timer_.pending_connection_gc_list.clear();
   }
 
   // stop action happened in any callback
-  if (flags_.test(static_cast<size_t>(flag_t::type::kShutdown))) {
+  if (flags_.test(static_cast<size_t>(flag_t::kShutdown))) {
     reset();
     return ret + 1;
   }
@@ -827,13 +827,13 @@ ATBUS_MACRO_API int node::proc(std::chrono::system_clock::time_point now) {
 }
 
 ATBUS_MACRO_API int node::poll() {
-  flag_guard_t fgd_poll(this, flag_t::type::kInPoll);
+  flag_guard_t fgd_poll(this, flag_t::kInPoll);
   if (!fgd_poll) {
     return 0;
   }
 
   // stop action happened between previous proc and this one
-  if (flags_.test(static_cast<size_t>(flag_t::type::kShutdown))) {
+  if (flags_.test(static_cast<size_t>(flag_t::kShutdown))) {
     int ret = 1 + dispatch_all_self_messages();
     reset();
     return ret;
@@ -854,7 +854,7 @@ ATBUS_MACRO_API int node::poll() {
 
   // GC - endpoint
   if (!event_timer_.pending_endpoint_gc_list.empty()) {
-    flag_guard_t fgd_gc_endpoints(this, flag_t::type::kInGcEndpoints);
+    flag_guard_t fgd_gc_endpoints(this, flag_t::kInGcEndpoints);
     std::list<endpoint::ptr_t> checked;
     checked.swap(event_timer_.pending_endpoint_gc_list);
 
@@ -874,12 +874,12 @@ ATBUS_MACRO_API int node::poll() {
 
   // GC - connection
   if (!event_timer_.pending_connection_gc_list.empty()) {
-    flag_guard_t fgd_gc_connections(this, flag_t::type::kInGcConnections);
+    flag_guard_t fgd_gc_connections(this, flag_t::kInGcConnections);
     event_timer_.pending_connection_gc_list.clear();
   }
 
   // stop action happened in any callback
-  if (flags_.test(static_cast<size_t>(flag_t::type::kShutdown))) {
+  if (flags_.test(static_cast<size_t>(flag_t::kShutdown))) {
     reset();
     return ret + 1;
   }
@@ -888,7 +888,7 @@ ATBUS_MACRO_API int node::poll() {
 }
 
 ATBUS_MACRO_API int node::listen(gsl::string_view addr_str) {
-  if (state_t::type::kCreated == state_) {
+  if (state_t::kCreated == state_) {
     return EN_ATBUS_ERR_NOT_INITED;
   }
 
@@ -920,7 +920,7 @@ ATBUS_MACRO_API int node::listen(gsl::string_view addr_str) {
 }
 
 ATBUS_MACRO_API int node::connect(gsl::string_view addr_str) {
-  if (state_t::type::kCreated == state_) {
+  if (state_t::kCreated == state_) {
     return EN_ATBUS_ERR_NOT_INITED;
   }
 
@@ -955,7 +955,7 @@ ATBUS_MACRO_API int node::connect(gsl::string_view addr_str) {
 }
 
 ATBUS_MACRO_API int node::connect(gsl::string_view addr_str, endpoint *ep) {
-  if (state_t::type::kCreated == state_) {
+  if (state_t::kCreated == state_) {
     return EN_ATBUS_ERR_NOT_INITED;
   }
 
@@ -1006,7 +1006,7 @@ ATBUS_MACRO_API int node::disconnect(bus_id_t id) {
 
     // event
     if (event_message_.on_endpoint_removed) {
-      flag_guard_t fgd(this, flag_t::type::kInCallback);
+      flag_guard_t fgd(this, flag_t::kInCallback);
       event_message_.on_endpoint_removed(std::cref(*this), ep_ptr.get(), EN_ATBUS_ERR_SUCCESS);
     }
 
@@ -1044,7 +1044,7 @@ ATBUS_MACRO_API int node::send_data(bus_id_t tid, int type, gsl::span<const unsi
 
 ATBUS_MACRO_API int node::send_data(bus_id_t tid, int type, gsl::span<const unsigned char> data,
                                     send_data_options_t &options) {
-  if (state_t::type::kCreated == state_) {
+  if (state_t::kCreated == state_) {
     return EN_ATBUS_ERR_NOT_INITED;
   }
 
@@ -1096,7 +1096,7 @@ ATBUS_MACRO_API int node::send_custom_command(bus_id_t tid, gsl::span<gsl::span<
 
 ATBUS_MACRO_API int node::send_custom_command(bus_id_t tid, gsl::span<gsl::span<const unsigned char>> args,
                                               send_data_options_t &options) {
-  if (state_t::type::kCreated == state_) {
+  if (state_t::kCreated == state_) {
     return EN_ATBUS_ERR_NOT_INITED;
   }
 
@@ -1169,7 +1169,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::get_peer_channel(bus_id_t tid, endpoint::
 
   ASSIGN_EPCONN();
 
-  if (state_t::type::kCreated == state_) {
+  if (state_t::kCreated == state_) {
     return EN_ATBUS_ERR_NOT_INITED;
   }
 
@@ -1368,7 +1368,7 @@ ATBUS_MACRO_API void node::set_topology_upstream(bus_id_t tid) {
     if (!self_topology) {
       self_topology = topology_registry_->get_peer(self_id);
     }
-    flag_guard_t fgd(this, flag_t::type::kInCallback);
+    flag_guard_t fgd(this, flag_t::kInCallback);
     event_message_.on_topology_update_upstream(std::cref(*this), self_topology, upstream, topology_);
   }
 }
@@ -1395,7 +1395,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::add_endpoint(endpoint::ptr_t ep) {
     return EN_ATBUS_ERR_PARAMS;
   }
 
-  if (flags_.test(static_cast<size_t>(flag_t::type::kResetting))) {
+  if (flags_.test(static_cast<size_t>(flag_t::kResetting))) {
     return EN_ATBUS_ERR_CLOSING;
   }
 
@@ -1432,12 +1432,12 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::add_endpoint(endpoint::ptr_t ep) {
   if (is_update_upstream) {
     node_upstream_.node_ = ep;
 
-    if (!ep->get_flag(endpoint::flag_t::type::kHasPingTimer)) {
+    if (!ep->get_flag(endpoint::flag_t::kHasPingTimer)) {
       ep->add_ping_timer();
     }
 
-    if ((state_t::type::kLostUpstream == get_state() || state_t::type::kConnectingUpstream == get_state()) &&
-        check_flag(flag_t::type::kUpstreamRegDone)) {
+    if ((state_t::kLostUpstream == get_state() || state_t::kConnectingUpstream == get_state()) &&
+        check_flag(flag_t::kUpstreamRegDone)) {
       // 这里是自己先注册到上游节点，然后才完成上游节点对自己的注册流程，在message_handler::on_recv_node_reg_rsp里已经标记
       // kUpstreamRegDone 了
       on_actived();
@@ -1445,7 +1445,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::add_endpoint(endpoint::ptr_t ep) {
 
     // event
     if (event_message_.on_endpoint_added) {
-      flag_guard_t fgd(this, flag_t::type::kInCallback);
+      flag_guard_t fgd(this, flag_t::kInCallback);
       event_message_.on_endpoint_added(std::cref(*this), ep.get(), EN_ATBUS_ERR_SUCCESS);
     }
 
@@ -1464,7 +1464,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::add_endpoint(endpoint::ptr_t ep) {
 ATBUS_MACRO_API ATBUS_ERROR_TYPE node::remove_endpoint(bus_id_t tid) { return remove_endpoint(tid, nullptr); }
 
 ATBUS_MACRO_API bool node::is_endpoint_available(bus_id_t tid) const {
-  if (!flags_.test(static_cast<size_t>(flag_t::type::kActived))) {
+  if (!flags_.test(static_cast<size_t>(flag_t::kActived))) {
     return false;
   }
 
@@ -1556,7 +1556,7 @@ ATBUS_MACRO_API const node::endpoint_collection_t &node::get_immediate_endpoint_
 
 ATBUS_MACRO_API adapter::loop_t *node::get_evloop() {
   // if just created, do not alloc new event loop
-  if (state_t::type::kCreated == state_) {
+  if (state_t::kCreated == state_) {
     return ev_loop_;
   }
 
@@ -1575,8 +1575,8 @@ ATBUS_MACRO_API adapter::loop_t *node::get_evloop() {
 ATBUS_MACRO_API bus_id_t node::get_id() const { return self_ ? self_->get_id() : 0; }
 ATBUS_MACRO_API const node::conf_t &node::get_conf() const { return conf_; }
 
-ATBUS_MACRO_API bool node::check_flag(flag_t::type f) const { return flags_.test(static_cast<size_t>(f)); }
-ATBUS_MACRO_API node::state_t::type node::get_state() const { return state_; }
+ATBUS_MACRO_API bool node::check_flag(flag_t f) const { return flags_.test(static_cast<size_t>(f)); }
+ATBUS_MACRO_API node::state_t node::get_state() const { return state_; }
 
 ATBUS_MACRO_API node::ptr_t node::get_watcher() { return watcher_.lock(); }
 
@@ -1745,7 +1745,7 @@ ATBUS_MACRO_API const std::list<channel::channel_address_t> &node::get_listen_li
 }
 
 ATBUS_MACRO_API bool node::add_proc_connection(connection::ptr_t conn) {
-  if (state_t::type::kCreated == state_) {
+  if (state_t::kCreated == state_) {
     return false;
   }
 
@@ -1769,7 +1769,7 @@ ATBUS_MACRO_API bool node::remove_proc_connection(const std::string &conn_key) {
 }
 
 ATBUS_MACRO_API bool node::add_connection_timer(connection::ptr_t conn) {
-  if (state_t::type::kCreated == state_) {
+  if (state_t::kCreated == state_) {
     return false;
   }
 
@@ -1805,9 +1805,9 @@ ATBUS_MACRO_API bool node::remove_connection_timer(const connection *conn) {
 
   if (event_message_.on_invalid_connection && !iter->second->second->is_connected()) {
     // 确认的临时连接断开不属于无效连接
-    if (!iter->second->second->check_flag(connection::flag_t::type::kTemporary) ||
-        !iter->second->second->check_flag(connection::flag_t::type::kPeerClosed)) {
-      flag_guard_t fgd(this, flag_t::type::kInCallback);
+    if (!iter->second->second->check_flag(connection::flag_t::kTemporary) ||
+        !iter->second->second->check_flag(connection::flag_t::kPeerClosed)) {
+      flag_guard_t fgd(this, flag_t::kInCallback);
       event_message_.on_invalid_connection(std::cref(*this), iter->second->second.get(), EN_ATBUS_ERR_NODE_TIMEOUT);
     }
   }
@@ -1879,7 +1879,7 @@ ATBUS_MACRO_API void node::on_receive_data(const endpoint *ep, connection *conn,
   }
 
   if (event_message_.on_forward_request) {
-    flag_guard_t fgd(this, flag_t::type::kInCallback);
+    flag_guard_t fgd(this, flag_t::kInCallback);
     event_message_.on_forward_request(std::cref(*this), ep, conn, std::cref(m), data);
   }
 }
@@ -1887,7 +1887,7 @@ ATBUS_MACRO_API void node::on_receive_data(const endpoint *ep, connection *conn,
 ATBUS_MACRO_API void node::on_receive_forward_response(const endpoint *ep, const connection *conn,
                                                        const ::atframework::atbus::message *m) {
   if (event_message_.on_forward_response) {
-    flag_guard_t fgd(this, flag_t::type::kInCallback);
+    flag_guard_t fgd(this, flag_t::kInCallback);
     event_message_.on_forward_response(std::cref(*this), ep, conn, m);
   }
 }
@@ -1898,15 +1898,15 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_disconnect(const endpoint *ep, const c
   }
 
   // 上游节点断线逻辑则重置状态
-  if (state_t::type::kConnectingUpstream == state_ && !conf_.upstream_address.empty() &&
+  if (state_t::kConnectingUpstream == state_ && !conf_.upstream_address.empty() &&
       conf_.upstream_address == conn->get_address().address) {
-    state_ = state_t::type::kLostUpstream;
+    state_ = state_t::kLostUpstream;
 
     // set reconnect to upstream into retry interval
     event_timer_.upstream_op_timepoint = get_timer_tick() + conf_.retry_interval;
 
     // if not activited, shutdown
-    if (!flags_.test(static_cast<size_t>(flag_t::type::kActived))) {
+    if (!flags_.test(static_cast<size_t>(flag_t::kActived))) {
       // lost conflict response from the upstream, maybe cancled.
       ATBUS_FUNC_NODE_FATAL_SHUTDOWN(*this, nullptr, conn, UV_ECANCELED, EN_ATBUS_ERR_ATNODE_MASK_CONFLICT);
     }
@@ -1914,7 +1914,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_disconnect(const endpoint *ep, const c
 
   // event
   if (event_message_.on_close_connection) {
-    flag_guard_t fgd(this, flag_t::type::kInCallback);
+    flag_guard_t fgd(this, flag_t::kInCallback);
     event_message_.on_close_connection(std::cref(*this), ep, conn);
   }
 
@@ -1927,15 +1927,15 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_new_connection(connection *conn) {
   }
 
   if (event_message_.on_new_connection) {
-    flag_guard_t fgd(this, flag_t::type::kInCallback);
+    flag_guard_t fgd(this, flag_t::kInCallback);
     event_message_.on_new_connection(std::cref(*this), conn);
   }
 
   // 如果ID有效，且是IO流连接，则发送注册协议
   // ID为0则是临时节点，不需要注册
-  if (conn->check_flag(connection::flag_t::type::kRegFd) &&
-      false == conn->check_flag(connection::flag_t::type::kListenFd) &&
-      conn->check_flag(connection::flag_t::type::kClientMode)) {
+  if (conn->check_flag(connection::flag_t::kRegFd) &&
+      false == conn->check_flag(connection::flag_t::kListenFd) &&
+      conn->check_flag(connection::flag_t::kClientMode)) {
     ATBUS_ERROR_TYPE ret = message_handler::send_register(message_body_type::kNodeRegisterReq, *this, *conn, 0,
                                                           allocate_message_sequence());
     if (ret != EN_ATBUS_ERR_SUCCESS) {
@@ -1950,13 +1950,13 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_new_connection(connection *conn) {
 }
 
 ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_shutdown(ATBUS_ERROR_TYPE errcode) {
-  if (!flags_.test(static_cast<size_t>(flag_t::type::kActived))) {
+  if (!flags_.test(static_cast<size_t>(flag_t::kActived))) {
     return EN_ATBUS_ERR_SUCCESS;
   }
   // flags_.set(flag_t::kActived, false); // will be reset in reset()
 
   if (event_message_.on_node_down) {
-    flag_guard_t fgd(this, flag_t::type::kInCallback);
+    flag_guard_t fgd(this, flag_t::kInCallback);
     event_message_.on_node_down(std::cref(*this), errcode);
   }
 
@@ -1966,7 +1966,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_shutdown(ATBUS_ERROR_TYPE errcode) {
 ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_register(const endpoint *ep, const connection *conn,
                                                    ATBUS_ERROR_TYPE errcode) {
   if (event_message_.on_register) {
-    flag_guard_t fgd(this, flag_t::type::kInCallback);
+    flag_guard_t fgd(this, flag_t::kInCallback);
     event_message_.on_register(std::cref(*this), ep, conn, errcode);
   }
 
@@ -1974,15 +1974,15 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_register(const endpoint *ep, const con
 }
 
 ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_actived() {
-  state_ = state_t::type::kRunning;
+  state_ = state_t::kRunning;
 
-  if (flags_.test(static_cast<size_t>(flag_t::type::kActived))) {
+  if (flags_.test(static_cast<size_t>(flag_t::kActived))) {
     return EN_ATBUS_ERR_SUCCESS;
   }
 
-  flags_.set(static_cast<size_t>(flag_t::type::kActived), true);
+  flags_.set(static_cast<size_t>(flag_t::kActived), true);
   if (event_message_.on_node_up) {
-    flag_guard_t fgd(this, flag_t::type::kInCallback);
+    flag_guard_t fgd(this, flag_t::kInCallback);
     event_message_.on_node_up(std::cref(*this), EN_ATBUS_ERR_SUCCESS);
   }
 
@@ -1990,7 +1990,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_actived() {
 }
 
 ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_upstream_register_done() {
-  flags_.set(static_cast<size_t>(flag_t::type::kUpstreamRegDone), true);
+  flags_.set(static_cast<size_t>(flag_t::kUpstreamRegDone), true);
 
   // 上游节点成功上线以后要更新一下上游节点action定时器。以便能够及时发起第一个ping包
   std::chrono::system_clock::time_point ping_timepoint = get_timer_tick() + conf_.ping_interval;
@@ -2005,7 +2005,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_custom_command_request(const endpoint 
                                                                  gsl::span<gsl::span<const unsigned char>> args,
                                                                  std::list<std::string> &rsp) {
   if (event_message_.on_custom_command_request) {
-    flag_guard_t fgd(this, flag_t::type::kInCallback);
+    flag_guard_t fgd(this, flag_t::kInCallback);
     event_message_.on_custom_command_request(std::cref(*this), ep, conn, from, args, std::ref(rsp));
   }
   return EN_ATBUS_ERR_SUCCESS;
@@ -2016,7 +2016,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_custom_command_response(const endpoint
                                                                   gsl::span<gsl::span<const unsigned char>> args,
                                                                   uint64_t sequence) {
   if (event_message_.on_custom_command_response) {
-    flag_guard_t fgd(this, flag_t::type::kInCallback);
+    flag_guard_t fgd(this, flag_t::kInCallback);
     event_message_.on_custom_command_response(std::cref(*this), ep, conn, from, args, sequence);
   }
   return EN_ATBUS_ERR_SUCCESS;
@@ -2025,7 +2025,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_custom_command_response(const endpoint
 ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_ping(const endpoint *ep, const message &m,
                                                const ::atframework::atbus::protocol::ping_data &body) {
   if (event_message_.on_endpoint_ping) {
-    flag_guard_t fgd(this, flag_t::type::kInCallback);
+    flag_guard_t fgd(this, flag_t::kInCallback);
     event_message_.on_endpoint_ping(std::cref(*this), ep, std::cref(m), std::cref(body));
   }
   return EN_ATBUS_ERR_SUCCESS;
@@ -2034,24 +2034,24 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_ping(const endpoint *ep, const message
 ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_pong(const endpoint *ep, const message &m,
                                                const ::atframework::atbus::protocol::ping_data &body) {
   if (event_message_.on_endpoint_pong) {
-    flag_guard_t fgd(this, flag_t::type::kInCallback);
+    flag_guard_t fgd(this, flag_t::kInCallback);
     event_message_.on_endpoint_pong(std::cref(*this), ep, std::cref(m), std::cref(body));
   }
   return EN_ATBUS_ERR_SUCCESS;
 }
 
 ATBUS_MACRO_API int node::shutdown(ATBUS_ERROR_TYPE errcode) {
-  if (flags_.test(static_cast<size_t>(flag_t::type::kShutdown))) {
+  if (flags_.test(static_cast<size_t>(flag_t::kShutdown))) {
     return 0;
   }
 
-  flags_.set(static_cast<size_t>(flag_t::type::kShutdown), true);
+  flags_.set(static_cast<size_t>(flag_t::kShutdown), true);
   return on_shutdown(errcode);
 }
 
 ATBUS_MACRO_API int node::fatal_shutdown(const atfw::util::log::log_wrapper::caller_info_t &caller, const endpoint *ep,
                                          const connection *conn, int status, ATBUS_ERROR_TYPE errcode) {
-  if (flags_.test(static_cast<size_t>(flag_t::type::kShutdown))) {
+  if (flags_.test(static_cast<size_t>(flag_t::kShutdown))) {
     return 0;
   }
 
@@ -2069,10 +2069,10 @@ ATBUS_MACRO_API int node::dispatch_all_self_messages() {
   int ret = 0;
 
   // recursive call will be ignored
-  if (check_flag(flag_t::type::kRecvSelfMsg) || check_flag(flag_t::type::kInCallback)) {
+  if (check_flag(flag_t::kRecvSelfMsg) || check_flag(flag_t::kInCallback)) {
     return ret;
   }
-  flag_guard_t fgd(this, flag_t::type::kRecvSelfMsg);
+  flag_guard_t fgd(this, flag_t::kRecvSelfMsg);
   int loop_left = conf_.loop_times;
   if (loop_left <= 0) {
     loop_left = 10240;
@@ -2189,8 +2189,8 @@ ATBUS_MACRO_API uint64_t node::allocate_message_sequence() {
 ATBUS_MACRO_API void node::add_endpoint_gc_list(const endpoint::ptr_t &ep) {
   // 重置过程中不需要再加进来了，反正等会也会移除
   // 这个代码加不加一样，只不过会少一些废操作
-  if (flags_.test(static_cast<size_t>(flag_t::type::kResettingGc)) ||
-      flags_.test(static_cast<size_t>(flag_t::type::kInGcEndpoints))) {
+  if (flags_.test(static_cast<size_t>(flag_t::kResettingGc)) ||
+      flags_.test(static_cast<size_t>(flag_t::kInGcEndpoints))) {
     return;
   }
 
@@ -2200,8 +2200,8 @@ ATBUS_MACRO_API void node::add_endpoint_gc_list(const endpoint::ptr_t &ep) {
 }
 
 ATBUS_MACRO_API void node::add_connection_gc_list(const connection::ptr_t &conn) {
-  if (flags_.test(static_cast<size_t>(flag_t::type::kResettingGc)) ||
-      flags_.test(static_cast<size_t>(flag_t::type::kInGcConnections))) {
+  if (flags_.test(static_cast<size_t>(flag_t::kResettingGc)) ||
+      flags_.test(static_cast<size_t>(flag_t::kInGcConnections))) {
     return;
   }
 
@@ -2401,7 +2401,7 @@ bool node::insert_child(endpoint_collection_t &coll, endpoint::ptr_t ep, bool ig
 
   // event
   if (!ignore_event && event_message_.on_endpoint_added) {
-    flag_guard_t fgd(this, flag_t::type::kInCallback);
+    flag_guard_t fgd(this, flag_t::kInCallback);
     event_message_.on_endpoint_added(std::cref(*this), ep.get(), EN_ATBUS_ERR_SUCCESS);
   }
   return true;
@@ -2422,7 +2422,7 @@ bool node::remove_child(endpoint_collection_t &coll, bus_id_t id, endpoint *expe
 
   // event
   if (!ignore_event && event_message_.on_endpoint_removed) {
-    flag_guard_t fgd(this, flag_t::type::kInCallback);
+    flag_guard_t fgd(this, flag_t::kInCallback);
     event_message_.on_endpoint_removed(std::cref(*this), ep.get(), EN_ATBUS_ERR_SUCCESS);
   }
   return true;
@@ -2433,7 +2433,7 @@ bool node::remove_collection(endpoint_collection_t &coll) {
   ec.swap(coll);
 
   if (event_message_.on_endpoint_removed) {
-    flag_guard_t fgd(this, flag_t::type::kInCallback);
+    flag_guard_t fgd(this, flag_t::kInCallback);
     for (endpoint_collection_t::iterator iter = ec.begin(); iter != ec.end(); ++iter) {
       event_message_.on_endpoint_removed(std::cref(*this), iter->second.get(), EN_ATBUS_ERR_SUCCESS);
     }
@@ -2476,7 +2476,7 @@ bool node::add_ping_timer(const endpoint::ptr_t &ep) {
     return false;
   }
 
-  if (flags_.test(static_cast<size_t>(flag_t::type::kResettingGc))) {
+  if (flags_.test(static_cast<size_t>(flag_t::kResettingGc))) {
     return false;
   }
 
@@ -2573,8 +2573,8 @@ ATBUS_ERROR_TYPE node::remove_endpoint(bus_id_t tid, endpoint *expected) {
 
     node_upstream_.node_.reset();
 
-    if (state_ == state_t::type::kRunning || state_ == state_t::type::kConnectingUpstream) {
-      state_ = state_t::type::kLostUpstream;
+    if (state_ == state_t::kRunning || state_ == state_t::kConnectingUpstream) {
+      state_ = state_t::kLostUpstream;
       // Immediately try to reconnect upstream when first lost upstream
       event_timer_.upstream_op_timepoint = get_timer_tick();
     } else {
@@ -2584,12 +2584,12 @@ ATBUS_ERROR_TYPE node::remove_endpoint(bus_id_t tid, endpoint *expected) {
 
     // event
     if (event_message_.on_endpoint_removed) {
-      flag_guard_t fgd(this, flag_t::type::kInCallback);
+      flag_guard_t fgd(this, flag_t::kInCallback);
       event_message_.on_endpoint_removed(std::cref(*this), ep.get(), EN_ATBUS_ERR_SUCCESS);
     }
 
     // if not activited, shutdown
-    if (!flags_.test(static_cast<size_t>(flag_t::type::kActived))) {
+    if (!flags_.test(static_cast<size_t>(flag_t::kActived))) {
       ATBUS_FUNC_NODE_FATAL_SHUTDOWN(*this, ep.get(), nullptr, UV_ECANCELED, EN_ATBUS_ERR_ATNODE_MASK_CONFLICT);
     }
     return EN_ATBUS_ERR_SUCCESS;
@@ -2629,7 +2629,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::send_ctrl_message(bus_id_t tid, message_b
 ATBUS_MACRO_API ATBUS_ERROR_TYPE node::send_message(bus_id_t tid, message_builder_ref_t mb,
                                                     endpoint::get_connection_fn_t fn, endpoint **ep_out,
                                                     connection **conn_out, const send_data_options_t &options) {
-  if (state_t::type::kCreated == state_) {
+  if (state_t::kCreated == state_) {
     return EN_ATBUS_ERR_NOT_INITED;
   }
 
