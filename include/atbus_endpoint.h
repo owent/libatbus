@@ -36,18 +36,16 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
  public:
   using ptr_t = ::atfw::util::memory::strong_rc_ptr<endpoint>;
 
-  struct flag_t {
-    enum class type : uint32_t {
-      kResetting, /** 正在执行重置（防止递归死循环） **/
-      kConnectionSorted,
-      kDestructing,   /** 正在执行析构 **/
-      kHasListenPorc, /** 是否有proc类的listen地址 **/
-      kHasListenFd,   /** 是否有fd类的listen地址 **/
+  enum class flag_t : uint32_t {
+    kResetting, /** 正在执行重置（防止递归死循环） **/
+    kConnectionSorted,
+    kDestructing,   /** 正在执行析构 **/
+    kHasListenPorc, /** 是否有proc类的listen地址 **/
+    kHasListenFd,   /** 是否有fd类的listen地址 **/
 
-      kMutableFlags, /** 可动态变化的属性起始边界 **/
-      kHasPingTimer, /** 是否设置了ping定时器 **/
-      kMax
-    };
+    kMutableFlags, /** 可动态变化的属性起始边界 **/
+    kHasPingTimer, /** 是否设置了ping定时器 **/
+    kMax
   };
 
   using get_connection_fn_t = connection *(endpoint::*)(const endpoint *ep) const;
@@ -96,7 +94,7 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
    * @param f flag的key
    * @return 返回f的值，如果f无效，返回false
    */
-  ATBUS_MACRO_API bool get_flag(flag_t::type f) const;
+  ATBUS_MACRO_API bool get_flag(flag_t f) const;
 
   /**
    * @brief 设置可变flag的值
@@ -105,7 +103,7 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
    * @return 0或错误码
    * @see flat_t
    */
-  ATBUS_MACRO_API int set_flag(flag_t::type f, bool v);
+  ATBUS_MACRO_API int set_flag(flag_t f, bool v);
 
   /**
    * @brief 获取所有flag
@@ -172,7 +170,7 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
  private:
   bus_id_t id_;
   std::string hash_code_;
-  std::bitset<static_cast<size_t>(flag_t::type::kMax)> flags_;
+  std::bitset<static_cast<size_t>(flag_t::kMax)> flags_;
   std::string hostname_;
   int32_t pid_;
 

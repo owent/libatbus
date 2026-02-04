@@ -57,32 +57,26 @@ class node final : public atfw::util::design_pattern::noncopyable {
   using ptr_t = ::atfw::util::memory::strong_rc_ptr<node>;
   using message_builder_ref_t = ::atframework::atbus::message &;
 
-  struct conf_flag_t {
-    enum class type : uint32_t {
-      kMax = 0,
-    };
+  enum class conf_flag_t : uint32_t {
+    kMax = 0,
   };
 
   /** 并没有非常复杂的状态切换，所以没有引入状态机 **/
-  struct state_t {
-    enum class type : uint32_t { kCreated = 0, kInited, kLostUpstream, kConnectingUpstream, kRunning };
-  };
+  enum class state_t : uint32_t { kCreated = 0, kInited, kLostUpstream, kConnectingUpstream, kRunning };
 
-  struct flag_t {
-    enum class type : uint32_t {
-      kResetting,       /** 正在重置 **/
-      kResettingGc,     /** 正在重置且正准备GC或GC流程已完成 **/
-      kActived,         /** 已激活 **/
-      kUpstreamRegDone, /** 已通过父节点注册 **/
-      kShutdown,        /** 已完成关闭前的资源回收 **/
-      kRecvSelfMsg,     /** 正在接收发给自己的信息 **/
-      kInCallback,      /** 在回调函数中 **/
-      kInProc,          /** 在Proc函数中 **/
-      kInPoll,          /** 在Poll函数中 **/
-      kInGcEndpoints,   /** 在清理endpoint过程中 **/
-      kInGcConnections, /** 在清理connection过程中 **/
-      kMax,             /** flag max **/
-    };
+  enum class flag_t : uint32_t {
+    kResetting,       /** 正在重置 **/
+    kResettingGc,     /** 正在重置且正准备GC或GC流程已完成 **/
+    kActived,         /** 已激活 **/
+    kUpstreamRegDone, /** 已通过父节点注册 **/
+    kShutdown,        /** 已完成关闭前的资源回收 **/
+    kRecvSelfMsg,     /** 正在接收发给自己的信息 **/
+    kInCallback,      /** 在回调函数中 **/
+    kInProc,          /** 在Proc函数中 **/
+    kInPoll,          /** 在Poll函数中 **/
+    kInGcEndpoints,   /** 在清理endpoint过程中 **/
+    kInGcConnections, /** 在清理connection过程中 **/
+    kMax,             /** flag max **/
   };
 
   struct send_data_options_t {
@@ -206,7 +200,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   struct conf_t {
     adapter::loop_t *ev_loop;
-    std::bitset<static_cast<size_t>(conf_flag_t::type::kMax)> flags; /** 开关配置 **/
+    std::bitset<static_cast<size_t>(conf_flag_t::kMax)> flags; /** 开关配置 **/
     std::string upstream_address;                                    /** 上游节点地址 **/
     std::unordered_map<std::string, std::string> topology_labels;    /** 拓扑标签 **/
     int32_t loop_times; /** 消息循环次数限制，防止某些通道繁忙把其他通道堵死 **/
@@ -312,9 +306,9 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   struct flag_guard_t {
     node *owner;
-    flag_t::type flag;
+    flag_t flag;
     bool holder;
-    ATBUS_MACRO_API flag_guard_t(const node *o, flag_t::type f);
+    ATBUS_MACRO_API flag_guard_t(const node *o, flag_t f);
     ATBUS_MACRO_API ~flag_guard_t();
 
     inline operator bool() { return holder; }
@@ -626,8 +620,8 @@ class node final : public atfw::util::design_pattern::noncopyable {
   ATBUS_MACRO_API bus_id_t get_id() const;
   ATBUS_MACRO_API const conf_t &get_conf() const;
 
-  ATBUS_MACRO_API bool check_flag(flag_t::type f) const;
-  ATBUS_MACRO_API state_t::type get_state() const;
+  ATBUS_MACRO_API bool check_flag(flag_t f) const;
+  ATBUS_MACRO_API state_t get_state() const;
 
   ATBUS_MACRO_API ptr_t get_watcher();
 
@@ -830,8 +824,8 @@ class node final : public atfw::util::design_pattern::noncopyable {
   // ============ 基础信息 ============
   // ID
   endpoint::ptr_t self_;
-  state_t::type state_;
-  std::bitset<static_cast<size_t>(flag_t::type::kMax)> flags_;
+  state_t state_;
+  std::bitset<static_cast<size_t>(flag_t::kMax)> flags_;
   topology_registry::ptr_t topology_registry_;
 
   // 配置
