@@ -44,9 +44,23 @@ set(ATBUS_MACRO_CONNECTION_CONFIRM_TIMEOUT
 set(ATBUS_MACRO_CONNECTION_BACKLOG
     256
     CACHE STRING "tcp backlog")
+# NOTE:
+# - This value was increased from 167510016 bytes (~160MB, 0x09FB0000) to 268435456 bytes (~256MB, 0x10000000).
+# - The new topology/routing algorithm allocates more per-node and per-channel metadata in shared memory in order to
+#   support a larger number of concurrent connections and more complex routing graphs without frequent buffer
+#   exhaustion or reconfiguration.
+# - Using ~256MB as the default avoids fragmentation and reduces the likelihood of contention when multiple
+#   processes share the same shm/mem channel. It can still be overridden at configure time if deployments need to
+#   trade off memory usage vs. maximum topology scale or throughput.
 set(ATBUS_MACRO_SHM_MEM_CHANNEL_LENGTH
     268435456
     CACHE STRING "channel size for shm/mem channel")
+# NOTE:
+# - This value was previously set to 4194304 bytes (~4MB, 0x00400000) and has been increased to 8388608 bytes (~8MB, 0x00800000).
+# - Larger send buffers reduce the number of write/syscall operations and help sustain higher throughput
+#   when there are many concurrent connections and larger in-flight messages on iostream channels.
+# - Memory impact was evaluated against typical deployment scenarios (server-to-server connections are
+#   relatively few and memory is comparatively cheap), and 8MB was chosen as a balanced upper bound.
 set(ATBUS_MACRO_IOS_SEND_BUFFER_LENGTH
     8388608
     CACHE STRING "send buffer size for iostream channel")
