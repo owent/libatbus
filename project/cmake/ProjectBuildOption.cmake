@@ -45,7 +45,7 @@ set(ATBUS_MACRO_CONNECTION_BACKLOG
     256
     CACHE STRING "tcp backlog")
 # NOTE:
-# - This value was increased from 167510016 bytes (~160MB, 0x09FB0000) to 268435456 bytes (~256MB, 0x10000000).
+# - This value was increased from 167510016 bytes (~160MB, 0x09FC0000) to 268435456 bytes (~256MB, 0x10000000).
 # - The new topology/routing algorithm allocates more per-node and per-channel metadata in shared memory in order to
 #   support a larger number of concurrent connections and more complex routing graphs without frequent buffer
 #   exhaustion or reconfiguration.
