@@ -1,0 +1,2 @@
+/usr/bin/ar qc ../lib/libatbus-protocol.a "CMakeFiles/atbus-protocol.dir/__/_generated/src/libatbus_protocol.pb.cc.o"
+/usr/bin/ranlib ../lib/libatbus-protocol.a
