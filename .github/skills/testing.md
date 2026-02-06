@@ -35,17 +35,25 @@ Example (PowerShell):
 
 ## Common test groups
 
-- `atbus_node_reg`
-- `atbus_node_msg`
-- `atbus_node_relationship`
-- `atbus_node_setup`
-- `atbus_endpoint`
-- `atbus_message_handler`
-- `atbus_connection_context`
-- `atbus_connection_context_crosslang`
-- `atbus_access_data_crosslang`
-- `channel`
-- `buffer`
+- `atbus_node_reg` - Node registration and connection
+- `atbus_node_msg` - Message sending and receiving
+- `atbus_node_relationship` - Node relationships
+- `atbus_node_setup` - Node setup and configuration
+- `atbus_endpoint` - Endpoint management
+- `atbus_message_handler` - Message handling
+- `atbus_connection_context` - Connection context and encryption
+- `atbus_connection_context_crosslang` - Cross-language connection tests
+- `atbus_access_data_crosslang` - Cross-language access data tests
+- `channel` - Channel layer tests (mem, shm, io_stream)
+- `buffer` - Buffer management tests
+
+### Topology-related tests (in `atbus_node_reg`)
+
+- `on_close_connection_normal` - Normal connection close callback
+- `on_close_connection_by_peer` - Connection close by peer callback
+- `on_topology_upstream_set` - Upstream node set callback
+- `on_topology_upstream_clear` - Upstream node clear callback
+- `on_topology_upstream_change_id` - Upstream node ID change callback
 
 ## Writing tests
 

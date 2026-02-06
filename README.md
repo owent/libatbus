@@ -29,6 +29,71 @@
 
 + [cmake](https://cmake.org/download/) 3.24.0 以上
 
+## Clangd 配置参考
+
+本仓库默认使用 `build_jobs_cmake_tools` 作为编译数据库目录（由 CMake 生成 `compile_commands.json`）。建议保持与当前设置一致：
+
+**.clangd（可选）**
+
+```yaml
+CompileFlags:
+  CompilationDatabase: build_jobs_cmake_tools
+
+Index:
+  Background: Build
+
+Diagnostics:
+  UnusedIncludes: Strict
+```
+
+**VS Code settings**
+
+```json
+{
+  "C_Cpp.intelliSenseEngine": "disabled",
+  "clangd.enable": true,
+  "clangd.arguments": [
+    "--compile-commands-dir=${workspaceFolder}/build_jobs_cmake_tools",
+    "--background-index",
+    "--clang-tidy",
+    "--completion-style=detailed",
+    "--header-insertion=iwyu",
+    "-j=8"
+  ]
+}
+```
+
+**MSVC + clangd --query-driver 推荐配置**
+
+当使用 MSVC 工具链时，建议显式配置 `--query-driver` 以便 clangd 正确读取 MSVC 的系统头与内置宏：
+
+```jsonc
+{
+  "clangd.arguments": [
+    // 使用环境变量（推荐，VS 开发者命令行会注入 VCToolsInstallDir）
+    "--query-driver=${env:VCToolsInstallDir}bin/Hostx64/x64/cl.exe",
+
+    // 通配符版本（多个版本时会选择第一个匹配项）
+    "--query-driver=C:/Program Files/Microsoft Visual Studio/*/Community/VC/Tools/MSVC/*/bin/Hostx64/x64/cl.exe"
+  ]
+}
+```
+
+**显式指定 C++ 标准（CMake 配置）**
+
+如果需要固定 `__cplusplus` 版本，可通过 CMake 统一指定标准（示例：C++20）：
+
+```jsonc
+{
+  "cmake.configureSettings": {
+    "CMAKE_CXX_STANDARD": "20",
+    "CMAKE_CXX_STANDARD_REQUIRED": "ON"
+  }
+}
+```
+
+说明：只有在 MSVC 下 clangd 不识别 `-std:c++latest` 和 `/std:c++latest` 时，才需要使用以上方式固定标准。使用 `CMAKE_CXX_STANDARD` 通常兼容性更好；`--query-driver` 不影响单独打开的 `.h` 文件，仅影响带编译命令的翻译单元。两者可二选一使用。
+
 ## 设计初衷和要点
 
 1. **[扩展性]** 根据很多业务的需要，预留足够长的ID段（64位），用以给不同的ID段做不同类型的业务区分。

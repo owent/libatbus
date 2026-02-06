@@ -33,6 +33,7 @@ libatbus/
 │   ├── atbus_connection.h # Connection management
 │   ├── atbus_connection_context.h  # Encryption/key exchange context
 │   ├── atbus_message_handler.h     # Message handling
+│   ├── atbus_topology.h   # Topology management (upstream/downstream)
 │   ├── libatbus_protocol.h         # Protocol definitions
 │   ├── libatbus_protocol.proto     # Protobuf protocol definition
 │   └── detail/            # Internal headers
@@ -48,6 +49,7 @@ libatbus/
 │   ├── atbus_connection.cpp
 │   ├── atbus_connection_context.cpp
 │   ├── atbus_message_handler.cpp
+│   ├── atbus_topology.cpp # Topology implementation
 │   ├── channel_*.cpp      # Channel implementations
 │   └── detail/
 ├── test/                  # Unit tests
@@ -131,6 +133,15 @@ Handles encryption and key exchange for secure connections.
 - Cipher algorithms: AES-CBC, AES-GCM, ChaCha20-Poly1305, XXTEA
 - HMAC authentication: HMAC-SHA256
 
+### Topology (`atbus_topology.h`)
+
+Manages upstream and downstream node relationships in the bus topology.
+
+- Upstream node management and automatic reconnection
+- Downstream node tracking
+- Topology change event callbacks
+- Handles node registration and deregistration
+
 ### Channels (in `detail/`)
 
 - `channel_mem.cpp` - In-process memory channel
@@ -150,6 +161,14 @@ Error codes are defined in `detail/libatbus_error.h`:
 
 - `EN_ATBUS_ERR_SUCCESS` (0) - Success
 - `EN_ATBUS_ERR_*` - Various error codes
+
+## Code Formatting
+
+This project uses **clang-format** for code formatting. The `.clang-format` file is located at the project root.
+
+- Style: Based on Google style
+- Column limit: 120
+- Run formatting: `clang-format -i <file>`
 
 ## Coding Conventions
 

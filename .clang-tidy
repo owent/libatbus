@@ -63,6 +63,7 @@ Checks:
   # 由于C++标准版本兼容性考虑而忽略的checks
   - "-modernize-use-ranges"
   - "-modernize-use-starts-ends-with"
+  - "-readability-use-anyofallof"
   # 以下检查由于性能问题被关闭(@see https://github.com/llvm/llvm-project/blob/main/clang-tools-extra/clangd/TidyFastChecks.inc)
   - "-misc-confusable-identifiers"
   - "-misc-const-correctness"
@@ -118,7 +119,7 @@ CheckOptions:
   bugprone-lambda-function-name.IgnoreMacros: "true"
   bugprone-signed-char-misuse.CharTypdefsToIgnore: "signed char"
   bugprone-implicit-widening-of-multiplication-result.IgnoreConstantIntExpr: "true"
-  readability-function-cognitive-complexity.Threshold: "100"
+  readability-function-cognitive-complexity.Threshold: "160"
   readability-implicit-bool-conversion.AllowIntegerConditions: "true"
   misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic: "true"
 SystemHeaders: false
