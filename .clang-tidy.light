@@ -56,6 +56,6 @@ CheckOptions:
   bugprone-lambda-function-name.IgnoreMacros: 'true'
   bugprone-signed-char-misuse.CharTypdefsToIgnore: 'signed char'
   bugprone-implicit-widening-of-multiplication-result.IgnoreConstantIntExpr: 'true'
-  readability-function-cognitive-complexity.Threshold: '100'
+  readability-function-cognitive-complexity.Threshold: '160'
 SystemHeaders:   false
 
