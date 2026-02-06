@@ -70,6 +70,7 @@ static void atbus_node_global_init_once() {
   uv_loop_configure(&loop, UV_METRICS_IDLE_TIME);
   uv_loop_close(&loop);
 }
+#endif
 
 static bool is_in_blacklist(bus_id_t tid, const node::get_peer_options_t &options) {
   for (auto id : options.blacklist) {
@@ -80,7 +81,6 @@ static bool is_in_blacklist(bus_id_t tid, const node::get_peer_options_t &option
 
   return false;
 }
-#endif
 }  // namespace
 
 bool node_access_controller::add_ping_timer(node &n, const endpoint::ptr_t &ep) { return n.add_ping_timer(ep); }

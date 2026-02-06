@@ -23,6 +23,7 @@
 # Build directory
 build/*
 build_*
+_codeql_build_dir/
 
 # project files
 /.idea
