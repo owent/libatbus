@@ -55,9 +55,9 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
 
  private:
   struct ctor_t {
-    node *owner;
-    bus_id_t id;
-    int32_t pid;
+    node *owner = nullptr;
+    bus_id_t id = 0;
+    int32_t pid = 0;
     gsl::string_view hostname;
   };
 

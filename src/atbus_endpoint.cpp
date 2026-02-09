@@ -2,8 +2,8 @@
 
 #include <common/string_oprs.h>
 
-#include <assert.h>
-#include <stdint.h>
+#include <cassert>
+#include <cstdint>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
@@ -21,7 +21,7 @@ ATBUS_MACRO_NAMESPACE_BEGIN
 
 ATBUS_MACRO_API endpoint::ptr_t endpoint::create(node *owner, bus_id_t id, int32_t pid, gsl::string_view hn) {
   if (nullptr == owner) {
-    return endpoint::ptr_t();
+    return {};
   }
 
   ctor_t ctor_guard;
@@ -112,7 +112,7 @@ ATBUS_MACRO_API void endpoint::update_hash_code(gsl::string_view in) {
 }
 
 ATBUS_MACRO_API bool endpoint::add_connection(connection *conn, bool force_data) {
-  if (!conn) {
+  if (conn == nullptr) {
     return false;
   }
 
@@ -150,7 +150,7 @@ ATBUS_MACRO_API bool endpoint::add_connection(connection *conn, bool force_data)
 }
 
 ATBUS_MACRO_API bool endpoint::remove_connection(connection *conn) {
-  if (!conn) {
+  if (conn == nullptr) {
     return false;
   }
 
@@ -226,7 +226,7 @@ ATBUS_MACRO_API uint32_t endpoint::get_flags() const { return static_cast<uint32
 
 ATBUS_MACRO_API endpoint::ptr_t endpoint::watch() const {
   if (flags_.test(static_cast<size_t>(flag_t::kDestructing)) || watcher_.expired()) {
-    return endpoint::ptr_t();
+    return {};
   }
 
   return watcher_.lock();
@@ -245,8 +245,8 @@ ATBUS_MACRO_API void endpoint::add_listen(gsl::string_view addr) {
     return;
   }
 
-  if (addr.size() >= 4 && (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr.data(), 4) ||
-                           0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr.data(), 4))) {
+  if (addr.size() >= 4 && (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr.data(), 4) ||  // NOLINT(bugprone-suspicious-stringview-data-usage)
+                           0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr.data(), 4))) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
     flags_.set(static_cast<size_t>(flag_t::kHasListenPorc), true);
   } else {
     flags_.set(static_cast<size_t>(flag_t::kHasListenFd), true);
@@ -353,7 +353,7 @@ ATBUS_MACRO_API connection *endpoint::get_data_connection(const endpoint *ep, bo
     const_cast<endpoint *>(ep)->flags_.set(static_cast<size_t>(flag_t::kConnectionSorted), true);
   }
 
-  for (auto &conn : ep->data_conn_) {
+  for (const auto &conn : ep->data_conn_) {
     if (connection::state_t::kConnected != conn->get_status()) {
       continue;
     }
@@ -373,14 +373,13 @@ ATBUS_MACRO_API connection *endpoint::get_data_connection(const endpoint *ep, bo
 
   if (enable_fallback_ctrl) {
     return get_ctrl_connection(ep);
-  } else {
-    return nullptr;
   }
+  return nullptr;
 }
 
 ATBUS_MACRO_API size_t endpoint::get_data_connection_count(bool enable_fallback_ctrl) const noexcept {
   size_t count = 0;
-  for (auto &conn : data_conn_) {
+  for (const auto &conn : data_conn_) {
     if (connection::state_t::kDisconnecting == conn->get_status() ||
         connection::state_t::kDisconnected == conn->get_status()) {
       continue;

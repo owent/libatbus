@@ -26,7 +26,8 @@ ATBUS_MACRO_API topology_policy_rule &topology_policy_rule::operator=(const topo
   return *this;
 }
 
-ATBUS_MACRO_API topology_policy_rule::topology_policy_rule(topology_policy_rule &&other)
+// NOLINTNEXTLINE(bugprone-exception-escape)
+ATBUS_MACRO_API topology_policy_rule::topology_policy_rule(topology_policy_rule &&other) noexcept
     : require_same_process(other.require_same_process),
       require_same_hostname(other.require_same_hostname),
       require_label_values(std::move(other.require_label_values)) {
@@ -34,7 +35,7 @@ ATBUS_MACRO_API topology_policy_rule::topology_policy_rule(topology_policy_rule 
   other.require_same_process = false;
 }
 
-ATBUS_MACRO_API topology_policy_rule &topology_policy_rule::operator=(topology_policy_rule &&other) {
+ATBUS_MACRO_API topology_policy_rule &topology_policy_rule::operator=(topology_policy_rule &&other) noexcept {
   if (this != &other) {
     require_same_process = other.require_same_process;
     require_same_hostname = other.require_same_hostname;
@@ -64,12 +65,13 @@ ATBUS_MACRO_API topology_data &topology_data::operator=(const topology_data &oth
   return *this;
 }
 
-ATBUS_MACRO_API topology_data::topology_data(topology_data &&other)
+// NOLINTNEXTLINE(bugprone-exception-escape)
+ATBUS_MACRO_API topology_data::topology_data(topology_data &&other) noexcept
     : pid(other.pid), hostname(std::move(other.hostname)), labels(std::move(other.labels)) {
   other.pid = 0;
 }
 
-ATBUS_MACRO_API topology_data &topology_data::operator=(topology_data &&other) {
+ATBUS_MACRO_API topology_data &topology_data::operator=(topology_data &&other) noexcept {
   if (this != &other) {
     pid = other.pid;
     hostname = std::move(other.hostname);
@@ -87,11 +89,12 @@ ATBUS_MACRO_API topology_peer::topology_peer(ctor_guard_type &guard)
 ATBUS_MACRO_API topology_peer::~topology_peer() {}
 
 ATBUS_MACRO_API topology_peer::ptr_t topology_peer::create(bus_id_t bus_id) {
-  ctor_guard_type guard;
+  ctor_guard_type guard{};
   guard.bus_id = bus_id;
   return atfw::util::memory::make_strong_rc<topology_peer>(guard);
 }
 
+// NOLINTNEXTLINE(bugprone-exception-escape)
 ATBUS_MACRO_API const topology_data &topology_peer::get_topology_data() const noexcept {
   if (data_) {
     return *data_;
@@ -115,6 +118,7 @@ ATBUS_MACRO_API bool topology_peer::contains_downstream(bus_id_t downstream_bus_
   return true;
 }
 
+// NOLINTNEXTLINE(bugprone-exception-escape)
 ATBUS_MACRO_API bool topology_peer::foreach_downstream(
     ::atfw::util::nostd::function_ref<bool(const ptr_t &)> fn) const noexcept {
   std::unordered_set<bus_id_t> expired_keys;
@@ -139,6 +143,8 @@ ATBUS_MACRO_API bool topology_peer::foreach_downstream(
   return ret;
 }
 
+ATBUS_MACRO_API topology_data::ptr_t topology_peer::internal_get_topology_data_ptr() const noexcept { return data_; }
+
 ATBUS_MACRO_API void topology_peer::set_proactively_added(bool v) noexcept { proactively_added_ = v; }
 
 ATBUS_MACRO_API bool topology_peer::get_proactively_added() const noexcept { return proactively_added_; }
@@ -155,7 +161,7 @@ ATBUS_MACRO_API void topology_peer::update_data(topology_data::ptr_t data) noexc
   data_ = std::move(data);
 }
 
-ATBUS_MACRO_API void topology_peer::add_downstream(topology_peer::ptr_t downstream) {
+ATBUS_MACRO_API void topology_peer::add_downstream(const topology_peer::ptr_t &downstream) {
   if (!downstream) {
     return;
   }
@@ -431,4 +437,3 @@ topology_peer::ptr_t topology_registry::mutable_peer(bus_id_t target_bus_id) {
 }
 
 ATBUS_MACRO_NAMESPACE_END
-

@@ -181,6 +181,12 @@ This project uses **clang-format** for code formatting. The `.clang-format` file
    - Constants: `UPPER_SNAKE_CASE` or `EN_` prefix for enums
    - Types: `*_t` suffix for typedefs
 5. **Smart pointers**: Use `atfw::util::memory::strong_rc_ptr` for node ownership
+6. **Anonymous namespace + static**: In `.cpp` files, file-local functions should be placed inside an anonymous namespace **and** keep the `static` keyword. Do **not** remove `static` when moving a function into an anonymous namespace.
+   ```cpp
+   namespace {
+   static void my_helper() { /* ... */ }
+   }  // namespace
+   ```
 
 ## Compiler Support
 

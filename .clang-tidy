@@ -81,6 +81,11 @@ Checks:
   - "-modernize-macro-to-enum"
   - "-readability-isolate-declaration"
   - "-readability-uppercase-literal-suffix"
+  # 以下是间接包含的头文件或构建系统产生的告警，不属于本项目代码
+  - "-misc-include-cleaner" # 间接包含过多，误报严重
+  - "-clang-diagnostic-nullability-completeness" # Apple平台特有，不适用于跨平台项目
+  - "-clang-diagnostic-unused-command-line-argument" # 构建系统产生的参数
+
 WarningsAsErrors: ""
 HeaderFileExtensions:
   - ""

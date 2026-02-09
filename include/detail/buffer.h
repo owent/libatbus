@@ -9,8 +9,7 @@
 
 #include <gsl/select-gsl.h>
 
-#include <stdint.h>
-#include <algorithm>
+#include <cstdint>
 #include <list>
 #include <memory>
 #include <vector>
@@ -222,8 +221,8 @@ class buffer_manager {
 
  private:
   struct static_buffer_t {
-    void *buffer_;
-    size_t size_;
+    void *buffer_ = nullptr;
+    size_t size_ = 0;
 
     size_t head_;
     size_t tail_;
@@ -251,13 +250,13 @@ class ATFW_UTIL_SYMBOL_VISIBLE static_buffer_block {
 
   ATFW_UTIL_FORCEINLINE ~static_buffer_block() = default;
 
-  ATFW_UTIL_FORCEINLINE static_buffer_block(static_buffer_block &&other)
+  ATFW_UTIL_FORCEINLINE static_buffer_block(static_buffer_block &&other) noexcept
       : data_(std::move(other.data_)), size_(other.size_), used_(other.used_) {
     other.size_ = 0;
     other.used_ = 0;
   }
 
-  ATFW_UTIL_FORCEINLINE static_buffer_block &operator=(static_buffer_block &&other) {
+  ATFW_UTIL_FORCEINLINE static_buffer_block &operator=(static_buffer_block &&other) noexcept {
     if (this != &other) {
       data_ = std::move(other.data_);
       size_ = other.size_;
@@ -309,4 +308,3 @@ class ATFW_UTIL_SYMBOL_VISIBLE static_buffer_block {
 ATBUS_MACRO_NAMESPACE_END
 
 #endif  // LIBATBUS_BUFFER_H
-

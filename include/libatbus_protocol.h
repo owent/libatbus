@@ -47,8 +47,8 @@ class ATFW_UTIL_SYMBOL_VISIBLE message {
   ATBUS_MACRO_API message(const ::google::protobuf::ArenaOptions& options);
   ATBUS_MACRO_API message(std::unique_ptr<::google::protobuf::Arena>&& input_arena);
 
-  ATBUS_MACRO_API message(message&&);
-  ATBUS_MACRO_API message& operator=(message&&);
+  ATBUS_MACRO_API message(message&&) noexcept;
+  ATBUS_MACRO_API message& operator=(message&&) noexcept;
   ATBUS_MACRO_API ~message();
 
   message(const message&) = delete;

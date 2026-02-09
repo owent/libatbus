@@ -13,15 +13,11 @@
 #include <lock/seq_alloc.h>
 #include <memory/rc_ptr.h>
 
-#include <stdint.h>
 #include <chrono>
 #include <cstddef>
-#include <map>
-#include <memory>
-#include <ostream>
+#include <cstdint>
 #include <string>
 #include <unordered_map>
-#include <utility>
 
 #include "detail/libatbus_config.h"
 
@@ -54,7 +50,7 @@ struct ATBUS_MACRO_API_HEAD_ONLY channel_address_t {
   std::string address;  // 主机完整地址，比如：ipv4://127.0.0.1:8123 或 unix:///tmp/atbut.sock
   std::string scheme;   // 协议名称，比如：ipv4 或 unix/pipe
   std::string host;     // 主机地址，比如：127.0.0.1 或 /tmp/atbut.sock
-  int port;             // 端口。（仅网络连接有效）
+  int port = 0;         // 端口。（仅网络连接有效）
 };
 
 // memory channel
@@ -119,17 +115,17 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_connection {
 
   channel_address_t addr;
   ::atfw::util::memory::strong_rc_ptr<adapter::stream_t> handle;  // 流设备
-  adapter::fd_t fd;                                               // 文件描述符
+  adapter::fd_t fd = {};                                          // 文件描述符
 
   enum class status_t : uint32_t { kCreated = 0, kConnected, kDisconnecting, kDisconnected };
-  status_t status;  // 状态
-  uint32_t flags;   // flag
-  io_stream_channel *channel;
+  status_t status = {};  // 状态
+  uint32_t flags = 0;    // flag
+  io_stream_channel *channel = nullptr;
 
   // 事件响应
-  io_stream_callback_event_t evt;
+  io_stream_callback_event_t evt = {};
   // 主动关闭连接的回调（为了减少额外分配而采用的缓存策略）
-  io_stream_callback_t proactively_disconnect_callback;
+  io_stream_callback_t proactively_disconnect_callback = nullptr;
 
   // 数据区域
   // 读数据缓冲区(两种Buffer管理方式，一种动态，一种静态)
@@ -143,12 +139,12 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_connection {
     char buffer[ATBUS_MACRO_DATA_SMALL_SIZE];  // varint数据暂存区和小数据包存储区
     size_t len;                                // varint数据暂存区和小数据包存储区已使用长度
   };
-  read_head_t read_head;
+  read_head_t read_head = {};
   ::atframework::atbus::detail::buffer_manager
       write_buffer_manager;  // 写数据缓冲区(两种Buffer管理方式，一种动态，一种静态)
 
   // 自定义数据区域
-  void *data;
+  void *data = nullptr;
 };
 
 struct ATBUS_MACRO_API_HEAD_ONLY io_stream_conf {
@@ -179,10 +175,10 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_channel {
     kMax,
   };
 
-  adapter::loop_t *ev_loop;
-  uint32_t flags;
+  adapter::loop_t *ev_loop = nullptr;
+  uint32_t flags = 0;
 
-  io_stream_conf conf;
+  io_stream_conf conf = {};
 
   using conn_pool_t = std::unordered_map<adapter::fd_t, ::atfw::util::memory::strong_rc_ptr<io_stream_connection>>;
   conn_pool_t conn_pool;
@@ -190,17 +186,17 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_channel {
   conn_gc_pool_t conn_gc_pool;
 
   // 事件响应
-  io_stream_callback_event_t evt;
+  io_stream_callback_event_t evt = {};
 
-  int error_code;  // 记录外部的错误码
+  int error_code = 0;  // 记录外部的错误码
   // 统计信息
-  atfw::util::lock::seq_alloc_u64 active_reqs;  // 正在进行的req数量
-  size_t read_net_eagain_count;                 // 读到的网络重试错误数量
-  size_t read_check_block_size_failed_count;    // 读到的数据块长度检查错误数量
-  size_t read_check_hash_failed_count;          // 读到的数据hash检查错误数量
+  atfw::util::lock::seq_alloc_u64 active_reqs;    // 正在进行的req数量
+  size_t read_net_eagain_count = 0;               // 读到的网络重试错误数量
+  size_t read_check_block_size_failed_count = 0;  // 读到的数据块长度检查错误数量
+  size_t read_check_hash_failed_count = 0;        // 读到的数据hash检查错误数量
 
   // 自定义数据区域
-  void *data;
+  void *data = nullptr;
 };
 
 #define ATBUS_CHANNEL_IOS_CHECK_FLAG(f, v) (0 != ((f) & (static_cast<uint32_t>(1) << static_cast<uint32_t>(v))))
@@ -218,4 +214,3 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_channel {
 ATBUS_MACRO_NAMESPACE_END
 
 #endif /* LIBATBUS_CHANNEL_EXPORT_H_ */
-

@@ -101,7 +101,6 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
     ATFW_UTIL_FORCEINLINE constexpr send_data_options_t(gsl::span<flag_type> flag_list) noexcept
         : flags(static_cast<uint32_t>(flag_type::kNone)), sequence(0) {
-      flags = static_cast<uint32_t>(flag_type::kNone);
       for (auto f : flag_list) {
         flags |= static_cast<uint32_t>(f);
       }
@@ -130,10 +129,10 @@ class node final : public atfw::util::design_pattern::noncopyable {
       return *this;
     }
 
-    ATFW_UTIL_FORCEINLINE constexpr send_data_options_t(send_data_options_t &&other)
+    ATFW_UTIL_FORCEINLINE constexpr send_data_options_t(send_data_options_t &&other) noexcept
         : flags(other.flags), sequence(other.sequence) {}
 
-    ATFW_UTIL_FORCEINLINE constexpr send_data_options_t &operator=(send_data_options_t &&other) {
+    ATFW_UTIL_FORCEINLINE constexpr send_data_options_t &operator=(send_data_options_t &&other) noexcept {
       flags = other.flags;
       sequence = other.sequence;
       return *this;
@@ -174,10 +173,10 @@ class node final : public atfw::util::design_pattern::noncopyable {
       return *this;
     }
 
-    ATFW_UTIL_FORCEINLINE constexpr get_peer_options_t(get_peer_options_t &&other)
+    ATFW_UTIL_FORCEINLINE constexpr get_peer_options_t(get_peer_options_t &&other) noexcept
         : flags(other.flags), blacklist(other.blacklist) {}
 
-    ATFW_UTIL_FORCEINLINE constexpr get_peer_options_t &operator=(get_peer_options_t &&other) {
+    ATFW_UTIL_FORCEINLINE constexpr get_peer_options_t &operator=(get_peer_options_t &&other) noexcept {
       flags = other.flags;
       blacklist = other.blacklist;
       return *this;
@@ -200,9 +199,9 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   struct conf_t {
     adapter::loop_t *ev_loop;
-    std::bitset<static_cast<size_t>(conf_flag_t::kMax)> flags; /** 开关配置 **/
-    std::string upstream_address;                                    /** 上游节点地址 **/
-    std::unordered_map<std::string, std::string> topology_labels;    /** 拓扑标签 **/
+    std::bitset<static_cast<size_t>(conf_flag_t::kMax)> flags;    /** 开关配置 **/
+    std::string upstream_address;                                 /** 上游节点地址 **/
+    std::unordered_map<std::string, std::string> topology_labels; /** 拓扑标签 **/
     int32_t loop_times; /** 消息循环次数限制，防止某些通道繁忙把其他通道堵死 **/
     int32_t ttl;        /** 消息转发跳转限制 **/
     int32_t protocol_version;
@@ -484,7 +483,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
    */
   ATBUS_MACRO_API ATBUS_ERROR_TYPE get_peer_channel(bus_id_t tid, endpoint::get_connection_fn_t fn, endpoint **ep_out,
                                                     connection **conn_out, topology_peer::ptr_t *next_hop_peer,
-                                                    get_peer_options_t options = {});
+                                                    const get_peer_options_t &options = {});
 
   /**
    * @brief 设置当前节点的上游端点拓扑关系
@@ -511,7 +510,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
    * @param ep 目标端点
    * @return 0或错误码
    */
-  ATBUS_MACRO_API ATBUS_ERROR_TYPE add_endpoint(endpoint::ptr_t ep);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE add_endpoint(const endpoint::ptr_t &ep);
 
   /**
    * @brief 移除目标端点
@@ -646,10 +645,10 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   ATBUS_MACRO_API const std::list<channel::channel_address_t> &get_listen_list() const;
 
-  ATBUS_MACRO_API bool add_proc_connection(connection::ptr_t conn);
+  ATBUS_MACRO_API bool add_proc_connection(const connection::ptr_t &conn);
   ATBUS_MACRO_API bool remove_proc_connection(const std::string &conn_key);
 
-  ATBUS_MACRO_API bool add_connection_timer(connection::ptr_t conn);
+  ATBUS_MACRO_API bool add_connection_timer(const connection::ptr_t &conn);
 
   ATBUS_MACRO_API bool remove_connection_timer(const connection *conn);
 
@@ -784,7 +783,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
  private:
   static endpoint *find_route(endpoint_collection_t &coll, bus_id_t id);
 
-  bool insert_child(endpoint_collection_t &coll, endpoint::ptr_t ep, bool ignore_event = false);
+  bool insert_child(endpoint_collection_t &coll, const endpoint::ptr_t &ep, bool ignore_event = false);
 
   bool remove_child(endpoint_collection_t &coll, bus_id_t id, endpoint *expected = nullptr, bool ignore_event = false);
 
@@ -830,7 +829,6 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   // 配置
   conf_t conf_;
-  topology_data::ptr_t topology_;
   std::string hash_code_;
   ::atfw::util::memory::weak_rc_ptr<node> watcher_;  // just like std::shared_from_this<T>
   atfw::util::lock::seq_alloc_u64 message_sequence_allocator_;
@@ -910,7 +908,8 @@ ATFW_UTIL_FORCEINLINE uint64_t __log_get_endpoint_id(const endpoint *ep) noexcep
 ATFW_UTIL_FORCEINLINE const void *__log_get_connection_fmt_ptr(const connection *c) noexcept {
   return reinterpret_cast<const void *>(c);
 }
-ATFW_UTIL_FORCEINLINE std::string __log_get_message_debug_head(const message *m) noexcept {
+ATFW_UTIL_FORCEINLINE std::string __log_get_message_debug_head(  // NOLINT(bugprone-exception-escape)
+    const message *m) noexcept {
   if (m == nullptr) {
     return {};
   }
@@ -918,7 +917,8 @@ ATFW_UTIL_FORCEINLINE std::string __log_get_message_debug_head(const message *m)
   return m->get_head_debug_string();
 }
 
-ATFW_UTIL_FORCEINLINE std::string __log_get_message_debug_body(const message *m) noexcept {
+ATFW_UTIL_FORCEINLINE std::string __log_get_message_debug_body(  // NOLINT(bugprone-exception-escape)
+    const message *m) noexcept {
   if (m == nullptr) {
     return {};
   }
@@ -941,6 +941,7 @@ ATBUS_MACRO_NAMESPACE_END
                      (errorcode))
 
 #ifdef _MSC_VER
+// NOLINTNEXTLINE(bugprone-macro-parentheses)
 #  define ATBUS_FUNC_NODE_ERROR(n, ep, conn, status, errorcode, fmt, ...)                                              \
     if ((n).get_logger()) {                                                                                            \
       FWINSTLOGERROR(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}, status: {}, error_code: {}: " fmt, \
@@ -950,6 +951,7 @@ ATBUS_MACRO_NAMESPACE_END
                      __VA_ARGS__)                                                                                      \
     }
 
+// NOLINTNEXTLINE(bugprone-macro-parentheses)
 #  define ATBUS_FUNC_NODE_INFO(n, ep, conn, fmt, ...)                                               \
     if ((n).get_logger()) {                                                                         \
       FWINSTLOGINFO(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}: " fmt,           \
@@ -958,6 +960,7 @@ ATBUS_MACRO_NAMESPACE_END
                     ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), __VA_ARGS__) \
     }
 
+// NOLINTNEXTLINE(bugprone-macro-parentheses)
 #  define ATBUS_FUNC_NODE_DEBUG(n, ep, conn, m, fmt, ...)                                                       \
     if ((n).get_logger()) {                                                                                     \
       FWINSTLOGDEBUG(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}: " fmt,                      \
@@ -972,6 +975,7 @@ ATBUS_MACRO_NAMESPACE_END
     }
 #else
 
+// NOLINTNEXTLINE(bugprone-macro-parentheses)
 #  define ATBUS_FUNC_NODE_ERROR(n, ep, conn, status, errorcode, fmt, args...)                                          \
     if ((n).get_logger()) {                                                                                            \
       FWINSTLOGERROR(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}, status: {}, error_code: {}: " fmt, \
@@ -980,6 +984,7 @@ ATBUS_MACRO_NAMESPACE_END
                      ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), (status), (errorcode), ##args) \
     }
 
+// NOLINTNEXTLINE(bugprone-macro-parentheses)
 #  define ATBUS_FUNC_NODE_INFO(n, ep, conn, fmt, args...)                                      \
     if ((n).get_logger()) {                                                                    \
       FWINSTLOGINFO(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}: " fmt,      \
@@ -988,6 +993,7 @@ ATBUS_MACRO_NAMESPACE_END
                     ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), ##args) \
     }
 
+// NOLINTNEXTLINE(bugprone-macro-parentheses)
 #  define ATBUS_FUNC_NODE_DEBUG(n, ep, conn, m, fmt, args...)                                                   \
     if ((n).get_logger()) {                                                                                     \
       FWINSTLOGDEBUG(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}: " fmt,                      \
@@ -1001,4 +1007,3 @@ ATBUS_MACRO_NAMESPACE_END
       }                                                                                                         \
     }
 #endif
-

@@ -271,7 +271,7 @@ static size_t _padding_temporary_buffer_block(size_t size) noexcept {
 
     // Calculate bin using top 2 bits after the highest bit
     // This gives ~12.5% size class spacing
-    size_t bin;
+    size_t bin = 0;
     if (b < 3) {
       bin = wsize;  // Exact sizes for small wsize
     } else {
@@ -282,7 +282,7 @@ static size_t _padding_temporary_buffer_block(size_t size) noexcept {
     // bin = (b << 2) + extra, where extra is 0-3
     size_t bin_b = bin >> 2;
     size_t bin_extra = bin & 0x03;
-    size_t result_wsize;
+    size_t result_wsize = 0;
     if (bin_b < 3) {
       result_wsize = bin;
     } else {
@@ -311,7 +311,7 @@ static static_buffer_block _allocate_temporary_buffer_block(size_t origin_size) 
 
 ATBUS_MACRO_API connection_context::connection_context(
     ctor_guard_type &, protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE crypto_key_exchange_algorithm,
-    ::atfw::util::crypto::dh::shared_context::ptr_t shared_dh_context)
+    const ::atfw::util::crypto::dh::shared_context::ptr_t &shared_dh_context)
     : crypto_key_exchange_algorithm_(crypto_key_exchange_algorithm),
       crypto_select_kdf_type_(protocol::ATBUS_CRYPTO_KDF_HKDF_SHA256),
       crypto_select_algorithm_(protocol::ATBUS_CRYPTO_ALGORITHM_NONE),
@@ -333,10 +333,9 @@ ATBUS_MACRO_API connection_context::~connection_context() {}
 
 ATBUS_MACRO_API connection_context::ptr_t connection_context::create(
     protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE crypto_algorithm,
-    ::atfw::util::crypto::dh::shared_context::ptr_t shared_dh_context) {
+    const ::atfw::util::crypto::dh::shared_context::ptr_t &shared_dh_context) {
   ctor_guard_type guard;
-  return ::atfw::util::memory::make_strong_rc<connection_context>(guard, crypto_algorithm,
-                                                                  std::move(shared_dh_context));
+  return ::atfw::util::memory::make_strong_rc<connection_context>(guard, crypto_algorithm, shared_dh_context);
 }
 
 ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_message(message &m,
@@ -346,7 +345,7 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
   size_t body_size = 0;
   protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE compression_algorithm = protocol::ATBUS_COMPRESSION_ALGORITHM_NONE;
   protocol::ATBUS_CRYPTO_ALGORITHM_TYPE crypto_algorithm = protocol::ATBUS_CRYPTO_ALGORITHM_NONE;
-  auto body = m.get_body();
+  const auto *body = m.get_body();
   if (body != nullptr) {
     body_size = static_cast<size_t>(body->ByteSizeLong());
 
@@ -373,13 +372,13 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
         break;
       case protocol::message_body::kCustomCommandReq:
         check_user_body_size = 0;
-        for (auto &cmd : body->custom_command_req().commands()) {
+        for (const auto &cmd : body->custom_command_req().commands()) {
           check_user_body_size += cmd.arg().size();
         }
         break;
       case protocol::message_body::kCustomCommandRsp:
         check_user_body_size = 0;
-        for (auto &cmd : body->custom_command_rsp().commands()) {
+        for (const auto &cmd : body->custom_command_rsp().commands()) {
           check_user_body_size += cmd.arg().size();
         }
         break;
@@ -400,9 +399,8 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
   if (compression_algorithm == protocol::ATBUS_COMPRESSION_ALGORITHM_NONE &&
       crypto_algorithm == protocol::ATBUS_CRYPTO_ALGORITHM_NONE) {
     return pack_message_origin(m);
-  } else {
-    return pack_message_with(m, compression_algorithm, crypto_algorithm, random_engine);
   }
+  return pack_message_with(m, compression_algorithm, crypto_algorithm, random_engine);
 }
 
 // Message帧层: vint(header长度) + header + body + padding
@@ -440,7 +438,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE connection_context::unpack_message(message &m, 
 
   // Step - 1: 解密阶段
   gsl::span<const unsigned char> next_block = input.subspan(head_vint_size + head_size);
-  auto &crypt_info = head.crypto();
+  const auto &crypt_info = head.crypto();
   static_buffer_block decrypt_data_block;
   if (crypt_info.algorithm() != protocol::ATBUS_CRYPTO_ALGORITHM_NONE) {
     if (crypt_info.algorithm() != crypto_select_algorithm_ || !receive_cipher_) {
@@ -474,7 +472,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE connection_context::unpack_message(message &m, 
 
   // Step - 2: 解压阶段
   size_t body_size = static_cast<size_t>(head.body_size());
-  auto &compression_info = head.compression();
+  const auto &compression_info = head.compression();
   if (compression_info.type() != protocol::ATBUS_COMPRESSION_ALGORITHM_NONE) {
 #ifdef ATFW_UTIL_MACRO_COMPRESSION_ENABLED
     if (_get_all_supported_compression_algorithms().count(compression_info.type()) == 0) {
@@ -594,7 +592,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE connection_context::handshake_read_peer_key(
     }
 
     crypto_select_kdf_type_ = protocol::ATBUS_CRYPTO_KDF_HKDF_SHA256;
-    for (auto &peer_kdf_type : peer_pub_key.kdf_type()) {
+    for (const auto &peer_kdf_type : peer_pub_key.kdf_type()) {
       if (_get_all_supported_kdf_types().count(static_cast<protocol::ATBUS_CRYPTO_KDF_TYPE>(peer_kdf_type)) > 0) {
         crypto_select_kdf_type_ = static_cast<protocol::ATBUS_CRYPTO_KDF_TYPE>(peer_kdf_type);
         break;
@@ -605,7 +603,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE connection_context::handshake_read_peer_key(
     std::unordered_set<protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> supported_set;
     supported_set.reserve(supported_crypto_algorithms.size());
     supported_set.insert(supported_crypto_algorithms.begin(), supported_crypto_algorithms.end());
-    for (auto &peer_alg : peer_pub_key.algorithms()) {
+    for (const auto &peer_alg : peer_pub_key.algorithms()) {
       if (supported_set.end() != supported_set.find(static_cast<protocol::ATBUS_CRYPTO_ALGORITHM_TYPE>(peer_alg))) {
         crypto_select_algorithm_ = static_cast<protocol::ATBUS_CRYPTO_ALGORITHM_TYPE>(peer_alg);
         break;
@@ -681,7 +679,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE connection_context::handshake_write_self_public
   // 如果已经协商完毕，只需要下发选中的KDF类型
   if (send_cipher_ || receive_cipher_) {
     self_pub_key.mutable_kdf_type()->Reserve(1);
-    self_pub_key.add_kdf_type(static_cast<protocol::ATBUS_CRYPTO_KDF_TYPE>(crypto_select_kdf_type_));
+    self_pub_key.add_kdf_type(crypto_select_kdf_type_);
   } else {
     self_pub_key.mutable_kdf_type()->Reserve(static_cast<int>(_get_all_supported_kdf_types().size()));
     for (const auto &kdf_type : _get_all_supported_kdf_types()) {
@@ -713,6 +711,7 @@ ATBUS_MACRO_API size_t connection_context::internal_padding_temporary_buffer_blo
   return _padding_temporary_buffer_block(origin_size);
 }
 
+// NOLINTNEXTLINE(bugprone-exception-escape)
 ATBUS_MACRO_API ATBUS_ERROR_TYPE connection_context::update_compression_algorithm(
     gsl::span<const protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> algorithm) noexcept {
   supported_compression_algorithms_.clear();
@@ -755,7 +754,7 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
   static_buffer_block buffer = _allocate_temporary_buffer_block(total_size);
   memcpy(buffer.data(), head_len_buffer, head_vint_size);
   head.SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t *>(buffer.data() + head_vint_size));
-  auto body = m.get_body();
+  const auto *body = m.get_body();
   if (body != nullptr && body_size > 0) {
     body->SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t *>(buffer.data() + head_vint_size + head_size));
   }
@@ -809,6 +808,7 @@ connection_context::setup_crypto_with_key(protocol::ATBUS_CRYPTO_ALGORITHM_TYPE 
 }
 
 // Message帧层: vint(header长度) + header + body + padding
+// NOLINTNEXTLINE(bugprone-exception-escape)
 ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_message_with(
     message &m, protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE compression_algorithm,
     protocol::ATBUS_CRYPTO_ALGORITHM_TYPE crypto_algorithm, random_engine_t &random_engine) noexcept {
@@ -825,14 +825,14 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
     return buffer_result_t::make_error(EN_ATBUS_ERR_CRYPTO_ALGORITHM_NOT_MATCH);
   }
 
-  auto body = m.get_body();
+  const auto *body = m.get_body();
   if (body != nullptr && static_cast<size_t>(head.body_size()) > 0) {
     body->SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t *>(origin_buffer.data()));
   }
 
-  size_t head_size;
+  size_t head_size = 0;
   unsigned char head_len_buffer[16];
-  size_t head_vint_size;
+  size_t head_vint_size = 0;
   static_buffer_block final_buffer;
 
   // Step - 1: body压缩
@@ -859,7 +859,7 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
     }
 
     if (!compressed_buffer.empty() && compressed_buffer.size() < origin_body_size) {
-      auto compression_info = head.mutable_compression();
+      auto *compression_info = head.mutable_compression();
       if (compression_info == nullptr) {
         return buffer_result_t::make_error(EN_ATBUS_ERR_MALLOC);
       }
@@ -867,7 +867,7 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
       compression_info->set_original_size(static_cast<uint64_t>(compressed_buffer.size()));
       body_data_compressed_span = gsl::span<const unsigned char>{compressed_buffer.data(), compressed_buffer.size()};
     } else {
-      compression_algorithm = protocol::ATBUS_COMPRESSION_ALGORITHM_NONE;
+      compression_algorithm = protocol::ATBUS_COMPRESSION_ALGORITHM_NONE;  // NOLINT(clang-analyzer-deadcode.DeadStores)
     }
 #else
     return buffer_result_t::make_error(EN_ATBUS_ERR_COMPRESSION_ALGORITHM_NOT_SUPPORT);
@@ -921,7 +921,7 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
     return buffer_result_t::make_success(std::move(final_buffer));
   }
 
-  auto crypto_info = head.mutable_crypto();
+  auto *crypto_info = head.mutable_crypto();
   if (crypto_info == nullptr) {
     return buffer_result_t::make_error(EN_ATBUS_ERR_MALLOC);
   }
@@ -981,4 +981,3 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
 }
 
 ATBUS_MACRO_NAMESPACE_END
-

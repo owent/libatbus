@@ -85,8 +85,8 @@ struct ATFW_UTIL_SYMBOL_VISIBLE topology_policy_rule {
   ATBUS_MACRO_API topology_policy_rule();
   ATBUS_MACRO_API topology_policy_rule(const topology_policy_rule &other);
   ATBUS_MACRO_API topology_policy_rule &operator=(const topology_policy_rule &other);
-  ATBUS_MACRO_API topology_policy_rule(topology_policy_rule &&other);
-  ATBUS_MACRO_API topology_policy_rule &operator=(topology_policy_rule &&other);
+  ATBUS_MACRO_API topology_policy_rule(topology_policy_rule &&other) noexcept;
+  ATBUS_MACRO_API topology_policy_rule &operator=(topology_policy_rule &&other) noexcept;
 };
 
 /**
@@ -109,8 +109,8 @@ struct ATFW_UTIL_SYMBOL_VISIBLE topology_data {
   ATBUS_MACRO_API topology_data();
   ATBUS_MACRO_API topology_data(const topology_data &other);
   ATBUS_MACRO_API topology_data &operator=(const topology_data &other);
-  ATBUS_MACRO_API topology_data(topology_data &&other);
-  ATBUS_MACRO_API topology_data &operator=(topology_data &&other);
+  ATBUS_MACRO_API topology_data(topology_data &&other) noexcept;
+  ATBUS_MACRO_API topology_data &operator=(topology_data &&other) noexcept;
 };
 
 /**
@@ -159,6 +159,9 @@ class topology_peer {
 
   ATBUS_MACRO_API bool foreach_downstream(::atfw::util::nostd::function_ref<bool(const ptr_t &)> fn) const noexcept;
 
+  /** @brief Get current topology data of this peer. */
+  ATBUS_MACRO_API topology_data::ptr_t internal_get_topology_data_ptr() const noexcept;
+
  private:
   ATBUS_MACRO_API void set_proactively_added(bool v) noexcept;
 
@@ -168,7 +171,7 @@ class topology_peer {
 
   ATBUS_MACRO_API void update_data(topology_data::ptr_t data) noexcept;
 
-  ATBUS_MACRO_API void add_downstream(topology_peer::ptr_t downstream);
+  ATBUS_MACRO_API void add_downstream(const topology_peer::ptr_t &downstream);
 
   ATBUS_MACRO_API void remove_downstream(bus_id_t downstream_bus_id, const topology_peer *check = nullptr) noexcept;
 
@@ -271,4 +274,3 @@ class topology_registry {
 };
 
 ATBUS_MACRO_NAMESPACE_END
-

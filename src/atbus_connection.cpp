@@ -13,8 +13,8 @@
 #  include <sys/file.h>
 #endif
 
-#include <assert.h>
-#include <stdint.h>
+#include <cassert>
+#include <cstdint>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
@@ -77,6 +77,10 @@ struct connection_async_data {
   }
 
   connection_async_data &operator=(const connection_async_data &other) {
+    if (this == &other) {
+      return *this;
+    }
+
     assert(owner_node);
     assert(other.owner_node);
 
@@ -105,7 +109,9 @@ connection::connection(ctor_guard_t &guard)
 #endif
       owner_(guard.owner),
       binding_(nullptr),
-      conn_context_(connection_context::create(guard.crypto_algorithm, guard.shared_dh_context)) {
+      conn_data_{},
+      conn_context_(connection_context::create(guard.crypto_algorithm, guard.shared_dh_context)),
+      stat_{} {
 
   channel::make_address(guard.addr, address_);
 
@@ -115,8 +121,8 @@ connection::connection(ctor_guard_t &guard)
 }
 
 ATBUS_MACRO_API connection::ptr_t connection::create(node *owner, gsl::string_view addr) {
-  if (!owner || addr.empty()) {
-    return connection::ptr_t();
+  if (nullptr == owner || addr.empty()) {
+    return {};
   }
 
   ctor_guard_t guard;
@@ -217,12 +223,14 @@ ATBUS_MACRO_API int connection::listen() {
 
   if (0 == UTIL_STRFUNC_STRNCASE_CMP("mem", address_.scheme.c_str(), 3)) {
     channel::mem_channel *mem_chann = nullptr;
-    intptr_t ad;
+    intptr_t ad = 0;
     atfw::util::string::str2int(ad, address_.host.c_str());
+    // NOLINTBEGIN(performance-no-int-to-ptr)
     int res = channel::mem_attach(reinterpret_cast<void *>(ad), conf.receive_buffer_size, &mem_chann, nullptr);
     if (res < 0) {
       res = channel::mem_init(reinterpret_cast<void *>(ad), conf.receive_buffer_size, &mem_chann, nullptr);
     }
+    // NOLINTEND(performance-no-int-to-ptr)
 
     if (res < 0) {
       ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, 0, "listen to mem address {} failed", address_.address);
@@ -234,7 +242,7 @@ ATBUS_MACRO_API int connection::listen() {
 
     // 加入轮询队列
     conn_data_.shared.mem.channel = mem_chann;
-    conn_data_.shared.mem.buffer = reinterpret_cast<void *>(ad);
+    conn_data_.shared.mem.buffer = reinterpret_cast<void *>(ad);  // NOLINT(performance-no-int-to-ptr)
     conn_data_.shared.mem.len = conf.receive_buffer_size;
     owner_->add_proc_connection(watch());
     flags_.set(static_cast<size_t>(flag_t::kRegProc), true);
@@ -246,7 +254,9 @@ ATBUS_MACRO_API int connection::listen() {
 
     owner_->on_new_connection(this);
     return res;
-  } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("shm", address_.scheme.c_str(), 3)) {
+  }
+
+  if (0 == UTIL_STRFUNC_STRNCASE_CMP("shm", address_.scheme.c_str(), 3)) {
 #ifdef ATBUS_CHANNEL_SHM
     channel::shm_channel *shm_chann = nullptr;
     int res = channel::shm_attach(address_.host.c_str(), conf.receive_buffer_size, &shm_chann, nullptr);
@@ -356,12 +366,14 @@ ATBUS_MACRO_API int connection::connect() {
 
   if (0 == UTIL_STRFUNC_STRNCASE_CMP("mem", address_.scheme.c_str(), 3)) {
     channel::mem_channel *mem_chann = nullptr;
-    intptr_t ad;
+    intptr_t ad = 0;
     atfw::util::string::str2int(ad, address_.host.c_str());
+    // NOLINTBEGIN(performance-no-int-to-ptr)
     int res = channel::mem_attach(reinterpret_cast<void *>(ad), conf.receive_buffer_size, &mem_chann, nullptr);
     if (res < 0) {
       res = channel::mem_init(reinterpret_cast<void *>(ad), conf.receive_buffer_size, &mem_chann, nullptr);
     }
+    // NOLINTEND(performance-no-int-to-ptr)
 
     if (res < 0) {
       ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, 0, "connect to address {} failed", address_.address);
@@ -375,7 +387,7 @@ ATBUS_MACRO_API int connection::connect() {
 
     // 连接信息
     conn_data_.shared.mem.channel = mem_chann;
-    conn_data_.shared.mem.buffer = reinterpret_cast<void *>(ad);
+    conn_data_.shared.mem.buffer = reinterpret_cast<void *>(ad);  // NOLINT(performance-no-int-to-ptr)
     conn_data_.shared.mem.len = conf.receive_buffer_size;
     // 仅在listen时要设置proc,否则同机器的同名通道离线会导致proc中断
     // flags_.set(flag_t::REG_PROC, true);
@@ -393,7 +405,9 @@ ATBUS_MACRO_API int connection::connect() {
 
     owner_->on_new_connection(this);
     return res;
-  } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("shm", address_.scheme.c_str(), 3)) {
+  }
+
+  if (0 == UTIL_STRFUNC_STRNCASE_CMP("shm", address_.scheme.c_str(), 3)) {
 #ifdef ATBUS_CHANNEL_SHM
     channel::shm_channel *shm_chann = nullptr;
     int res = channel::shm_attach(address_.host.c_str(), conf.receive_buffer_size, &shm_chann, nullptr);
@@ -539,7 +553,7 @@ ATBUS_MACRO_API void connection::set_temporary() { flags_.set(static_cast<size_t
 
 ATBUS_MACRO_API connection::ptr_t connection::watch() const {
   if (flags_.test(static_cast<size_t>(flag_t::kDestructing)) || watcher_.expired()) {
-    return connection::ptr_t();
+    return {};
   }
 
   return watcher_.lock();
@@ -789,7 +803,8 @@ ATBUS_MACRO_API void connection::iostream_on_written(channel::io_stream_channel 
       conn->stat_.push_failed_size += s;
     }
 
-    ATBUS_FUNC_NODE_ERROR(*n, conn->get_binding(), conn, status, channel->error_code,
+    // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
+    ATBUS_FUNC_NODE_ERROR(*n, nullptr != conn ? conn->get_binding() : nullptr, conn, status, channel->error_code,
                           "write data({} bytes) to {} failed", s, conn_ios->addr.address);
   } else {
     if (nullptr != conn) {
@@ -817,7 +832,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE connection::shm_proc_fn(node &n, connection &co
   }
 
   while (left_times-- > 0) {
-    size_t recv_len;
+    size_t recv_len = 0;
     int res =
         channel::shm_recv(conn.conn_data_.shared.shm.channel, static_buffer->data(), static_buffer->size(), &recv_len);
 
@@ -834,27 +849,27 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE connection::shm_proc_fn(node &n, connection &co
 
       n.on_receive_message(&conn, std::move(m), res, static_cast<ATBUS_ERROR_TYPE>(res));
       break;
-    } else {
-      // statistic
-      ++conn.stat_.pull_times;
-      conn.stat_.pull_size += recv_len;
-
-      // unpack
-      gsl::span<const unsigned char> msg_buffer{static_cast<const unsigned char *>(static_buffer->data()), recv_len};
-      ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
-      arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
-      message m{arena_options};
-
-      if (false == unpack(conn, m, msg_buffer)) {
-        continue;
-      }
-
-      n.on_receive_message(&conn, std::move(m), res, static_cast<ATBUS_ERROR_TYPE>(res));
-      ++ret;
     }
+
+    // statistic
+    ++conn.stat_.pull_times;
+    conn.stat_.pull_size += recv_len;
+
+    // unpack
+    gsl::span<const unsigned char> msg_buffer{static_cast<const unsigned char *>(static_buffer->data()), recv_len};
+    ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
+    arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
+    message m{arena_options};
+
+    if (false == unpack(conn, m, msg_buffer)) {
+      continue;
+    }
+
+    n.on_receive_message(&conn, std::move(m), res, static_cast<ATBUS_ERROR_TYPE>(res));
+    ++ret;
   }
 
-  return static_cast<ATBUS_ERROR_TYPE>(ret);
+  return static_cast<ATBUS_ERROR_TYPE>(ret);  // NOLINT(clang-analyzer-optin.core.EnumCastOutOfRange)
 }
 
 ATBUS_MACRO_API ATBUS_ERROR_TYPE connection::shm_free_fn(node &, connection &conn) {
@@ -886,7 +901,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE connection::mem_proc_fn(node &n, connection &co
   }
 
   while (left_times-- > 0) {
-    size_t recv_len;
+    size_t recv_len = 0;
     int res =
         channel::mem_recv(conn.conn_data_.shared.mem.channel, static_buffer->data(), static_buffer->size(), &recv_len);
 
@@ -903,26 +918,26 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE connection::mem_proc_fn(node &n, connection &co
 
       n.on_receive_message(&conn, std::move(m), res, static_cast<ATBUS_ERROR_TYPE>(res));
       break;
-    } else {
-      // statistic
-      ++conn.stat_.pull_times;
-      conn.stat_.pull_size += recv_len;
-
-      // unpack
-      gsl::span<const unsigned char> msg_buffer{static_cast<const unsigned char *>(static_buffer->data()), recv_len};
-      ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
-      arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
-      message m{arena_options};
-      if (false == unpack(conn, m, msg_buffer)) {
-        continue;
-      }
-
-      n.on_receive_message(&conn, std::move(m), res, static_cast<ATBUS_ERROR_TYPE>(res));
-      ++ret;
     }
+
+    // statistic
+    ++conn.stat_.pull_times;
+    conn.stat_.pull_size += recv_len;
+
+    // unpack
+    gsl::span<const unsigned char> msg_buffer{static_cast<const unsigned char *>(static_buffer->data()), recv_len};
+    ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
+    arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
+    message m{arena_options};
+    if (false == unpack(conn, m, msg_buffer)) {
+      continue;
+    }
+
+    n.on_receive_message(&conn, std::move(m), res, static_cast<ATBUS_ERROR_TYPE>(res));
+    ++ret;
   }
 
-  return static_cast<ATBUS_ERROR_TYPE>(ret);
+  return static_cast<ATBUS_ERROR_TYPE>(ret);  // NOLINT(clang-analyzer-optin.core.EnumCastOutOfRange)
 }
 
 ATBUS_MACRO_API ATBUS_ERROR_TYPE connection::mem_free_fn(node &, connection &) { return EN_ATBUS_ERR_SUCCESS; }
