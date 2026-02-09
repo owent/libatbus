@@ -63,6 +63,7 @@
 #  endif
 #endif
 #define ATBUS_MACRO_API_HEAD_ONLY ATFW_UTIL_SYMBOL_VISIBLE
+// NOLINTNEXTLINE(bugprone-macro-parentheses)
 #define ATBUS_MACRO_API_C(R) extern "C" ATBUS_MACRO_API R __cdecl
 
 #ifndef ATBUS_MACRO_PROTOCOL_API

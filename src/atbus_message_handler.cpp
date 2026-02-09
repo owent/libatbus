@@ -151,8 +151,8 @@ static int calculate_channel_address_priority(gsl::string_view addr, bool is_sam
   if (is_same_host && atbus::channel::is_local_host_address(addr)) {
     ret += 0x10;
 
-    if (addr.size() >= 4 && (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr.data(), 4) ||
-                             0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr.data(), 4))) {
+    if (addr.size() >= 4 && (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr.data(), 4) ||  // NOLINT(bugprone-suspicious-stringview-data-usage)
+                             0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr.data(), 4))) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
       ret += 0x08;
     }
   }
@@ -160,8 +160,8 @@ static int calculate_channel_address_priority(gsl::string_view addr, bool is_sam
   if (atbus::channel::is_duplex_address(addr)) {
     ret += 0x02;
 
-    if (addr.size() >= 5 && (0 == UTIL_STRFUNC_STRNCASE_CMP("unix:", addr.data(), 5) ||
-                             0 == UTIL_STRFUNC_STRNCASE_CMP("pipe:", addr.data(), 5))) {
+    if (addr.size() >= 5 && (0 == UTIL_STRFUNC_STRNCASE_CMP("unix:", addr.data(), 5) ||  // NOLINT(bugprone-suspicious-stringview-data-usage)
+                             0 == UTIL_STRFUNC_STRNCASE_CMP("pipe:", addr.data(), 5))) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
       ret += 0x04;
     }
   }
@@ -226,7 +226,7 @@ ATBUS_MACRO_API message_handler::buffer_result_t message_handler::pack_message(c
 ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::dispatch_message(node &n, connection *conn, message &&m, int status,
                                                                    ATBUS_ERROR_TYPE errcode) {
   static const dispatch_handle_set &handle_set = _get_handle_set();
-  auto head = m.get_head();
+  const auto *head = m.get_head();
   if (head == nullptr) {
     return EN_ATBUS_ERR_BAD_DATA;
   }
@@ -328,7 +328,7 @@ ATBUS_MACRO_API std::string message_handler::make_access_data_plaintext(
 ATBUS_MACRO_API std::string message_handler::calculate_access_data_signature(
     const ::atframework::atbus::protocol::access_data & /*ad*/, gsl::span<const unsigned char> access_token,
     atfw::util::nostd::string_view plaintext) {
-  int access_token_len;
+  int access_token_len = 0;
   if (access_token.size() > 32868) {
     access_token_len = 32868;
   } else {
@@ -414,7 +414,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::send_register(int32_t msg_id, 
 
   ::atframework::atbus::protocol::message_head &head = m.mutable_head();
 
-  ::atframework::atbus::protocol::register_data *body;
+  ::atframework::atbus::protocol::register_data *body = nullptr;
   if (msg_id == ::atframework::atbus::protocol::message_body::kNodeRegisterReq) {
     body = m.mutable_body().mutable_node_register_req();
   } else {
@@ -432,7 +432,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::send_register(int32_t msg_id, 
   head.set_source_bus_id(self_id);
 
   body->mutable_channels()->Reserve(static_cast<int>(n.get_listen_list().size()));
-  for (auto &addr : n.get_listen_list()) {
+  for (const auto &addr : n.get_listen_list()) {
     ::atframework::atbus::protocol::channel_data *chan = body->add_channels();
     if (chan == nullptr) {
       continue;
@@ -441,8 +441,8 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::send_register(int32_t msg_id, 
   }
 
   body->set_bus_id(n.get_id());
-  body->set_pid(n.get_pid());
-  body->set_hostname(n.get_hostname());
+  body->set_pid(node::get_pid());
+  body->set_hostname(node::get_hostname());
 
   const endpoint *self_ep = n.get_self_endpoint();
   if (nullptr == self_ep) {
@@ -461,7 +461,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::send_register(int32_t msg_id, 
   body->set_hash_code(n.get_hash_code());
 
   // 打包本地支持的加密算法信息,需要配置允许+本地实现接入
-  for (auto &algo : n.get_conf().compression_allow_algorithms) {
+  for (const auto &algo : n.get_conf().compression_allow_algorithms) {
     if (!connection_context::is_compression_algorithm_supported(algo)) {
       continue;
     }
@@ -515,7 +515,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::send_transfer_response(node &n
     return EN_ATBUS_ERR_BAD_DATA;
   }
 
-  ::atframework::atbus::protocol::forward_data *fwd_data;
+  ::atframework::atbus::protocol::forward_data *fwd_data = nullptr;
   if (body_type == ::atframework::atbus::protocol::message_body::kDataTransformReq) {
     // move req to response
     // Same arena here and so we can use unsafe release and set_allocated
@@ -609,7 +609,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::send_message(node &n, connecti
     return *ret.get_error();
   }
 
-  auto success_data = ret.get_success();
+  auto *success_data = ret.get_success();
   if (ret.is_none() || success_data == nullptr) {
     ATBUS_FUNC_NODE_DEBUG(n, conn.get_binding(), &conn, &m, "package message failed with unknown error");
     ATBUS_FUNC_NODE_ERROR(n, conn.get_binding(), &conn, EN_ATBUS_ERR_INNER, EN_ATBUS_ERR_INNER,
@@ -637,7 +637,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_data_transfer_req(node
     return EN_ATBUS_ERR_BAD_DATA;
   }
 
-  ::atframework::atbus::protocol::forward_data *fwd_data;
+  ::atframework::atbus::protocol::forward_data *fwd_data = nullptr;
   if (body_type == ::atframework::atbus::protocol::message_body::kDataTransformReq) {
     fwd_data = m.mutable_body().mutable_data_transform_req();
   } else {
@@ -645,7 +645,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_data_transfer_req(node
   }
   assert(fwd_data);
 
-  auto head = m.get_head();
+  const auto *head = m.get_head();
   if (nullptr == head) {
     ATBUS_FUNC_NODE_ERROR(n, _get_binding(conn), conn, EN_ATBUS_ERR_BAD_DATA, 0, "no head");
     if (conn != nullptr) {
@@ -693,7 +693,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_data_transfer_req(node
   }
 
   size_t router_size = static_cast<size_t>(fwd_data->router().size());
-  if (router_size >= static_cast<size_t>(n.get_conf().ttl)) {
+  if (router_size >= static_cast<size_t>(n.get_conf().ttl)) {  // NOLINT(modernize-use-integer-sign-comparison)
     return send_transfer_response(n, std::move(m), EN_ATBUS_ERR_ATNODE_TTL);
   }
 
@@ -751,7 +751,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_data_transfer_rsp(node
     return EN_ATBUS_ERR_BAD_DATA;
   }
 
-  const ::atframework::atbus::protocol::forward_data *fwd_data;
+  const ::atframework::atbus::protocol::forward_data *fwd_data = nullptr;
   if (body_type == ::atframework::atbus::protocol::message_body::kDataTransformReq) {
     fwd_data = &m.mutable_body().data_transform_req();
   } else {
@@ -759,7 +759,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_data_transfer_rsp(node
   }
   assert(fwd_data);
 
-  auto head = m.get_head();
+  const auto *head = m.get_head();
   if (nullptr == head) {
     ATBUS_FUNC_NODE_ERROR(n, _get_binding(conn), conn, EN_ATBUS_ERR_BAD_DATA, 0, "no head");
     if (conn != nullptr) {
@@ -806,7 +806,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_custom_command_req(nod
     return EN_ATBUS_ERR_BAD_DATA;
   }
 
-  const ::atframework::atbus::protocol::custom_command_data *cmd_data;
+  const ::atframework::atbus::protocol::custom_command_data *cmd_data = nullptr;
   if (body_type == ::atframework::atbus::protocol::message_body::kCustomCommandReq) {
     cmd_data = &m.mutable_body().custom_command_req();
   } else {
@@ -814,7 +814,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_custom_command_req(nod
   }
   assert(cmd_data);
 
-  auto head = m.get_head();
+  const auto *head = m.get_head();
   if (nullptr == head) {
     ATBUS_FUNC_NODE_ERROR(n, _get_binding(conn), conn, EN_ATBUS_ERR_BAD_DATA, EN_ATBUS_ERR_BAD_DATA, "no head");
     if (conn != nullptr) {
@@ -830,7 +830,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_custom_command_req(nod
     }
 
     std::list<std::string> rsp_data;
-    rsp_data.push_back("Access Deny - Unsupported Version");
+    rsp_data.emplace_back("Access Deny - Unsupported Version");
     return send_custom_command_response(n, conn, rsp_data, head->type(), EN_ATBUS_ERR_UNSUPPORTED_VERSION,
                                         head->sequence(), cmd_data->from());
   }
@@ -845,7 +845,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_custom_command_req(nod
   if (!n.check_access_hash(cmd_data->access_key(),
                            make_access_data_plaintext(cmd_data->from(), cmd_data->access_key(), *cmd_data), conn)) {
     std::list<std::string> rsp_data;
-    rsp_data.push_back("Access Deny - Invalid Token");
+    rsp_data.emplace_back("Access Deny - Invalid Token");
     ATBUS_FUNC_NODE_ERROR(n, _get_binding(conn), conn, EN_ATBUS_ERR_ACCESS_DENY, EN_ATBUS_ERR_ACCESS_DENY,
                           "access deny from {:#x}, invalid token", cmd_data->from());
     return send_custom_command_response(n, conn, rsp_data, head->type(), EN_ATBUS_ERR_ACCESS_DENY, head->sequence(),
@@ -856,8 +856,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_custom_command_req(nod
   cmd_args.reserve(static_cast<size_t>(cmd_data->commands_size()));
   for (int i = 0; i < cmd_data->commands_size(); ++i) {
     const ::atframework::atbus::protocol::custom_command_argv &arg = cmd_data->commands(i);
-    cmd_args.push_back(
-        gsl::span<const unsigned char>(reinterpret_cast<const unsigned char *>(arg.arg().data()), arg.arg().size()));
+    cmd_args.emplace_back(reinterpret_cast<const unsigned char *>(arg.arg().data()), arg.arg().size());
   }
 
   std::list<std::string> rsp_data;
@@ -882,7 +881,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_custom_command_rsp(nod
     return EN_ATBUS_ERR_BAD_DATA;
   }
 
-  const ::atframework::atbus::protocol::custom_command_data *cmd_data;
+  const ::atframework::atbus::protocol::custom_command_data *cmd_data = nullptr;
   if (body_type == ::atframework::atbus::protocol::message_body::kCustomCommandReq) {
     cmd_data = &m.mutable_body().custom_command_req();
   } else {
@@ -890,7 +889,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_custom_command_rsp(nod
   }
   assert(cmd_data);
 
-  auto head = m.get_head();
+  const auto *head = m.get_head();
   if (nullptr == head) {
     ATBUS_FUNC_NODE_ERROR(n, _get_binding(conn), conn, EN_ATBUS_ERR_BAD_DATA, 0, "no head");
     if (conn != nullptr) {
@@ -908,8 +907,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_custom_command_rsp(nod
   cmd_args.reserve(static_cast<size_t>(cmd_data->commands_size()));
   for (int i = 0; i < cmd_data->commands_size(); ++i) {
     const ::atframework::atbus::protocol::custom_command_argv &arg = cmd_data->commands(i);
-    cmd_args.push_back(
-        gsl::span<const unsigned char>(reinterpret_cast<const unsigned char *>(arg.arg().data()), arg.arg().size()));
+    cmd_args.emplace_back(reinterpret_cast<const unsigned char *>(arg.arg().data()), arg.arg().size());
   }
 
   return n.on_custom_command_response(_get_binding(conn), conn, cmd_data->from(), cmd_args, head->sequence());
@@ -955,7 +953,8 @@ static ATBUS_ERROR_TYPE accept_node_registration_step_make_endpoint(
                             ep->get_id(), ep->get_hostname(), ep->get_pid(), hostname, reg_data.pid());
       conn.reset();
       return EN_ATBUS_ERR_ATNODE_ID_CONFLICT;
-    } else if (false == ep->add_connection(&conn, conn.check_flag(connection::flag_t::kAccessShareHost))) {
+    }
+    if (false == ep->add_connection(&conn, conn.check_flag(connection::flag_t::kAccessShareHost))) {
       // 有共享物理机限制的连接只能加为数据节点（一般就是内存通道或者共享内存通道）
       ATBUS_FUNC_NODE_ERROR(n, ep, &conn, EN_ATBUS_ERR_ATNODE_NO_CONNECTION, EN_ATBUS_ERR_ATNODE_NO_CONNECTION,
                             "no permission to add connection to endpoint");
@@ -1023,15 +1022,15 @@ static ATBUS_ERROR_TYPE accept_node_registration_step_data_channel(
     node &n, connection &conn, endpoint &ep, const ::atframework::atbus::protocol::register_data &reg_data) {
   // 如果双方一边有IOS通道，另一边没有，则没有的连接有的
   // 如果双方都有IOS通道，则CLIENT端连接SERVER端
-  bool is_same_host = ep.get_hostname() == n.get_hostname();
-  bool is_same_process = is_same_host && ep.get_pid() == n.get_pid();
+  bool is_same_host = ep.get_hostname() == node::get_hostname();
+  bool is_same_process = is_same_host && ep.get_pid() == node::get_pid();
   bool has_data_connection_success = false;
 
   // 如果SERVER端判定出对方可能会通过双工通道再连接自己一次，就不用反向发起数据连接。
   if (conn.check_flag(connection::flag_t::kServerMode)) {
     int endpoint_select_priority = 0;
     gsl::string_view endpoint_select_address;
-    for (auto &addr : n.get_listen_list()) {
+    for (const auto &addr : n.get_listen_list()) {
       if (!ep.is_schema_supported(addr.scheme)) {
         continue;
       }
@@ -1076,7 +1075,7 @@ static ATBUS_ERROR_TYPE accept_node_registration_step_data_channel(
     }
 
     int priority = calculate_channel_address_priority(chan.address(), is_same_host, is_same_process);
-    address_priority_list.push_back(std::make_pair(priority, gsl::string_view(chan.address())));
+    address_priority_list.emplace_back(priority, gsl::string_view(chan.address()));
   }
 
   std::sort(address_priority_list.begin(), address_priority_list.end(),
@@ -1146,7 +1145,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_register_req(node
     return EN_ATBUS_ERR_BAD_DATA;
   }
 
-  const ::atframework::atbus::protocol::register_data *reg_data;
+  const ::atframework::atbus::protocol::register_data *reg_data = nullptr;
   if (body_type == ::atframework::atbus::protocol::message_body::kNodeRegisterReq) {
     reg_data = &m.mutable_body().node_register_req();
   } else {
@@ -1154,7 +1153,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_register_req(node
   }
   assert(reg_data);
 
-  auto head = m.get_head();
+  const auto *head = m.get_head();
   if (nullptr == conn || nullptr == head) {
     ATBUS_FUNC_NODE_ERROR(n, _get_binding(conn), conn, EN_ATBUS_ERR_BAD_DATA, 0, "no head");
 
@@ -1210,7 +1209,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_register_req(node
     std::vector<protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> peer_supported_compression_algorithm;
     peer_supported_compression_algorithm.reserve(
         static_cast<size_t>(reg_data->supported_compression_algorithm().size()));
-    for (auto &alg : reg_data->supported_compression_algorithm()) {
+    for (const auto &alg : reg_data->supported_compression_algorithm()) {
       peer_supported_compression_algorithm.push_back(static_cast<protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE>(alg));
     }
 
@@ -1266,7 +1265,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_register_rsp(node
     return EN_ATBUS_ERR_BAD_DATA;
   }
 
-  const ::atframework::atbus::protocol::register_data *reg_data;
+  const ::atframework::atbus::protocol::register_data *reg_data = nullptr;
   if (body_type == ::atframework::atbus::protocol::message_body::kNodeRegisterReq) {
     reg_data = &m.mutable_body().node_register_req();
   } else {
@@ -1274,7 +1273,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_register_rsp(node
   }
   assert(reg_data);
 
-  auto head = m.get_head();
+  const auto *head = m.get_head();
   if (nullptr == conn || nullptr == head) {
     ATBUS_FUNC_NODE_ERROR(n, _get_binding(conn), conn, EN_ATBUS_ERR_BAD_DATA, 0, "no head");
 
@@ -1316,7 +1315,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_register_rsp(node
     std::vector<protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> peer_supported_compression_algorithm;
     peer_supported_compression_algorithm.reserve(
         static_cast<size_t>(reg_data->supported_compression_algorithm().size()));
-    for (auto &alg : reg_data->supported_compression_algorithm()) {
+    for (const auto &alg : reg_data->supported_compression_algorithm()) {
       peer_supported_compression_algorithm.push_back(static_cast<protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE>(alg));
     }
 
@@ -1364,7 +1363,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_register_rsp(node
   if (node::state_t::kConnectingUpstream == n.get_state()) {
     // 父节点返回的rsp成功则可以上线
     // 这时候父节点的endpoint不一定初始化完毕
-    auto upstream_ep = n.get_upstream_endpoint();
+    const auto *upstream_ep = n.get_upstream_endpoint();
     if (upstream_ep != nullptr && upstream_ep->get_id() == reg_data->bus_id()) {
       // 父节点先注册完成
       n.on_upstream_register_done();
@@ -1377,7 +1376,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_register_rsp(node
 
 ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_ping(node &n, connection *conn, message &&m,
                                                                     int /*status*/, ATBUS_ERROR_TYPE /*errcode*/) {
-  auto head = m.get_head();
+  const auto *head = m.get_head();
   if (nullptr == head || !m.mutable_body().has_node_ping_req()) {
     ATBUS_FUNC_NODE_ERROR(n, _get_binding(conn), conn, EN_ATBUS_ERR_BAD_DATA, 0, "no head or no node_ping_req");
     return EN_ATBUS_ERR_BAD_DATA;
@@ -1393,7 +1392,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_ping(node &n, con
     endpoint *ep = conn->get_binding();
 
     // 处理握手协商数据
-    auto &ping_data = m.mutable_body().node_ping_req();
+    const auto &ping_data = m.mutable_body().node_ping_req();
     bool with_handshake = nullptr != ep && ping_data.has_crypto_handshake() &&
                           conn->check_flag(connection::flag_t::kServerMode) &&
                           ping_data.crypto_handshake().sequence() != 0 &&

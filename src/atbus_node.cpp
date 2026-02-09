@@ -9,7 +9,6 @@
 #include "atbus_node.h"
 
 #include <algorithm/crypto_cipher.h>
-#include <algorithm/murmur_hash.h>
 #include <algorithm/sha.h>
 #include <common/string_oprs.h>
 #include <string/string_format.h>
@@ -37,7 +36,6 @@
 #include <cstring>
 #include <ctime>
 #include <functional>
-#include <sstream>
 #if !(defined(ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD) && ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD) && \
     __cplusplus >= 201103L
 #  include <mutex>
@@ -52,25 +50,23 @@
 ATBUS_MACRO_NAMESPACE_BEGIN
 
 namespace {
+static void atbus_node_global_init_once() {
+  uv_loop_t loop;
+  // Call uv_loop_init() to initialize the global data.
+  uv_loop_init(&loop);
+  uv_loop_configure(&loop, UV_METRICS_IDLE_TIME);
+  uv_loop_close(&loop);
+}
+
+static void atbus_node_run_global_init_once() {
 #if defined(ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD) && ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD
-static pthread_once_t gt_atbus_node_global_init_once = PTHREAD_ONCE_INIT;
-static void atbus_node_global_init_once() {
-  uv_loop_t loop;
-  // Call uv_loop_init() to initialize the global data.
-  uv_loop_init(&loop);
-  uv_loop_configure(&loop, UV_METRICS_IDLE_TIME);
-  uv_loop_close(&loop);
-}
+  static pthread_once_t gt_atbus_node_global_init_once = PTHREAD_ONCE_INIT;
+  (void)pthread_once(&gt_atbus_node_global_init_once, atbus_node_global_init_once);
 #elif __cplusplus >= 201103L
-static std::once_flag gt_atbus_node_global_init_once;
-static void atbus_node_global_init_once() {
-  uv_loop_t loop;
-  // Call uv_loop_init() to initialize the global data.
-  uv_loop_init(&loop);
-  uv_loop_configure(&loop, UV_METRICS_IDLE_TIME);
-  uv_loop_close(&loop);
-}
+  static std::once_flag gt_atbus_node_global_init_once;
+  std::call_once(gt_atbus_node_global_init_once, atbus_node_global_init_once);
 #endif
+}
 
 static bool is_in_blacklist(bus_id_t tid, const node::get_peer_options_t &options) {
   for (auto id : options.blacklist) {
@@ -87,13 +83,59 @@ bool node_access_controller::add_ping_timer(node &n, const endpoint::ptr_t &ep) 
 
 void node_access_controller::remove_ping_timer(node &n, const endpoint *ep) { n.remove_ping_timer(ep); }
 
-ATBUS_MACRO_API node::conf_t::conf_t() { node::default_conf(this); }
+ATBUS_MACRO_API node::conf_t::conf_t()
+    : ev_loop(nullptr),
+      loop_times(0),
+      ttl(0),
+      protocol_version(0),
+      protocol_minimal_version(0),
+      backlog(0),
+      first_idle_timeout{},
+      ping_interval{},
+      retry_interval{},
+      fault_tolerant(0),
+      access_token_max_number(0),
+      overwrite_listen_path(false),
+      crypto_key_exchange_type{},
+      crypto_key_refresh_interval{},
+      compression_level{},
+      message_size(0),
+      receive_buffer_size(0),
+      send_buffer_size(0),
+      send_buffer_number(0) {
+  node::default_conf(this);
+}
 
-ATBUS_MACRO_API node::conf_t::conf_t(const conf_t &other) { *this = other; }
+ATBUS_MACRO_API node::conf_t::conf_t(const conf_t &other)
+    : ev_loop(nullptr),
+      loop_times(0),
+      ttl(0),
+      protocol_version(0),
+      protocol_minimal_version(0),
+      backlog(0),
+      first_idle_timeout{},
+      ping_interval{},
+      retry_interval{},
+      fault_tolerant(0),
+      access_token_max_number(0),
+      overwrite_listen_path(false),
+      crypto_key_exchange_type{},
+      crypto_key_refresh_interval{},
+      compression_level{},
+      message_size(0),
+      receive_buffer_size(0),
+      send_buffer_size(0),
+      send_buffer_number(0) {
+  *this = other;
+}
 
 ATBUS_MACRO_API node::conf_t::~conf_t() {}
 
 ATBUS_MACRO_API node::conf_t &node::conf_t::operator=(const conf_t &other) {
+  if (this == &other) {
+    return *this;
+  }
+
   ev_loop = other.ev_loop;
   topology_labels = other.topology_labels;
   flags = other.flags;
@@ -129,14 +171,14 @@ ATBUS_MACRO_API node::conf_t &node::conf_t::operator=(const conf_t &other) {
 
 ATBUS_MACRO_API node::flag_guard_t::flag_guard_t(const node *o, flag_t f)
     : owner(const_cast<node *>(o)), flag(f), holder(false) {
-  if (owner && !owner->flags_.test(static_cast<size_t>(flag))) {
+  if (owner != nullptr && !owner->flags_.test(static_cast<size_t>(flag))) {
     holder = true;
     owner->flags_.set(static_cast<size_t>(flag), true);
   }
 }
 
 ATBUS_MACRO_API node::flag_guard_t::~flag_guard_t() {
-  if ((*this) && owner) {
+  if ((*this) && owner != nullptr) {
     owner->flags_.set(static_cast<size_t>(flag), false);
   }
 }
@@ -155,17 +197,13 @@ node::node()
 
   flags_.reset();
 
-#if defined(ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD) && ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD
-  (void)pthread_once(&gt_atbus_node_global_init_once, atbus_node_global_init_once);
-#elif __cplusplus >= 201103L
-  std::call_once(gt_atbus_node_global_init_once, atbus_node_global_init_once);
-#endif
+  atbus_node_run_global_init_once();
 
   logger_ = atfw::util::log::log_wrapper::create_user_logger();
   logger_->set_level(atfw::util::log::log_formatter::level_t::LOG_LW_INFO);
   logger_->add_sink(
       [](const atfw::util::log::log_formatter::caller_info_t &caller, const char *content, size_t content_size) {
-        auto default_cat =
+        auto *default_cat =
             atfw::util::log::log_wrapper::mutable_log_cat(atfw::util::log::log_wrapper::categorize_t::DEFAULT);
         if (default_cat == nullptr) {
           return;
@@ -218,7 +256,7 @@ ATBUS_MACRO_API void node::default_conf(conf_t *conf) {
 #if defined(ATFW_UTIL_MACRO_CRYPTO_CIPHER_ENABLED)
   std::unordered_set<protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> algorithm;
   algorithm.reserve(8);
-  for (auto &name : ::atfw::util::crypto::cipher::get_all_cipher_names()) {
+  for (const auto &name : ::atfw::util::crypto::cipher::get_all_cipher_names()) {
     protocol::ATBUS_CRYPTO_ALGORITHM_TYPE algo = parse_crypto_algorithm_name(name);
     if (algo != protocol::ATBUS_CRYPTO_ALGORITHM_NONE) {
       algorithm.insert(algo);
@@ -275,6 +313,7 @@ ATBUS_MACRO_API node::ptr_t node::create() {
   return ret;
 }
 
+// NOLINTNEXTLINE(bugprone-exception-escape)
 ATBUS_MACRO_API node::~node() {
   if (state_t::kCreated != state_) {
     reset();
@@ -296,16 +335,14 @@ ATBUS_MACRO_API int node::init(bus_id_t id, const conf_t *conf) {
   }
 
   // 初始化拓扑配置
-  if (!topology_) {
-    topology_ = ::atfw::util::memory::make_strong_rc<topology_data>();
-  }
-  topology_->pid = get_pid();
-  topology_->hostname = get_hostname();
-  topology_->labels = conf_.topology_labels;
+  topology_data::ptr_t topology_d = ::atfw::util::memory::make_strong_rc<topology_data>();
+  topology_d->pid = get_pid();
+  topology_d->hostname = get_hostname();
+  topology_d->labels = conf_.topology_labels;
   topology_registry_ = topology_registry::create();
   if (id != 0) {
     // 初始化先复制一份，后面再更新
-    topology_registry_->update_peer(id, 0, topology_);
+    topology_registry_->update_peer(id, 0, topology_d);
   }
 
   // 加载加密和压缩配置
@@ -402,7 +439,7 @@ ATBUS_MACRO_API void node::reload_crypto(
   }
   conf_.crypto_allow_algorithms.reserve(crypto_allow_algorithms.size());
   conf_.crypto_allow_algorithms.clear();
-  for (auto &alg : crypto_allow_algorithms) {
+  for (const auto &alg : crypto_allow_algorithms) {
     if (alg == protocol::ATBUS_CRYPTO_ALGORITHM_NONE) {
       continue;
     }
@@ -450,7 +487,7 @@ ATBUS_MACRO_API int node::start(const start_conf_t &start_conf) {
   if (0 != get_id() && !conf_.upstream_address.empty()) {
     if (!node_upstream_.node_) {
       // 如果上游节点被激活了，那么上游节点操作时间必须更新到非0值，以启用这个功能
-      if (connect(conf_.upstream_address.c_str()) >= 0) {
+      if (connect(conf_.upstream_address) >= 0) {
         event_timer_.upstream_op_timepoint = event_timer_.tick + conf_.first_idle_timeout;
         state_ = state_t::kConnectingUpstream;
       } else {
@@ -481,7 +518,8 @@ ATBUS_MACRO_API int node::reset() {
 
   // dispatch all self messages
   {
-    while (dispatch_all_self_messages() > 0);
+    while (dispatch_all_self_messages() > 0) {
+    }
   }
 
   // first save all connection, and then reset it
@@ -496,8 +534,8 @@ ATBUS_MACRO_API int node::reset() {
     }
 
     // 所有连接断开
-    for (size_t i = 0; i < temp_vec.size(); ++i) {
-      temp_vec[i]->reset();
+    for (auto &item : temp_vec) {
+      item->reset();
     }
   }
   proc_connections_.clear();
@@ -554,11 +592,11 @@ ATBUS_MACRO_API int node::reset() {
     assert(0 == force_clear_endpoint.size());
 #endif
 
-    for (size_t i = 0; i < force_clear_endpoint.size(); ++i) {
-      if (force_clear_endpoint[i]) {
-        force_clear_endpoint[i]->reset();
-        force_clear_endpoint[i]->clear_ping_timer();
-        force_clear_endpoint[i].reset();
+    for (auto &item : force_clear_endpoint) {
+      if (item) {
+        item->reset();
+        item->clear_ping_timer();
+        item.reset();
       }
     }
     event_timer_.ping_list.clear();
@@ -681,7 +719,7 @@ ATBUS_MACRO_API int node::proc(std::chrono::system_clock::time_point now) {
 
     // 上游节点重连
     if (nullptr == ctl_conn) {
-      int res = connect(conf_.upstream_address.c_str());
+      int res = connect(conf_.upstream_address);
       if (res < 0) {
         ATBUS_FUNC_NODE_ERROR(*this, nullptr, nullptr, res, 0, "reconnect upstream node {} failed",
                               conf_.upstream_address);
@@ -938,9 +976,10 @@ ATBUS_MACRO_API int node::connect(gsl::string_view addr_str) {
   }
 
   // 内存通道和共享内存通道不允许协商握手，必须直接指定endpoint
-  if (addr_str.size() >= 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr_str.data(), 4)) {
+  if (addr_str.size() >= 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr_str.data(), 4)) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
     return EN_ATBUS_ERR_ACCESS_DENY;
-  } else if (addr_str.size() >= 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr_str.data(), 4)) {
+  }
+  if (addr_str.size() >= 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr_str.data(), 4)) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
     return EN_ATBUS_ERR_ACCESS_DENY;
   }
 
@@ -985,8 +1024,8 @@ ATBUS_MACRO_API int node::connect(gsl::string_view addr_str, endpoint *ep) {
   ATBUS_FUNC_NODE_DEBUG(*this, ep, conn.get(), nullptr, "connect to {} and bind to a endpoint {} success", addr_str,
                         ep->get_id());
 
-  if (addr_str.size() >= 4 && (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr_str.data(), 4) ||
-                               0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr_str.data(), 4))) {
+  if (addr_str.size() >= 4 && (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr_str.data(), 4) ||  // NOLINT(bugprone-suspicious-stringview-data-usage)
+                               0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr_str.data(), 4))) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
     if (ep->add_connection(conn.get(), true)) {
       return EN_ATBUS_ERR_SUCCESS;
     }
@@ -1155,7 +1194,7 @@ ATBUS_MACRO_API int node::send_custom_command(bus_id_t tid, gsl::span<gsl::span<
 ATBUS_MACRO_API ATBUS_ERROR_TYPE node::get_peer_channel(bus_id_t tid, endpoint::get_connection_fn_t fn,
                                                         endpoint **ep_out, connection **conn_out,
                                                         topology_peer::ptr_t *next_hop_peer,
-                                                        get_peer_options_t options) {
+                                                        const get_peer_options_t &options) {
   if (!self_) {
     return EN_ATBUS_ERR_NOT_INITED;
   }
@@ -1233,9 +1272,8 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::get_peer_channel(bus_id_t tid, endpoint::
 
         ASSIGN_EPCONN();
         break;
-      } else {
-        return EN_ATBUS_ERR_ATNODE_INVALID_ID;
       }
+      return EN_ATBUS_ERR_ATNODE_INVALID_ID;
     }
 
     // 只有邻居节点,远方节点,间接上游都可以走上游节点。有个特殊情况是未注册拓扑关系视为远方节点，也允许走上游节点
@@ -1335,7 +1373,8 @@ ATBUS_MACRO_API void node::set_topology_upstream(bus_id_t tid) {
   if (self_topology) {
     if (tid == 0 && !self_topology->get_upstream()) {
       return;
-    } else if (tid != 0 && self_topology->get_upstream() && self_topology->get_upstream()->get_bus_id() == tid) {
+    }
+    if (tid != 0 && self_topology->get_upstream() && self_topology->get_upstream()->get_bus_id() == tid) {
       return;
     }
   }
@@ -1368,8 +1407,11 @@ ATBUS_MACRO_API void node::set_topology_upstream(bus_id_t tid) {
     if (!self_topology) {
       self_topology = topology_registry_->get_peer(self_id);
     }
-    flag_guard_t fgd(this, flag_t::kInCallback);
-    event_message_.on_topology_update_upstream(std::cref(*this), self_topology, upstream, topology_);
+    if (self_topology) {
+      flag_guard_t fgd(this, flag_t::kInCallback);
+      event_message_.on_topology_update_upstream(std::cref(*this), self_topology, upstream,
+                                                 self_topology->internal_get_topology_data_ptr());
+    }
   }
 }
 
@@ -1390,7 +1432,7 @@ ATBUS_MACRO_API const endpoint *node::get_endpoint(bus_id_t tid) const noexcept 
   return const_cast<node *>(this)->get_endpoint(tid);
 }
 
-ATBUS_MACRO_API ATBUS_ERROR_TYPE node::add_endpoint(endpoint::ptr_t ep) {
+ATBUS_MACRO_API ATBUS_ERROR_TYPE node::add_endpoint(const endpoint::ptr_t &ep) {
   if (!ep) {
     return EN_ATBUS_ERR_PARAMS;
   }
@@ -1456,9 +1498,8 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::add_endpoint(endpoint::ptr_t ep) {
     ep->add_ping_timer();
 
     return EN_ATBUS_ERR_SUCCESS;
-  } else {
-    return EN_ATBUS_ERR_ATNODE_MASK_CONFLICT;
   }
+  return EN_ATBUS_ERR_ATNODE_MASK_CONFLICT;
 }
 
 ATBUS_MACRO_API ATBUS_ERROR_TYPE node::remove_endpoint(bus_id_t tid) { return remove_endpoint(tid, nullptr); }
@@ -1623,10 +1664,12 @@ ATBUS_MACRO_API int node::get_pid() {
 #endif
 }
 
+namespace {
 static std::string &host_name_buffer() {
   static std::string server_addr;
   return server_addr;
 }
+}  // namespace
 
 ATBUS_MACRO_API const std::string &node::get_hostname() {
   std::string &hn = host_name_buffer();
@@ -1655,7 +1698,7 @@ ATBUS_MACRO_API const std::string &node::get_hostname() {
       if (dump_index < sizeof(inter_addr->phys_addr)) {
         one_addr.resize((sizeof(inter_addr->phys_addr) - dump_index) * 2);
         atfw::util::string::dumphex(inter_addr->phys_addr + dump_index, (sizeof(inter_addr->phys_addr) - dump_index),
-                                    &one_addr[0]);
+                                    one_addr.data());
       }
 
       if (!one_addr.empty()) {
@@ -1744,7 +1787,7 @@ ATBUS_MACRO_API const std::list<channel::channel_address_t> &node::get_listen_li
   return empty;
 }
 
-ATBUS_MACRO_API bool node::add_proc_connection(connection::ptr_t conn) {
+ATBUS_MACRO_API bool node::add_proc_connection(const connection::ptr_t &conn) {
   if (state_t::kCreated == state_) {
     return false;
   }
@@ -1768,7 +1811,7 @@ ATBUS_MACRO_API bool node::remove_proc_connection(const std::string &conn_key) {
   return true;
 }
 
-ATBUS_MACRO_API bool node::add_connection_timer(connection::ptr_t conn) {
+ATBUS_MACRO_API bool node::add_connection_timer(const connection::ptr_t &conn) {
   if (state_t::kCreated == state_) {
     return false;
   }
@@ -1933,8 +1976,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_new_connection(connection *conn) {
 
   // 如果ID有效，且是IO流连接，则发送注册协议
   // ID为0则是临时节点，不需要注册
-  if (conn->check_flag(connection::flag_t::kRegFd) &&
-      false == conn->check_flag(connection::flag_t::kListenFd) &&
+  if (conn->check_flag(connection::flag_t::kRegFd) && false == conn->check_flag(connection::flag_t::kListenFd) &&
       conn->check_flag(connection::flag_t::kClientMode)) {
     ATBUS_ERROR_TYPE ret = message_handler::send_register(message_body_type::kNodeRegisterReq, *this, *conn, 0,
                                                           allocate_message_sequence());
@@ -2211,42 +2253,42 @@ ATBUS_MACRO_API void node::add_connection_gc_list(const connection::ptr_t &conn)
 }
 
 ATBUS_MACRO_API void node::set_on_forward_request_handle(event_handle_set_t::on_forward_request_fn_t fn) {
-  event_message_.on_forward_request = fn;
+  event_message_.on_forward_request = std::move(fn);
 }
 ATBUS_MACRO_API const node::event_handle_set_t::on_forward_request_fn_t &node::get_on_forward_request_handle() const {
   return event_message_.on_forward_request;
 }
 
 ATBUS_MACRO_API void node::set_on_forward_response_handle(event_handle_set_t::on_forward_response_fn_t fn) {
-  event_message_.on_forward_response = fn;
+  event_message_.on_forward_response = std::move(fn);
 }
 ATBUS_MACRO_API const node::event_handle_set_t::on_forward_response_fn_t &node::get_on_forward_response_handle() const {
   return event_message_.on_forward_response;
 }
 
 ATBUS_MACRO_API void node::set_on_register_handle(node::event_handle_set_t::on_register_fn_t fn) {
-  event_message_.on_register = fn;
+  event_message_.on_register = std::move(fn);
 }
 ATBUS_MACRO_API const node::event_handle_set_t::on_register_fn_t &node::get_on_register_handle() const {
   return event_message_.on_register;
 }
 
 ATBUS_MACRO_API void node::set_on_shutdown_handle(event_handle_set_t::on_node_down_fn_t fn) {
-  event_message_.on_node_down = fn;
+  event_message_.on_node_down = std::move(fn);
 }
 ATBUS_MACRO_API const node::event_handle_set_t::on_node_down_fn_t &node::get_on_shutdown_handle() const {
   return event_message_.on_node_down;
 }
 
 ATBUS_MACRO_API void node::set_on_available_handle(node::event_handle_set_t::on_node_up_fn_t fn) {
-  event_message_.on_node_up = fn;
+  event_message_.on_node_up = std::move(fn);
 }
 ATBUS_MACRO_API const node::event_handle_set_t::on_node_up_fn_t &node::get_on_available_handle() const {
   return event_message_.on_node_up;
 }
 
 ATBUS_MACRO_API void node::set_on_invalid_connection_handle(node::event_handle_set_t::on_invalid_connection_fn_t fn) {
-  event_message_.on_invalid_connection = fn;
+  event_message_.on_invalid_connection = std::move(fn);
 }
 ATBUS_MACRO_API const node::event_handle_set_t::on_invalid_connection_fn_t &node::get_on_invalid_connection_handle()
     const {
@@ -2254,21 +2296,21 @@ ATBUS_MACRO_API const node::event_handle_set_t::on_invalid_connection_fn_t &node
 }
 
 ATBUS_MACRO_API void node::set_on_new_connection_handle(event_handle_set_t::on_new_connection_fn_t fn) {
-  event_message_.on_new_connection = fn;
+  event_message_.on_new_connection = std::move(fn);
 }
 ATBUS_MACRO_API const node::event_handle_set_t::on_new_connection_fn_t &node::get_on_new_connection_handle() const {
   return event_message_.on_new_connection;
 }
 
 ATBUS_MACRO_API void node::set_on_close_connection_handle(event_handle_set_t::on_close_connection_fn_t fn) {
-  event_message_.on_close_connection = fn;
+  event_message_.on_close_connection = std::move(fn);
 }
 ATBUS_MACRO_API const node::event_handle_set_t::on_close_connection_fn_t &node::get_on_close_connection_handle() const {
   return event_message_.on_close_connection;
 }
 
 ATBUS_MACRO_API void node::set_on_custom_command_request_handle(event_handle_set_t::on_custom_command_request_fn_t fn) {
-  event_message_.on_custom_command_request = fn;
+  event_message_.on_custom_command_request = std::move(fn);
 }
 ATBUS_MACRO_API const node::event_handle_set_t::on_custom_command_request_fn_t &
 node::get_on_custom_command_request_handle() const {
@@ -2277,7 +2319,7 @@ node::get_on_custom_command_request_handle() const {
 
 ATBUS_MACRO_API void node::set_on_custom_command_response_handle(
     event_handle_set_t::on_custom_command_response_fn_t fn) {
-  event_message_.on_custom_command_response = fn;
+  event_message_.on_custom_command_response = std::move(fn);
 }
 ATBUS_MACRO_API const node::event_handle_set_t::on_custom_command_response_fn_t &
 node::get_on_custom_command_response_handle() const {
@@ -2285,28 +2327,28 @@ node::get_on_custom_command_response_handle() const {
 }
 
 ATBUS_MACRO_API void node::set_on_add_endpoint_handle(event_handle_set_t::on_add_endpoint_fn_t fn) {
-  event_message_.on_endpoint_added = fn;
+  event_message_.on_endpoint_added = std::move(fn);
 }
 ATBUS_MACRO_API const node::event_handle_set_t::on_add_endpoint_fn_t &node::get_on_add_endpoint_handle() const {
   return event_message_.on_endpoint_added;
 }
 
 ATBUS_MACRO_API void node::set_on_remove_endpoint_handle(event_handle_set_t::on_remove_endpoint_fn_t fn) {
-  event_message_.on_endpoint_removed = fn;
+  event_message_.on_endpoint_removed = std::move(fn);
 }
 ATBUS_MACRO_API const node::event_handle_set_t::on_remove_endpoint_fn_t &node::get_on_remove_endpoint_handle() const {
   return event_message_.on_endpoint_removed;
 }
 
 ATBUS_MACRO_API void node::set_on_ping_endpoint_handle(event_handle_set_t::on_ping_pong_endpoint_fn_t fn) {
-  event_message_.on_endpoint_ping = fn;
+  event_message_.on_endpoint_ping = std::move(fn);
 }
 ATBUS_MACRO_API const node::event_handle_set_t::on_ping_pong_endpoint_fn_t &node::get_on_ping_endpoint_handle() const {
   return event_message_.on_endpoint_ping;
 }
 
 ATBUS_MACRO_API void node::set_on_pong_endpoint_handle(event_handle_set_t::on_ping_pong_endpoint_fn_t fn) {
-  event_message_.on_endpoint_pong = fn;
+  event_message_.on_endpoint_pong = std::move(fn);
 }
 ATBUS_MACRO_API const node::event_handle_set_t::on_ping_pong_endpoint_fn_t &node::get_on_pong_endpoint_handle() const {
   return event_message_.on_endpoint_pong;
@@ -2314,7 +2356,7 @@ ATBUS_MACRO_API const node::event_handle_set_t::on_ping_pong_endpoint_fn_t &node
 
 ATBUS_MACRO_API void node::set_on_topology_update_upstream_handle(
     event_handle_set_t::on_topology_update_upstream_fn_t fn) {
-  event_message_.on_topology_update_upstream = fn;
+  event_message_.on_topology_update_upstream = std::move(fn);
 }
 
 ATBUS_MACRO_API const node::event_handle_set_t::on_topology_update_upstream_fn_t &
@@ -2322,7 +2364,7 @@ node::get_on_topology_update_upstream_handle() const {
   return event_message_.on_topology_update_upstream;
 }
 
-ATBUS_MACRO_API void node::set_logger(atfw::util::log::log_wrapper::ptr_t logger) noexcept { logger_ = logger; }
+ATBUS_MACRO_API void node::set_logger(atfw::util::log::log_wrapper::ptr_t logger) noexcept { logger_ = std::move(logger); }
 
 ATBUS_MACRO_API void node::ref_object(void *obj) {
   if (nullptr == obj) {
@@ -2339,23 +2381,32 @@ ATBUS_MACRO_API protocol::ATBUS_CRYPTO_ALGORITHM_TYPE node::parse_crypto_algorit
 #if defined(ATFW_UTIL_MACRO_CRYPTO_CIPHER_ENABLED)
   if (name.size() == 8 && 0 == UTIL_STRFUNC_STRNCASE_CMP("chacha20", name.data(), name.size())) {
     return protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20;
-  } else if (name.size() == 22 && 0 == UTIL_STRFUNC_STRNCASE_CMP("chacha20-poly1305-ietf", name.data(), name.size())) {
+  }
+  if (name.size() == 22 && 0 == UTIL_STRFUNC_STRNCASE_CMP("chacha20-poly1305-ietf", name.data(), name.size())) {
     return protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20_POLY1305_IETF;
-  } else if (name.size() == 23 && 0 == UTIL_STRFUNC_STRNCASE_CMP("xchacha20-poly1305-ietf", name.data(), name.size())) {
+  }
+  if (name.size() == 23 && 0 == UTIL_STRFUNC_STRNCASE_CMP("xchacha20-poly1305-ietf", name.data(), name.size())) {
     return protocol::ATBUS_CRYPTO_ALGORITHM_XCHACHA20_POLY1305_IETF;
-  } else if (name.size() == 11 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-256-gcm", name.data(), name.size())) {
+  }
+  if (name.size() == 11 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-256-gcm", name.data(), name.size())) {
     return protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM;
-  } else if (name.size() == 11 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-256-cbc", name.data(), name.size())) {
+  }
+  if (name.size() == 11 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-256-cbc", name.data(), name.size())) {
     return protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_CBC;
-  } else if (name.size() == 11 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-192-gcm", name.data(), name.size())) {
+  }
+  if (name.size() == 11 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-192-gcm", name.data(), name.size())) {
     return protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_GCM;
-  } else if (name.size() == 11 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-192-cbc", name.data(), name.size())) {
+  }
+  if (name.size() == 11 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-192-cbc", name.data(), name.size())) {
     return protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_CBC;
-  } else if (name.size() == 11 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-128-gcm", name.data(), name.size())) {
+  }
+  if (name.size() == 11 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-128-gcm", name.data(), name.size())) {
     return protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_GCM;
-  } else if (name.size() == 11 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-128-cbc", name.data(), name.size())) {
+  }
+  if (name.size() == 11 && 0 == UTIL_STRFUNC_STRNCASE_CMP("aes-128-cbc", name.data(), name.size())) {
     return protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_CBC;
-  } else if (name.size() == 5 && 0 == UTIL_STRFUNC_STRNCASE_CMP("xxtea", name.data(), name.size())) {
+  }
+  if (name.size() == 5 && 0 == UTIL_STRFUNC_STRNCASE_CMP("xxtea", name.data(), name.size())) {
     return protocol::ATBUS_CRYPTO_ALGORITHM_XXTEA;
   }
   return protocol::ATBUS_CRYPTO_ALGORITHM_NONE;
@@ -2368,11 +2419,14 @@ ATBUS_MACRO_API protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE node::parse_compressi
     gsl::string_view name) noexcept {
   if (name.size() == 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("zstd", name.data(), name.size())) {
     return protocol::ATBUS_COMPRESSION_ALGORITHM_ZSTD;
-  } else if (name.size() == 3 && 0 == UTIL_STRFUNC_STRNCASE_CMP("lz4", name.data(), name.size())) {
+  }
+  if (name.size() == 3 && 0 == UTIL_STRFUNC_STRNCASE_CMP("lz4", name.data(), name.size())) {
     return protocol::ATBUS_COMPRESSION_ALGORITHM_LZ4;
-  } else if (name.size() == 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("zlib", name.data(), name.size())) {
+  }
+  if (name.size() == 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("zlib", name.data(), name.size())) {
     return protocol::ATBUS_COMPRESSION_ALGORITHM_ZLIB;
-  } else if (name.size() == 6 && 0 == UTIL_STRFUNC_STRNCASE_CMP("snappy", name.data(), name.size())) {
+  }
+  if (name.size() == 6 && 0 == UTIL_STRFUNC_STRNCASE_CMP("snappy", name.data(), name.size())) {
     return protocol::ATBUS_COMPRESSION_ALGORITHM_SNAPPY;
   }
 
@@ -2388,7 +2442,7 @@ endpoint *node::find_route(endpoint_collection_t &coll, bus_id_t id) {
   return iter->second.get();
 }
 
-bool node::insert_child(endpoint_collection_t &coll, endpoint::ptr_t ep, bool ignore_event) {
+bool node::insert_child(endpoint_collection_t &coll, const endpoint::ptr_t &ep, bool ignore_event) {
   if (!ep) {
     return false;
   }
@@ -2511,7 +2565,7 @@ void node::init_hash_code() {
       if (dump_index < sizeof(inter_addr->phys_addr)) {
         one_addr.resize((sizeof(inter_addr->phys_addr) - dump_index) * 2);
         atfw::util::string::dumphex(inter_addr->phys_addr + dump_index, (sizeof(inter_addr->phys_addr) - dump_index),
-                                    &one_addr[0]);
+                                    one_addr.data());
       }
 
       if (!one_addr.empty()) {
@@ -2523,8 +2577,8 @@ void node::init_hash_code() {
     std::sort(all_outter_inters.begin(), all_outter_inters.end());
     std::vector<std::string>::iterator new_end = std::unique(all_outter_inters.begin(), all_outter_inters.end());
     all_outter_inters.erase(new_end, all_outter_inters.end());
-    for (size_t i = 0; i < all_outter_inters.size(); ++i) {
-      sha256.update(reinterpret_cast<const unsigned char *>(all_outter_inters[i].c_str()), all_outter_inters[i].size());
+    for (const auto &outter_inter : all_outter_inters) {
+      sha256.update(reinterpret_cast<const unsigned char *>(outter_inter.c_str()), outter_inter.size());
     }
 
     if (nullptr != interface_addrs) {
@@ -2601,9 +2655,8 @@ ATBUS_ERROR_TYPE node::remove_endpoint(bus_id_t tid, endpoint *expected) {
 
   if (remove_child(node_route_, tid, expected)) {
     return EN_ATBUS_ERR_SUCCESS;
-  } else {
-    return EN_ATBUS_ERR_ATNODE_NOT_FOUND;
   }
+  return EN_ATBUS_ERR_ATNODE_NOT_FOUND;
 }
 
 ATBUS_MACRO_API ATBUS_ERROR_TYPE node::send_data_message(bus_id_t tid, message_builder_ref_t mb,
@@ -2635,7 +2688,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::send_message(bus_id_t tid, message_builde
 
   if (tid == get_id()) {
     // verify
-    auto head = mb.get_head();
+    const auto *head = mb.get_head();
     auto body_type = mb.get_body_type();
 
     if (nullptr == head || message_body_type::MESSAGE_TYPE_NOT_SET == body_type) {
@@ -2658,7 +2711,6 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::send_message(bus_id_t tid, message_builde
     assert(message_body_type::kDataTransformReq == body_type || message_body_type::kDataTransformRsp == body_type ||
            message_body_type::kCustomCommandReq == body_type || message_body_type::kCustomCommandRsp == body_type);
 
-    using bin_data_block_t = std::vector<unsigned char>;
     // self data message
     if (message_body_type::kDataTransformReq == body_type || message_body_type::kDataTransformRsp == body_type) {
       self_data_messages_.emplace_back(std::move(mb));
@@ -2666,7 +2718,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::send_message(bus_id_t tid, message_builde
 
     // self command message
     if (message_body_type::kCustomCommandReq == body_type || message_body_type::kCustomCommandRsp == body_type) {
-      self_command_messages_.emplace_back(std::move(mb));
+      self_command_messages_.emplace_back(std::move(mb));  // NOLINT(bugprone-use-after-move)
     }
 
     dispatch_all_self_messages();
@@ -2691,7 +2743,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::send_message(bus_id_t tid, message_builde
     return EN_ATBUS_ERR_ATNODE_NO_CONNECTION;
   }
 
-  auto head = mb.get_head();
+  const auto *head = mb.get_head();
   auto body_type = mb.get_body_type();
   if (nullptr == head || message_body_type::MESSAGE_TYPE_NOT_SET == body_type) {
     ATBUS_FUNC_NODE_ERROR(*this, ep_out ? (*ep_out) : conn->get_binding(), conn, EN_ATBUS_ERR_UNPACK,
@@ -2710,7 +2762,7 @@ channel::io_stream_conf *node::get_iostream_conf() {
     return iostream_conf_.get();
   }
 
-  iostream_conf_.reset(new channel::io_stream_conf());
+  iostream_conf_ = std::make_unique<channel::io_stream_conf>();
   channel::io_stream_init_configure(iostream_conf_.get());
 
   // 接收大小和message size一致即可，可以只使用一块静态buffer
@@ -2731,4 +2783,3 @@ channel::io_stream_conf *node::get_iostream_conf() {
 
 node::stat_info_t::stat_info_t() : dispatch_times(0) {}
 ATBUS_MACRO_NAMESPACE_END
-

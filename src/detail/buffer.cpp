@@ -2,7 +2,7 @@
 //
 // Created by owent on 2015/8/11.
 
-#include <assert.h>
+#include <cassert>
 #include <cstdlib>
 #include <cstring>
 
@@ -63,7 +63,8 @@ ATBUS_MACRO_API size_t read_vint(uint64_t &out, const void *pointer, size_t s) {
 
     if (0 == (0x80 & *d)) {
       break;
-    } else if (0 == left) {
+    }
+    if (0 == left) {
       return 0;
     }
   }
@@ -78,7 +79,7 @@ ATBUS_MACRO_API size_t write_vint(uint64_t in, void *pointer, size_t s) {
 
   size_t used = 1;
   char *d = reinterpret_cast<char *>(pointer);
-  *d = 0x7F & in;
+  *d = static_cast<char>(0x7F & in);
   in >>= 7;
 
   while (in && used + 1 <= s) {
@@ -130,10 +131,10 @@ ATBUS_MACRO_API size_t buffer_block::instance_size() const { return head_size(si
 ATBUS_MACRO_API buffer_block *buffer_block::malloc(size_t s) {
   size_t ms = full_size(s);
 
-  void *ret = ::malloc(ms);
+  void *ret = ::malloc(ms);  // NOLINT(cppcoreguidelines-no-malloc)
   if (nullptr != ret) {
     if (nullptr == create(ret, ms, s)) {
-      ::free(ret);
+      ::free(ret);  // NOLINT(cppcoreguidelines-no-malloc)
       return nullptr;
     }
   }
@@ -145,7 +146,7 @@ ATBUS_MACRO_API buffer_block *buffer_block::malloc(size_t s) {
 ATBUS_MACRO_API void buffer_block::free(buffer_block *p) {
   if (nullptr != p) {
     destroy(p);
-    ::free(p);
+    ::free(p);  // NOLINT(cppcoreguidelines-no-malloc)
   }
 }
 
@@ -178,7 +179,7 @@ ATBUS_MACRO_API void *buffer_block::destroy(buffer_block *p) {
 
 // debug 版本做内存填充，方便调试
 #if !defined(NDEBUG) || defined(_DEBUG)
-  memset((void *)p, 0x5e5e5e5e, full_size(p->size_));
+  memset((void *)p, 0x5e, full_size(p->size_));
 #endif
 
   return fn::buffer_next(p->pointer_, p->size_);
@@ -198,7 +199,7 @@ ATBUS_MACRO_API size_t buffer_block::head_size(size_t) { return padding_size(siz
 ATBUS_MACRO_API size_t buffer_block::full_size(size_t s) { return head_size(s) + padding_size(s); }
 
 // ================= buffer manager =================
-ATBUS_MACRO_API buffer_manager::buffer_manager() {
+ATBUS_MACRO_API buffer_manager::buffer_manager() : limit_() {
   static_buffer_.buffer_ = nullptr;
 
   reset();
@@ -361,7 +362,8 @@ int buffer_manager::static_push_back(void *&pointer, size_t s) {
     return EN_ATBUS_ERR_BUFF_LIMIT;
   }
 
-#define assign_tail(x) static_buffer_.circle_index_[static_buffer_.tail_] = reinterpret_cast<buffer_block *>(x)
+#define assign_tail(x) \
+  static_buffer_.circle_index_[static_buffer_.tail_] = reinterpret_cast<buffer_block *>(x)  // NOLINT(bugprone-macro-parentheses)
 #define add_tail()                                                      \
   pointer = static_buffer_.circle_index_[static_buffer_.tail_]->data(); \
   static_buffer_.tail_ = (static_buffer_.tail_ + 1) % static_buffer_.circle_index_.size()
@@ -445,7 +447,8 @@ int buffer_manager::static_push_front(void *&pointer, size_t s) {
 
 #define index_pre_head() \
   ((static_buffer_.head_ + static_buffer_.circle_index_.size() - 1) % static_buffer_.circle_index_.size())
-#define assign_head(x) static_buffer_.circle_index_[static_buffer_.head_] = reinterpret_cast<buffer_block *>(x)
+#define assign_head(x) \
+  static_buffer_.circle_index_[static_buffer_.head_] = reinterpret_cast<buffer_block *>(x)  // NOLINT(bugprone-macro-parentheses)
 #define sub_head(d)                        \
   static_buffer_.head_ = index_pre_head(); \
   assign_head(d);                          \
@@ -524,8 +527,9 @@ int buffer_manager::static_pop_back(size_t s, bool free_unwritable) {
 
 #define index_tail() \
   ((static_buffer_.tail_ + static_buffer_.circle_index_.size() - 1) % static_buffer_.circle_index_.size())
-#define assign_tail(x) static_buffer_.circle_index_[static_buffer_.tail_] = reinterpret_cast<buffer_block *>(x)
-#define sub_tail(x) static_buffer_.tail_ = x
+#define assign_tail(x) \
+  static_buffer_.circle_index_[static_buffer_.tail_] = reinterpret_cast<buffer_block *>(x)  // NOLINT(bugprone-macro-parentheses)
+#define sub_tail(x) static_buffer_.tail_ = (x)  // NOLINT(bugprone-macro-parentheses)
 
   size_t tail_index = index_tail();
   buffer_block *tail = static_buffer_.circle_index_[tail_index];
@@ -568,8 +572,10 @@ int buffer_manager::static_pop_front(size_t s, bool free_unwritable) {
     return EN_ATBUS_ERR_NO_DATA;
   }
 
-#define assign_head(x) static_buffer_.circle_index_[static_buffer_.head_] = reinterpret_cast<buffer_block *>(x)
-#define add_head() static_buffer_.head_ = (static_buffer_.head_ + 1) % static_buffer_.circle_index_.size()
+#define assign_head(x) \
+  static_buffer_.circle_index_[static_buffer_.head_] = reinterpret_cast<buffer_block *>(x)  // NOLINT(bugprone-macro-parentheses)
+#define add_head() \
+  static_buffer_.head_ = (static_buffer_.head_ + 1) % static_buffer_.circle_index_.size()  // NOLINT(bugprone-macro-parentheses)
 
   buffer_block *head = static_buffer_.circle_index_[static_buffer_.head_];
 
@@ -619,7 +625,8 @@ int buffer_manager::static_merge_back(void *&pointer, size_t s) {
 
 #define index_tail() \
   ((static_buffer_.tail_ + static_buffer_.circle_index_.size() - 1) % static_buffer_.circle_index_.size())
-#define assign_tail(x) static_buffer_.circle_index_[static_buffer_.tail_] = reinterpret_cast<buffer_block *>(x)
+#define assign_tail(x) \
+  static_buffer_.circle_index_[static_buffer_.tail_] = reinterpret_cast<buffer_block *>(x)  // NOLINT(bugprone-macro-parentheses)
 
   size_t fs = buffer_block::padding_size(s);
 
@@ -694,7 +701,8 @@ int buffer_manager::static_merge_front(void *&pointer, size_t s) {
     return 0;
   }
 
-#define assign_head(x) static_buffer_.circle_index_[static_buffer_.head_] = reinterpret_cast<buffer_block *>(x)
+#define assign_head(x) \
+  static_buffer_.circle_index_[static_buffer_.head_] = reinterpret_cast<buffer_block *>(x)  // NOLINT(bugprone-macro-parentheses)
 
   buffer_block *head = static_buffer_.circle_index_[static_buffer_.head_];
   buffer_block *tail = static_buffer_.circle_index_[static_buffer_.tail_];
@@ -943,7 +951,7 @@ ATBUS_MACRO_API void buffer_manager::reset() {
   static_buffer_.size_ = 0;
   static_buffer_.circle_index_.clear();
   if (nullptr != static_buffer_.buffer_) {
-    ::free(static_buffer_.buffer_);
+    ::free(static_buffer_.buffer_);  // NOLINT(cppcoreguidelines-no-malloc)
     static_buffer_.buffer_ = nullptr;
   }
 
@@ -965,7 +973,7 @@ ATBUS_MACRO_API void buffer_manager::set_mode(size_t max_size, size_t max_number
   if (0 != max_size && max_number > 0) {
     // additional one block for keeping different head and tail
     size_t bfs = buffer_block::padding_size(max_size + ATBUS_MACRO_DATA_ALIGN_SIZE);
-    static_buffer_.buffer_ = ::malloc(bfs);
+    static_buffer_.buffer_ = ::malloc(bfs);  // NOLINT(cppcoreguidelines-no-malloc)
     if (nullptr != static_buffer_.buffer_) {
       static_buffer_.size_ = bfs;
 

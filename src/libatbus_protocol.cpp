@@ -3,7 +3,7 @@
 #include "libatbus_protocol.h"
 
 // clang-format off
-#include <config/compiler/protobuf_prefix.h>
+#include <config/compiler/protobuf_prefix.h>  // NOLINT(misc-include-cleaner)
 // clang-format on
 
 #include <google/protobuf/text_format.h>
@@ -24,13 +24,13 @@ ATBUS_MACRO_API message::message(const ::google::protobuf::ArenaOptions& options
 ATBUS_MACRO_API message::message(std::unique_ptr<::google::protobuf::Arena>&& input_arena)
     : arena_(std::move(input_arena)), head_(nullptr), body_(nullptr) {}
 
-ATBUS_MACRO_API message::message(message&& other)
+ATBUS_MACRO_API message::message(message&& other) noexcept
     : arena_(std::move(other.arena_)),
       inplace_cache_(std::move(other.inplace_cache_)),
       head_(std::move(other.head_)),
       body_(std::move(other.body_)) {}
 
-ATBUS_MACRO_API message& message::operator=(message&& other) {
+ATBUS_MACRO_API message& message::operator=(message&& other) noexcept {
   if (this != &other) {
     arena_ = std::move(other.arena_);
     inplace_cache_ = std::move(other.inplace_cache_);
@@ -163,6 +163,7 @@ ATBUS_MACRO_API message_body_type message::get_body_type() const noexcept {
   return body_->message_type_case();
 }
 
+// NOLINTNEXTLINE(bugprone-exception-escape)
 ATBUS_MACRO_API std::string message::get_unpack_error_message() const noexcept {
   if (body_ != nullptr) {
     return body_->InitializationErrorString();

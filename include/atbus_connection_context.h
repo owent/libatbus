@@ -38,11 +38,11 @@ class ATFW_UTIL_SYMBOL_VISIBLE connection_context final {
  public:
   ATBUS_MACRO_API connection_context(ctor_guard_type &,
                                      protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE crypto_key_exchange_algorithm,
-                                     ::atfw::util::crypto::dh::shared_context::ptr_t shared_dh_context);
+                                     const ::atfw::util::crypto::dh::shared_context::ptr_t &shared_dh_context);
   ATBUS_MACRO_API ~connection_context();
 
-  static ATBUS_MACRO_API ptr_t create(protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE crypto_key_exchange_algorithm,
-                                      ::atfw::util::crypto::dh::shared_context::ptr_t shared_dh_context);
+  static ATBUS_MACRO_API ptr_t create(protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE crypto_algorithm,
+                                      const ::atfw::util::crypto::dh::shared_context::ptr_t &shared_dh_context);
 
   ATBUS_MACRO_API buffer_result_t pack_message(message &m, int32_t protocol_version, random_engine_t &random_engine,
                                                size_t max_body_size) noexcept;
@@ -105,7 +105,7 @@ class ATFW_UTIL_SYMBOL_VISIBLE connection_context final {
                                                          const unsigned char *iv, size_t iv_size);
 
  private:
-  ATBUS_MACRO_API buffer_result_t pack_message_origin(message &m) noexcept;
+  static ATBUS_MACRO_API buffer_result_t pack_message_origin(message &m) noexcept;
 
   ATBUS_MACRO_API buffer_result_t pack_message_with(message &m,
                                                     protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE compression_algorithm,

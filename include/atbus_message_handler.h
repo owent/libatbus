@@ -64,7 +64,7 @@ struct message_handler {
       const ::atframework::atbus::protocol::access_data &ad, gsl::span<const unsigned char> access_token,
       atfw::util::nostd::string_view plaintext);
 
-  static ATBUS_MACRO_API ATBUS_ERROR_TYPE send_ping(node &n, connection &conn, uint64_t seq);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE send_ping(node &n, connection &conn, uint64_t message_sequence);
 
   static ATBUS_MACRO_API ATBUS_ERROR_TYPE send_register(int32_t msg_id, node &n, connection &conn, int32_t ret_code,
                                                         uint64_t seq);

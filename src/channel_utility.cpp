@@ -20,22 +20,22 @@ ATBUS_MACRO_API bool make_address(gsl::string_view in, channel_address_t &addr) 
 
   // 获取协议
   size_t scheme_end = addr.address.find_first_of("://");
-  if (addr.address.npos == scheme_end) {
+  if (std::string::npos == scheme_end) {
     return false;
   }
 
   addr.scheme = addr.address.substr(0, scheme_end);
   std::transform(addr.scheme.begin(), addr.scheme.end(), addr.scheme.begin(), ::atfw::util::string::tolower<char>);
 
-  size_t port_end = addr.address.find_last_of(":");
+  size_t port_end = addr.address.find_last_of(':');
   addr.port = 0;
-  if (addr.address.npos != port_end && port_end >= scheme_end + 3) {
+  if (std::string::npos != port_end && port_end >= scheme_end + 3) {
     UTIL_STRFUNC_SSCANF(addr.address.c_str() + port_end + 1, "%d", &addr.port);
   }
 
   // 截取域名
   addr.host =
-      addr.address.substr(scheme_end + 3, (port_end == addr.address.npos) ? port_end : port_end - scheme_end - 3);
+      addr.address.substr(scheme_end + 3, (port_end == std::string::npos) ? port_end : port_end - scheme_end - 3);
 
   return true;
 }
@@ -70,11 +70,13 @@ ATBUS_MACRO_API bool is_simplex_address(gsl::string_view in) {
     return false;
   }
 
-  if (in.size() >= 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", in.data(), 4)) {
+  if (in.size() >= 4 &&
+      0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", in.data(), 4)) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
     return true;
   }
 
-  if (in.size() >= 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", in.data(), 4)) {
+  if (in.size() >= 4 &&
+      0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", in.data(), 4)) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
     return true;
   }
 
@@ -90,20 +92,26 @@ ATBUS_MACRO_API bool is_local_host_address(gsl::string_view in) {
     return true;
   }
 
-  if (in.size() >= 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", in.data(), 4)) {
+  if (in.size() >= 4 &&
+      0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", in.data(), 4)) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
     return true;
   }
 
-  if (in.size() >= 5 && (0 == UTIL_STRFUNC_STRNCASE_CMP("unix:", in.data(), 5) ||
-                         0 == UTIL_STRFUNC_STRNCASE_CMP("pipe:", in.data(), 5))) {
+  if (in.size() >= 5 &&
+      (0 == UTIL_STRFUNC_STRNCASE_CMP("unix:", in.data(), 5) ||  // NOLINT(bugprone-suspicious-stringview-data-usage)
+       0 == UTIL_STRFUNC_STRNCASE_CMP("pipe:", in.data(), 5))) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
     return true;
   }
 
-  if (in.size() >= 16 && 0 == UTIL_STRFUNC_STRNCASE_CMP("ipv4://127.0.0.1", in.data(), 16)) {
+  if (in.size() >= 16 &&
+      0 == UTIL_STRFUNC_STRNCASE_CMP("ipv4://127.0.0.1", in.data(),  // NOLINT(bugprone-suspicious-stringview-data-usage)
+                                     16)) {
     return true;
   }
 
-  if (in.size() >= 10 && 0 == UTIL_STRFUNC_STRNCASE_CMP("ipv6://::1", in.data(), 10)) {
+  if (in.size() >= 10 &&
+      0 == UTIL_STRFUNC_STRNCASE_CMP("ipv6://::1", in.data(),  // NOLINT(bugprone-suspicious-stringview-data-usage)
+                                     10)) {
     return true;
   }
 
@@ -115,7 +123,8 @@ ATBUS_MACRO_API bool is_local_process_address(gsl::string_view in) {
     return false;
   }
 
-  if (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", in.data(), std::min<size_t>(4, in.size()))) {
+  if (0 == UTIL_STRFUNC_STRNCASE_CMP(  // NOLINT(bugprone-suspicious-stringview-data-usage)
+          "mem:", in.data(), std::min<size_t>(4, in.size()))) {
     return true;
   }
 

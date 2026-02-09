@@ -18,14 +18,7 @@
 #include <bitset>
 #include <chrono>
 #include <ctime>
-#include <list>
-#include <memory>
-#include <string>
-#include <unordered_set>
 #include <utility>
-#include <vector>
-
-#include "std/explicit_declare.h"
 
 #include "detail/libatbus_channel_export.h"
 #include "detail/libatbus_config.h"
@@ -92,9 +85,9 @@ class connection final : public atfw::util::design_pattern::noncopyable {
 
  private:
   struct ctor_guard_t {
-    node *owner;
+    node *owner = nullptr;
     gsl::string_view addr;
-    protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE crypto_algorithm;
+    protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE crypto_algorithm = {};
     ::atfw::util::crypto::dh::shared_context::ptr_t shared_dh_context;
   };
 
@@ -203,19 +196,19 @@ class connection final : public atfw::util::design_pattern::noncopyable {
                                                        void *buffer, size_t s);
 
   static ATBUS_MACRO_API void iostream_on_receive_cb(channel::io_stream_channel *channel,
-                                                     channel::io_stream_connection *connection, int status,
-                                                     void *buffer, size_t s);
+                                                     channel::io_stream_connection *conn_ios, int status, void *buffer,
+                                                     size_t s);
   static ATBUS_MACRO_API void iostream_on_accepted(channel::io_stream_channel *channel,
-                                                   channel::io_stream_connection *connection, int status, void *buffer,
+                                                   channel::io_stream_connection *conn_ios, int status, void *buffer,
                                                    size_t s);
   static ATBUS_MACRO_API void iostream_on_connected(channel::io_stream_channel *channel,
                                                     channel::io_stream_connection *connection, int status, void *buffer,
                                                     size_t s);
   static ATBUS_MACRO_API void iostream_on_disconnected(channel::io_stream_channel *channel,
-                                                       channel::io_stream_connection *connection, int status,
+                                                       channel::io_stream_connection *conn_ios, int status,
                                                        void *buffer, size_t s);
   static ATBUS_MACRO_API void iostream_on_written(channel::io_stream_channel *channel,
-                                                  channel::io_stream_connection *connection, int status, void *buffer,
+                                                  channel::io_stream_connection *conn_ios, int status, void *buffer,
                                                   size_t s);
 
 #ifdef ATBUS_CHANNEL_SHM
@@ -296,4 +289,3 @@ class connection final : public atfw::util::design_pattern::noncopyable {
   friend class endpoint;
 };
 ATBUS_MACRO_NAMESPACE_END
-

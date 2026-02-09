@@ -7,7 +7,6 @@
 #include <common/string_oprs.h>
 
 #include <string>
-#include <system_error>
 #include <unordered_map>
 
 namespace {
@@ -93,7 +92,7 @@ namespace {
 
 inline const char *libatbus_error_name(ATBUS_ERROR_TYPE errcode) noexcept {
   switch (errcode) {
-#define LIBATBUS_ERROR_NAME_CASE(CODE, MESSAGE) \
+#define LIBATBUS_ERROR_NAME_CASE(CODE, MESSAGE) /* NOLINT(bugprone-macro-parentheses) */ \
   case CODE:                                    \
     return #CODE;
     LIBATBUS_ERROR_MESSAGE_MAP(LIBATBUS_ERROR_NAME_CASE)
@@ -136,6 +135,7 @@ inline std::basic_string<CharT> libatbus_build_error_string(ATBUS_ERROR_TYPE cod
 }
 
 template <class CharT>
+// NOLINTNEXTLINE(bugprone-exception-escape)
 inline const std::basic_string<CharT> &libatbus_strerror_cached(ATBUS_ERROR_TYPE errcode) noexcept {
   // Known error cache:
   // - immutable after initialization (C++11 static init is thread-safe)
@@ -169,6 +169,7 @@ inline const std::basic_string<CharT> &libatbus_strerror_cached(ATBUS_ERROR_TYPE
 
 }  // namespace
 
+// NOLINTBEGIN(bugprone-exception-escape)
 ATBUS_MACRO_API const std::basic_string<char> &libatbus_strerror(ATBUS_ERROR_TYPE errcode) noexcept {
   return libatbus_strerror_cached<char>(errcode);
 }
@@ -192,4 +193,5 @@ ATBUS_MACRO_API const std::basic_string<char8_t> &libatbus_u8strerror(ATBUS_ERRO
   return libatbus_strerror_cached<char8_t>(errcode);
 }
 #endif
+// NOLINTEND(bugprone-exception-escape)
 

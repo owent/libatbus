@@ -6,8 +6,8 @@
  *        附带c++的部分是为了避免命名空间污染并且c++的跨平台适配更加简单
  */
 
-#include <assert.h>
-#include <stdint.h>
+#include <cassert>
+#include <cstdint>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
@@ -56,10 +56,12 @@
 ATBUS_MACRO_NAMESPACE_BEGIN
 namespace channel {
 namespace detail {
+namespace {
 static char *io_stream_get_msg_buffer() {
   static UTIL_CONFIG_THREAD_LOCAL char ret[ATBUS_MACRO_TLS_MERGE_BUFFER_LEN];
   return ret;
 }
+}  // namespace
 }  // namespace detail
 }  // namespace channel
 ATBUS_MACRO_NAMESPACE_END
@@ -194,24 +196,24 @@ static inline void io_stream_channel_callback(io_stream_callback_event_t::ios_fn
 }
 
 struct UTIL_SYMBOL_LOCAL io_stream_connect_async_data {
-  uv_connect_t req;
+  uv_connect_t req = {};
   channel_address_t addr;
-  io_stream_channel *channel;
-  io_stream_callback_t callback;
+  io_stream_channel *channel = nullptr;
+  io_stream_callback_t callback = nullptr;
   ::atfw::util::memory::strong_rc_ptr<adapter::stream_t> stream;
-  bool pipe;
-  void *priv_data;
-  size_t priv_size;
+  bool pipe = false;
+  void *priv_data = nullptr;
+  size_t priv_size = 0;
 };
 
 // listen 接口传入域名时的回调异步数据
 struct UTIL_SYMBOL_LOCAL io_stream_dns_async_data {
-  io_stream_channel *channel;
+  io_stream_channel *channel = nullptr;
   channel_address_t addr;
-  io_stream_callback_t callback;
-  uv_getaddrinfo_t req;
-  void *priv_data;
-  size_t priv_size;
+  io_stream_callback_t callback = nullptr;
+  uv_getaddrinfo_t req = {};
+  void *priv_data = nullptr;
+  size_t priv_size = 0;
 };
 
 struct UTIL_SYMBOL_LOCAL io_stream_handle_private_data {
@@ -346,13 +348,15 @@ void io_stream_init_configure(io_stream_conf *conf) {
   conf->max_read_check_hash_failed_count = 10;
 }
 
+namespace {
 static adapter::loop_t *io_stream_get_loop(io_stream_channel *channel) {
   if (nullptr == channel) {
     return nullptr;
   }
 
   if (nullptr == channel->ev_loop) {
-    channel->ev_loop = reinterpret_cast<adapter::loop_t *>(malloc(sizeof(adapter::loop_t)));
+    channel->ev_loop =
+        reinterpret_cast<adapter::loop_t *>(malloc(sizeof(adapter::loop_t)));  // NOLINT(cppcoreguidelines-no-malloc)
     if (nullptr != channel->ev_loop) {
       uv_loop_init(channel->ev_loop);
       ATBUS_CHANNEL_IOS_SET_FLAG(channel->flags, io_stream_channel::flag_t::kIsLoopOwner);
@@ -361,6 +365,7 @@ static adapter::loop_t *io_stream_get_loop(io_stream_channel *channel) {
 
   return channel->ev_loop;
 }
+}  // namespace
 
 int io_stream_init(io_stream_channel *channel, adapter::loop_t *ev_loop, const io_stream_conf *conf) {
   if (nullptr == channel) {
@@ -368,7 +373,7 @@ int io_stream_init(io_stream_channel *channel, adapter::loop_t *ev_loop, const i
   }
 
   if (nullptr == conf) {
-    io_stream_conf default_conf;
+    io_stream_conf default_conf = {};
     io_stream_init_configure(&default_conf);
 
     return io_stream_init(channel, ev_loop, &default_conf);
@@ -378,7 +383,7 @@ int io_stream_init(io_stream_channel *channel, adapter::loop_t *ev_loop, const i
   channel->ev_loop = ev_loop;
   ATBUS_CHANNEL_IOS_CLEAR_FLAG(channel->flags);
 
-  memset(channel->evt.callbacks, 0, sizeof(channel->evt.callbacks));
+  memset(static_cast<void *>(channel->evt.callbacks), 0, sizeof(channel->evt.callbacks));
 
   channel->error_code = 0;
   channel->read_net_eagain_count = 0;
@@ -403,13 +408,12 @@ int io_stream_close(io_stream_channel *channel) {
   {
     std::vector<io_stream_connection *> pending_release;
     pending_release.reserve(channel->conn_pool.size());
-    for (io_stream_channel::conn_pool_t::iterator iter = channel->conn_pool.begin(); iter != channel->conn_pool.end();
-         ++iter) {
-      pending_release.push_back(iter->second.get());
+    for (auto &entry : channel->conn_pool) {
+      pending_release.push_back(entry.second.get());
     }
 
-    for (size_t i = 0; i < pending_release.size(); ++i) {
-      io_stream_disconnect(channel, pending_release[i], nullptr);
+    for (auto *pending_conn : pending_release) {
+      io_stream_disconnect(channel, pending_conn, nullptr);
     }
   }
 
@@ -430,7 +434,7 @@ int io_stream_close(io_stream_channel *channel) {
       uv_run(channel->ev_loop, UV_RUN_ONCE);
     }
 
-    free(channel->ev_loop);
+    free(channel->ev_loop);  // NOLINT(cppcoreguidelines-no-malloc)
   } else {
     // both connection and pending gc connection should all be erased
     while (!channel->conn_pool.empty() || !channel->conn_gc_pool.empty()) {
@@ -462,6 +466,7 @@ int io_stream_run(io_stream_channel *channel, adapter::run_mode_t mode) {
   return EN_ATBUS_ERR_SUCCESS;
 }
 
+namespace {
 static void io_stream_on_recv_alloc_fn(uv_handle_t *handle, size_t /*suggested_size*/, uv_buf_t *buf) {
   assert(handle);
   if (nullptr == handle) {
@@ -574,7 +579,7 @@ static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const 
         channel->error_code = 0;
         uint32_t check_hash = atfw::util::hash::murmur_hash3_x86_32(buff_start + sizeof(uint32_t) + vint_len,
                                                                     static_cast<int>(msg_len), 0);
-        uint32_t expect_hash;
+        uint32_t expect_hash = 0;
         memcpy(&expect_hash, buff_start, sizeof(uint32_t));
         ATBUS_ERROR_TYPE errcode = EN_ATBUS_ERR_SUCCESS;
         if (check_hash != expect_hash) {
@@ -645,7 +650,7 @@ static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const 
     // 32位Hash校验和
     uint32_t check_hash = atfw::util::hash::murmur_hash3_x86_32(reinterpret_cast<char *>(data) + sizeof(uint32_t),
                                                                 static_cast<int>(sread - sizeof(uint32_t)), 0);
-    uint32_t expect_hash;
+    uint32_t expect_hash = 0;
     memcpy(&expect_hash, data, sizeof(uint32_t));
     size_t msg_len = sread - sizeof(uint32_t);  // - hash32 header
 
@@ -792,7 +797,7 @@ static int io_stream_shutdown_connection(io_stream_connection *conn) {
   assert(conn->channel);
 
   // move to gc pool
-  if (conn && conn->channel) {
+  if (conn != nullptr && conn->channel != nullptr) {
     io_stream_channel::conn_pool_t::iterator iter = conn->channel->conn_pool.find(conn->fd);
     assert(iter != conn->channel->conn_pool.end());
 
@@ -825,7 +830,7 @@ static int io_stream_shutdown_connection(io_stream_connection *conn) {
 // 删除函数，stream绑定在io_stream_connect_async_data上
 static int io_stream_shutdown_async_data(io_stream_connect_async_data *async_data) {
   assert(async_data && async_data->stream);
-  if (async_data && !async_data->stream) {
+  if (async_data != nullptr && !async_data->stream) {
     delete async_data;
     return 0;
   }
@@ -885,7 +890,7 @@ static int io_stream_shutdown_ev_handle(::atfw::util::memory::strong_rc_ptr<adap
 }
 
 static ::atfw::util::memory::strong_rc_ptr<io_stream_connection> io_stream_make_connection(
-    io_stream_channel *channel, ::atfw::util::memory::strong_rc_ptr<adapter::stream_t> handle) {
+    io_stream_channel *channel, const ::atfw::util::memory::strong_rc_ptr<adapter::stream_t> &handle) {
   ::atfw::util::memory::strong_rc_ptr<io_stream_connection> ret;
   if (nullptr == channel) {
     return ret;
@@ -906,7 +911,7 @@ static ::atfw::util::memory::strong_rc_ptr<io_stream_connection> io_stream_make_
   ATBUS_CHANNEL_IOS_CLEAR_FLAG(ret->flags);
   io_stream_handle_set_connection(handle.get(), ret.get());
 
-  memset(ret->evt.callbacks, 0, sizeof(ret->evt.callbacks));
+  memset(static_cast<void *>(ret->evt.callbacks), 0, sizeof(ret->evt.callbacks));
   ret->proactively_disconnect_callback = nullptr;
   ret->status = io_stream_connection::status_t::kCreated;
 
@@ -974,6 +979,7 @@ static adapter::tcp_t *io_stream_tcp_connection_common(
   }
 
   uv_tcp_init(req->loop, tcp_conn);
+  // NOLINTNEXTLINE(bugprone-assignment-in-if-condition)
   if (0 != (channel->error_code = uv_accept(req, recv_conn.get()))) {
     status = channel->error_code;
     return nullptr;
@@ -1027,7 +1033,7 @@ static void io_stream_tcp_connection_cb(uv_stream_t *req, int status) {
     conn->status = io_stream_connection::status_t::kConnected;
     ATBUS_CHANNEL_IOS_SET_FLAG(conn->flags, io_stream_connection::flag_t::kAccept);
 
-    union io_stream_sockaddr_switcher sock_addr;
+    union io_stream_sockaddr_switcher sock_addr = {};
     int name_len = sizeof(sock_addr);
     uv_tcp_getpeername(tcp_conn, &sock_addr.base, &name_len);
 
@@ -1055,12 +1061,12 @@ static void io_stream_tcp_connection_cb(uv_stream_t *req, int status) {
 static void io_stream_pipe_connection_cb(uv_stream_t *req, int status) {
   io_stream_connection *conn_raw_ptr = io_stream_handle_get_connection(req);
   assert(conn_raw_ptr);
-  if (!conn_raw_ptr) {
+  if (conn_raw_ptr == nullptr) {
     return;
   }
   io_stream_channel *channel = conn_raw_ptr->channel;
   assert(channel);
-  if (!channel) {
+  if (channel == nullptr) {
     return;
   }
   io_stream_flag_guard flag_guard(channel->flags, io_stream_channel::flag_t::kInCallback);
@@ -1084,6 +1090,7 @@ static void io_stream_pipe_connection_cb(uv_stream_t *req, int status) {
     }
 
     uv_pipe_init(req->loop, pipe_conn, 1);
+    // NOLINTNEXTLINE(bugprone-assignment-in-if-condition)
     if (0 != (channel->error_code = uv_accept(req, recv_conn.get()))) {
       res = EN_ATBUS_ERR_PIPE_CONNECT_FAILED;
       break;
@@ -1205,14 +1212,13 @@ static void io_stream_dns_connection_cb(uv_getaddrinfo_t *req, int status, struc
                                async_data->priv_data, async_data->priv_size);
   }
 
-  if (nullptr != async_data) {
-    delete async_data;
-  }
+  delete async_data;
 
   if (nullptr != res) {
     uv_freeaddrinfo(res);
   }
 }
+}  // namespace
 
 int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, io_stream_callback_t callback,
                      void *priv_data, size_t priv_size) {
@@ -1256,13 +1262,15 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
       io_stream_tcp_setup(channel, handle);
 
       if ('4' == addr.scheme[3]) {
-        sockaddr_in sock_addr;
+        sockaddr_in sock_addr = {};
         uv_ip4_addr(addr.host.c_str(), addr.port, &sock_addr);
+        // NOLINTNEXTLINE(bugprone-assignment-in-if-condition)
         if (0 != (channel->error_code = uv_tcp_bind(handle, reinterpret_cast<const sockaddr *>(&sock_addr), 0))) {
           ret = EN_ATBUS_ERR_SOCK_BIND_FAILED;
           break;
         }
 
+        // NOLINTNEXTLINE(bugprone-assignment-in-if-condition)
         if (0 != (channel->error_code = uv_listen(reinterpret_cast<adapter::stream_t *>(handle), channel->conf.backlog,
                                                   io_stream_tcp_connection_cb))) {
           ret = EN_ATBUS_ERR_SOCK_LISTEN_FAILED;
@@ -1270,13 +1278,15 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
         }
 
       } else {
-        sockaddr_in6 sock_addr;
+        sockaddr_in6 sock_addr = {};
         uv_ip6_addr(addr.host.c_str(), addr.port, &sock_addr);
+        // NOLINTNEXTLINE(bugprone-assignment-in-if-condition)
         if (0 != (channel->error_code = uv_tcp_bind(handle, reinterpret_cast<const sockaddr *>(&sock_addr), 0))) {
           ret = EN_ATBUS_ERR_SOCK_BIND_FAILED;
           break;
         }
 
+        // NOLINTNEXTLINE(bugprone-assignment-in-if-condition)
         if (0 != (channel->error_code = uv_listen(reinterpret_cast<adapter::stream_t *>(handle), channel->conf.backlog,
                                                   io_stream_tcp_connection_cb))) {
           ret = EN_ATBUS_ERR_SOCK_LISTEN_FAILED;
@@ -1305,8 +1315,10 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
       io_stream_shutdown_ev_handle(listen_conn);
     }
     return ret;
-  } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix", addr.scheme.c_str(), 4) ||
-             0 == UTIL_STRFUNC_STRNCASE_CMP("pipe", addr.scheme.c_str(), 4)) {
+  }
+
+  if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix", addr.scheme.c_str(), 4) ||
+      0 == UTIL_STRFUNC_STRNCASE_CMP("pipe", addr.scheme.c_str(), 4)) {
     // check path length
     if (0 != io_stream_get_max_unix_socket_length() && addr.host.size() >= io_stream_get_max_unix_socket_length()) {
       return EN_ATBUS_ERR_PIPE_ADDR_TOO_LONG;
@@ -1330,6 +1342,7 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
     uv_pipe_init(ev_loop, handle, 0);
     ATBUS_ERROR_TYPE ret = EN_ATBUS_ERR_SUCCESS;
     do {
+      // NOLINTNEXTLINE(bugprone-assignment-in-if-condition)
       if (0 != (channel->error_code = uv_pipe_bind(handle, addr.host.c_str()))) {
         if (channel->error_code == UV_EADDRINUSE) {
           ret = EN_ATBUS_ERR_PIPE_PATH_EXISTS;
@@ -1340,6 +1353,7 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
       }
 
       io_stream_pipe_setup(channel, handle);
+      // NOLINTNEXTLINE(bugprone-assignment-in-if-condition)
       if (0 != (channel->error_code = uv_listen(reinterpret_cast<adapter::stream_t *>(handle), channel->conf.backlog,
                                                 io_stream_pipe_connection_cb))) {
         ret = EN_ATBUS_ERR_PIPE_LISTEN_FAILED;
@@ -1368,7 +1382,9 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
       io_stream_shutdown_ev_handle(listen_conn);
     }
     return ret;
-  } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("dns", addr.scheme.c_str(), 3)) {
+  }
+
+  if (0 == UTIL_STRFUNC_STRNCASE_CMP("dns", addr.scheme.c_str(), 3)) {
     io_stream_dns_async_data *async_data = new io_stream_dns_async_data();
     if (nullptr == async_data) {
       return EN_ATBUS_ERR_MALLOC;
@@ -1393,6 +1409,7 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
   return EN_ATBUS_ERR_CHANNEL_NOT_SUPPORT;
 }
 
+namespace {
 static void io_stream_all_connected_cb(uv_connect_t *req, int status) {
   io_stream_connect_async_data *async_data = reinterpret_cast<io_stream_connect_async_data *>(req->data);
   assert(async_data);
@@ -1459,11 +1476,11 @@ static void io_stream_all_connected_cb(uv_connect_t *req, int status) {
 static void io_stream_dns_connect_cb(uv_getaddrinfo_t *req, int status, struct addrinfo *res) {
   io_stream_dns_async_data *async_data = reinterpret_cast<io_stream_dns_async_data *>(req->data);
   assert(async_data);
-  if (!async_data) {
+  if (async_data == nullptr) {
     return;
   }
   assert(async_data->channel);
-  if (!async_data->channel) {
+  if (async_data->channel == nullptr) {
     return;
   }
 
@@ -1515,14 +1532,13 @@ static void io_stream_dns_connect_cb(uv_getaddrinfo_t *req, int status, struct a
                                async_data->priv_data, async_data->priv_size);
   }
 
-  if (nullptr != async_data) {
-    delete async_data;
-  }
+  delete async_data;
 
   if (nullptr != res) {
     uv_freeaddrinfo(res);
   }
 }
+}  // namespace
 
 int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr, io_stream_callback_t callback,
                       void *priv_data, size_t priv_size) {
@@ -1569,7 +1585,7 @@ int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr,
       async_data->priv_data = priv_data;
       async_data->priv_size = priv_size;
 
-      io_stream_sockaddr_switcher sock_addr;
+      io_stream_sockaddr_switcher sock_addr = {};
       const sockaddr *sock_addr_ptr = nullptr;
 
       if ('4' == addr.scheme[3]) {
@@ -1598,8 +1614,10 @@ int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr,
     // 回收关闭
     io_stream_shutdown_async_data(async_data);
     return ret;
-  } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix", addr.scheme.c_str(), 4) ||
-             0 == UTIL_STRFUNC_STRNCASE_CMP("pipe", addr.scheme.c_str(), 4)) {
+  }
+
+  if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix", addr.scheme.c_str(), 4) ||
+      0 == UTIL_STRFUNC_STRNCASE_CMP("pipe", addr.scheme.c_str(), 4)) {
     // check path length
     ::atfw::util::memory::strong_rc_ptr<adapter::stream_t> pipe_conn;
     adapter::pipe_t *handle = io_stream_make_stream_ptr<adapter::pipe_t>(pipe_conn);
@@ -1638,8 +1656,9 @@ int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr,
     // 回收关闭
     io_stream_shutdown_async_data(async_data);
     return ret;
+  }
 
-  } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("dns", addr.scheme.c_str(), 3)) {
+  if (0 == UTIL_STRFUNC_STRNCASE_CMP("dns", addr.scheme.c_str(), 3)) {
     io_stream_dns_async_data *async_data = new io_stream_dns_async_data();
     if (nullptr == async_data) {
       return EN_ATBUS_ERR_MALLOC;
@@ -1721,6 +1740,7 @@ int io_stream_disconnect_fd(io_stream_channel *channel, adapter::fd_t fd, io_str
   return io_stream_disconnect(channel, iter->second.get(), callback);
 }
 
+namespace {
 static void io_stream_on_written_fn(uv_write_t *req, int status) {
   // req is at the begin of the data block, and will not be used any more, we can delete it here
   // if uv_write2 return 0, this will always be called, so free all data here
@@ -1734,7 +1754,7 @@ static void io_stream_on_written_fn(uv_write_t *req, int status) {
   io_stream_flag_guard flag_guard(connection->channel->flags, io_stream_channel::flag_t::kInCallback);
 
   void *data = nullptr;
-  size_t nread, nwrite;
+  size_t nread = 0, nwrite = 0;
 
   // popup the lost callback
   while (true) {
@@ -1758,7 +1778,7 @@ static void io_stream_on_written_fn(uv_write_t *req, int status) {
     while (left_length > 0) {
       // skip 32bits hash
       buff_start += sizeof(uint32_t);
-      uint64_t out;
+      uint64_t out = 0;
       size_t vint_len = ::atframework::atbus::detail::fn::read_vint(out, buff_start, left_length - sizeof(uint32_t));
       // skip varint
       buff_start += vint_len;
@@ -1800,6 +1820,7 @@ static void io_stream_on_written_fn(uv_write_t *req, int status) {
     io_stream_disconnect_run(connection);
   }
 }
+}  // namespace
 
 int io_stream_try_write(io_stream_connection *connection) {
   if (nullptr == connection) {
@@ -1833,7 +1854,7 @@ int io_stream_try_write(io_stream_connection *connection) {
       while (left_length > 0) {
         // skip 32bits hash
         buff_start += sizeof(uint32_t);
-        uint64_t out;
+        uint64_t out = 0;
         size_t vint_len = ::atframework::atbus::detail::fn::read_vint(out, buff_start, left_length - sizeof(uint32_t));
         // skip varint
         buff_start += vint_len;
@@ -1963,7 +1984,7 @@ int io_stream_send(io_stream_connection *connection, const void *buf, size_t len
     size_t total_buffer_size = sizeof(uv_write_t) + sizeof(uint32_t) + vint_len + len;
 
     // 判定内存限制
-    void *data;
+    void *data = nullptr;
     int res = connection->write_buffer_manager.push_back(data, total_buffer_size);
     if (res < 0 || nullptr == data) {
       return res;
@@ -2002,36 +2023,36 @@ void io_stream_show_channel(io_stream_channel *channel, std::ostream &out) {
     return;
   }
 
-  out << "Summary:" << std::endl << "\tconnection number: " << channel->conn_pool.size() << std::endl << std::endl;
+  out << "Summary:" << '\n' << "\tconnection number: " << channel->conn_pool.size() << '\n' << '\n';
 
-  out << "Configure:" << std::endl
-      << "\tis_noblock: " << channel->conf.is_noblock << std::endl
-      << "\tis_nodelay: " << channel->conf.is_nodelay << std::endl
-      << "\tbacklog: " << channel->conf.backlog << std::endl
-      << "\tkeepalive: " << channel->conf.keepalive << std::endl
-      << "\treceive_buffer_limit_size(Bytes): " << channel->conf.receive_buffer_limit_size << std::endl
-      << "\treceive_buffer_max_size(Bytes): " << channel->conf.receive_buffer_max_size << std::endl
-      << "\treceive_buffer_static_max_number: " << channel->conf.receive_buffer_static << std::endl
-      << "\tsend_buffer_limit_size(Bytes): " << channel->conf.send_buffer_limit_size << std::endl
-      << "\tsend_buffer_max_size(Bytes): " << channel->conf.send_buffer_max_size << std::endl
-      << "\tsend_buffer_static_max_number: " << channel->conf.send_buffer_static << std::endl
-      << std::endl;
+  out << "Configure:" << '\n'
+      << "\tis_noblock: " << channel->conf.is_noblock << '\n'
+      << "\tis_nodelay: " << channel->conf.is_nodelay << '\n'
+      << "\tbacklog: " << channel->conf.backlog << '\n'
+      << "\tkeepalive: " << channel->conf.keepalive << '\n'
+      << "\treceive_buffer_limit_size(Bytes): " << channel->conf.receive_buffer_limit_size << '\n'
+      << "\treceive_buffer_max_size(Bytes): " << channel->conf.receive_buffer_max_size << '\n'
+      << "\treceive_buffer_static_max_number: " << channel->conf.receive_buffer_static << '\n'
+      << "\tsend_buffer_limit_size(Bytes): " << channel->conf.send_buffer_limit_size << '\n'
+      << "\tsend_buffer_max_size(Bytes): " << channel->conf.send_buffer_max_size << '\n'
+      << "\tsend_buffer_static_max_number: " << channel->conf.send_buffer_static << '\n'
+      << '\n';
 
-  out << "All connections:" << std::endl;
+  out << "All connections:" << '\n';
   for (io_stream_channel::conn_pool_t::iterator iter = channel->conn_pool.begin(); iter != channel->conn_pool.end();
        ++iter) {
     out << "\t" << iter->second->addr.address << ":(status = " << static_cast<uint32_t>(iter->second->status) << ")"
-        << std::endl;
+        << '\n';
 
-    out << "\t\twrite_buffers.cost_number: " << iter->second->write_buffer_manager.limit().cost_number_ << std::endl;
-    out << "\t\twrite_buffers.cost_size: " << iter->second->write_buffer_manager.limit().cost_size_ << std::endl;
-    out << "\t\twrite_buffers.limit_number: " << iter->second->write_buffer_manager.limit().limit_number_ << std::endl;
-    out << "\t\twrite_buffers.limit_size: " << iter->second->write_buffer_manager.limit().limit_size_ << std::endl;
+    out << "\t\twrite_buffers.cost_number: " << iter->second->write_buffer_manager.limit().cost_number_ << '\n';
+    out << "\t\twrite_buffers.cost_size: " << iter->second->write_buffer_manager.limit().cost_size_ << '\n';
+    out << "\t\twrite_buffers.limit_number: " << iter->second->write_buffer_manager.limit().limit_number_ << '\n';
+    out << "\t\twrite_buffers.limit_size: " << iter->second->write_buffer_manager.limit().limit_size_ << '\n';
 
-    out << "\t\tread_buffers.cost_number: " << iter->second->read_buffer_manager.limit().cost_number_ << std::endl;
-    out << "\t\tread_buffers.cost_size: " << iter->second->read_buffer_manager.limit().cost_size_ << std::endl;
-    out << "\t\tread_buffers.limit_number: " << iter->second->read_buffer_manager.limit().limit_number_ << std::endl;
-    out << "\t\tread_buffers.limit_size: " << iter->second->read_buffer_manager.limit().limit_size_ << std::endl;
+    out << "\t\tread_buffers.cost_number: " << iter->second->read_buffer_manager.limit().cost_number_ << '\n';
+    out << "\t\tread_buffers.cost_size: " << iter->second->read_buffer_manager.limit().cost_size_ << '\n';
+    out << "\t\tread_buffers.limit_number: " << iter->second->read_buffer_manager.limit().limit_number_ << '\n';
+    out << "\t\tread_buffers.limit_size: " << iter->second->read_buffer_manager.limit().limit_size_ << '\n';
   }
 }
 }  // namespace channel
