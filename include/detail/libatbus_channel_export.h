@@ -34,28 +34,28 @@ ATBUS_MACRO_API void make_address(gsl::string_view scheme, gsl::string_view host
 
 /**
  * @brief If it's a duplex address, means both enpoint has a connection to receive and send data
- * @param in address , start with unix:/pipe:/ipv4:/ipv6:/dns:/shm: and etc.
+ * @param in address , start with unix:/pipe:/ipv4:/ipv6:/atcp:/dns:/shm: and etc.
  * @return true if it's a duplex address
  */
 ATBUS_MACRO_API bool is_duplex_address(gsl::string_view in);
 
 /**
  * @brief If it's a simplex address, means the other node has no connection and can only receive data
- * @param in address , start with unix:/pipe:/ipv4:/ipv6:/dns:/shm: and etc.
+ * @param in address , start with unix:/pipe:/ipv4:/ipv6:/atcp:/dns:/shm: and etc.
  * @return true if it's a simplex address
  */
 ATBUS_MACRO_API bool is_simplex_address(gsl::string_view in);
 
 /**
  * @brief If it's a address that can only be connected by nodes on the same machine
- * @param in address , start with unix:/pipe:/ipv4:/ipv6:/dns:/shm: and etc.
+ * @param in address , start with unix:/pipe:/ipv4:/ipv6:/atcp:/dns:/shm: and etc.
  * @return true if it's a address that can only be connected by nodes on the same machine
  */
 ATBUS_MACRO_API bool is_local_host_address(gsl::string_view in);
 
 /**
  * @brief If it's a address that can only be connected by nodes on the same process
- * @param in address , start with unix:/pipe:/ipv4:/ipv6:/dns:/shm: and etc.
+ * @param in address , start with unix:/pipe:/ipv4:/ipv6:/atcp:/dns:/shm: and etc.
  * @return true it's a address that can only be connected by nodes on the same process
  */
 ATBUS_MACRO_API bool is_local_process_address(gsl::string_view in);
@@ -140,4 +140,3 @@ ATBUS_MACRO_API void io_stream_show_channel(io_stream_channel *channel, std::ost
 ATBUS_MACRO_NAMESPACE_END
 
 #endif /* LIBATBUS_CHANNEL_EXPORT_H_ */
-

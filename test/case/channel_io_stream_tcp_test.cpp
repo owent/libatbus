@@ -187,7 +187,7 @@ CASE_TEST(channel, io_stream_tcp_basic) {
   g_check_flag = 0;
 
   int inited_fds = 0;
-  inited_fds += setup_channel(svr, "ipv6://:::16387", nullptr);
+  inited_fds += setup_channel(svr, "atcp://:::16387", nullptr);
   CASE_EXPECT_EQ(1, g_check_flag);
   CASE_EXPECT_NE(nullptr, svr.ev_loop);
 
@@ -234,7 +234,7 @@ CASE_TEST(channel, io_stream_tcp_basic) {
     check_flag = g_check_flag;
     atbus::channel::io_stream_channel::conn_pool_t::iterator it = svr.conn_pool.begin();
     // 跳过listen的socket
-    if (it->second->addr.address == "ipv6://:::16387") {
+    if (it->second->addr.address == "atcp://:::16387") {
       ++it;
     }
 
@@ -283,7 +283,7 @@ CASE_TEST(channel, io_stream_tcp_reset_by_client) {
   int check_flag = g_check_flag = 0;
 
   int inited_fds = 0;
-  inited_fds += setup_channel(svr, "ipv6://:::16387", nullptr);
+  inited_fds += setup_channel(svr, "atcp://:::16387", nullptr);
   CASE_EXPECT_EQ(1, g_check_flag);
   CASE_EXPECT_NE(nullptr, svr.ev_loop);
   if (0 == inited_fds) {
@@ -328,7 +328,7 @@ CASE_TEST(channel, io_stream_tcp_reset_by_server) {
   int check_flag = g_check_flag = 0;
 
   int inited_fds = 0;
-  inited_fds += setup_channel(svr, "ipv6://:::16387", nullptr);
+  inited_fds += setup_channel(svr, "atcp://:::16387", nullptr);
   CASE_EXPECT_EQ(1, g_check_flag);
   CASE_EXPECT_NE(nullptr, svr.ev_loop);
   if (0 == inited_fds) {
@@ -617,4 +617,3 @@ CASE_TEST(channel, io_stream_callback_on_written) {
 
   uv_loop_close(&loop);
 }
-

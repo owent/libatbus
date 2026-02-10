@@ -14,8 +14,8 @@
 #endif
 
 #include <cassert>
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -449,10 +449,14 @@ ATBUS_MACRO_API int connection::connect() {
 #endif
   } else {
     // redirect loopback address to local address
-    if (0 == UTIL_STRFUNC_STRNCASE_CMP("ipv4", address_.scheme.c_str(), 4) && "0.0.0.0" == address_.host) {
-      make_address("ipv4", "127.0.0.1", address_.port, address_);
-    } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("ipv6", address_.scheme.c_str(), 4) && "::" == address_.host) {
-      make_address("ipv6", "::1", address_.port, address_);
+    if (0 == UTIL_STRFUNC_STRNCASE_CMP("atcp", address_.scheme.c_str(), 4) ||
+        0 == UTIL_STRFUNC_STRNCASE_CMP("ipv6", address_.scheme.c_str(), 4) ||
+        0 == UTIL_STRFUNC_STRNCASE_CMP("ipv4", address_.scheme.c_str(), 4)) {
+      if ("0.0.0.0" == address_.host) {
+        make_address("atcp", "127.0.0.1", address_.port, address_);
+      } else if ("::" == address_.host) {
+        make_address("atcp", "::1", address_.port, address_);
+      }
     } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix", address_.scheme.c_str(), 4) ||
                0 == UTIL_STRFUNC_STRNCASE_CMP("pipe", address_.scheme.c_str(), 4)) {
       flags_.set(static_cast<size_t>(flag_t::kAccessShareHost), true);

@@ -98,21 +98,29 @@ ATBUS_MACRO_API bool is_local_host_address(gsl::string_view in) {
   }
 
   if (in.size() >= 5 &&
-      (0 == UTIL_STRFUNC_STRNCASE_CMP("unix:", in.data(), 5) ||  // NOLINT(bugprone-suspicious-stringview-data-usage)
+      (0 == UTIL_STRFUNC_STRNCASE_CMP("unix:", in.data(), 5) ||   // NOLINT(bugprone-suspicious-stringview-data-usage)
        0 == UTIL_STRFUNC_STRNCASE_CMP("pipe:", in.data(), 5))) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
     return true;
   }
 
-  if (in.size() >= 16 &&
-      0 == UTIL_STRFUNC_STRNCASE_CMP("ipv4://127.0.0.1", in.data(),  // NOLINT(bugprone-suspicious-stringview-data-usage)
-                                     16)) {
-    return true;
-  }
-
   if (in.size() >= 10 &&
-      0 == UTIL_STRFUNC_STRNCASE_CMP("ipv6://::1", in.data(),  // NOLINT(bugprone-suspicious-stringview-data-usage)
-                                     10)) {
-    return true;
+      (0 == UTIL_STRFUNC_STRNCASE_CMP("atcp:", in.data(), 5) ||  // NOLINT(bugprone-suspicious-stringview-data-usage)
+       0 == UTIL_STRFUNC_STRNCASE_CMP("ipv6:", in.data(), 5) ||  // NOLINT(bugprone-suspicious-stringview-data-usage)
+       0 == UTIL_STRFUNC_STRNCASE_CMP("ipv4:", in.data(), 5)     // NOLINT(bugprone-suspicious-stringview-data-usage)
+       )) {
+    // Prefix match for "://127.0.0.1" (host must end at string boundary or ':' port separator)
+    if (in.size() >= 16 &&
+        0 == UTIL_STRFUNC_STRNCASE_CMP(  // NOLINT(bugprone-suspicious-stringview-data-usage)
+                 "://127.0.0.1", in.data() + 4, 12) &&
+        (in.size() == 16 || in[16] == ':')) {
+      return true;
+    }
+    // Prefix match for "://::1" (host must end at string boundary or ':' port separator)
+    if (0 == UTIL_STRFUNC_STRNCASE_CMP(  // NOLINT(bugprone-suspicious-stringview-data-usage)
+                 "://::1", in.data() + 4, 6) &&
+        (in.size() == 10 || in[10] == ':')) {
+      return true;
+    }
   }
 
   return false;
@@ -124,7 +132,7 @@ ATBUS_MACRO_API bool is_local_process_address(gsl::string_view in) {
   }
 
   if (0 == UTIL_STRFUNC_STRNCASE_CMP(  // NOLINT(bugprone-suspicious-stringview-data-usage)
-          "mem:", in.data(), std::min<size_t>(4, in.size()))) {
+               "mem:", in.data(), std::min<size_t>(4, in.size()))) {
     return true;
   }
 
@@ -132,4 +140,3 @@ ATBUS_MACRO_API bool is_local_process_address(gsl::string_view in) {
 }
 }  // namespace channel
 ATBUS_MACRO_NAMESPACE_END
-
