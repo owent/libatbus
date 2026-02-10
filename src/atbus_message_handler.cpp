@@ -134,6 +134,7 @@ static std::unordered_set<std::string> &get_supported_channel_schemes() {
     schemes.insert("dns");
     schemes.insert("ipv4");
     schemes.insert("ipv6");
+    schemes.insert("atcp");
     schemes.insert("mem");
     schemes.insert("shm");
     schemes.insert("unix");
@@ -151,8 +152,10 @@ static int calculate_channel_address_priority(gsl::string_view addr, bool is_sam
   if (is_same_host && atbus::channel::is_local_host_address(addr)) {
     ret += 0x10;
 
-    if (addr.size() >= 4 && (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr.data(), 4) ||  // NOLINT(bugprone-suspicious-stringview-data-usage)
-                             0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr.data(), 4))) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
+    if (addr.size() >= 4 &&
+        (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr.data(), 4) ||  // NOLINT(bugprone-suspicious-stringview-data-usage)
+         0 ==
+             UTIL_STRFUNC_STRNCASE_CMP("shm:", addr.data(), 4))) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
       ret += 0x08;
     }
   }
@@ -160,8 +163,10 @@ static int calculate_channel_address_priority(gsl::string_view addr, bool is_sam
   if (atbus::channel::is_duplex_address(addr)) {
     ret += 0x02;
 
-    if (addr.size() >= 5 && (0 == UTIL_STRFUNC_STRNCASE_CMP("unix:", addr.data(), 5) ||  // NOLINT(bugprone-suspicious-stringview-data-usage)
-                             0 == UTIL_STRFUNC_STRNCASE_CMP("pipe:", addr.data(), 5))) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
+    if (addr.size() >= 5 && (0 == UTIL_STRFUNC_STRNCASE_CMP("unix:", addr.data(),
+                                                            5) ||  // NOLINT(bugprone-suspicious-stringview-data-usage)
+                             0 == UTIL_STRFUNC_STRNCASE_CMP("pipe:", addr.data(),
+                                                            5))) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
       ret += 0x04;
     }
   }
@@ -1495,4 +1500,3 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_pong(node &n, con
   return EN_ATBUS_ERR_SUCCESS;
 }
 ATBUS_MACRO_NAMESPACE_END
-

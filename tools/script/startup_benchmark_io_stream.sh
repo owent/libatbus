@@ -1,7 +1,7 @@
 #!/bin/sh
 # Copyright 2026 atframework
 
-ADDRESS="ipv6://::1:16389";
+ADDRESS="atcp://::1:16389";
 UNIT_SIZE=1024 ;
 LIMIT_SIZE=4194304 ;
 STATIC_LIMIT_NUM=1024 ;

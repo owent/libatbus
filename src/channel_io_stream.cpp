@@ -7,8 +7,8 @@
  */
 
 #include <cassert>
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -1040,10 +1040,10 @@ static void io_stream_tcp_connection_cb(uv_stream_t *req, int status) {
     char ip[40] = {0};
     if (sock_addr.base.sa_family == AF_INET6) {
       uv_ip6_name(&sock_addr.ipv6, ip, sizeof(ip));
-      make_address("ipv6", ip, sock_addr.ipv6.sin6_port, conn->addr);
+      make_address("atcp", ip, sock_addr.ipv6.sin6_port, conn->addr);
     } else {
       uv_ip4_name(&sock_addr.ipv4, ip, sizeof(ip));
-      make_address("ipv4", ip, sock_addr.ipv4.sin_port, conn->addr);
+      make_address("atcp", ip, sock_addr.ipv4.sin_port, conn->addr);
     }
   } while (false);
 
@@ -1190,14 +1190,14 @@ static void io_stream_dns_connection_cb(uv_getaddrinfo_t *req, int status, struc
       sockaddr_in *res_c = reinterpret_cast<sockaddr_in *>(res->ai_addr);
       char ip[17] = {0};
       uv_ip4_name(res_c, ip, sizeof(ip));
-      make_address("ipv4", ip, async_data->addr.port, async_data->addr);
+      make_address("atcp", ip, async_data->addr.port, async_data->addr);
       listen_res = io_stream_listen(async_data->channel, async_data->addr, async_data->callback, async_data->priv_data,
                                     async_data->priv_size);
     } else if (AF_INET6 == res->ai_family) {
       sockaddr_in6 *res_c = reinterpret_cast<sockaddr_in6 *>(res->ai_addr);
       char ip[40] = {0};
       uv_ip6_name(res_c, ip, sizeof(ip));
-      make_address("ipv6", ip, async_data->addr.port, async_data->addr);
+      make_address("atcp", ip, async_data->addr.port, async_data->addr);
       listen_res = io_stream_listen(async_data->channel, async_data->addr, async_data->callback, async_data->priv_data,
                                     async_data->priv_size);
     } else {
@@ -1237,7 +1237,8 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
   }
 
   // socket
-  if (0 == UTIL_STRFUNC_STRNCASE_CMP("ipv4", addr.scheme.c_str(), 4) ||
+  if (0 == UTIL_STRFUNC_STRNCASE_CMP("atcp", addr.scheme.c_str(), 4) ||
+      0 == UTIL_STRFUNC_STRNCASE_CMP("ipv4", addr.scheme.c_str(), 4) ||
       0 == UTIL_STRFUNC_STRNCASE_CMP("ipv6", addr.scheme.c_str(), 4)) {
     ::atfw::util::memory::strong_rc_ptr<adapter::stream_t> listen_conn;
     ::atfw::util::memory::strong_rc_ptr<io_stream_connection> conn;
@@ -1260,8 +1261,9 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
     ATBUS_ERROR_TYPE ret = EN_ATBUS_ERR_SUCCESS;
     do {
       io_stream_tcp_setup(channel, handle);
+      bool is_ipv4 = std::string::npos == addr.host.find(':');
 
-      if ('4' == addr.scheme[3]) {
+      if (is_ipv4) {
         sockaddr_in sock_addr = {};
         uv_ip4_addr(addr.host.c_str(), addr.port, &sock_addr);
         // NOLINTNEXTLINE(bugprone-assignment-in-if-condition)
@@ -1510,14 +1512,14 @@ static void io_stream_dns_connect_cb(uv_getaddrinfo_t *req, int status, struct a
       sockaddr_in *res_c = reinterpret_cast<sockaddr_in *>(res->ai_addr);
       char ip[17] = {0};
       uv_ip4_name(res_c, ip, sizeof(ip));
-      make_address("ipv4", ip, async_data->addr.port, async_data->addr);
+      make_address("atcp", ip, async_data->addr.port, async_data->addr);
       listen_res = io_stream_connect(async_data->channel, async_data->addr, async_data->callback, async_data->priv_data,
                                      async_data->priv_size);
     } else if (AF_INET6 == res->ai_family) {
       sockaddr_in6 *res_c = reinterpret_cast<sockaddr_in6 *>(res->ai_addr);
       char ip[40] = {0};
       uv_ip6_name(res_c, ip, sizeof(ip));
-      make_address("ipv6", ip, async_data->addr.port, async_data->addr);
+      make_address("atcp", ip, async_data->addr.port, async_data->addr);
       listen_res = io_stream_connect(async_data->channel, async_data->addr, async_data->callback, async_data->priv_data,
                                      async_data->priv_size);
     } else {
@@ -1557,7 +1559,8 @@ int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr,
   }
 
   // socket
-  if (0 == UTIL_STRFUNC_STRNCASE_CMP("ipv4", addr.scheme.c_str(), 4) ||
+  if (0 == UTIL_STRFUNC_STRNCASE_CMP("atcp", addr.scheme.c_str(), 4) ||
+      0 == UTIL_STRFUNC_STRNCASE_CMP("ipv4", addr.scheme.c_str(), 4) ||
       0 == UTIL_STRFUNC_STRNCASE_CMP("ipv6", addr.scheme.c_str(), 4)) {
     ::atfw::util::memory::strong_rc_ptr<adapter::stream_t> sock_conn;
     adapter::tcp_t *handle = io_stream_make_stream_ptr<adapter::tcp_t>(sock_conn);
@@ -1588,7 +1591,8 @@ int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr,
       io_stream_sockaddr_switcher sock_addr = {};
       const sockaddr *sock_addr_ptr = nullptr;
 
-      if ('4' == addr.scheme[3]) {
+      bool is_ipv4 = std::string::npos == addr.host.find(':');
+      if (is_ipv4) {
         uv_ip4_addr(addr.host.c_str(), addr.port, &sock_addr.ipv4);
         sock_addr_ptr = &sock_addr.base;
       } else {
@@ -2057,4 +2061,3 @@ void io_stream_show_channel(io_stream_channel *channel, std::ostream &out) {
 }
 }  // namespace channel
 ATBUS_MACRO_NAMESPACE_END
-
