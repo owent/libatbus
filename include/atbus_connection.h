@@ -26,6 +26,13 @@
 
 #include "atbus_connection_context.h"
 
+// clang-format off
+#if defined(__clang__)
+#  pragma clang diagnostic push
+#  pragma clang diagnostic ignored "-Wnullability-completeness"
+#endif
+// clang-format on
+
 ATBUS_MACRO_NAMESPACE_BEGIN
 class node;
 class endpoint;
@@ -289,3 +296,9 @@ class connection final : public atfw::util::design_pattern::noncopyable {
   friend class endpoint;
 };
 ATBUS_MACRO_NAMESPACE_END
+
+// clang-format off
+#if defined(__clang__)
+#  pragma clang diagnostic pop
+#endif
+// clang-format on
