@@ -41,6 +41,13 @@
 #include "atbus_endpoint.h"
 #include "atbus_topology.h"
 
+// clang-format off
+#if defined(__clang__)
+#  pragma clang diagnostic push
+#  pragma clang diagnostic ignored "-Wnullability-completeness"
+#endif
+// clang-format on
+
 ATBUS_MACRO_NAMESPACE_BEGIN
 
 class node;
@@ -935,6 +942,12 @@ ATFW_UTIL_FORCEINLINE bool __log_has_message_data(const message *m) noexcept {
 }
 }  // namespace details
 ATBUS_MACRO_NAMESPACE_END
+
+// clang-format off
+#if defined(__clang__)
+#  pragma clang diagnostic pop
+#endif
+// clang-format on
 
 #define ATBUS_FUNC_NODE_FATAL_SHUTDOWN(n, ep, conn, status, errorcode)                                              \
   (n).fatal_shutdown(WDTLOGFILENF(atfw::util::log::log_wrapper::level_t::LOG_LW_ERROR, {}), (ep), (conn), (status), \
