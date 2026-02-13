@@ -444,7 +444,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
    * @note 接收端收到的数据很可能不是地址对齐的，所以这里不建议发送内存数据对象(struct/class)
    *       如果非要发送内存数据的话，接收端一定要memcpy，不能直接类型转换，除非手动设置了地址对齐规则
    */
-  ATBUS_MACRO_API int send_data(bus_id_t tid, int type, gsl::span<const unsigned char> data);
+  ATBUS_MACRO_API int send_data(bus_id_t tid, int32_t type, gsl::span<const unsigned char> data);
 
   /**
    * @brief 发送数据
@@ -456,7 +456,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
    * @note 接收端收到的数据很可能不是地址对齐的，所以这里不建议发送内存数据对象(struct/class)
    *       如果非要发送内存数据的话，接收端一定要memcpy，不能直接类型转换，除非手动设置了地址对齐规则
    */
-  ATBUS_MACRO_API int send_data(bus_id_t tid, int type, gsl::span<const unsigned char> data,
+  ATBUS_MACRO_API int send_data(bus_id_t tid, int32_t type, gsl::span<const unsigned char> data,
                                 send_data_options_t &options);
 
   /**
