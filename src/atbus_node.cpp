@@ -976,10 +976,12 @@ ATBUS_MACRO_API int node::connect(gsl::string_view addr_str) {
   }
 
   // 内存通道和共享内存通道不允许协商握手，必须直接指定endpoint
-  if (addr_str.size() >= 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr_str.data(), 4)) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
+  if (addr_str.size() >= 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr_str.data(),
+                                                             4)) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
     return EN_ATBUS_ERR_ACCESS_DENY;
   }
-  if (addr_str.size() >= 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr_str.data(), 4)) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
+  if (addr_str.size() >= 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr_str.data(),
+                                                             4)) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
     return EN_ATBUS_ERR_ACCESS_DENY;
   }
 
@@ -1024,8 +1026,11 @@ ATBUS_MACRO_API int node::connect(gsl::string_view addr_str, endpoint *ep) {
   ATBUS_FUNC_NODE_DEBUG(*this, ep, conn.get(), nullptr, "connect to {} and bind to a endpoint {} success", addr_str,
                         ep->get_id());
 
-  if (addr_str.size() >= 4 && (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr_str.data(), 4) ||  // NOLINT(bugprone-suspicious-stringview-data-usage)
-                               0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr_str.data(), 4))) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
+  if (addr_str.size() >= 4 &&
+      (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr_str.data(),
+                                      4) ||  // NOLINT(bugprone-suspicious-stringview-data-usage)
+       0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr_str.data(),
+                                      4))) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
     if (ep->add_connection(conn.get(), true)) {
       return EN_ATBUS_ERR_SUCCESS;
     }
@@ -1076,12 +1081,12 @@ ATBUS_MACRO_API const ::atfw::util::crypto::dh::shared_context::ptr_t &node::get
   return crypto_key_exchange_context_;
 }
 
-ATBUS_MACRO_API int node::send_data(bus_id_t tid, int type, gsl::span<const unsigned char> data) {
+ATBUS_MACRO_API int node::send_data(bus_id_t tid, int32_t type, gsl::span<const unsigned char> data) {
   send_data_options_t options;
   return send_data(tid, type, data, options);
 }
 
-ATBUS_MACRO_API int node::send_data(bus_id_t tid, int type, gsl::span<const unsigned char> data,
+ATBUS_MACRO_API int node::send_data(bus_id_t tid, int32_t type, gsl::span<const unsigned char> data,
                                     send_data_options_t &options) {
   if (state_t::kCreated == state_) {
     return EN_ATBUS_ERR_NOT_INITED;
@@ -2364,7 +2369,9 @@ node::get_on_topology_update_upstream_handle() const {
   return event_message_.on_topology_update_upstream;
 }
 
-ATBUS_MACRO_API void node::set_logger(atfw::util::log::log_wrapper::ptr_t logger) noexcept { logger_ = std::move(logger); }
+ATBUS_MACRO_API void node::set_logger(atfw::util::log::log_wrapper::ptr_t logger) noexcept {
+  logger_ = std::move(logger);
+}
 
 ATBUS_MACRO_API void node::ref_object(void *obj) {
   if (nullptr == obj) {
