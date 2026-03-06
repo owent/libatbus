@@ -309,8 +309,8 @@ static inline volatile mem_node_head *mem_get_node_head(mem_channel *channel, si
     }
 
     if (data_len != nullptr) {
-      (*data_len) =
-          channel->area_end_offset - channel->area_channel_offset + static_cast<size_t>(reinterpret_cast<char *>(channel) - data_);
+      (*data_len) = channel->area_end_offset - channel->area_channel_offset +
+                    static_cast<size_t>(reinterpret_cast<char *>(channel) - data_);
     }
   }
 
@@ -544,7 +544,8 @@ ATBUS_MACRO_API int mem_init(void *buf, size_t len, mem_channel **channel, const
       (len - mem_block::channel_head_size) / (head->channel.node_size + mem_block::node_head_size);
 
   // 偏移位置计算
-  head->channel.area_channel_offset = static_cast<size_t>(reinterpret_cast<char *>(&head->channel) - reinterpret_cast<char *>(buf));
+  head->channel.area_channel_offset =
+      static_cast<size_t>(reinterpret_cast<char *>(&head->channel) - reinterpret_cast<char *>(buf));
   head->channel.area_head_offset = sizeof(mem_channel_head_align);
   head->channel.area_data_offset =
       head->channel.area_head_offset + (head->channel.node_count * mem_block::node_head_size);
@@ -600,7 +601,7 @@ static int mem_send_real(mem_channel *channel, const void *buf, size_t len) {
   // 游标操作
   size_t read_cur = 0;
   size_t new_write_cur = 0, write_cur = channel->atomic_write_cur.load();
-  unsigned char retry_times = 0;
+  unsigned int retry_times = 0;
 
   while (true) {
     read_cur = channel->atomic_read_cur.load();
@@ -625,7 +626,7 @@ static int mem_send_real(mem_channel *channel, const void *buf, size_t len) {
     // 发现冲突原子操作失败则重试
     // 增加补偿策略(bkoff)，防止高竞争时多个进程/线程之间频繁冲突
     ++retry_times;
-    __UTIL_LOCK_SPIN_LOCK_WAIT(retry_times);
+    atfw::util::lock::detail::spin_wait(retry_times);
   }
   detail::last_action_channel_begin_node_index = write_cur;
   detail::last_action_channel_end_node_index = new_write_cur;
@@ -647,7 +648,8 @@ static int mem_send_real(mem_channel *channel, const void *buf, size_t len) {
 
     for (size_t i = mem_next_index(channel, write_cur, 1); i != new_write_cur; i = mem_next_index(channel, i, 1)) {
       volatile mem_node_head *this_node_head = mem_get_node_head(channel, i, nullptr, nullptr);
-      assert(reinterpret_cast<volatile char *>(this_node_head) < reinterpret_cast<char *>(channel) + channel->area_data_offset);
+      assert(reinterpret_cast<volatile char *>(this_node_head) <
+             reinterpret_cast<char *>(channel) + channel->area_data_offset);
 
       // 写数据node出现冲突
       // 写超时会导致this_node_head还是之前版本的数据，并不会被清空。所以不再恢复 operation_seq
@@ -1050,4 +1052,3 @@ ATBUS_MACRO_API void mem_stats_get_error(mem_channel *channel, mem_stats_block_e
 
 }  // namespace channel
 ATBUS_MACRO_NAMESPACE_END
-
