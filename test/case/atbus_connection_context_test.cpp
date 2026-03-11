@@ -57,7 +57,7 @@ static bool test_cipher_encrypt_decrypt(const char* cipher_name) {
   int init_res = ci.init(cipher_name, atfw::util::crypto::cipher::mode_t::EN_CMODE_ENCRYPT |
                                           atfw::util::crypto::cipher::mode_t::EN_CMODE_DECRYPT);
   if (init_res != 0) {
-    CASE_MSG_INFO() << "cipher init failed: " << init_res << ", errno: " << ci.get_last_errno() << std::endl;
+    CASE_MSG_INFO() << "cipher init failed: " << init_res << ", errno: " << ci.get_last_errno() << '\n';
     return false;
   }
 
@@ -66,7 +66,7 @@ static bool test_cipher_encrypt_decrypt(const char* cipher_name) {
   std::vector<unsigned char> key(key_bits / 8, 0x42);
   int key_res = ci.set_key(key.data(), key_bits);
   if (key_res != 0) {
-    CASE_MSG_INFO() << "set_key failed: " << key_res << ", errno: " << ci.get_last_errno() << std::endl;
+    CASE_MSG_INFO() << "set_key failed: " << key_res << ", errno: " << ci.get_last_errno() << '\n';
     return false;
   }
 
@@ -76,7 +76,7 @@ static bool test_cipher_encrypt_decrypt(const char* cipher_name) {
     std::vector<unsigned char> iv(iv_size, 0x24);
     int iv_res = ci.set_iv(iv.data(), iv_size);
     if (iv_res != 0) {
-      CASE_MSG_INFO() << "set_iv failed: " << iv_res << ", errno: " << ci.get_last_errno() << std::endl;
+      CASE_MSG_INFO() << "set_iv failed: " << iv_res << ", errno: " << ci.get_last_errno() << '\n';
       return false;
     }
   }
@@ -107,13 +107,13 @@ static bool test_cipher_encrypt_decrypt(const char* cipher_name) {
     if (encrypt_res != 0) {
       CASE_MSG_INFO() << "encrypt_aead failed: " << encrypt_res << ", errno: " << ci.get_last_errno()
                       << ", is_aead: " << ci.is_aead() << ", tag_size: " << ci.get_tag_size()
-                      << ", block_size: " << ci.get_block_size() << std::endl;
+                      << ", block_size: " << ci.get_block_size() << '\n';
       return false;
     }
   } else {
     encrypt_res = ci.encrypt(plaintext.data(), plaintext.size(), ciphertext.data(), &out_size);
     if (encrypt_res != 0) {
-      CASE_MSG_INFO() << "encrypt failed: " << encrypt_res << ", errno: " << ci.get_last_errno() << std::endl;
+      CASE_MSG_INFO() << "encrypt failed: " << encrypt_res << ", errno: " << ci.get_last_errno() << '\n';
       return false;
     }
   }
@@ -127,8 +127,7 @@ static bool test_cipher_encrypt_only_mode(const char* cipher_name) {
   // Use ONLY encrypt mode, just like _create_crypto_cipher does for send_cipher_
   int init_res = ci.init(cipher_name, atfw::util::crypto::cipher::mode_t::EN_CMODE_ENCRYPT);
   if (init_res != 0) {
-    CASE_MSG_INFO() << "[SINGLE MODE] cipher init failed: " << init_res << ", errno: " << ci.get_last_errno()
-                    << std::endl;
+    CASE_MSG_INFO() << "[SINGLE MODE] cipher init failed: " << init_res << ", errno: " << ci.get_last_errno() << '\n';
     return false;
   }
 
@@ -137,7 +136,7 @@ static bool test_cipher_encrypt_only_mode(const char* cipher_name) {
   std::vector<unsigned char> key(key_bits / 8, 0x42);
   int key_res = ci.set_key(key.data(), key_bits);
   if (key_res != 0) {
-    CASE_MSG_INFO() << "[SINGLE MODE] set_key failed: " << key_res << ", errno: " << ci.get_last_errno() << std::endl;
+    CASE_MSG_INFO() << "[SINGLE MODE] set_key failed: " << key_res << ", errno: " << ci.get_last_errno() << '\n';
     return false;
   }
 
@@ -147,7 +146,7 @@ static bool test_cipher_encrypt_only_mode(const char* cipher_name) {
     std::vector<unsigned char> iv(iv_size, 0x24);
     int iv_res = ci.set_iv(iv.data(), iv_size);
     if (iv_res != 0) {
-      CASE_MSG_INFO() << "[SINGLE MODE] set_iv failed: " << iv_res << ", errno: " << ci.get_last_errno() << std::endl;
+      CASE_MSG_INFO() << "[SINGLE MODE] set_iv failed: " << iv_res << ", errno: " << ci.get_last_errno() << '\n';
       return false;
     }
   }
@@ -179,19 +178,19 @@ static bool test_cipher_encrypt_only_mode(const char* cipher_name) {
     if (encrypt_res != 0) {
       CASE_MSG_INFO() << "[SINGLE MODE] encrypt_aead failed: " << encrypt_res << ", errno: " << ci.get_last_errno()
                       << ", is_aead: " << ci.is_aead() << ", tag_size: " << ci.get_tag_size()
-                      << ", block_size: " << ci.get_block_size() << std::endl;
+                      << ", block_size: " << ci.get_block_size() << '\n';
       return false;
     }
   } else {
     encrypt_res = ci.encrypt(plaintext.data(), plaintext.size(), ciphertext.data(), &out_size);
     if (encrypt_res != 0) {
       CASE_MSG_INFO() << "[SINGLE MODE] encrypt failed: " << encrypt_res << ", errno: " << ci.get_last_errno()
-                      << ", block_size: " << block_size << ", input_size: " << plaintext.size() << std::endl;
+                      << ", block_size: " << block_size << ", input_size: " << plaintext.size() << '\n';
       return false;
     }
   }
 
-  CASE_MSG_INFO() << "[SINGLE MODE] cipher encrypt test PASSED for " << cipher_name << std::endl;
+  CASE_MSG_INFO() << "[SINGLE MODE] cipher encrypt test PASSED for " << cipher_name << '\n';
   return true;
 }
 #endif
@@ -390,7 +389,7 @@ CASE_TEST(atbus_connection_context, create_with_x25519) {
 
   auto dh_ctx = create_test_dh_context("ecdh:X25519");
   if (!dh_ctx) {
-    CASE_MSG_INFO() << "X25519 not supported, skipping test" << std::endl;
+    CASE_MSG_INFO() << "X25519 not supported, skipping test" << '\n';
     return;
   }
 
@@ -408,7 +407,7 @@ CASE_TEST(atbus_connection_context, create_with_secp256r1) {
 
   auto dh_ctx = create_test_dh_context("ecdh:P-256");
   if (!dh_ctx) {
-    CASE_MSG_INFO() << "P-256 not supported, skipping test" << std::endl;
+    CASE_MSG_INFO() << "P-256 not supported, skipping test" << '\n';
     return;
   }
 
@@ -590,7 +589,7 @@ CASE_TEST(atbus_connection_context, handshake_generate_self_key_with_encryption)
 
   auto dh_ctx = create_test_dh_context("ecdh:P-256");
   if (!dh_ctx) {
-    CASE_MSG_INFO() << "P-256 not supported, skipping test" << std::endl;
+    CASE_MSG_INFO() << "P-256 not supported, skipping test" << '\n';
     return;
   }
 
@@ -617,7 +616,7 @@ CASE_TEST(atbus_connection_context, handshake_generate_self_key_with_peer_sequen
 
   auto dh_ctx = create_test_dh_context("ecdh:P-256");
   if (!dh_ctx) {
-    CASE_MSG_INFO() << "P-256 not supported, skipping test" << std::endl;
+    CASE_MSG_INFO() << "P-256 not supported, skipping test" << '\n';
     return;
   }
 
@@ -638,7 +637,7 @@ CASE_TEST(atbus_connection_context, handshake_write_self_public_key) {
 
   auto dh_ctx = create_test_dh_context("ecdh:P-256");
   if (!dh_ctx) {
-    CASE_MSG_INFO() << "P-256 not supported, skipping test" << std::endl;
+    CASE_MSG_INFO() << "P-256 not supported, skipping test" << '\n';
     return;
   }
 
@@ -674,7 +673,7 @@ CASE_TEST(atbus_connection_context, handshake_complete_flow) {
   auto client_dh_ctx = create_test_dh_context("ecdh:P-256");
 
   if (!server_dh_ctx || !client_dh_ctx) {
-    CASE_MSG_INFO() << "P-256 not supported, skipping test" << std::endl;
+    CASE_MSG_INFO() << "P-256 not supported, skipping test" << '\n';
     return;
   }
 
@@ -706,7 +705,7 @@ CASE_TEST(atbus_connection_context, handshake_complete_flow) {
   CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
 
   // Step 4: Server reads client's public key and computes shared secret
-  result = server_ctx->handshake_read_peer_key(client_pub_key, supported_algorithms);
+  result = server_ctx->handshake_read_peer_key(client_pub_key, supported_algorithms, true);
   CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
 
   // Step 5: Server writes its public key
@@ -715,8 +714,11 @@ CASE_TEST(atbus_connection_context, handshake_complete_flow) {
   CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
 
   // Step 6: Client reads server's public key and computes shared secret
-  result = client_ctx->handshake_read_peer_key(server_pub_key, supported_algorithms);
+  result = client_ctx->handshake_read_peer_key(server_pub_key, supported_algorithms, false);
   CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
+
+  // Step 7: Server confirms handshake
+  server_ctx->confirm_handshake(server_pub_key.sequence());
 
   // Both should now have the same crypto algorithm selected
   CASE_EXPECT_EQ(server_ctx->get_crypto_select_algorithm(), client_ctx->get_crypto_select_algorithm());
@@ -731,7 +733,7 @@ CASE_TEST(atbus_connection_context, handshake_read_peer_key_sequence_mismatch) {
   auto client_dh_ctx = create_test_dh_context("ecdh:P-256");
 
   if (!server_dh_ctx || !client_dh_ctx) {
-    CASE_MSG_INFO() << "P-256 not supported, skipping test" << std::endl;
+    CASE_MSG_INFO() << "P-256 not supported, skipping test" << '\n';
     return;
   }
 
@@ -760,7 +762,7 @@ CASE_TEST(atbus_connection_context, handshake_read_peer_key_sequence_mismatch) {
   CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
 
   // Server tries to read client's key - should fail due to sequence mismatch
-  result = server_ctx->handshake_read_peer_key(client_pub_key, supported_algorithms);
+  result = server_ctx->handshake_read_peer_key(client_pub_key, supported_algorithms, true);
   CASE_EXPECT_EQ(EN_ATBUS_ERR_CRYPTO_HANDSHAKE_SEQUENCE_EXPIRED, result);
 }
 
@@ -772,7 +774,7 @@ CASE_TEST(atbus_connection_context, handshake_read_peer_key_no_common_algorithm)
   auto client_dh_ctx = create_test_dh_context("ecdh:P-256");
 
   if (!server_dh_ctx || !client_dh_ctx) {
-    CASE_MSG_INFO() << "P-256 not supported, skipping test" << std::endl;
+    CASE_MSG_INFO() << "P-256 not supported, skipping test" << '\n';
     return;
   }
 
@@ -807,7 +809,7 @@ CASE_TEST(atbus_connection_context, handshake_read_peer_key_no_common_algorithm)
   CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
 
   // Server tries to read client's key - should fail due to no common algorithm
-  result = server_ctx->handshake_read_peer_key(client_pub_key, server_algorithms);
+  result = server_ctx->handshake_read_peer_key(client_pub_key, server_algorithms, true);
   CASE_EXPECT_EQ(EN_ATBUS_ERR_CRYPTO_HANDSHAKE_NO_AVAILABLE_ALGORITHM, result);
 }
 
@@ -819,7 +821,7 @@ CASE_TEST(atbus_connection_context, handshake_with_x25519) {
   auto client_dh_ctx = create_test_dh_context("ecdh:X25519");
 
   if (!server_dh_ctx || !client_dh_ctx) {
-    CASE_MSG_INFO() << "X25519 not supported, skipping test" << std::endl;
+    CASE_MSG_INFO() << "X25519 not supported, skipping test" << '\n';
     return;
   }
 
@@ -846,15 +848,17 @@ CASE_TEST(atbus_connection_context, handshake_with_x25519) {
   result = server_ctx->handshake_generate_self_key(client_pub_key.sequence());
   CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
 
-  result = server_ctx->handshake_read_peer_key(client_pub_key, supported_algorithms);
+  result = server_ctx->handshake_read_peer_key(client_pub_key, supported_algorithms, true);
   CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
 
   atframework::atbus::protocol::crypto_handshake_data server_pub_key;
   result = server_ctx->handshake_write_self_public_key(server_pub_key, supported_algorithms);
   CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
 
-  result = client_ctx->handshake_read_peer_key(server_pub_key, supported_algorithms);
+  result = client_ctx->handshake_read_peer_key(server_pub_key, supported_algorithms, false);
   CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
+
+  server_ctx->confirm_handshake(server_pub_key.sequence());
 
   CASE_EXPECT_EQ(atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20_POLY1305_IETF,
                  server_ctx->get_crypto_select_algorithm());
@@ -912,7 +916,7 @@ CASE_TEST(atbus_connection_context, pack_unpack_message_with_compression) {
 #  ifdef ATFW_UTIL_MACRO_COMPRESSION_ENABLED
   auto supported = ::atfw::util::compression::get_supported_algorithms();
   if (supported.empty()) {
-    CASE_MSG_INFO() << "No compression algorithm available, skipping test" << std::endl;
+    CASE_MSG_INFO() << "No compression algorithm available, skipping test" << '\n';
     return;
   }
 
@@ -980,7 +984,7 @@ CASE_TEST(atbus_connection_context, pack_unpack_message_with_compression) {
     }
   }
 #  else
-  CASE_MSG_INFO() << "Compression disabled at build time, skipping test" << std::endl;
+  CASE_MSG_INFO() << "Compression disabled at build time, skipping test" << '\n';
 #  endif
 }
 
@@ -990,20 +994,20 @@ CASE_TEST(atbus_connection_context, pack_unpack_message_with_encryption) {
 
   // Check if required cipher algorithm is available
   if (!is_cipher_algorithm_available("aes-256-gcm")) {
-    CASE_MSG_INFO() << "AES-256-GCM not supported, skipping test" << std::endl;
+    CASE_MSG_INFO() << "AES-256-GCM not supported, skipping test" << '\n';
     return;
   }
 
   // First, verify that cipher can encrypt/decrypt directly
   if (!test_cipher_encrypt_decrypt("aes-256-gcm")) {
-    CASE_MSG_INFO() << "AES-256-GCM cipher direct test failed, skipping test" << std::endl;
+    CASE_MSG_INFO() << "AES-256-GCM cipher direct test failed, skipping test" << '\n';
     return;
   }
 
   // Also test with single ENCRYPT mode (like _create_crypto_cipher uses)
   if (!test_cipher_encrypt_only_mode("aes-256-gcm")) {
     CASE_MSG_INFO() << "AES-256-GCM single mode test failed, this indicates _create_crypto_cipher may have issues"
-                    << std::endl;
+                    << '\n';
     return;
   }
 
@@ -1011,7 +1015,7 @@ CASE_TEST(atbus_connection_context, pack_unpack_message_with_encryption) {
   auto client_dh_ctx = create_test_dh_context("ecdh:P-256");
 
   if (!server_dh_ctx || !client_dh_ctx) {
-    CASE_MSG_INFO() << "P-256 not supported, skipping test" << std::endl;
+    CASE_MSG_INFO() << "P-256 not supported, skipping test" << '\n';
     return;
   }
 
@@ -1030,47 +1034,49 @@ CASE_TEST(atbus_connection_context, pack_unpack_message_with_encryption) {
   // Complete handshake
   int result = client_ctx->handshake_generate_self_key(0);
   if (result != EN_ATBUS_ERR_SUCCESS) {
-    CASE_MSG_INFO() << "handshake_generate_self_key failed: " << result << ", skipping test" << std::endl;
+    CASE_MSG_INFO() << "handshake_generate_self_key failed: " << result << ", skipping test" << '\n';
     return;
   }
 
   atframework::atbus::protocol::crypto_handshake_data client_pub_key;
   result = client_ctx->handshake_write_self_public_key(client_pub_key, supported_algorithms);
   if (result != EN_ATBUS_ERR_SUCCESS) {
-    CASE_MSG_INFO() << "handshake_write_self_public_key failed: " << result << ", skipping test" << std::endl;
+    CASE_MSG_INFO() << "handshake_write_self_public_key failed: " << result << ", skipping test" << '\n';
     return;
   }
 
   result = server_ctx->handshake_generate_self_key(client_pub_key.sequence());
   if (result != EN_ATBUS_ERR_SUCCESS) {
-    CASE_MSG_INFO() << "server handshake_generate_self_key failed: " << result << ", skipping test" << std::endl;
+    CASE_MSG_INFO() << "server handshake_generate_self_key failed: " << result << ", skipping test" << '\n';
     return;
   }
 
-  result = server_ctx->handshake_read_peer_key(client_pub_key, supported_algorithms);
+  result = server_ctx->handshake_read_peer_key(client_pub_key, supported_algorithms, true);
   if (result != EN_ATBUS_ERR_SUCCESS) {
-    CASE_MSG_INFO() << "server handshake_read_peer_key failed: " << result << ", skipping test" << std::endl;
+    CASE_MSG_INFO() << "server handshake_read_peer_key failed: " << result << ", skipping test" << '\n';
     return;
   }
 
   atframework::atbus::protocol::crypto_handshake_data server_pub_key;
   result = server_ctx->handshake_write_self_public_key(server_pub_key, supported_algorithms);
   if (result != EN_ATBUS_ERR_SUCCESS) {
-    CASE_MSG_INFO() << "server handshake_write_self_public_key failed: " << result << ", skipping test" << std::endl;
+    CASE_MSG_INFO() << "server handshake_write_self_public_key failed: " << result << ", skipping test" << '\n';
     return;
   }
 
-  result = client_ctx->handshake_read_peer_key(server_pub_key, supported_algorithms);
+  result = client_ctx->handshake_read_peer_key(server_pub_key, supported_algorithms, false);
   if (result != EN_ATBUS_ERR_SUCCESS) {
-    CASE_MSG_INFO() << "client handshake_read_peer_key failed: " << result << ", skipping test" << std::endl;
+    CASE_MSG_INFO() << "client handshake_read_peer_key failed: " << result << ", skipping test" << '\n';
     return;
   }
+
+  server_ctx->confirm_handshake(server_pub_key.sequence());
 
   // Debug: check selected algorithm
   CASE_MSG_INFO() << "Client selected algorithm: " << static_cast<int>(client_ctx->get_crypto_select_algorithm())
-                  << std::endl;
+                  << '\n';
   CASE_MSG_INFO() << "Server selected algorithm: " << static_cast<int>(server_ctx->get_crypto_select_algorithm())
-                  << std::endl;
+                  << '\n';
 
   // Create a message that allows encryption (not ping/pong/register)
   ::google::protobuf::ArenaOptions arena_options;
@@ -1084,7 +1090,7 @@ CASE_TEST(atbus_connection_context, pack_unpack_message_with_encryption) {
   // Debug: check message body size
   auto* check_body = send_msg.get_body();
   if (check_body) {
-    CASE_MSG_INFO() << "Message body size: " << check_body->ByteSizeLong() << " bytes" << std::endl;
+    CASE_MSG_INFO() << "Message body size: " << check_body->ByteSizeLong() << " bytes" << '\n';
   }
 
   atfw::atbus::random_engine_t random_engine;
@@ -1094,7 +1100,7 @@ CASE_TEST(atbus_connection_context, pack_unpack_message_with_encryption) {
   {
     atfw::util::crypto::cipher test_ci;
     int init_res = test_ci.init("aes-256-gcm", atfw::util::crypto::cipher::mode_t::EN_CMODE_ENCRYPT);
-    CASE_MSG_INFO() << "Direct cipher init result: " << init_res << std::endl;
+    CASE_MSG_INFO() << "Direct cipher init result: " << init_res << '\n';
     if (init_res == 0) {
       // Use the exact same key size as connection_context would
       uint32_t key_bits = test_ci.get_key_bits();
@@ -1105,11 +1111,11 @@ CASE_TEST(atbus_connection_context, pack_unpack_message_with_encryption) {
       // This is what connection_context does: set_key(key_iv.data(), key_size * 8)
       int key_res = test_ci.set_key(key_iv.data(), key_size * 8);
       CASE_MSG_INFO() << "Direct cipher set_key result: " << key_res << ", key_size: " << key_size
-                      << ", key_bits: " << (key_size * 8) << std::endl;
+                      << ", key_bits: " << (key_size * 8) << '\n';
 
       if (key_res == 0 && iv_size > 0) {
         int iv_res = test_ci.set_iv(key_iv.data() + key_size, iv_size);
-        CASE_MSG_INFO() << "Direct cipher set_iv result: " << iv_res << ", iv_size: " << iv_size << std::endl;
+        CASE_MSG_INFO() << "Direct cipher set_iv result: " << iv_res << ", iv_size: " << iv_size << '\n';
 
         if (iv_res == 0) {
           const std::string plaintext = "Hello, encrypted world!";
@@ -1121,7 +1127,7 @@ CASE_TEST(atbus_connection_context, pack_unpack_message_with_encryption) {
                                              ciphertext.data(), &out_size,
                                              reinterpret_cast<const unsigned char*>(aad.data()), aad.size());
           CASE_MSG_INFO() << "Direct cipher encrypt_aead result: " << enc_res
-                          << ", last_errno: " << test_ci.get_last_errno() << std::endl;
+                          << ", last_errno: " << test_ci.get_last_errno() << '\n';
         }
       }
     }
@@ -1133,7 +1139,7 @@ CASE_TEST(atbus_connection_context, pack_unpack_message_with_encryption) {
   if (pack_result.is_error()) {
     auto error_ptr = pack_result.get_error();
     if (error_ptr != nullptr) {
-      CASE_MSG_INFO() << "pack_message failed with error: " << static_cast<int>(*error_ptr) << std::endl;
+      CASE_MSG_INFO() << "pack_message failed with error: " << static_cast<int>(*error_ptr) << '\n';
     }
   }
   CASE_EXPECT_TRUE(pack_result.is_success());
@@ -1186,7 +1192,7 @@ CASE_TEST(atbus_connection_context, pack_message_size_limit) {
   CASE_EXPECT_NE(nullptr, check_body);
   if (check_body != nullptr) {
     size_t body_size = static_cast<size_t>(check_body->ByteSizeLong());
-    CASE_MSG_INFO() << "Message body size: " << body_size << " bytes" << std::endl;
+    CASE_MSG_INFO() << "Message body size: " << body_size << " bytes" << '\n';
     CASE_EXPECT_GT(body_size, static_cast<size_t>(100));
   }
 
@@ -1211,7 +1217,7 @@ CASE_TEST(atbus_connection_context, pack_message_size_limit) {
     // If pack succeeded unexpectedly, log details for debugging
     auto* buffer = pack_result.get_success();
     CASE_MSG_INFO() << "pack_message unexpectedly succeeded, buffer size: " << (buffer ? buffer->size() : 0)
-                    << " bytes, used: " << (buffer ? buffer->used() : 0) << " bytes" << std::endl;
+                    << " bytes, used: " << (buffer ? buffer->used() : 0) << " bytes" << '\n';
   }
 }
 
@@ -1247,7 +1253,7 @@ CASE_TEST(atbus_connection_context, bidirectional_encrypted_communication) {
 
   // Check if required cipher algorithm is available
   if (!is_cipher_algorithm_available("aes-128-gcm")) {
-    CASE_MSG_INFO() << "AES-128-GCM not supported, skipping test" << std::endl;
+    CASE_MSG_INFO() << "AES-128-GCM not supported, skipping test" << '\n';
     return;
   }
 
@@ -1255,7 +1261,7 @@ CASE_TEST(atbus_connection_context, bidirectional_encrypted_communication) {
   auto client_dh_ctx = create_test_dh_context("ecdh:P-256");
 
   if (!server_dh_ctx || !client_dh_ctx) {
-    CASE_MSG_INFO() << "P-256 not supported, skipping test" << std::endl;
+    CASE_MSG_INFO() << "P-256 not supported, skipping test" << '\n';
     return;
   }
 
@@ -1271,41 +1277,43 @@ CASE_TEST(atbus_connection_context, bidirectional_encrypted_communication) {
   // Complete handshake with error checking
   int result = client_ctx->handshake_generate_self_key(0);
   if (result != EN_ATBUS_ERR_SUCCESS) {
-    CASE_MSG_INFO() << "client handshake_generate_self_key failed: " << result << ", skipping test" << std::endl;
+    CASE_MSG_INFO() << "client handshake_generate_self_key failed: " << result << ", skipping test" << '\n';
     return;
   }
 
   atframework::atbus::protocol::crypto_handshake_data client_pub_key;
   result = client_ctx->handshake_write_self_public_key(client_pub_key, supported_algorithms);
   if (result != EN_ATBUS_ERR_SUCCESS) {
-    CASE_MSG_INFO() << "client handshake_write_self_public_key failed: " << result << ", skipping test" << std::endl;
+    CASE_MSG_INFO() << "client handshake_write_self_public_key failed: " << result << ", skipping test" << '\n';
     return;
   }
 
   result = server_ctx->handshake_generate_self_key(client_pub_key.sequence());
   if (result != EN_ATBUS_ERR_SUCCESS) {
-    CASE_MSG_INFO() << "server handshake_generate_self_key failed: " << result << ", skipping test" << std::endl;
+    CASE_MSG_INFO() << "server handshake_generate_self_key failed: " << result << ", skipping test" << '\n';
     return;
   }
 
-  result = server_ctx->handshake_read_peer_key(client_pub_key, supported_algorithms);
+  result = server_ctx->handshake_read_peer_key(client_pub_key, supported_algorithms, true);
   if (result != EN_ATBUS_ERR_SUCCESS) {
-    CASE_MSG_INFO() << "server handshake_read_peer_key failed: " << result << ", skipping test" << std::endl;
+    CASE_MSG_INFO() << "server handshake_read_peer_key failed: " << result << ", skipping test" << '\n';
     return;
   }
 
   atframework::atbus::protocol::crypto_handshake_data server_pub_key;
   result = server_ctx->handshake_write_self_public_key(server_pub_key, supported_algorithms);
   if (result != EN_ATBUS_ERR_SUCCESS) {
-    CASE_MSG_INFO() << "server handshake_write_self_public_key failed: " << result << ", skipping test" << std::endl;
+    CASE_MSG_INFO() << "server handshake_write_self_public_key failed: " << result << ", skipping test" << '\n';
     return;
   }
 
-  result = client_ctx->handshake_read_peer_key(server_pub_key, supported_algorithms);
+  result = client_ctx->handshake_read_peer_key(server_pub_key, supported_algorithms, false);
   if (result != EN_ATBUS_ERR_SUCCESS) {
-    CASE_MSG_INFO() << "client handshake_read_peer_key failed: " << result << ", skipping test" << std::endl;
+    CASE_MSG_INFO() << "client handshake_read_peer_key failed: " << result << ", skipping test" << '\n';
     return;
   }
+
+  server_ctx->confirm_handshake(server_pub_key.sequence());
 
   atfw::atbus::random_engine_t random_engine;
   random_engine.init_seed(static_cast<uint64_t>(time(nullptr)));
@@ -1323,8 +1331,7 @@ CASE_TEST(atbus_connection_context, bidirectional_encrypted_communication) {
     if (pack_result.is_error()) {
       auto error_ptr = pack_result.get_error();
       if (error_ptr != nullptr) {
-        CASE_MSG_INFO() << "Client->Server pack_message failed with error: " << static_cast<int>(*error_ptr)
-                        << std::endl;
+        CASE_MSG_INFO() << "Client->Server pack_message failed with error: " << static_cast<int>(*error_ptr) << '\n';
       }
     }
     CASE_EXPECT_TRUE(pack_result.is_success());
@@ -1417,17 +1424,17 @@ static const crypto_algorithm_test_case kCryptoAlgorithmTestCases[] = {
 // Helper function to test a complete handshake and encryption/decryption with specific algorithms
 static bool test_complete_crypto_flow(const key_exchange_test_case& kex_case,
                                       const crypto_algorithm_test_case& crypto_case) {
-  CASE_MSG_INFO() << "Testing Key Exchange: " << kex_case.name << " with Cipher: " << crypto_case.name << std::endl;
+  CASE_MSG_INFO() << "Testing Key Exchange: " << kex_case.name << " with Cipher: " << crypto_case.name << '\n';
 
   // Check if cipher is available
   if (!is_cipher_algorithm_available(crypto_case.cipher_name)) {
-    CASE_MSG_INFO() << "  Cipher " << crypto_case.cipher_name << " not supported, skipping" << std::endl;
+    CASE_MSG_INFO() << "  Cipher " << crypto_case.cipher_name << " not supported, skipping" << '\n';
     return true;  // Skip is not a failure
   }
 
   // Test cipher in single mode first
   if (!test_cipher_encrypt_only_mode(crypto_case.cipher_name)) {
-    CASE_MSG_INFO() << "  Cipher " << crypto_case.cipher_name << " single mode test failed, skipping" << std::endl;
+    CASE_MSG_INFO() << "  Cipher " << crypto_case.cipher_name << " single mode test failed, skipping" << '\n';
     return true;  // Skip is not a failure
   }
 
@@ -1435,7 +1442,7 @@ static bool test_complete_crypto_flow(const key_exchange_test_case& kex_case,
   auto client_dh_ctx = create_test_dh_context(kex_case.dh_curve_name);
 
   if (!server_dh_ctx || !client_dh_ctx) {
-    CASE_MSG_INFO() << "  Key exchange " << kex_case.dh_curve_name << " not supported, skipping" << std::endl;
+    CASE_MSG_INFO() << "  Key exchange " << kex_case.dh_curve_name << " not supported, skipping" << '\n';
     return true;  // Skip is not a failure
   }
 
@@ -1443,7 +1450,7 @@ static bool test_complete_crypto_flow(const key_exchange_test_case& kex_case,
   auto client_ctx = atfw::atbus::connection_context::create(kex_case.type, client_dh_ctx);
 
   if (!server_ctx || !client_ctx) {
-    CASE_MSG_INFO() << "  Failed to create connection contexts, skipping" << std::endl;
+    CASE_MSG_INFO() << "  Failed to create connection contexts, skipping" << '\n';
     return false;
   }
 
@@ -1454,52 +1461,54 @@ static bool test_complete_crypto_flow(const key_exchange_test_case& kex_case,
   // Complete handshake
   int result = client_ctx->handshake_generate_self_key(0);
   if (result != EN_ATBUS_ERR_SUCCESS) {
-    CASE_MSG_INFO() << "  client handshake_generate_self_key failed: " << result << std::endl;
+    CASE_MSG_INFO() << "  client handshake_generate_self_key failed: " << result << '\n';
     return false;
   }
 
   atframework::atbus::protocol::crypto_handshake_data client_pub_key;
   result = client_ctx->handshake_write_self_public_key(client_pub_key, supported_algorithms);
   if (result != EN_ATBUS_ERR_SUCCESS) {
-    CASE_MSG_INFO() << "  client handshake_write_self_public_key failed: " << result << std::endl;
+    CASE_MSG_INFO() << "  client handshake_write_self_public_key failed: " << result << '\n';
     return false;
   }
 
   result = server_ctx->handshake_generate_self_key(client_pub_key.sequence());
   if (result != EN_ATBUS_ERR_SUCCESS) {
-    CASE_MSG_INFO() << "  server handshake_generate_self_key failed: " << result << std::endl;
+    CASE_MSG_INFO() << "  server handshake_generate_self_key failed: " << result << '\n';
     return false;
   }
 
-  result = server_ctx->handshake_read_peer_key(client_pub_key, supported_algorithms);
+  result = server_ctx->handshake_read_peer_key(client_pub_key, supported_algorithms, true);
   if (result != EN_ATBUS_ERR_SUCCESS) {
-    CASE_MSG_INFO() << "  server handshake_read_peer_key failed: " << result << std::endl;
+    CASE_MSG_INFO() << "  server handshake_read_peer_key failed: " << result << '\n';
     return false;
   }
 
   atframework::atbus::protocol::crypto_handshake_data server_pub_key;
   result = server_ctx->handshake_write_self_public_key(server_pub_key, supported_algorithms);
   if (result != EN_ATBUS_ERR_SUCCESS) {
-    CASE_MSG_INFO() << "  server handshake_write_self_public_key failed: " << result << std::endl;
+    CASE_MSG_INFO() << "  server handshake_write_self_public_key failed: " << result << '\n';
     return false;
   }
 
-  result = client_ctx->handshake_read_peer_key(server_pub_key, supported_algorithms);
+  result = client_ctx->handshake_read_peer_key(server_pub_key, supported_algorithms, false);
   if (result != EN_ATBUS_ERR_SUCCESS) {
-    CASE_MSG_INFO() << "  client handshake_read_peer_key failed: " << result << std::endl;
+    CASE_MSG_INFO() << "  client handshake_read_peer_key failed: " << result << '\n';
     return false;
   }
+
+  server_ctx->confirm_handshake(server_pub_key.sequence());
 
   // Verify both sides selected the same algorithm
   if (server_ctx->get_crypto_select_algorithm() != client_ctx->get_crypto_select_algorithm()) {
     CASE_MSG_INFO() << "  Algorithm mismatch: server=" << static_cast<int>(server_ctx->get_crypto_select_algorithm())
-                    << ", client=" << static_cast<int>(client_ctx->get_crypto_select_algorithm()) << std::endl;
+                    << ", client=" << static_cast<int>(client_ctx->get_crypto_select_algorithm()) << '\n';
     return false;
   }
 
   if (server_ctx->get_crypto_select_algorithm() != crypto_case.type) {
     CASE_MSG_INFO() << "  Expected algorithm " << static_cast<int>(crypto_case.type) << ", got "
-                    << static_cast<int>(server_ctx->get_crypto_select_algorithm()) << std::endl;
+                    << static_cast<int>(server_ctx->get_crypto_select_algorithm()) << '\n';
     return false;
   }
 
@@ -1521,13 +1530,13 @@ static bool test_complete_crypto_flow(const key_exchange_test_case& kex_case,
     if (pack_result.is_error()) {
       auto error_ptr = pack_result.get_error();
       CASE_MSG_INFO() << "  Client->Server pack_message failed: " << (error_ptr ? static_cast<int>(*error_ptr) : -1)
-                      << std::endl;
+                      << '\n';
       return false;
     }
 
     auto* buffer = pack_result.get_success();
     if (!buffer) {
-      CASE_MSG_INFO() << "  Client->Server pack_message returned null buffer" << std::endl;
+      CASE_MSG_INFO() << "  Client->Server pack_message returned null buffer" << '\n';
       return false;
     }
 
@@ -1535,19 +1544,19 @@ static bool test_complete_crypto_flow(const key_exchange_test_case& kex_case,
     gsl::span<const unsigned char> input_span(buffer->data(), buffer->used());
     int unpack_result = server_ctx->unpack_message(recv_msg, input_span, 1024 * 1024);
     if (unpack_result != EN_ATBUS_ERR_SUCCESS) {
-      CASE_MSG_INFO() << "  Client->Server unpack_message failed: " << unpack_result << std::endl;
+      CASE_MSG_INFO() << "  Client->Server unpack_message failed: " << unpack_result << '\n';
       return false;
     }
 
     auto* recv_body = recv_msg.get_body();
     if (!recv_body) {
-      CASE_MSG_INFO() << "  Client->Server received null body" << std::endl;
+      CASE_MSG_INFO() << "  Client->Server received null body" << '\n';
       return false;
     }
 
     std::string expected_content = "Hello from client, testing " + std::string(crypto_case.name);
     if (recv_body->data_transform_req().content() != expected_content) {
-      CASE_MSG_INFO() << "  Client->Server content mismatch" << std::endl;
+      CASE_MSG_INFO() << "  Client->Server content mismatch" << '\n';
       return false;
     }
   }
@@ -1566,13 +1575,13 @@ static bool test_complete_crypto_flow(const key_exchange_test_case& kex_case,
     if (pack_result.is_error()) {
       auto error_ptr = pack_result.get_error();
       CASE_MSG_INFO() << "  Server->Client pack_message failed: " << (error_ptr ? static_cast<int>(*error_ptr) : -1)
-                      << std::endl;
+                      << '\n';
       return false;
     }
 
     auto* buffer = pack_result.get_success();
     if (!buffer) {
-      CASE_MSG_INFO() << "  Server->Client pack_message returned null buffer" << std::endl;
+      CASE_MSG_INFO() << "  Server->Client pack_message returned null buffer" << '\n';
       return false;
     }
 
@@ -1580,24 +1589,24 @@ static bool test_complete_crypto_flow(const key_exchange_test_case& kex_case,
     gsl::span<const unsigned char> input_span(buffer->data(), buffer->used());
     int unpack_result = client_ctx->unpack_message(recv_msg, input_span, 1024 * 1024);
     if (unpack_result != EN_ATBUS_ERR_SUCCESS) {
-      CASE_MSG_INFO() << "  Server->Client unpack_message failed: " << unpack_result << std::endl;
+      CASE_MSG_INFO() << "  Server->Client unpack_message failed: " << unpack_result << '\n';
       return false;
     }
 
     auto* recv_body = recv_msg.get_body();
     if (!recv_body) {
-      CASE_MSG_INFO() << "  Server->Client received null body" << std::endl;
+      CASE_MSG_INFO() << "  Server->Client received null body" << '\n';
       return false;
     }
 
     std::string expected_content = "Hello from server, testing " + std::string(crypto_case.name);
     if (recv_body->data_transform_rsp().content() != expected_content) {
-      CASE_MSG_INFO() << "  Server->Client content mismatch" << std::endl;
+      CASE_MSG_INFO() << "  Server->Client content mismatch" << '\n';
       return false;
     }
   }
 
-  CASE_MSG_INFO() << "  PASSED: " << kex_case.name << " + " << crypto_case.name << std::endl;
+  CASE_MSG_INFO() << "  PASSED: " << kex_case.name << " + " << crypto_case.name << '\n';
   return true;
 }
 
@@ -1609,7 +1618,7 @@ CASE_TEST(atbus_connection_context, all_key_exchange_algorithms_with_aes256gcm) 
                                                      "aes-256-gcm", "AES-256-GCM", true};
 
   if (!is_cipher_algorithm_available("aes-256-gcm")) {
-    CASE_MSG_INFO() << "AES-256-GCM not available, skipping all key exchange tests" << std::endl;
+    CASE_MSG_INFO() << "AES-256-GCM not available, skipping all key exchange tests" << '\n';
     return;
   }
 
@@ -1620,7 +1629,7 @@ CASE_TEST(atbus_connection_context, all_key_exchange_algorithms_with_aes256gcm) 
   for (const auto& kex_case : kKeyExchangeTestCases) {
     auto server_dh_ctx = create_test_dh_context(kex_case.dh_curve_name);
     if (!server_dh_ctx) {
-      CASE_MSG_INFO() << "Key exchange " << kex_case.name << " not supported, skipping" << std::endl;
+      CASE_MSG_INFO() << "Key exchange " << kex_case.name << " not supported, skipping" << '\n';
       skipped++;
       continue;
     }
@@ -1633,7 +1642,7 @@ CASE_TEST(atbus_connection_context, all_key_exchange_algorithms_with_aes256gcm) 
   }
 
   CASE_MSG_INFO() << "Key Exchange Tests Summary: passed=" << passed << ", skipped=" << skipped << ", failed=" << failed
-                  << std::endl;
+                  << '\n';
   CASE_EXPECT_EQ(0, failed);
 }
 
@@ -1646,7 +1655,7 @@ CASE_TEST(atbus_connection_context, all_crypto_algorithms_with_secp256r1) {
 
   auto dh_ctx = create_test_dh_context(secp256r1_case.dh_curve_name);
   if (!dh_ctx) {
-    CASE_MSG_INFO() << "P-256 not supported, skipping all cipher tests" << std::endl;
+    CASE_MSG_INFO() << "P-256 not supported, skipping all cipher tests" << '\n';
     return;
   }
 
@@ -1656,7 +1665,7 @@ CASE_TEST(atbus_connection_context, all_crypto_algorithms_with_secp256r1) {
 
   for (const auto& crypto_case : kCryptoAlgorithmTestCases) {
     if (!is_cipher_algorithm_available(crypto_case.cipher_name)) {
-      CASE_MSG_INFO() << "Cipher " << crypto_case.name << " not available, skipping" << std::endl;
+      CASE_MSG_INFO() << "Cipher " << crypto_case.name << " not available, skipping" << '\n';
       skipped++;
       continue;
     }
@@ -1669,7 +1678,7 @@ CASE_TEST(atbus_connection_context, all_crypto_algorithms_with_secp256r1) {
   }
 
   CASE_MSG_INFO() << "Cipher Algorithm Tests Summary: passed=" << passed << ", skipped=" << skipped
-                  << ", failed=" << failed << std::endl;
+                  << ", failed=" << failed << '\n';
   CASE_EXPECT_EQ(0, failed);
 }
 
@@ -1682,7 +1691,7 @@ CASE_TEST(atbus_connection_context, all_crypto_algorithms_with_x25519) {
 
   auto dh_ctx = create_test_dh_context(x25519_case.dh_curve_name);
   if (!dh_ctx) {
-    CASE_MSG_INFO() << "X25519 not supported, skipping all cipher tests" << std::endl;
+    CASE_MSG_INFO() << "X25519 not supported, skipping all cipher tests" << '\n';
     return;
   }
 
@@ -1692,7 +1701,7 @@ CASE_TEST(atbus_connection_context, all_crypto_algorithms_with_x25519) {
 
   for (const auto& crypto_case : kCryptoAlgorithmTestCases) {
     if (!is_cipher_algorithm_available(crypto_case.cipher_name)) {
-      CASE_MSG_INFO() << "Cipher " << crypto_case.name << " not available, skipping" << std::endl;
+      CASE_MSG_INFO() << "Cipher " << crypto_case.name << " not available, skipping" << '\n';
       skipped++;
       continue;
     }
@@ -1705,7 +1714,7 @@ CASE_TEST(atbus_connection_context, all_crypto_algorithms_with_x25519) {
   }
 
   CASE_MSG_INFO() << "X25519 Cipher Algorithm Tests Summary: passed=" << passed << ", skipped=" << skipped
-                  << ", failed=" << failed << std::endl;
+                  << ", failed=" << failed << '\n';
   CASE_EXPECT_EQ(0, failed);
 }
 
@@ -1717,14 +1726,14 @@ CASE_TEST(atbus_connection_context, comprehensive_crypto_matrix) {
   int total_skipped = 0;
   int total_failed = 0;
 
-  CASE_MSG_INFO() << "=== Comprehensive Crypto Matrix Test ===" << std::endl;
-  CASE_MSG_INFO() << "Testing all combinations of key exchange algorithms and cipher algorithms" << std::endl;
+  CASE_MSG_INFO() << "=== Comprehensive Crypto Matrix Test ===" << '\n';
+  CASE_MSG_INFO() << "Testing all combinations of key exchange algorithms and cipher algorithms" << '\n';
 
   for (const auto& kex_case : kKeyExchangeTestCases) {
     auto dh_ctx = create_test_dh_context(kex_case.dh_curve_name);
     if (!dh_ctx) {
       CASE_MSG_INFO() << "Key exchange " << kex_case.name << " not supported, skipping all ciphers for this KEX"
-                      << std::endl;
+                      << '\n';
       total_skipped += static_cast<int>(sizeof(kCryptoAlgorithmTestCases) / sizeof(kCryptoAlgorithmTestCases[0]));
       continue;
     }
@@ -1739,15 +1748,15 @@ CASE_TEST(atbus_connection_context, comprehensive_crypto_matrix) {
         total_passed++;
       } else {
         total_failed++;
-        CASE_MSG_INFO() << "  FAILED: " << kex_case.name << " + " << crypto_case.name << std::endl;
+        CASE_MSG_INFO() << "  FAILED: " << kex_case.name << " + " << crypto_case.name << '\n';
       }
     }
   }
 
-  CASE_MSG_INFO() << "=== Comprehensive Crypto Matrix Summary ===" << std::endl;
-  CASE_MSG_INFO() << "  Total passed: " << total_passed << std::endl;
-  CASE_MSG_INFO() << "  Total skipped: " << total_skipped << std::endl;
-  CASE_MSG_INFO() << "  Total failed: " << total_failed << std::endl;
+  CASE_MSG_INFO() << "=== Comprehensive Crypto Matrix Summary ===" << '\n';
+  CASE_MSG_INFO() << "  Total passed: " << total_passed << '\n';
+  CASE_MSG_INFO() << "  Total skipped: " << total_skipped << '\n';
+  CASE_MSG_INFO() << "  Total failed: " << total_failed << '\n';
 
   CASE_EXPECT_EQ(0, total_failed);
   CASE_EXPECT_GT(total_passed, 0);  // At least one combination should work
@@ -1762,7 +1771,7 @@ CASE_TEST(atbus_connection_context, aead_ciphers_verification) {
 
   auto dh_ctx = create_test_dh_context(secp256r1_case.dh_curve_name);
   if (!dh_ctx) {
-    CASE_MSG_INFO() << "P-256 not supported, skipping AEAD test" << std::endl;
+    CASE_MSG_INFO() << "P-256 not supported, skipping AEAD test" << '\n';
     return;
   }
 
@@ -1783,7 +1792,7 @@ CASE_TEST(atbus_connection_context, aead_ciphers_verification) {
 
   for (const auto& crypto_case : aead_cases) {
     if (!is_cipher_algorithm_available(crypto_case.cipher_name)) {
-      CASE_MSG_INFO() << "AEAD Cipher " << crypto_case.name << " not available, skipping" << std::endl;
+      CASE_MSG_INFO() << "AEAD Cipher " << crypto_case.name << " not available, skipping" << '\n';
       skipped++;
       continue;
     }
@@ -1796,7 +1805,7 @@ CASE_TEST(atbus_connection_context, aead_ciphers_verification) {
   }
 
   CASE_MSG_INFO() << "AEAD Cipher Tests Summary: passed=" << passed << ", skipped=" << skipped << ", failed=" << failed
-                  << std::endl;
+                  << '\n';
   CASE_EXPECT_EQ(0, failed);
 }
 
@@ -1809,7 +1818,7 @@ CASE_TEST(atbus_connection_context, non_aead_ciphers_verification) {
 
   auto dh_ctx = create_test_dh_context(secp256r1_case.dh_curve_name);
   if (!dh_ctx) {
-    CASE_MSG_INFO() << "P-256 not supported, skipping non-AEAD test" << std::endl;
+    CASE_MSG_INFO() << "P-256 not supported, skipping non-AEAD test" << '\n';
     return;
   }
 
@@ -1828,7 +1837,7 @@ CASE_TEST(atbus_connection_context, non_aead_ciphers_verification) {
 
   for (const auto& crypto_case : non_aead_cases) {
     if (!is_cipher_algorithm_available(crypto_case.cipher_name)) {
-      CASE_MSG_INFO() << "Non-AEAD Cipher " << crypto_case.name << " not available, skipping" << std::endl;
+      CASE_MSG_INFO() << "Non-AEAD Cipher " << crypto_case.name << " not available, skipping" << '\n';
       skipped++;
       continue;
     }
@@ -1841,7 +1850,7 @@ CASE_TEST(atbus_connection_context, non_aead_ciphers_verification) {
   }
 
   CASE_MSG_INFO() << "Non-AEAD Cipher Tests Summary: passed=" << passed << ", skipped=" << skipped
-                  << ", failed=" << failed << std::endl;
+                  << ", failed=" << failed << '\n';
   CASE_EXPECT_EQ(0, failed);
 }
 
@@ -1870,7 +1879,7 @@ CASE_TEST(atbus_connection_context, higher_security_key_exchange) {
   for (const auto& kex_case : higher_kex_cases) {
     auto dh_ctx = create_test_dh_context(kex_case.dh_curve_name);
     if (!dh_ctx) {
-      CASE_MSG_INFO() << "Key exchange " << kex_case.name << " not supported, skipping" << std::endl;
+      CASE_MSG_INFO() << "Key exchange " << kex_case.name << " not supported, skipping" << '\n';
       skipped += static_cast<int>(sizeof(cipher_cases) / sizeof(cipher_cases[0]));
       continue;
     }
@@ -1890,7 +1899,7 @@ CASE_TEST(atbus_connection_context, higher_security_key_exchange) {
   }
 
   CASE_MSG_INFO() << "Higher Security Key Exchange Tests Summary: passed=" << passed << ", skipped=" << skipped
-                  << ", failed=" << failed << std::endl;
+                  << ", failed=" << failed << '\n';
   CASE_EXPECT_EQ(0, failed);
 }
 
@@ -1898,31 +1907,324 @@ CASE_TEST(atbus_connection_context, higher_security_key_exchange) {
 CASE_TEST(atbus_connection_context, list_available_algorithms) {
   ensure_openssl_initialized();
 
-  CASE_MSG_INFO() << "=== Available Cryptographic Algorithms ===" << std::endl;
+  CASE_MSG_INFO() << "=== Available Cryptographic Algorithms ===" << '\n';
 
   // List available key exchange algorithms
-  CASE_MSG_INFO() << "Key Exchange Algorithms:" << std::endl;
+  CASE_MSG_INFO() << "Key Exchange Algorithms:" << '\n';
   for (const auto& kex_case : kKeyExchangeTestCases) {
     auto dh_ctx = create_test_dh_context(kex_case.dh_curve_name);
-    CASE_MSG_INFO() << "  " << kex_case.name << ": " << (dh_ctx ? "Available" : "NOT Available") << std::endl;
+    CASE_MSG_INFO() << "  " << kex_case.name << ": " << (dh_ctx ? "Available" : "NOT Available") << '\n';
   }
 
   // List available cipher algorithms
-  CASE_MSG_INFO() << "Cipher Algorithms:" << std::endl;
+  CASE_MSG_INFO() << "Cipher Algorithms:" << '\n';
   for (const auto& crypto_case : kCryptoAlgorithmTestCases) {
     bool available = is_cipher_algorithm_available(crypto_case.cipher_name);
     CASE_MSG_INFO() << "  " << crypto_case.name << " (" << crypto_case.cipher_name
                     << "): " << (available ? "Available" : "NOT Available")
-                    << (crypto_case.is_aead ? " [AEAD]" : " [Standard]") << std::endl;
+                    << (crypto_case.is_aead ? " [AEAD]" : " [Standard]") << '\n';
   }
 
   // List all registered ciphers
-  CASE_MSG_INFO() << "All registered ciphers in the library:" << std::endl;
+  CASE_MSG_INFO() << "All registered ciphers in the library:" << '\n';
   auto all_ciphers = atfw::util::crypto::cipher::get_all_cipher_names();
   for (const auto& cipher : all_ciphers) {
-    CASE_MSG_INFO() << "  - " << cipher << std::endl;
+    CASE_MSG_INFO() << "  - " << cipher << '\n';
   }
 }
 
-#endif  // CRYPTO_DH_ENABLED
+// Test key renegotiation flow: initial handshake + renegotiation via ping/pong
+// Verifies correct cipher transition during all phases of renegotiation
+CASE_TEST(atbus_connection_context, key_renegotiation_flow) {
+  ensure_openssl_initialized();
 
+  if (!is_cipher_algorithm_available("aes-256-gcm")) {
+    CASE_MSG_INFO() << "AES-256-GCM not supported, skipping test" << '\n';
+    return;
+  }
+
+  auto server_dh_ctx = create_test_dh_context("ecdh:P-256");
+  auto client_dh_ctx = create_test_dh_context("ecdh:P-256");
+
+  if (!server_dh_ctx || !client_dh_ctx) {
+    CASE_MSG_INFO() << "P-256 not supported, skipping test" << '\n';
+    return;
+  }
+
+  auto server_ctx = atfw::atbus::connection_context::create(
+      atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP256R1, server_dh_ctx);
+  auto client_ctx = atfw::atbus::connection_context::create(
+      atframework::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_SECP256R1, client_dh_ctx);
+
+  CASE_EXPECT_NE(nullptr, server_ctx.get());
+  CASE_EXPECT_NE(nullptr, client_ctx.get());
+
+  std::vector<atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> supported_algorithms = {
+      atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM,
+  };
+
+  atfw::atbus::random_engine_t random_engine;
+  random_engine.init_seed(static_cast<uint64_t>(time(nullptr)));
+  ::google::protobuf::ArenaOptions arena_options;
+
+  // ====================================================================
+  // Phase 1: Initial handshake (register_req/register_rsp flow)
+  // ====================================================================
+  CASE_MSG_INFO() << "Phase 1: Initial handshake" << '\n';
+
+  // Client generates key pair (simulating register_req)
+  int result = client_ctx->handshake_generate_self_key(0);
+  if (result != EN_ATBUS_ERR_SUCCESS) {
+    CASE_MSG_INFO() << "client handshake_generate_self_key failed: " << result << ", skipping test" << '\n';
+    return;
+  }
+
+  atframework::atbus::protocol::crypto_handshake_data client_pub_key;
+  result = client_ctx->handshake_write_self_public_key(client_pub_key, supported_algorithms);
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
+
+  // Server processes register_req (need_confirm=true)
+  result = server_ctx->handshake_generate_self_key(client_pub_key.sequence());
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
+
+  result = server_ctx->handshake_read_peer_key(client_pub_key, supported_algorithms, true);
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
+
+  atframework::atbus::protocol::crypto_handshake_data server_pub_key;
+  result = server_ctx->handshake_write_self_public_key(server_pub_key, supported_algorithms);
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
+
+  uint64_t initial_sequence = server_pub_key.sequence();
+
+  // Client processes register_rsp (need_confirm=false)
+  result = client_ctx->handshake_read_peer_key(server_pub_key, supported_algorithms, false);
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
+
+  // Server confirms initial handshake
+  server_ctx->confirm_handshake(initial_sequence);
+
+  // Verify initial bidirectional communication
+  {
+    atfw::atbus::message send_msg(arena_options);
+    auto& body = send_msg.mutable_body();
+    body.mutable_data_transform_req()->set_content("initial client to server");
+
+    auto pack_result = client_ctx->pack_message(send_msg, atframework::atbus::protocol::ATBUS_PROTOCOL_VERSION,
+                                                random_engine, 1024 * 1024);
+    CASE_EXPECT_TRUE(pack_result.is_success());
+    if (pack_result.is_success()) {
+      auto* buffer = pack_result.get_success();
+      atfw::atbus::message recv_msg(arena_options);
+      gsl::span<const unsigned char> span(buffer->data(), buffer->used());
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, server_ctx->unpack_message(recv_msg, span, 1024 * 1024));
+    }
+  }
+  {
+    atfw::atbus::message send_msg(arena_options);
+    auto& body = send_msg.mutable_body();
+    body.mutable_data_transform_rsp()->set_content("initial server to client");
+
+    auto pack_result = server_ctx->pack_message(send_msg, atframework::atbus::protocol::ATBUS_PROTOCOL_VERSION,
+                                                random_engine, 1024 * 1024);
+    CASE_EXPECT_TRUE(pack_result.is_success());
+    if (pack_result.is_success()) {
+      auto* buffer = pack_result.get_success();
+      atfw::atbus::message recv_msg(arena_options);
+      gsl::span<const unsigned char> span(buffer->data(), buffer->used());
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, client_ctx->unpack_message(recv_msg, span, 1024 * 1024));
+    }
+  }
+
+  // ====================================================================
+  // Phase 2: Key renegotiation (simulating ping/pong with crypto handshake)
+  //   Client sends ping with new handshake data, server processes it
+  // ====================================================================
+  CASE_MSG_INFO() << "Phase 2: Key renegotiation - server processes ping handshake" << '\n';
+
+  result = client_ctx->handshake_generate_self_key(0);
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
+
+  atframework::atbus::protocol::crypto_handshake_data client_reneg_pub_key;
+  result = client_ctx->handshake_write_self_public_key(client_reneg_pub_key, supported_algorithms);
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
+
+  // Server processes ping handshake (need_confirm=true)
+  result = server_ctx->handshake_generate_self_key(client_reneg_pub_key.sequence());
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
+
+  result = server_ctx->handshake_read_peer_key(client_reneg_pub_key, supported_algorithms, true);
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
+
+  atframework::atbus::protocol::crypto_handshake_data server_reneg_pub_key;
+  result = server_ctx->handshake_write_self_public_key(server_reneg_pub_key, supported_algorithms);
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
+
+  uint64_t reneg_sequence = server_reneg_pub_key.sequence();
+
+  // ====================================================================
+  // Phase 3: Intermediate state - server processed, client hasn't
+  //   Server: send=NEW, receive=OLD.  Client: send=OLD, receive=OLD.
+  // ====================================================================
+  CASE_MSG_INFO() << "Phase 3: Intermediate state - client sends with OLD, server receives with OLD" << '\n';
+
+  // 3a: Client sends data with OLD key -> server decrypts with OLD receive -> OK
+  {
+    atfw::atbus::message send_msg(arena_options);
+    auto& body = send_msg.mutable_body();
+    body.mutable_data_transform_req()->set_content("client data during renegotiation (old key)");
+
+    auto pack_result = client_ctx->pack_message(send_msg, atframework::atbus::protocol::ATBUS_PROTOCOL_VERSION,
+                                                random_engine, 1024 * 1024);
+    CASE_EXPECT_TRUE(pack_result.is_success());
+    if (pack_result.is_success()) {
+      auto* buffer = pack_result.get_success();
+      atfw::atbus::message recv_msg(arena_options);
+      gsl::span<const unsigned char> span(buffer->data(), buffer->used());
+      int unpack_ret = server_ctx->unpack_message(recv_msg, span, 1024 * 1024);
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, unpack_ret);
+      if (unpack_ret == EN_ATBUS_ERR_SUCCESS) {
+        auto* recv_body = recv_msg.get_body();
+        CASE_EXPECT_NE(nullptr, recv_body);
+        if (recv_body) {
+          CASE_EXPECT_EQ("client data during renegotiation (old key)", recv_body->data_transform_req().content());
+        }
+      }
+    }
+  }
+
+  // 3b: Server sends data with NEW key -> save for client to decrypt after pong
+  std::vector<unsigned char> server_data_during_reneg;
+  {
+    atfw::atbus::message send_msg(arena_options);
+    auto& body = send_msg.mutable_body();
+    body.mutable_data_transform_rsp()->set_content("server data during renegotiation (new key)");
+
+    auto pack_result = server_ctx->pack_message(send_msg, atframework::atbus::protocol::ATBUS_PROTOCOL_VERSION,
+                                                random_engine, 1024 * 1024);
+    CASE_EXPECT_TRUE(pack_result.is_success());
+    if (pack_result.is_success()) {
+      auto* buffer = pack_result.get_success();
+      server_data_during_reneg.assign(buffer->data(), buffer->data() + buffer->used());
+    }
+  }
+
+  // ====================================================================
+  // Phase 4: Client processes pong handshake
+  //   Server: send=NEW, receive=OLD.  Client: send=NEW, receive=NEW.
+  // ====================================================================
+  CASE_MSG_INFO() << "Phase 4: Client processes pong response" << '\n';
+
+  result = client_ctx->handshake_read_peer_key(server_reneg_pub_key, supported_algorithms, false);
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
+
+  // 4a: Client decrypts server data from phase 3b with NEW receive -> OK
+  if (!server_data_during_reneg.empty()) {
+    atfw::atbus::message recv_msg(arena_options);
+    gsl::span<const unsigned char> span(server_data_during_reneg.data(), server_data_during_reneg.size());
+    int unpack_ret = client_ctx->unpack_message(recv_msg, span, 1024 * 1024);
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, unpack_ret);
+    if (unpack_ret == EN_ATBUS_ERR_SUCCESS) {
+      auto* recv_body = recv_msg.get_body();
+      CASE_EXPECT_NE(nullptr, recv_body);
+      if (recv_body) {
+        CASE_EXPECT_EQ("server data during renegotiation (new key)", recv_body->data_transform_rsp().content());
+      }
+    }
+  }
+
+  // 4b: Client sends data with NEW key -> server can't decrypt yet (receive=OLD)
+  std::vector<unsigned char> client_data_new_key;
+  {
+    atfw::atbus::message send_msg(arena_options);
+    auto& body = send_msg.mutable_body();
+    body.mutable_data_transform_req()->set_content("client data with new key (pre-confirm)");
+
+    auto pack_result = client_ctx->pack_message(send_msg, atframework::atbus::protocol::ATBUS_PROTOCOL_VERSION,
+                                                random_engine, 1024 * 1024);
+    CASE_EXPECT_TRUE(pack_result.is_success());
+    if (pack_result.is_success()) {
+      auto* buffer = pack_result.get_success();
+      client_data_new_key.assign(buffer->data(), buffer->data() + buffer->used());
+      // Server should fail to unpack with OLD receive cipher
+      atfw::atbus::message recv_msg(arena_options);
+      gsl::span<const unsigned char> span(client_data_new_key.data(), client_data_new_key.size());
+      int unpack_ret = server_ctx->unpack_message(recv_msg, span, 1024 * 1024);
+      CASE_EXPECT_NE(EN_ATBUS_ERR_SUCCESS, unpack_ret);
+    }
+  }
+
+  // ====================================================================
+  // Phase 5: Server confirms handshake (simulating on_recv_handshake_confirm)
+  //   Server: send=NEW, receive=NEW.  Client: send=NEW, receive=NEW.
+  // ====================================================================
+  CASE_MSG_INFO() << "Phase 5: Server confirms, both sides use new keys" << '\n';
+
+  server_ctx->confirm_handshake(reneg_sequence);
+
+  // 5a: Server can now process client's data encrypted with NEW key
+  if (!client_data_new_key.empty()) {
+    atfw::atbus::message recv_msg(arena_options);
+    gsl::span<const unsigned char> span(client_data_new_key.data(), client_data_new_key.size());
+    int unpack_ret = server_ctx->unpack_message(recv_msg, span, 1024 * 1024);
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, unpack_ret);
+    if (unpack_ret == EN_ATBUS_ERR_SUCCESS) {
+      auto* recv_body = recv_msg.get_body();
+      CASE_EXPECT_NE(nullptr, recv_body);
+      if (recv_body) {
+        CASE_EXPECT_EQ("client data with new key (pre-confirm)", recv_body->data_transform_req().content());
+      }
+    }
+  }
+
+  // 5b: Full bidirectional communication with new keys
+  {
+    atfw::atbus::message send_msg(arena_options);
+    auto& body = send_msg.mutable_body();
+    body.mutable_data_transform_req()->set_content("post renegotiation client to server");
+
+    auto pack_result = client_ctx->pack_message(send_msg, atframework::atbus::protocol::ATBUS_PROTOCOL_VERSION,
+                                                random_engine, 1024 * 1024);
+    CASE_EXPECT_TRUE(pack_result.is_success());
+    if (pack_result.is_success()) {
+      auto* buffer = pack_result.get_success();
+      atfw::atbus::message recv_msg(arena_options);
+      gsl::span<const unsigned char> span(buffer->data(), buffer->used());
+      int unpack_ret = server_ctx->unpack_message(recv_msg, span, 1024 * 1024);
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, unpack_ret);
+      if (unpack_ret == EN_ATBUS_ERR_SUCCESS) {
+        auto* recv_body = recv_msg.get_body();
+        CASE_EXPECT_NE(nullptr, recv_body);
+        if (recv_body) {
+          CASE_EXPECT_EQ("post renegotiation client to server", recv_body->data_transform_req().content());
+        }
+      }
+    }
+  }
+  {
+    atfw::atbus::message send_msg(arena_options);
+    auto& body = send_msg.mutable_body();
+    body.mutable_data_transform_rsp()->set_content("post renegotiation server to client");
+
+    auto pack_result = server_ctx->pack_message(send_msg, atframework::atbus::protocol::ATBUS_PROTOCOL_VERSION,
+                                                random_engine, 1024 * 1024);
+    CASE_EXPECT_TRUE(pack_result.is_success());
+    if (pack_result.is_success()) {
+      auto* buffer = pack_result.get_success();
+      atfw::atbus::message recv_msg(arena_options);
+      gsl::span<const unsigned char> span(buffer->data(), buffer->used());
+      int unpack_ret = client_ctx->unpack_message(recv_msg, span, 1024 * 1024);
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, unpack_ret);
+      if (unpack_ret == EN_ATBUS_ERR_SUCCESS) {
+        auto* recv_body = recv_msg.get_body();
+        CASE_EXPECT_NE(nullptr, recv_body);
+        if (recv_body) {
+          CASE_EXPECT_EQ("post renegotiation server to client", recv_body->data_transform_rsp().content());
+        }
+      }
+    }
+  }
+
+  CASE_MSG_INFO() << "Key renegotiation test PASSED" << '\n';
+}
+
+#endif  // CRYPTO_DH_ENABLED

@@ -37,7 +37,7 @@
 #  include <pthread.h>
 #endif
 
-#define ATBUS_PROTOCOL_MESSAGE_BODY_MAX ::atframework::atbus::protocol::message_body::kNodePongRsp
+#define ATBUS_PROTOCOL_MESSAGE_BODY_MAX ::atframework::atbus::protocol::message_body::kHandshakeConfirm
 #define ATBUS_PROTOCOL_MESSAGE_BODY_MIN ::atframework::atbus::protocol::message_body::kCustomCommandReq
 
 ATBUS_MACRO_NAMESPACE_BEGIN
@@ -68,6 +68,9 @@ static const char *_get_body_type_name(message_body_type cmd) {
     }
     case ::atframework::atbus::protocol::message_body::kNodePongRsp: {
       return "NodePongRsp";
+    }
+    case ::atframework::atbus::protocol::message_body::kHandshakeConfirm: {
+      return "HandshakeConfirm";
     }
     default: {
       return "UNKNOWN";
@@ -197,6 +200,7 @@ static dispatch_handle_set _build_handle_set() {
   ret.fns[::atframework::atbus::protocol::message_body::kNodeRegisterRsp] = message_handler::on_recv_node_register_rsp;
   ret.fns[::atframework::atbus::protocol::message_body::kNodePingReq] = message_handler::on_recv_node_ping;
   ret.fns[::atframework::atbus::protocol::message_body::kNodePongRsp] = message_handler::on_recv_node_pong;
+  ret.fns[::atframework::atbus::protocol::message_body::kHandshakeConfirm] = message_handler::on_recv_handshake_confirm;
 
   ret.names[0] = "Unknown";
   const ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Descriptor *msg_desc = atbus::protocol::message_body::descriptor();
@@ -402,6 +406,29 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::send_ping(node &n, connection 
       }
     }
   }
+
+  return send_message(n, conn, m);
+}
+
+ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::send_handshake_confirm(node &n, connection &conn, uint64_t sequence) {
+  ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
+  arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
+  message m{arena_options};
+
+  ::atframework::atbus::protocol::message_head &head = m.mutable_head();
+
+  ::atframework::atbus::protocol::handshake_confirm_data *body = m.mutable_body().mutable_handshake_confirm();
+  assert(body);
+
+  uint64_t self_id = n.get_id();
+
+  head.set_version(n.get_protocol_version());
+  head.set_result_code(0);
+  head.set_type(0);
+  head.set_sequence(n.allocate_message_sequence());
+  head.set_source_bus_id(self_id);
+
+  body->set_sequence(sequence);
 
   return send_message(n, conn, m);
 }
@@ -1204,7 +1231,8 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_register_req(node
       response_code = conn->get_connection_context().handshake_read_peer_key(
           reg_data->crypto_handshake(),
           gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE>{n.get_conf().crypto_allow_algorithms.data(),
-                                                                 n.get_conf().crypto_allow_algorithms.size()});
+                                                                 n.get_conf().crypto_allow_algorithms.size()},
+          true);
       if (response_code != EN_ATBUS_ERR_SUCCESS) {
         break;
       }
@@ -1311,7 +1339,8 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_register_rsp(node
       result_code = conn->get_connection_context().handshake_read_peer_key(
           reg_data->crypto_handshake(),
           gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE>{n.get_conf().crypto_allow_algorithms.data(),
-                                                                 n.get_conf().crypto_allow_algorithms.size()});
+                                                                 n.get_conf().crypto_allow_algorithms.size()},
+          false);
       if (result_code != EN_ATBUS_ERR_SUCCESS) {
         break;
       }
@@ -1358,6 +1387,15 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_register_rsp(node
 
     n.on_register(ep, conn, result_code);
 
+    conn->reset();
+    return result_code;
+  }
+
+  // 发回确认握手成功的消息，客户端收到后才会正式建立连接并进入在线状态
+  result_code = send_handshake_confirm(n, *conn, reg_data->crypto_handshake().sequence());
+  if (result_code != EN_ATBUS_ERR_SUCCESS) {
+    ATBUS_FUNC_NODE_ERROR(n, ep, conn, result_code, errcode, "send handshake confirm to {:#x} failed",
+                          reg_data->bus_id());
     conn->reset();
     return result_code;
   }
@@ -1409,7 +1447,8 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_ping(node &n, con
         ret_code = conn->get_connection_context().handshake_read_peer_key(
             ping_data.crypto_handshake(),
             gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE>{n.get_conf().crypto_allow_algorithms.data(),
-                                                                   n.get_conf().crypto_allow_algorithms.size()});
+                                                                   n.get_conf().crypto_allow_algorithms.size()},
+            true);
       }
       if (ret_code != EN_ATBUS_ERR_SUCCESS) {
         ATBUS_FUNC_NODE_ERROR(n, ep, conn, ret_code, ret_code, "ping handshake refresh secret failed");
@@ -1474,14 +1513,24 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_pong(node &n, con
         conn->get_connection_context().get_crypto_select_algorithm() != protocol::ATBUS_CRYPTO_ALGORITHM_NONE &&
         message_body.crypto_handshake().sequence() != 0 &&
         message_body.crypto_handshake().type() != protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE) {
-      int result_code = conn->get_connection_context().handshake_read_peer_key(
+      ATBUS_ERROR_TYPE result_code = conn->get_connection_context().handshake_read_peer_key(
           message_body.crypto_handshake(),
           gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE>{n.get_conf().crypto_allow_algorithms.data(),
-                                                                 n.get_conf().crypto_allow_algorithms.size()});
+                                                                 n.get_conf().crypto_allow_algorithms.size()},
+          false);
       if (result_code < 0) {
-        ATBUS_FUNC_NODE_ERROR(n, conn ? conn->get_binding() : nullptr, conn, result_code, result_code,
+        ATBUS_FUNC_NODE_ERROR(n, conn->get_binding(), conn, result_code, result_code,
                               "node recv node_pong from {:#x} handshake refresh secret failed",
                               m.mutable_head().source_bus_id());
+        conn->reset();
+      } else {
+        // 发回确认握手成功的消息，客户端收到后才会正式建立连接并进入在线状态
+        result_code = send_handshake_confirm(n, *conn, message_body.crypto_handshake().sequence());
+        if (result_code != EN_ATBUS_ERR_SUCCESS) {
+          ATBUS_FUNC_NODE_ERROR(n, conn->get_binding(), conn, result_code, result_code,
+                                "send handshake confirm to {:#x} failed", m.mutable_head().source_bus_id());
+          conn->reset();
+        }
       }
     }
 
@@ -1499,4 +1548,32 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_pong(node &n, con
 
   return EN_ATBUS_ERR_SUCCESS;
 }
+
+ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_handshake_confirm(node &n, connection *conn, message &&m,
+                                                                            int /*status*/,
+                                                                            ATBUS_ERROR_TYPE /*errcode*/) {
+  if (!m.mutable_body().has_handshake_confirm()) {
+    ATBUS_FUNC_NODE_ERROR(n, conn ? conn->get_binding() : nullptr, conn, EN_ATBUS_ERR_BAD_DATA, 0,
+                          "node recv handshake_confirm from {:#x} but without handshake_confirm",
+                          m.mutable_head().source_bus_id());
+    return EN_ATBUS_ERR_BAD_DATA;
+  }
+
+  // 必须已经注册完成的 connection 才能处理 handshake_confirm
+  if (conn != nullptr && conn->get_binding() == nullptr) {
+    ATBUS_FUNC_NODE_ERROR(n, nullptr, conn, EN_ATBUS_ERR_BAD_DATA, 0,
+                          "node recv handshake_confirm from {:#x} but connection has no endpoint",
+                          m.mutable_head().source_bus_id());
+    conn->reset();
+    return EN_ATBUS_ERR_BAD_DATA;
+  }
+
+  const ::atframework::atbus::protocol::handshake_confirm_data &message_body = m.mutable_body().handshake_confirm();
+  if (nullptr != conn) {
+    conn->get_connection_context().confirm_handshake(message_body.sequence());
+  }
+
+  return EN_ATBUS_ERR_SUCCESS;
+}
+
 ATBUS_MACRO_NAMESPACE_END
