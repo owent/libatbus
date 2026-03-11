@@ -20,6 +20,8 @@
 #include "detail/libatbus_error.h"
 #include "libatbus_protocol.h"  // NOLINT: build/include_subdir
 
+class connection_context_test_helper;
+
 ATBUS_MACRO_NAMESPACE_BEGIN
 
 using random_engine_t = atfw::util::random::xoshiro256_starstar;
@@ -112,6 +114,7 @@ class ATFW_UTIL_SYMBOL_VISIBLE connection_context final {
                                                          const unsigned char *iv, size_t iv_size);
 
  private:
+  friend class ::connection_context_test_helper;
   static ATBUS_MACRO_API buffer_result_t pack_message_origin(message &m) noexcept;
 
   ATBUS_MACRO_API buffer_result_t pack_message_with(message &m,

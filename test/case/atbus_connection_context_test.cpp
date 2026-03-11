@@ -565,6 +565,26 @@ CASE_TEST(atbus_connection_context, update_compression_algorithm_unsupported) {
 #endif
 }
 
+// Helper friend class for accessing private cipher members in tests
+class connection_context_test_helper {
+ public:
+  static const ::atfw::util::crypto::cipher *get_send_cipher_ptr(
+      const atfw::atbus::connection_context &ctx) noexcept {
+    return ctx.send_cipher_.get();
+  }
+  static const ::atfw::util::crypto::cipher *get_receive_cipher_ptr(
+      const atfw::atbus::connection_context &ctx) noexcept {
+    return ctx.receive_cipher_.get();
+  }
+  static const ::atfw::util::crypto::cipher *get_handshake_receive_cipher_ptr(
+      const atfw::atbus::connection_context &ctx) noexcept {
+    return ctx.handshake_receive_cipher_.get();
+  }
+  static bool get_handshake_pending_confirm(const atfw::atbus::connection_context &ctx) noexcept {
+    return ctx.handshake_pending_confirm_;
+  }
+};
+
 // ============================================================================
 // Test handshake methods
 // ============================================================================
@@ -1934,7 +1954,7 @@ CASE_TEST(atbus_connection_context, list_available_algorithms) {
 }
 
 // Test key renegotiation flow: initial handshake + renegotiation via ping/pong
-// Verifies correct cipher transition during all phases of renegotiation
+// Verifies correct cipher transition, message content, and cipher instance changes during all phases
 CASE_TEST(atbus_connection_context, key_renegotiation_flow) {
   ensure_openssl_initialized();
 
@@ -1967,6 +1987,16 @@ CASE_TEST(atbus_connection_context, key_renegotiation_flow) {
   random_engine.init_seed(static_cast<uint64_t>(time(nullptr)));
   ::google::protobuf::ArenaOptions arena_options;
 
+  using helper = connection_context_test_helper;
+
+  // Before handshake, no ciphers should be set
+  CASE_EXPECT_EQ(nullptr, helper::get_send_cipher_ptr(*server_ctx));
+  CASE_EXPECT_EQ(nullptr, helper::get_receive_cipher_ptr(*server_ctx));
+  CASE_EXPECT_EQ(nullptr, helper::get_send_cipher_ptr(*client_ctx));
+  CASE_EXPECT_EQ(nullptr, helper::get_receive_cipher_ptr(*client_ctx));
+  CASE_EXPECT_EQ(nullptr, helper::get_handshake_receive_cipher_ptr(*server_ctx));
+  CASE_EXPECT_FALSE(helper::get_handshake_pending_confirm(*server_ctx));
+
   // ====================================================================
   // Phase 1: Initial handshake (register_req/register_rsp flow)
   // ====================================================================
@@ -1990,6 +2020,13 @@ CASE_TEST(atbus_connection_context, key_renegotiation_flow) {
   result = server_ctx->handshake_read_peer_key(client_pub_key, supported_algorithms, true);
   CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
 
+  // After server handshake_read_peer_key(need_confirm=true): send_cipher_ is set, receive_cipher_ stays null,
+  // handshake_receive_cipher_ holds the new receive cipher pending confirm
+  CASE_EXPECT_NE(nullptr, helper::get_send_cipher_ptr(*server_ctx));
+  CASE_EXPECT_EQ(nullptr, helper::get_receive_cipher_ptr(*server_ctx));
+  CASE_EXPECT_NE(nullptr, helper::get_handshake_receive_cipher_ptr(*server_ctx));
+  CASE_EXPECT_TRUE(helper::get_handshake_pending_confirm(*server_ctx));
+
   atframework::atbus::protocol::crypto_handshake_data server_pub_key;
   result = server_ctx->handshake_write_self_public_key(server_pub_key, supported_algorithms);
   CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
@@ -2000,10 +2037,26 @@ CASE_TEST(atbus_connection_context, key_renegotiation_flow) {
   result = client_ctx->handshake_read_peer_key(server_pub_key, supported_algorithms, false);
   CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
 
+  // After client handshake_read_peer_key(need_confirm=false): both ciphers set immediately
+  CASE_EXPECT_NE(nullptr, helper::get_send_cipher_ptr(*client_ctx));
+  CASE_EXPECT_NE(nullptr, helper::get_receive_cipher_ptr(*client_ctx));
+  CASE_EXPECT_FALSE(helper::get_handshake_pending_confirm(*client_ctx));
+
   // Server confirms initial handshake
   server_ctx->confirm_handshake(initial_sequence);
 
-  // Verify initial bidirectional communication
+  // After confirm: server receive_cipher_ should now be set (moved from handshake_receive_cipher_)
+  CASE_EXPECT_NE(nullptr, helper::get_receive_cipher_ptr(*server_ctx));
+  CASE_EXPECT_EQ(nullptr, helper::get_handshake_receive_cipher_ptr(*server_ctx));
+  CASE_EXPECT_FALSE(helper::get_handshake_pending_confirm(*server_ctx));
+
+  // Record initial cipher instances for later comparison
+  const auto* initial_server_send = helper::get_send_cipher_ptr(*server_ctx);
+  const auto* initial_server_recv = helper::get_receive_cipher_ptr(*server_ctx);
+  const auto* initial_client_send = helper::get_send_cipher_ptr(*client_ctx);
+  const auto* initial_client_recv = helper::get_receive_cipher_ptr(*client_ctx);
+
+  // Verify initial bidirectional communication with content check
   {
     atfw::atbus::message send_msg(arena_options);
     auto& body = send_msg.mutable_body();
@@ -2016,7 +2069,15 @@ CASE_TEST(atbus_connection_context, key_renegotiation_flow) {
       auto* buffer = pack_result.get_success();
       atfw::atbus::message recv_msg(arena_options);
       gsl::span<const unsigned char> span(buffer->data(), buffer->used());
-      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, server_ctx->unpack_message(recv_msg, span, 1024 * 1024));
+      int unpack_ret = server_ctx->unpack_message(recv_msg, span, 1024 * 1024);
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, unpack_ret);
+      if (unpack_ret == EN_ATBUS_ERR_SUCCESS) {
+        auto* recv_body = recv_msg.get_body();
+        CASE_EXPECT_NE(nullptr, recv_body);
+        if (recv_body) {
+          CASE_EXPECT_EQ("initial client to server", recv_body->data_transform_req().content());
+        }
+      }
     }
   }
   {
@@ -2031,7 +2092,15 @@ CASE_TEST(atbus_connection_context, key_renegotiation_flow) {
       auto* buffer = pack_result.get_success();
       atfw::atbus::message recv_msg(arena_options);
       gsl::span<const unsigned char> span(buffer->data(), buffer->used());
-      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, client_ctx->unpack_message(recv_msg, span, 1024 * 1024));
+      int unpack_ret = client_ctx->unpack_message(recv_msg, span, 1024 * 1024);
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, unpack_ret);
+      if (unpack_ret == EN_ATBUS_ERR_SUCCESS) {
+        auto* recv_body = recv_msg.get_body();
+        CASE_EXPECT_NE(nullptr, recv_body);
+        if (recv_body) {
+          CASE_EXPECT_EQ("initial server to client", recv_body->data_transform_rsp().content());
+        }
+      }
     }
   }
 
@@ -2055,6 +2124,15 @@ CASE_TEST(atbus_connection_context, key_renegotiation_flow) {
   result = server_ctx->handshake_read_peer_key(client_reneg_pub_key, supported_algorithms, true);
   CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
 
+  // After renegotiation handshake_read_peer_key(need_confirm=true):
+  //   send_cipher_ should have changed to a NEW instance
+  //   receive_cipher_ should still be the OLD instance
+  //   handshake_receive_cipher_ should hold the new receive cipher pending confirm
+  CASE_EXPECT_NE(initial_server_send, helper::get_send_cipher_ptr(*server_ctx));
+  CASE_EXPECT_EQ(initial_server_recv, helper::get_receive_cipher_ptr(*server_ctx));
+  CASE_EXPECT_NE(nullptr, helper::get_handshake_receive_cipher_ptr(*server_ctx));
+  CASE_EXPECT_TRUE(helper::get_handshake_pending_confirm(*server_ctx));
+
   atframework::atbus::protocol::crypto_handshake_data server_reneg_pub_key;
   result = server_ctx->handshake_write_self_public_key(server_reneg_pub_key, supported_algorithms);
   CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
@@ -2066,6 +2144,10 @@ CASE_TEST(atbus_connection_context, key_renegotiation_flow) {
   //   Server: send=NEW, receive=OLD.  Client: send=OLD, receive=OLD.
   // ====================================================================
   CASE_MSG_INFO() << "Phase 3: Intermediate state - client sends with OLD, server receives with OLD" << '\n';
+
+  // Client cipher instances should still be the initial ones (not yet processed pong)
+  CASE_EXPECT_EQ(initial_client_send, helper::get_send_cipher_ptr(*client_ctx));
+  CASE_EXPECT_EQ(initial_client_recv, helper::get_receive_cipher_ptr(*client_ctx));
 
   // 3a: Client sends data with OLD key -> server decrypts with OLD receive -> OK
   {
@@ -2117,6 +2199,10 @@ CASE_TEST(atbus_connection_context, key_renegotiation_flow) {
   result = client_ctx->handshake_read_peer_key(server_reneg_pub_key, supported_algorithms, false);
   CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
 
+  // After client processes pong (need_confirm=false): both ciphers should have changed
+  CASE_EXPECT_NE(initial_client_send, helper::get_send_cipher_ptr(*client_ctx));
+  CASE_EXPECT_NE(initial_client_recv, helper::get_receive_cipher_ptr(*client_ctx));
+
   // 4a: Client decrypts server data from phase 3b with NEW receive -> OK
   if (!server_data_during_reneg.empty()) {
     atfw::atbus::message recv_msg(arena_options);
@@ -2159,7 +2245,22 @@ CASE_TEST(atbus_connection_context, key_renegotiation_flow) {
   // ====================================================================
   CASE_MSG_INFO() << "Phase 5: Server confirms, both sides use new keys" << '\n';
 
+  // Before confirm: server receive_cipher_ is still the OLD instance
+  CASE_EXPECT_EQ(initial_server_recv, helper::get_receive_cipher_ptr(*server_ctx));
+  CASE_EXPECT_TRUE(helper::get_handshake_pending_confirm(*server_ctx));
+
   server_ctx->confirm_handshake(reneg_sequence);
+
+  // After confirm: server receive_cipher_ should have changed to a NEW instance
+  CASE_EXPECT_NE(initial_server_recv, helper::get_receive_cipher_ptr(*server_ctx));
+  CASE_EXPECT_EQ(nullptr, helper::get_handshake_receive_cipher_ptr(*server_ctx));
+  CASE_EXPECT_FALSE(helper::get_handshake_pending_confirm(*server_ctx));
+
+  // Verify all cipher instances are different from the initial ones
+  CASE_EXPECT_NE(initial_server_send, helper::get_send_cipher_ptr(*server_ctx));
+  CASE_EXPECT_NE(initial_server_recv, helper::get_receive_cipher_ptr(*server_ctx));
+  CASE_EXPECT_NE(initial_client_send, helper::get_send_cipher_ptr(*client_ctx));
+  CASE_EXPECT_NE(initial_client_recv, helper::get_receive_cipher_ptr(*client_ctx));
 
   // 5a: Server can now process client's data encrypted with NEW key
   if (!client_data_new_key.empty()) {
