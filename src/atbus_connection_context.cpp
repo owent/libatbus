@@ -22,12 +22,13 @@ ATBUS_MACRO_NAMESPACE_BEGIN
 namespace {
 
 static bool _allow_crypto(protocol::message_body::MessageTypeCase message_type) {
-  // ping/pong and register messages have no crypto and compression and without padding
+  // ping/pong, register and handshake_confirm messages have no crypto and compression and without padding
   switch (message_type) {
     case protocol::message_body::kNodeRegisterReq:
     case protocol::message_body::kNodeRegisterRsp:
     case protocol::message_body::kNodePingReq:
     case protocol::message_body::kNodePongRsp:
+    case protocol::message_body::kHandshakeConfirm:
       return false;
     default:
       return true;
@@ -226,7 +227,11 @@ static ATBUS_ERROR_TYPE _generate_key_iv(protocol::ATBUS_CRYPTO_KDF_TYPE /*type*
 
 static uint64_t _generate_handshake_sequence_id() {
   static std::atomic<uint64_t> seq_id(_build_handshake_sequence_init_id());
-  return ++seq_id;
+  uint64_t ret = ++seq_id;
+  while (ret <= 1) {
+    ret = ++seq_id;
+  }
+  return ret;
 }
 
 static size_t _padding_temporary_buffer_block(size_t size) noexcept {
@@ -317,6 +322,7 @@ ATBUS_MACRO_API connection_context::connection_context(
       crypto_select_algorithm_(protocol::ATBUS_CRYPTO_ALGORITHM_NONE),
       compression_select_algorithm_(protocol::ATBUS_COMPRESSION_ALGORITHM_NONE),
       handshake_sequence_id_(0),
+      handshake_pending_confirm_(false),
       handshake_start_time_(std::chrono::system_clock::from_time_t(0)) {
   if (!shared_dh_context || shared_dh_context->get_method() != ::atfw::util::crypto::dh::method_t::EN_CDT_ECDH) {
     crypto_key_exchange_algorithm_ = protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE;
@@ -571,7 +577,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE connection_context::handshake_generate_self_key
 
 ATBUS_MACRO_API ATBUS_ERROR_TYPE connection_context::handshake_read_peer_key(
     const protocol::crypto_handshake_data &peer_pub_key,
-    gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> supported_crypto_algorithms) {
+    gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> supported_crypto_algorithms, bool need_confirm) {
   if (crypto_key_exchange_algorithm_ == protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE || !handshake_dh_) {
     return EN_ATBUS_ERR_SUCCESS;
   }
@@ -627,10 +633,16 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE connection_context::handshake_read_peer_key(
       break;
     }
 
-    // TODO: 初始化加密和解密cipher
+    // 初始化加密和解密cipher
     send_cipher_ = _create_crypto_cipher(crypto_select_algorithm_, true);
-    receive_cipher_ = _create_crypto_cipher(crypto_select_algorithm_, false);
-    if (!send_cipher_ || !receive_cipher_) {
+    ::atfw::util::memory::strong_rc_ptr<::atfw::util::crypto::cipher> *receive_cipher = &receive_cipher_;
+    if (need_confirm) {
+      handshake_pending_confirm_ = true;
+      receive_cipher = &handshake_receive_cipher_;
+    }
+
+    (*receive_cipher) = _create_crypto_cipher(crypto_select_algorithm_, false);
+    if (!send_cipher_ || !(*receive_cipher)) {
       ret = EN_ATBUS_ERR_CRYPTO_HANDSHAKE_NO_AVAILABLE_ALGORITHM;
       break;
     }
@@ -655,11 +667,11 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE connection_context::handshake_read_peer_key(
       ret = EN_ATBUS_ERR_CRYPTO_INVALID_IV;
       break;
     }
-    if (receive_cipher_->set_key(key_iv.data(), key_bits) != 0) {
+    if ((*receive_cipher)->set_key(key_iv.data(), key_bits) != 0) {
       ret = EN_ATBUS_ERR_CRYPTO_ENCRYPT;
       break;
     }
-    if (receive_cipher_->set_iv(key_iv.data() + key_size, iv_size) != 0) {
+    if ((*receive_cipher)->set_iv(key_iv.data() + key_size, iv_size) != 0) {
       ret = EN_ATBUS_ERR_CRYPTO_INVALID_IV;
       break;
     }
@@ -668,6 +680,16 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE connection_context::handshake_read_peer_key(
   handshake_dh_.reset();
 
   return ret;
+}
+
+ATBUS_MACRO_API void connection_context::confirm_handshake(uint64_t handshake_sequence) noexcept {
+  if (handshake_sequence_id_ != handshake_sequence || !handshake_pending_confirm_) {
+    return;
+  }
+
+  receive_cipher_ = std::move(handshake_receive_cipher_);
+  handshake_receive_cipher_.reset();
+  handshake_pending_confirm_ = false;
 }
 
 ATBUS_MACRO_API ATBUS_ERROR_TYPE connection_context::handshake_write_self_public_key(
@@ -933,9 +955,15 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
     crypto_info->set_iv(std::string(reinterpret_cast<const char *>(iv.data()), iv.size()));
   }
   if (send_cipher_->is_aead()) {
-    crypto_info->set_aad(
-        ::atfw::util::string::format("{:#x}.{:#x}-{:#x}", ::atfw::util::time::time_utility::get_sys_now(),
-                                     ::atfw::util::time::time_utility::get_now_usec(), random_engine.random()));
+    using random_unit_type = decltype(random_engine.random());
+    constexpr size_t kRandomUnit = sizeof(random_unit_type);
+    constexpr size_t kCipherAadSize = 2 * kRandomUnit;
+    crypto_info->mutable_aad()->resize(kCipherAadSize);
+    for (char *aad_next_int = crypto_info->mutable_aad()->data();
+         aad_next_int + kRandomUnit <= crypto_info->aad().data() + crypto_info->aad().size();
+         aad_next_int += kRandomUnit) {
+      *reinterpret_cast<random_unit_type *>(aad_next_int) = random_engine.random();
+    }
     size_t body_at_least_size = body_data_span.size() + crypto_info->aad().size() + send_cipher_->get_block_size() +
                                 send_cipher_->get_tag_size();
     // 这时候header数据已经固定，可以计算长度了

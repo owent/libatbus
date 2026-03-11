@@ -67,11 +67,18 @@ class ATFW_UTIL_SYMBOL_VISIBLE connection_context final {
    * @brief 读取对端公钥并计算共享密钥
    * @param peer_pub_key 对端公钥数据结构
    * @param supported_crypto_algorithms 支持的加密算法列表
+   * @param need_confirm 是否需要confirm消息来完成握手（服务端换密钥需要等客户端确认后才能切换receiver_cipher）
    * @return int 0或错误码
    */
-  ATBUS_MACRO_API ATBUS_ERROR_TYPE
-  handshake_read_peer_key(const protocol::crypto_handshake_data &peer_pub_key,
-                          gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> supported_crypto_algorithms);
+  ATBUS_MACRO_API ATBUS_ERROR_TYPE handshake_read_peer_key(
+      const protocol::crypto_handshake_data &peer_pub_key,
+      gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> supported_crypto_algorithms, bool need_confirm);
+
+  /**
+   * @brief 握手确认,服务端切换receiver_cipher
+   * @param handshake_sequence 握手序号
+   */
+  ATBUS_MACRO_API void confirm_handshake(uint64_t handshake_sequence) noexcept;
 
   /**
    * @brief 写入自己的公钥到握手数据结构
@@ -119,12 +126,13 @@ class ATFW_UTIL_SYMBOL_VISIBLE connection_context final {
   protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE compression_select_algorithm_;
   std::vector<protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> supported_compression_algorithms_;
   uint64_t handshake_sequence_id_;
+  bool handshake_pending_confirm_;
   std::chrono::system_clock::time_point handshake_start_time_;
   std::vector<unsigned char> handshake_self_public_key_;
   ::atfw::util::crypto::dh::shared_context::ptr_t handshake_ctx_;
   ::atfw::util::memory::strong_rc_ptr<::atfw::util::crypto::dh> handshake_dh_;
   ::atfw::util::memory::strong_rc_ptr<::atfw::util::crypto::cipher> send_cipher_;
   ::atfw::util::memory::strong_rc_ptr<::atfw::util::crypto::cipher> receive_cipher_;
+  ::atfw::util::memory::strong_rc_ptr<::atfw::util::crypto::cipher> handshake_receive_cipher_;
 };
 ATBUS_MACRO_NAMESPACE_END
-

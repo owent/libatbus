@@ -205,6 +205,10 @@ message register_data {
   crypto_handshake_data crypto_handshake = 11;
 }
 
+message handshake_confirm_data {
+  uint64 sequence = 1;  // used to prevent duplication
+}
+
 message message_head_crypto {
   ATBUS_CRYPTO_ALGORITHM_TYPE algorithm = 1;
 
@@ -238,13 +242,14 @@ message message_head {
 
 message message_body {
   oneof message_type {
-    custom_command_data custom_command_req = 11;
-    custom_command_data custom_command_rsp = 12;
-    forward_data data_transform_req = 13;
-    forward_data data_transform_rsp = 14;
-    register_data node_register_req = 17;
-    register_data node_register_rsp = 18;
-    ping_data node_ping_req = 21;
-    ping_data node_pong_rsp = 22;
+    custom_command_data custom_command_req = 1;
+    custom_command_data custom_command_rsp = 2;
+    forward_data data_transform_req = 3;
+    forward_data data_transform_rsp = 4;
+    register_data node_register_req = 5;
+    register_data node_register_rsp = 6;
+    ping_data node_ping_req = 7;
+    ping_data node_pong_rsp = 8;
+    handshake_confirm_data handshake_confirm = 9;
   }
 }

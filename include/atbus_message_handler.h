@@ -66,6 +66,8 @@ struct message_handler {
 
   static ATBUS_MACRO_API ATBUS_ERROR_TYPE send_ping(node &n, connection &conn, uint64_t message_sequence);
 
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE send_handshake_confirm(node &n, connection &conn, uint64_t sequence);
+
   static ATBUS_MACRO_API ATBUS_ERROR_TYPE send_register(int32_t msg_id, node &n, connection &conn, int32_t ret_code,
                                                         uint64_t seq);
 
@@ -97,6 +99,7 @@ struct message_handler {
                                                             ATBUS_ERROR_TYPE errcode);
   static ATBUS_MACRO_API ATBUS_ERROR_TYPE on_recv_node_pong(node &n, connection *conn, message &&, int status,
                                                             ATBUS_ERROR_TYPE errcode);
+  static ATBUS_MACRO_API ATBUS_ERROR_TYPE on_recv_handshake_confirm(node &n, connection *conn, message &&, int status,
+                                                                    ATBUS_ERROR_TYPE errcode);
 };
 ATBUS_MACRO_NAMESPACE_END
-
