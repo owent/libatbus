@@ -5,8 +5,8 @@
   "body_type": "node_pong_rsp",
   "body_type_case": 22,
   "crypto_algorithm": "NONE",
-  "packed_size": 15,
-  "packed_hex": "040803480ab2010708fbf8a5f9c132",
+  "packed_size": 14,
+  "packed_hex": "0408034809420708fbf8a5f9c132",
   "expected": {
     "time_point": 1735689600123
   }

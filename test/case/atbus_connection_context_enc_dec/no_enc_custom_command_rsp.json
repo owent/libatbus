@@ -6,7 +6,7 @@
   "body_type_case": 12,
   "crypto_algorithm": "NONE",
   "packed_size": 32,
-  "packed_hex": "040803481b62190882800c12080a06726573756c7412090a0773756363657373",
+  "packed_hex": "040803481b12190882800c12080a06726573756c7412090a0773756363657373",
   "expected": {
     "from": 196610,
     "commands": ["result", "success"]

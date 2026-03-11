@@ -8,7 +8,7 @@
   "compression_algorithm_type": 200,
   "compression_original_size": 66,
   "packed_size": 79,
-  "packed_hex": "0c08033a0508c8011042489c20ff0d5a992008aad5d6aa0512050a03636d641283100a80104242424242420600ffffffffffffffee6f1283100a8010fe07ffffffffffffffec804242424242424242",
+  "packed_hex": "0c08033a0508c8011042489c20ff0d0a992008aad5d6aa0512050a03636d641283100a80104242424242420600ffffffffffffffee6f1283100a8010fe07ffffffffffffffec804242424242424242",
   "expected": {
     "from": 1431677610
   }
