@@ -1559,8 +1559,8 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_handshake_confirm(node
     return EN_ATBUS_ERR_BAD_DATA;
   }
 
-  // 必须已经注册完成的 connection 才能处理 handshake_confirm
-  if (conn != nullptr && conn->get_binding() == nullptr) {
+  // 必须已经注册完成的 connection 才能处理 handshake_confirm, 临时连接 conn->get_binding() 为空
+  if (conn != nullptr && !conn->check_flag(connection::flag_t::kTemporary) && conn->get_binding() == nullptr) {
     ATBUS_FUNC_NODE_ERROR(n, nullptr, conn, EN_ATBUS_ERR_BAD_DATA, 0,
                           "node recv handshake_confirm from {:#x} but connection has no endpoint",
                           m.mutable_head().source_bus_id());

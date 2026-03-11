@@ -5,8 +5,8 @@
   "body_type": "node_ping_req",
   "body_type_case": 21,
   "crypto_algorithm": "NONE",
-  "packed_size": 15,
-  "packed_hex": "040803480aaa01070880f8a5f9c132",
+  "packed_size": 14,
+  "packed_hex": "04080348093a070880f8a5f9c132",
   "expected": {
     "time_point": 1735689600000
   }
