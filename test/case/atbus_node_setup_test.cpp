@@ -64,10 +64,9 @@ CASE_TEST_EVENT_ON_EXIT(unit_test_event_on_exit_close_libuv) {
 }
 
 #ifndef _WIN32
-static int node_msg_test_on_log(const atfw::util::log::log_formatter::caller_info_t &, const char *content,
-                                size_t content_size) {
-  gsl::string_view log_data{content, content_size};
-  CASE_MSG_INFO() << log_data << std::endl;
+static int node_msg_test_on_log(const atfw::util::log::log_formatter::caller_info_t &,
+                                atfw::util::nostd::string_view content) {
+  CASE_MSG_INFO() << content << std::endl;
   return 0;
 }
 static void setup_atbus_node_logger(atbus::node &n) {
