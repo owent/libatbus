@@ -200,9 +200,9 @@ node::node()
   atbus_node_run_global_init_once();
 
   logger_ = atfw::util::log::log_wrapper::create_user_logger();
-  logger_->set_level(atfw::util::log::log_formatter::level_t::LOG_LW_INFO);
+  logger_->set_level(atfw::util::log::log_level::kInfo);
   logger_->add_sink(
-      [](const atfw::util::log::log_formatter::caller_info_t &caller, const char *content, size_t content_size) {
+      [](const atfw::util::log::log_formatter::caller_info_t &caller, atfw::util::nostd::string_view content) {
         auto *default_cat =
             atfw::util::log::log_wrapper::mutable_log_cat(atfw::util::log::log_wrapper::categorize_t::DEFAULT);
         if (default_cat == nullptr) {
@@ -213,9 +213,9 @@ node::node()
           return;
         }
 
-        default_cat->write_log(caller, content, content_size);
+        default_cat->write_log(caller, content.data(), content.size());
       },
-      atfw::util::log::log_formatter::level_t::LOG_LW_DEBUG, atfw::util::log::log_formatter::level_t::LOG_LW_FATAL);
+      atfw::util::log::log_level::kDebug, atfw::util::log::log_level::kFatal);
 }
 
 void node::io_stream_channel_del::operator()(channel::io_stream_channel *p) const {

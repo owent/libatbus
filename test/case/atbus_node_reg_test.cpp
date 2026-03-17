@@ -49,16 +49,15 @@ struct node_reg_test_recv_msg_record_t {
 
 static node_reg_test_recv_msg_record_t recv_msg_history;
 
-static void node_reg_test_on_debug(const atfw::util::log::log_formatter::caller_info_t &, const char *content,
-                                   size_t content_size) {
-  gsl::string_view log_data{content, content_size};
-  if (gsl::string_view::npos != log_data.find("connection deallocated")) {
+static void node_reg_test_on_debug(const atfw::util::log::log_formatter::caller_info_t &,
+                                   atfw::util::nostd::string_view content) {
+  if (gsl::string_view::npos != content.find("connection deallocated")) {
     ++recv_msg_history.dealloc_connection_count;
-  } else if (gsl::string_view::npos != log_data.find("endpoint deallocated")) {
+  } else if (gsl::string_view::npos != content.find("endpoint deallocated")) {
     ++recv_msg_history.dealloc_endpoint_count;
   }
 
-  CASE_MSG_INFO() << log_data << std::endl;
+  CASE_MSG_INFO() << content << '\n';
 
 #ifdef _MSC_VER
 
@@ -67,31 +66,30 @@ static void node_reg_test_on_debug(const atfw::util::log::log_formatter::caller_
 
   // appveyor ci open msg content
   // if (APPVEYOR && APPVEYOR[0] && CI && CI[0] && nullptr != m) {
-  //     std::cout << *m << std::endl;
+  //     std::cout << *m << '\n';
   // }
 #endif
 }
 
-static int node_reg_test_on_error(const atfw::util::log::log_formatter::caller_info_t &, const char *content,
-                                  size_t content_size) {
-  gsl::string_view log_data{content, content_size};
+static int node_reg_test_on_error(const atfw::util::log::log_formatter::caller_info_t &,
+                                  atfw::util::nostd::string_view content) {
   // find status: {}, error_code: {}
   int status = 0;
   ATBUS_ERROR_TYPE errcode = EN_ATBUS_ERR_SUCCESS;
-  size_t pos = log_data.find("status:");
+  size_t pos = content.find("status:");
   if (gsl::string_view::npos != pos) {
-    for (; pos < log_data.size(); ++pos) {
-      if ((log_data[pos] >= '0' && log_data[pos] <= '9') || log_data[pos] == '-') {
+    for (; pos < content.size(); ++pos) {
+      if ((content[pos] >= '0' && content[pos] <= '9') || content[pos] == '-') {
         break;
       }
     }
-    if (pos < log_data.size()) {
-      status = atfw::util::string::to_int<int>(log_data.substr(pos));
+    if (pos < content.size()) {
+      status = atfw::util::string::to_int<int>(content.substr(pos));
     }
   }
-  pos = log_data.find("error_code:", pos);
+  pos = content.find("error_code:", pos);
   if (gsl::string_view::npos != pos) {
-    errcode = static_cast<ATBUS_ERROR_TYPE>(atfw::util::string::to_int<int>(log_data.substr(pos + 11)));
+    errcode = static_cast<ATBUS_ERROR_TYPE>(atfw::util::string::to_int<int>(content.substr(pos + 11)));
   }
   if ((0 == status && 0 == errcode) || UV_EOF == status || UV_ECONNRESET == status) {
     return 0;
@@ -103,31 +101,30 @@ static int node_reg_test_on_error(const atfw::util::log::log_formatter::caller_i
   }
   ++recv_msg_history.register_failed_count;
 
-  CASE_MSG_INFO() << log_data << std::endl;
+  CASE_MSG_INFO() << content << '\n';
   return 0;
 }
 
-static int node_reg_test_on_info_log(const atfw::util::log::log_formatter::caller_info_t &, const char *content,
-                                     size_t content_size) {
-  gsl::string_view log_data{content, content_size};
-  CASE_MSG_INFO() << log_data << std::endl;
-  if (gsl::string_view::npos != log_data.find("connection deallocated")) {
+static int node_reg_test_on_info_log(const atfw::util::log::log_formatter::caller_info_t &,
+                                     atfw::util::nostd::string_view content) {
+  CASE_MSG_INFO() << content << '\n';
+  if (gsl::string_view::npos != content.find("connection deallocated")) {
     ++recv_msg_history.dealloc_connection_count;
-  } else if (gsl::string_view::npos != log_data.find("endpoint deallocated")) {
+  } else if (gsl::string_view::npos != content.find("endpoint deallocated")) {
     ++recv_msg_history.dealloc_endpoint_count;
   }
   return 0;
 }
 
 static void setup_atbus_node_logger(atbus::node &n) {
-  n.get_logger()->set_level(atfw::util::log::log_formatter::level_t::LOG_LW_DEBUG);
+  n.get_logger()->set_level(atfw::util::log::log_level::kDebug);
   n.get_logger()->clear_sinks();
-  n.get_logger()->add_sink(node_reg_test_on_debug, atfw::util::log::log_formatter::level_t::LOG_LW_DEBUG,
-                           atfw::util::log::log_formatter::level_t::LOG_LW_DEBUG);
-  n.get_logger()->add_sink(node_reg_test_on_info_log, atfw::util::log::log_formatter::level_t::LOG_LW_INFO,
-                           atfw::util::log::log_formatter::level_t::LOG_LW_INFO);
-  n.get_logger()->add_sink(node_reg_test_on_error, atfw::util::log::log_formatter::level_t::LOG_LW_ERROR,
-                           atfw::util::log::log_formatter::level_t::LOG_LW_ERROR);
+  n.get_logger()->add_sink(node_reg_test_on_debug, atfw::util::log::log_level::kDebug,
+                           atfw::util::log::log_level::kDebug);
+  n.get_logger()->add_sink(node_reg_test_on_info_log, atfw::util::log::log_level::kInfo,
+                           atfw::util::log::log_level::kInfo);
+  n.get_logger()->add_sink(node_reg_test_on_error, atfw::util::log::log_level::kError,
+                           atfw::util::log::log_level::kError);
 
   n.enable_debug_message_verbose();
 }
@@ -287,7 +284,7 @@ CASE_TEST(atbus_node_reg, reset_and_send_tcp) {
       node2->proc(unit_test_make_timepoint(proc_t, 0));
     }
 
-    CASE_MSG_INFO() << "Ready to exit" << std::endl;
+    CASE_MSG_INFO() << "Ready to exit" << '\n';
 
     node2->reset();
 
@@ -361,7 +358,7 @@ CASE_TEST(atbus_node_reg, timeout) {
 
     // 正常情况下第一条连接会成功，第二条连接会被超时关闭。如果IO事件导致后续链接流程被处理了则跳过这个单元测试吧
     if (node1->is_endpoint_available(node2->get_id()) && node2->is_endpoint_available(node1->get_id())) {
-      CASE_MSG_INFO() << "more events than expected, skip this unit test." << std::endl;
+      CASE_MSG_INFO() << "more events than expected, skip this unit test." << '\n';
       return;
     }
 
@@ -378,9 +375,9 @@ CASE_TEST(atbus_node_reg, timeout) {
     node2->poll();
 
     CASE_MSG_INFO() << "new connection: " << (recv_msg_history.new_connection_count - check_new_connection_count)
-                    << std::endl;
+                    << '\n';
     CASE_MSG_INFO() << "invalid connection: "
-                    << (recv_msg_history.invalid_connection_count - check_invalid_connection_count) << std::endl;
+                    << (recv_msg_history.invalid_connection_count - check_invalid_connection_count) << '\n';
 
     CASE_EXPECT_TRUE(recv_msg_history.status == EN_ATBUS_ERR_NODE_TIMEOUT || recv_msg_history.status == -604);
     CASE_EXPECT_EQ(0, node1->get_connection_timer_size());
@@ -497,7 +494,7 @@ CASE_TEST(atbus_node_reg, message_size_limit) {
 
   unit_test_setup_exit(&ev_loop);
 
-  CASE_MSG_INFO() << "default message max size: " << conf.message_size << std::endl;
+  CASE_MSG_INFO() << "default message max size: " << conf.message_size << '\n';
 }
 
 CASE_TEST(atbus_node_reg, reg_failed_with_mismatch_access_token) {
@@ -1124,10 +1121,9 @@ CASE_TEST(atbus_node_reg, reg_pc_failed_with_subnet_mismatch) {
     node_downstream->proc(unit_test_make_timepoint(proc_t, proc_us));
 
     // in windows CI, connection will be closed sometimes, it will lead to add one endpoint more than one times
-    CASE_EXPECT_TRUE(static_cast<uint32_t>(node_downstream->get_state()) ==
-                         static_cast<uint32_t>(atbus::node::state_t::kCreated) ||
-                     static_cast<uint32_t>(node_downstream->get_state()) ==
-                         static_cast<uint32_t>(atbus::node::state_t::kRunning));
+    CASE_EXPECT_TRUE(
+        static_cast<uint32_t>(node_downstream->get_state()) == static_cast<uint32_t>(atbus::node::state_t::kCreated) ||
+        static_cast<uint32_t>(node_downstream->get_state()) == static_cast<uint32_t>(atbus::node::state_t::kRunning));
     CASE_EXPECT_LE(check_ep_count, recv_msg_history.add_endpoint_count);
     CASE_EXPECT_LE(old_register_count, recv_msg_history.register_count);
     CASE_EXPECT_LE(old_available_count, recv_msg_history.availavle_count);
@@ -1154,7 +1150,7 @@ CASE_TEST(atbus_node_reg, reg_pc_failed_with_subnet_mismatch) {
       CASE_EXPECT_NE(nullptr, test_conn);
     }
 
-    CASE_MSG_INFO() << "atbus_node_reg.reg_pc_failed_with_subnet_mismatch done." << std::endl;
+    CASE_MSG_INFO() << "atbus_node_reg.reg_pc_failed_with_subnet_mismatch done." << '\n';
     // disconnect - upstream and downstream
     CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->disconnect(0x12346789));
     CASE_EXPECT_EQ(EN_ATBUS_ERR_ATNODE_NOT_FOUND, node_upstream->disconnect(0x12346789));
@@ -1372,9 +1368,8 @@ CASE_TEST(atbus_node_reg, reconnect_upstream_failed) {
     // 重连上游节点，但是连接不成功也不会导致下线
     // 连接过程中的转态变化
     size_t retry_times = 0;
-    UNITTEST_WAIT_IF(conf.ev_loop,
-                     atbus::node::state_t::kRunning == node_downstream->get_state() || retry_times < 16, 8000,
-                     64) {
+    UNITTEST_WAIT_IF(conf.ev_loop, atbus::node::state_t::kRunning == node_downstream->get_state() || retry_times < 16,
+                     8000, 64) {
       proc_t += static_cast<time_t>(conf.retry_interval.count() / 1000000) + 1;
 
       node_downstream->proc(unit_test_make_timepoint(proc_t, 0));
@@ -1776,7 +1771,7 @@ static int node_reg_test_close_connection_fn_node1(const atbus::node &, const at
   g_close_connection_last_connection = conn;
 
   CASE_MSG_INFO() << "close_connection callback (node1): endpoint=" << (ep ? ep->get_id() : 0)
-                  << ", connection=" << (conn ? conn->get_address().address.c_str() : "null") << std::endl;
+                  << ", connection=" << (conn ? conn->get_address().address.c_str() : "null") << '\n';
   return 0;
 }
 
@@ -1787,7 +1782,7 @@ static int node_reg_test_close_connection_fn_node2(const atbus::node &, const at
   g_close_connection_last_connection = conn;
 
   CASE_MSG_INFO() << "close_connection callback (node2): endpoint=" << (ep ? ep->get_id() : 0)
-                  << ", connection=" << (conn ? conn->get_address().address.c_str() : "null") << std::endl;
+                  << ", connection=" << (conn ? conn->get_address().address.c_str() : "null") << '\n';
   return 0;
 }
 
@@ -1867,7 +1862,7 @@ CASE_TEST(atbus_node_reg, on_close_connection_normal) {
     CASE_EXPECT_GT(g_close_connection_callback_count_node1, close_count_node1_before);
     CASE_EXPECT_GT(g_close_connection_callback_count_node2, close_count_node2_before);
     CASE_MSG_INFO() << "close_connection callback count: node1=" << g_close_connection_callback_count_node1
-                    << ", node2=" << g_close_connection_callback_count_node2 << std::endl;
+                    << ", node2=" << g_close_connection_callback_count_node2 << '\n';
 
     node2->reset();
   }
@@ -1930,8 +1925,7 @@ CASE_TEST(atbus_node_reg, on_close_connection_by_peer) {
 
     // Verify close_connection callback was called on node2
     CASE_EXPECT_GT(g_close_connection_callback_count_node2, close_count_before);
-    CASE_MSG_INFO() << "close_connection callback count (by peer): " << g_close_connection_callback_count_node2
-                    << std::endl;
+    CASE_MSG_INFO() << "close_connection callback count (by peer): " << g_close_connection_callback_count_node2 << '\n';
 
     node2->reset();
   }
@@ -1952,7 +1946,7 @@ static void node_reg_test_topology_upstream_fn(const atbus::node &, const atbus:
   g_topology_upstream_new_id = new_upstream_peer ? new_upstream_peer->get_bus_id() : 0;
 
   CASE_MSG_INFO() << "topology_update_upstream callback: self_peer=" << g_topology_upstream_self_id
-                  << ", new_upstream_peer=" << g_topology_upstream_new_id << std::endl;
+                  << ", new_upstream_peer=" << g_topology_upstream_new_id << '\n';
 }
 
 // Test topology_update_upstream callback when downstream node connects to upstream
@@ -1998,8 +1992,8 @@ CASE_TEST(atbus_node_reg, on_topology_upstream_set) {
     // Wait for downstream to connect to upstream and trigger topology callback
     UNITTEST_WAIT_UNTIL(
         conf.ev_loop,
-        atbus::node::state_t::kRunning == node_downstream->get_state() && g_topology_upstream_callback_count > 0,
-        8000, 64) {
+        atbus::node::state_t::kRunning == node_downstream->get_state() && g_topology_upstream_callback_count > 0, 8000,
+        64) {
       ++proc_t;
       node_upstream->proc(unit_test_make_timepoint(proc_t, 0));
       node_downstream->proc(unit_test_make_timepoint(proc_t, 0));
@@ -2010,7 +2004,7 @@ CASE_TEST(atbus_node_reg, on_topology_upstream_set) {
     CASE_EXPECT_EQ(node_downstream->get_id(), g_topology_upstream_self_id);
     CASE_EXPECT_EQ(node_upstream->get_id(), g_topology_upstream_new_id);
 
-    CASE_MSG_INFO() << "topology_update_upstream callback count: " << g_topology_upstream_callback_count << std::endl;
+    CASE_MSG_INFO() << "topology_update_upstream callback count: " << g_topology_upstream_callback_count << '\n';
 
     // Clear the callback before reset to avoid accessing deallocated objects
     node_downstream->set_on_topology_update_upstream_handle(nullptr);
@@ -2072,8 +2066,8 @@ CASE_TEST(atbus_node_reg, on_topology_upstream_clear) {
     // Wait for downstream to connect to upstream and trigger topology callback
     UNITTEST_WAIT_UNTIL(
         conf.ev_loop,
-        atbus::node::state_t::kRunning == node_downstream->get_state() && g_topology_upstream_callback_count > 0,
-        8000, 64) {
+        atbus::node::state_t::kRunning == node_downstream->get_state() && g_topology_upstream_callback_count > 0, 8000,
+        64) {
       ++proc_t;
       node_upstream->proc(unit_test_make_timepoint(proc_t, 0));
       node_downstream->proc(unit_test_make_timepoint(proc_t, 0));
@@ -2085,7 +2079,7 @@ CASE_TEST(atbus_node_reg, on_topology_upstream_clear) {
     int callback_count_after_connect = g_topology_upstream_callback_count;
 
     CASE_MSG_INFO() << "After connect - topology_update_upstream callback count: " << g_topology_upstream_callback_count
-                    << ", upstream_id: " << g_topology_upstream_new_id << std::endl;
+                    << ", upstream_id: " << g_topology_upstream_new_id << '\n';
 
     // Now reset upstream node to trigger upstream clear callback
     node_upstream->reset();
@@ -2101,7 +2095,7 @@ CASE_TEST(atbus_node_reg, on_topology_upstream_clear) {
 
     CASE_MSG_INFO() << "After upstream reset - topology_update_upstream callback count: "
                     << g_topology_upstream_callback_count << ", upstream_id: " << g_topology_upstream_new_id
-                    << ", downstream state: " << static_cast<int>(node_downstream->get_state()) << std::endl;
+                    << ", downstream state: " << static_cast<int>(node_downstream->get_state()) << '\n';
 
     // Clear the callback before reset
     node_downstream->set_on_topology_update_upstream_handle(nullptr);
@@ -2155,8 +2149,8 @@ CASE_TEST(atbus_node_reg, on_topology_upstream_change_id) {
     // Wait for downstream to connect to first upstream
     UNITTEST_WAIT_UNTIL(
         conf.ev_loop,
-        atbus::node::state_t::kRunning == node_downstream->get_state() && g_topology_upstream_callback_count > 0,
-        8000, 64) {
+        atbus::node::state_t::kRunning == node_downstream->get_state() && g_topology_upstream_callback_count > 0, 8000,
+        64) {
       ++proc_t;
       node_upstream1->proc(unit_test_make_timepoint(proc_t, 0));
       node_downstream->proc(unit_test_make_timepoint(proc_t, 0));
@@ -2169,20 +2163,19 @@ CASE_TEST(atbus_node_reg, on_topology_upstream_change_id) {
     uint64_t first_upstream_id = g_topology_upstream_new_id;
 
     CASE_MSG_INFO() << "First upstream connected - callback count: " << g_topology_upstream_callback_count
-                    << ", upstream_id: " << g_topology_upstream_new_id << std::endl;
+                    << ", upstream_id: " << g_topology_upstream_new_id << '\n';
 
     // Reset first upstream to release the port
     node_upstream1->reset();
 
     // Wait for downstream to detect upstream loss
-    UNITTEST_WAIT_UNTIL(conf.ev_loop, atbus::node::state_t::kLostUpstream == node_downstream->get_state(), 8000,
-                        64) {
+    UNITTEST_WAIT_UNTIL(conf.ev_loop, atbus::node::state_t::kLostUpstream == node_downstream->get_state(), 8000, 64) {
       proc_t += static_cast<time_t>(conf.retry_interval.count() / 1000000) + 1;
       node_downstream->proc(unit_test_make_timepoint(proc_t, 0));
     }
 
     CASE_MSG_INFO() << "First upstream disconnected - callback count: " << g_topology_upstream_callback_count
-                    << ", downstream state: " << static_cast<int>(node_downstream->get_state()) << std::endl;
+                    << ", downstream state: " << static_cast<int>(node_downstream->get_state()) << '\n';
 
     // Create second upstream node with different ID on the same address
     atbus::node::ptr_t node_upstream2 = atbus::node::create();
@@ -2211,7 +2204,7 @@ CASE_TEST(atbus_node_reg, on_topology_upstream_change_id) {
 
     CASE_MSG_INFO() << "Second upstream connected - callback count: " << g_topology_upstream_callback_count
                     << ", old_upstream_id: " << first_upstream_id << ", new_upstream_id: " << g_topology_upstream_new_id
-                    << std::endl;
+                    << '\n';
 
     // Clear the callback before reset
     node_downstream->set_on_topology_update_upstream_handle(nullptr);
@@ -2229,4 +2222,3 @@ CASE_TEST(atbus_node_reg, on_topology_upstream_change_id) {
 
   unit_test_setup_exit(&ev_loop);
 }
-

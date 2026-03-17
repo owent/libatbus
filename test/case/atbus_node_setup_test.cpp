@@ -71,7 +71,7 @@ static int node_msg_test_on_log(const atfw::util::log::log_formatter::caller_inf
   return 0;
 }
 static void setup_atbus_node_logger(atbus::node &n) {
-  n.get_logger()->set_level(atfw::util::log::log_formatter::level_t::LOG_LW_DEBUG);
+  n.get_logger()->set_level(atfw::util::log::log_level::kDebug);
   n.get_logger()->clear_sinks();
   n.get_logger()->add_sink(node_msg_test_on_log);
 }
@@ -172,4 +172,3 @@ CASE_TEST(atbus_node_setup, compression_algorithms) {
 
   CASE_EXPECT_GT(count, 0);
 }
-

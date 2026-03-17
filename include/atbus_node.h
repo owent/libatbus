@@ -949,9 +949,8 @@ ATBUS_MACRO_NAMESPACE_END
 #endif
 // clang-format on
 
-#define ATBUS_FUNC_NODE_FATAL_SHUTDOWN(n, ep, conn, status, errorcode)                                              \
-  (n).fatal_shutdown(WDTLOGFILENF(atfw::util::log::log_wrapper::level_t::LOG_LW_ERROR, {}), (ep), (conn), (status), \
-                     (errorcode))
+#define ATBUS_FUNC_NODE_FATAL_SHUTDOWN(n, ep, conn, status, errorcode) \
+  (n).fatal_shutdown(WDTLOGFILENF(atfw::util::log::log_level::kError, {}), (ep), (conn), (status), (errorcode))
 
 #ifdef _MSC_VER
 // NOLINTNEXTLINE(bugprone-macro-parentheses)

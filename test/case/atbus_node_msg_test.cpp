@@ -28,15 +28,14 @@
 
 #include <stdarg.h>
 
-static int node_msg_test_on_log(const atfw::util::log::log_formatter::caller_info_t &, const char *content,
-                                size_t content_size) {
-  gsl::string_view log_data{content, content_size};
-  CASE_MSG_INFO() << log_data << std::endl;
+static int node_msg_test_on_log(const atfw::util::log::log_formatter::caller_info_t &,
+                                atfw::util::nostd::string_view content) {
+  CASE_MSG_INFO() << content << '\n';
   return 0;
 }
 
 static void setup_atbus_node_logger(atbus::node &n) {
-  n.get_logger()->set_level(atfw::util::log::log_formatter::level_t::LOG_LW_DEBUG);
+  n.get_logger()->set_level(atfw::util::log::log_level::kDebug);
   n.get_logger()->clear_sinks();
   n.get_logger()->add_sink(node_msg_test_on_log);
   n.enable_debug_message_verbose();
@@ -2275,4 +2274,3 @@ CASE_TEST(atbus_node_msg, crypto_list_available_algorithms) {
 }
 
 #endif  // ATFW_UTIL_MACRO_CRYPTO_CIPHER_ENABLED
-
