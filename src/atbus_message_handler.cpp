@@ -1378,7 +1378,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_register_rsp(node
 
     // 如果是父节点回的错误注册包，且未被激活过，则要关闭进程
     if (conn->get_address().address == n.get_conf().upstream_address && !n.check_flag(node::flag_t::kActived)) {
-      ATBUS_FUNC_NODE_DEBUG(n, ep, conn, &m, "node register to parent node failed, shutdown");
+      ATBUS_FUNC_NODE_DEBUG(n, ep, conn, &m, "node register to upstream node failed, shutdown");
       ATBUS_FUNC_NODE_FATAL_SHUTDOWN(n, ep, conn, result_code, errcode);
     } else {
       ATBUS_FUNC_NODE_ERROR(n, ep, conn, result_code, errcode, "node register failed, result_code: {}",

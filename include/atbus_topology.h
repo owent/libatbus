@@ -19,7 +19,7 @@ ATBUS_MACRO_NAMESPACE_BEGIN
  *
  * This header provides a lightweight in-memory topology registry:
  * - Each node is a @ref topology_peer, identified by @ref bus_id_t.
- * - A node may have an optional upstream parent (forming a tree/forest).
+ * - A node may have an optional upstream (forming a tree/forest).
  * - A registry (@ref topology_registry) maintains peers and allows querying relations.
  *
  * @note This is an in-process data structure. It is NOT thread-safe.
@@ -32,7 +32,7 @@ struct topology_test_handles;
 /**
  * @brief Relation type between two peers in the topology registry.
  *
- * The relation is evaluated based on the upstream chain (parent links).
+ * The relation is evaluated based on the upstream chain.
  */
 enum class topology_relation_type : uint32_t {
   /** @brief Invalid input or one/both peers not found. */
@@ -41,7 +41,7 @@ enum class topology_relation_type : uint32_t {
   /** @brief from == to. */
   kSelf = 1,
 
-  /** @brief to is the direct upstream(parent) of from. */
+  /** @brief to is the direct upstream of from. */
   kImmediateUpstream = 2,
 
   /** @brief to is an ancestor of from, but not the direct upstream. */
@@ -144,7 +144,7 @@ class topology_peer {
   /** @brief Get the bus id of this peer. */
   ATFW_UTIL_FORCEINLINE bus_id_t get_bus_id() const noexcept { return bus_id_; }
 
-  /** @brief Get the upstream (parent) peer, or nullptr if this peer is a root. */
+  /** @brief Get the upstream peer, or nullptr if this peer is a root. */
   ATFW_UTIL_FORCEINLINE const topology_peer::ptr_t &get_upstream() const noexcept { return upstream_; }
 
   /** @brief Get current topology data of this peer. */
