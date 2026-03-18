@@ -1,3 +1,8 @@
+---
+name: build
+description: Configure and build libatbus with CMake, including key options for shared libs and bus ID type.
+---
+
 # Build (libatbus)
 
 This repo uses **CMake (>= 3.24)** and requires C++17.

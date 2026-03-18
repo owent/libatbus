@@ -136,8 +136,8 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_connection {
   ::atframework::atbus::detail::buffer_manager read_buffer_manager;
 
   struct read_head_t {
-    char buffer[ATBUS_MACRO_DATA_SMALL_SIZE];  // varint数据暂存区和小数据包存储区
-    size_t len;                                // varint数据暂存区和小数据包存储区已使用长度
+    unsigned char buffer[ATBUS_MACRO_DATA_SMALL_SIZE];  // varint数据暂存区和小数据包存储区
+    size_t len;                                         // varint数据暂存区和小数据包存储区已使用长度
   };
   read_head_t read_head = {};
   ::atframework::atbus::detail::buffer_manager

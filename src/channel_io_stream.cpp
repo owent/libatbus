@@ -48,34 +48,118 @@
 
 #endif
 
+#if defined(__has_include)
+#  if __has_include(<bit>)
+#    include <bit>
+#    if defined(__cpp_lib_endian) && (__cpp_lib_endian >= 201907L)
+#      define __ATFW_LIBATBUS_BINARY_HAS_STD_ENDIAN 1
+#    else
+#      define __ATFW_LIBATBUS_BINARY_HAS_STD_ENDIAN 0
+#    endif
+#  else
+#    define __ATFW_LIBATBUS_BINARY_HAS_STD_ENDIAN 0
+#  endif
+#else
+#  define __ATFW_LIBATBUS_BINARY_HAS_STD_ENDIAN 0
+#endif
+
+#if defined(__cpp_if_constexpr) && (__cpp_if_constexpr >= 201606L)
+#  define __ATFW_LIBATBUS_BINARY_HAS_IF_CONSTEXPR 1
+#else
+#  define __ATFW_LIBATBUS_BINARY_HAS_IF_CONSTEXPR 0
+#endif
+
+#if __ATFW_LIBATBUS_BINARY_HAS_STD_ENDIAN && __ATFW_LIBATBUS_BINARY_HAS_IF_CONSTEXPR
+#  define __ATFW_LIBATBUS_BINARY_CAN_USE_STD_ENDIAN_IF_CONSTEXPR 1
+#else
+#  define __ATFW_LIBATBUS_BINARY_CAN_USE_STD_ENDIAN_IF_CONSTEXPR 0
+#endif
+
 #define ATBUS_MACRO_TLS_MERGE_BUFFER_LEN (ATBUS_MACRO_MESSAGE_LIMIT - ATBUS_MACRO_DATA_ALIGN_SIZE - sizeof(uv_write_t))
+
+ATBUS_MACRO_NAMESPACE_BEGIN
+namespace channel {
+namespace {
+
+#if !__ATFW_LIBATBUS_BINARY_CAN_USE_STD_ENDIAN_IF_CONSTEXPR
+constexpr static inline bool __is_little_endian_fallback() {
+#  if defined(_WIN32) || defined(__LITTLE_ENDIAN__) || \
+      (defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__) && (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__))
+  return true;
+#  elif defined(__BIG_ENDIAN__) || \
+      (defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__) && (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__))
+  return false;
+#  else
+  const uint16_t x = 1;
+  return *reinterpret_cast<const uint8_t *>(&x) == 1;
+#  endif
+}
+#endif
+
+static void __write_uint32_little_endian(unsigned char *buf, uint32_t value) {
+  uint8_t *p = static_cast<uint8_t *>(buf);
+
+#if __ATFW_LIBATBUS_BINARY_CAN_USE_STD_ENDIAN_IF_CONSTEXPR
+  if constexpr (std::endian::native == std::endian::little) {
+    std::memcpy(p, &value, sizeof(value));
+  } else {
+    p[0] = static_cast<uint8_t>(value & 0xFF);
+    p[1] = static_cast<uint8_t>((value >> 8) & 0xFF);
+    p[2] = static_cast<uint8_t>((value >> 16) & 0xFF);
+    p[3] = static_cast<uint8_t>((value >> 24) & 0xFF);
+  }
+#else
+  if (__is_little_endian_fallback()) {
+    std::memcpy(p, &value, sizeof(value));
+  } else {
+    p[0] = static_cast<uint8_t>(value & 0xFF);
+    p[1] = static_cast<uint8_t>((value >> 8) & 0xFF);
+    p[2] = static_cast<uint8_t>((value >> 16) & 0xFF);
+    p[3] = static_cast<uint8_t>((value >> 24) & 0xFF);
+  }
+#endif
+}
+
+static uint32_t __read_uint32_little_endian(const unsigned char *buf) {
+  const uint8_t *p = static_cast<const uint8_t *>(buf);
+
+#if __ATFW_LIBATBUS_BINARY_CAN_USE_STD_ENDIAN_IF_CONSTEXPR
+  if constexpr (std::endian::native == std::endian::little) {
+    uint32_t value = 0;
+    std::memcpy(&value, p, sizeof(value));
+    return value;
+  } else {
+    return static_cast<uint32_t>(p[0]) | (static_cast<uint32_t>(p[1]) << 8) | (static_cast<uint32_t>(p[2]) << 16) |
+           (static_cast<uint32_t>(p[3]) << 24);
+  }
+#else
+  if (__is_little_endian_fallback()) {
+    uint32_t value = 0;
+    std::memcpy(&value, p, sizeof(value));
+    return value;
+  } else {
+    return static_cast<uint32_t>(p[0]) | (static_cast<uint32_t>(p[1]) << 8) | (static_cast<uint32_t>(p[2]) << 16) |
+           (static_cast<uint32_t>(p[3]) << 24);
+  }
+#endif
+}
 
 #if !(defined(ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD) && ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD) && \
     defined(UTIL_CONFIG_THREAD_LOCAL)
 
-ATBUS_MACRO_NAMESPACE_BEGIN
-namespace channel {
-namespace detail {
-namespace {
-static char *io_stream_get_msg_buffer() {
-  static UTIL_CONFIG_THREAD_LOCAL char ret[ATBUS_MACRO_TLS_MERGE_BUFFER_LEN];
+static unsigned char *io_stream_get_msg_buffer() {
+  static UTIL_CONFIG_THREAD_LOCAL unsigned char ret[ATBUS_MACRO_TLS_MERGE_BUFFER_LEN];
   return ret;
 }
-}  // namespace
-}  // namespace detail
-}  // namespace channel
-ATBUS_MACRO_NAMESPACE_END
 #else
 
 #  include <pthread.h>
-ATBUS_MACRO_NAMESPACE_BEGIN
-namespace channel {
-namespace detail {
+
 static pthread_once_t gt_io_stream_get_msg_buffer_tls_once = PTHREAD_ONCE_INIT;
 static pthread_key_t gt_io_stream_get_msg_buffer_tls_key;
 
 static void dtor_pthread_io_stream_get_msg_buffer_tls(void *p) {
-  char *res = reinterpret_cast<char *>(p);
+  unsigned char *res = reinterpret_cast<unsigned char *>(p);
   if (nullptr != res) {
     delete[] res;
   }
@@ -85,18 +169,18 @@ static void init_pthread_io_stream_get_msg_buffer_tls() {
   (void)pthread_key_create(&gt_io_stream_get_msg_buffer_tls_key, dtor_pthread_io_stream_get_msg_buffer_tls);
 }
 
-static char *io_stream_get_msg_buffer() {
+static unsigned char *io_stream_get_msg_buffer() {
   (void)pthread_once(&gt_io_stream_get_msg_buffer_tls_once, init_pthread_io_stream_get_msg_buffer_tls);
-  char *ret = reinterpret_cast<char *>(pthread_getspecific(gt_io_stream_get_msg_buffer_tls_key));
+  unsigned char *ret = reinterpret_cast<unsigned char *>(pthread_getspecific(gt_io_stream_get_msg_buffer_tls_key));
   if (nullptr == ret) {
-    ret = new char[ATBUS_MACRO_TLS_MERGE_BUFFER_LEN];
+    ret = new unsigned char[ATBUS_MACRO_TLS_MERGE_BUFFER_LEN];
     pthread_setspecific(gt_io_stream_get_msg_buffer_tls_key, ret);
   }
   return ret;
 }
 
 struct gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t {
-  char *buffer_ptr;
+  unsigned char *buffer_ptr;
   gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t() { buffer_ptr = io_stream_get_msg_buffer(); }
 
   ~gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t() {
@@ -105,11 +189,12 @@ struct gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t {
   }
 };
 static gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t gt_io_stream_get_msg_buffer_tls_main_thread_dtor;
-}  // namespace detail
-}  // namespace channel
-ATBUS_MACRO_NAMESPACE_END
 
 #endif
+
+}  // namespace
+}  // namespace channel
+ATBUS_MACRO_NAMESPACE_END
 
 ATBUS_MACRO_NAMESPACE_BEGIN
 namespace channel {
@@ -502,7 +587,7 @@ static void io_stream_on_recv_alloc_fn(uv_handle_t *handle, size_t /*suggested_s
       // 如果msg超过缓冲区大小，则会出错回调并立即断开连接,不会再有下一次调用
       buf->base = nullptr;
     } else {
-      buf->base = &conn_raw_ptr->read_head.buffer[conn_raw_ptr->read_head.len];
+      buf->base = reinterpret_cast<char *>(&conn_raw_ptr->read_head.buffer[conn_raw_ptr->read_head.len]);
     }
     return;
   }
@@ -559,7 +644,7 @@ static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const 
     conn_raw_ptr->read_head.len += static_cast<size_t>(nread);  // 写数据计数
 
     // 尝试解出所有的head数据
-    char *buff_start = conn_raw_ptr->read_head.buffer;
+    unsigned char *buff_start = conn_raw_ptr->read_head.buffer;
     size_t buff_left_len = conn_raw_ptr->read_head.len;
 
     // 可能包含多条消息
@@ -579,8 +664,7 @@ static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const 
         channel->error_code = 0;
         uint32_t check_hash = atfw::util::hash::murmur_hash3_x86_32(buff_start + sizeof(uint32_t) + vint_len,
                                                                     static_cast<int>(msg_len), 0);
-        uint32_t expect_hash = 0;
-        memcpy(&expect_hash, buff_start, sizeof(uint32_t));
+        uint32_t expect_hash = __read_uint32_little_endian(buff_start);
         ATBUS_ERROR_TYPE errcode = EN_ATBUS_ERR_SUCCESS;
         if (check_hash != expect_hash) {
           errcode = EN_ATBUS_ERR_BAD_DATA;
@@ -609,7 +693,7 @@ static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const 
         // 32位hash 也暂存在这里
         if (EN_ATBUS_ERR_SUCCESS == conn_raw_ptr->read_buffer_manager.push_back(data, sizeof(uint32_t) + msg_len)) {
           memcpy(data, buff_start, sizeof(uint32_t));  // 32位hash
-          memcpy(reinterpret_cast<char *>(data) + sizeof(uint32_t), buff_start + sizeof(uint32_t) + vint_len,
+          memcpy(reinterpret_cast<unsigned char *>(data) + sizeof(uint32_t), buff_start + sizeof(uint32_t) + vint_len,
                  buff_left_len - sizeof(uint32_t) - vint_len);
           conn_raw_ptr->read_buffer_manager.pop_back(buff_left_len - vint_len, false);  // vint_len不用保存
 
@@ -648,10 +732,9 @@ static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const 
     data = ::atframework::atbus::detail::fn::buffer_prev(data, sread);
 
     // 32位Hash校验和
-    uint32_t check_hash = atfw::util::hash::murmur_hash3_x86_32(reinterpret_cast<char *>(data) + sizeof(uint32_t),
-                                                                static_cast<int>(sread - sizeof(uint32_t)), 0);
-    uint32_t expect_hash = 0;
-    memcpy(&expect_hash, data, sizeof(uint32_t));
+    uint32_t check_hash = atfw::util::hash::murmur_hash3_x86_32(
+        reinterpret_cast<unsigned char *>(data) + sizeof(uint32_t), static_cast<int>(sread - sizeof(uint32_t)), 0);
+    uint32_t expect_hash = __read_uint32_little_endian(reinterpret_cast<const unsigned char *>(data));
     size_t msg_len = sread - sizeof(uint32_t);  // - hash32 header
 
     ATBUS_ERROR_TYPE errcode = EN_ATBUS_ERR_SUCCESS;
@@ -670,7 +753,7 @@ static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const 
     }
 
     io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::kReceived, channel, conn_raw_ptr, 0, errcode,
-                               reinterpret_cast<char *>(data) + sizeof(uint32_t),  // + hash32 header
+                               reinterpret_cast<unsigned char *>(data) + sizeof(uint32_t),  // + hash32 header
                                // 由于buffer_block内取出的数据已经保证了字节对齐，所以这里一定是4字节对齐
                                msg_len);
 
@@ -1777,7 +1860,7 @@ static void io_stream_on_written_fn(uv_write_t *req, int status) {
 
     // nwrite = sizeof(uv_write_t) + [data block...]
     // data block = 32bits hash+vint+data length
-    char *buff_start = reinterpret_cast<char *>(data) + sizeof(uv_write_t);
+    unsigned char *buff_start = reinterpret_cast<unsigned char *>(data) + sizeof(uv_write_t);
     size_t left_length = nwrite - sizeof(uv_write_t);
     while (left_length > 0) {
       // skip 32bits hash
@@ -1853,7 +1936,7 @@ int io_stream_try_write(io_stream_connection *connection) {
       size_t nwrite = bb->raw_size();
       // nwrite = sizeof(uv_write_t) + [data block...]
       // data block = 32bits hash+vint+data length
-      char *buff_start = reinterpret_cast<char *>(bb->raw_data()) + sizeof(uv_write_t);
+      unsigned char *buff_start = reinterpret_cast<unsigned char *>(bb->raw_data()) + sizeof(uv_write_t);
       size_t left_length = nwrite - sizeof(uv_write_t);
       while (left_length > 0) {
         // skip 32bits hash
@@ -1889,8 +1972,8 @@ int io_stream_try_write(io_stream_connection *connection) {
   if (connection->write_buffer_manager.limit().cost_number_ > 1 &&
       connection->write_buffer_manager.front()->raw_size() <= ATBUS_MACRO_DATA_SMALL_SIZE) {
     size_t available_bytes = ATBUS_MACRO_TLS_MERGE_BUFFER_LEN;
-    char *buffer_start = ::atframework::atbus::channel::detail::io_stream_get_msg_buffer();
-    char *free_buffer = buffer_start;
+    unsigned char *buffer_start = ::atframework::atbus::channel::io_stream_get_msg_buffer();
+    unsigned char *free_buffer = buffer_start;
 
     ::atframework::atbus::detail::buffer_block *preview_bb = nullptr;
     while (!connection->write_buffer_manager.empty() && available_bytes > 0) {
@@ -1947,13 +2030,13 @@ int io_stream_try_write(io_stream_connection *connection) {
   uv_write_t *req = reinterpret_cast<uv_write_t *>(writing_block->raw_data());
   io_stream_handle_set_connection(req, connection);
 
-  char *buff_start = reinterpret_cast<char *>(writing_block->raw_data());
+  unsigned char *buff_start = reinterpret_cast<unsigned char *>(writing_block->raw_data());
   // req
   buff_start += sizeof(uv_write_t);
 
   // call write ，bufs[] will be copied in libuv, but the real data will not
-  uv_buf_t bufs[1] = {
-      uv_buf_init(buff_start, static_cast<unsigned int>(writing_block->raw_size() - sizeof(uv_write_t)))};
+  uv_buf_t bufs[1] = {uv_buf_init(reinterpret_cast<char *>(buff_start),
+                                  static_cast<unsigned int>(writing_block->raw_size() - sizeof(uv_write_t)))};
 
   ATBUS_CHANNEL_IOS_SET_FLAG(connection->flags, io_stream_connection::flag_t::kWriting);
   int res = uv_write(req, connection->handle.get(), bufs, 1, io_stream_on_written_fn);
@@ -1997,14 +2080,14 @@ int io_stream_send(io_stream_connection *connection, const void *buf, size_t len
     // 初始化req，填充vint，复制数据区
     uv_write_t *req = reinterpret_cast<uv_write_t *>(data);
     io_stream_handle_set_connection(req, connection);
-    char *buff_start = reinterpret_cast<char *>(data);
+    unsigned char *buff_start = reinterpret_cast<unsigned char *>(data);
     // req
     buff_start += sizeof(uv_write_t);
 
     // 32bits hash
     uint32_t hash32 =
         atfw::util::hash::murmur_hash3_x86_32(reinterpret_cast<const char *>(buf), static_cast<int>(len), 0);
-    memcpy(buff_start, &hash32, sizeof(uint32_t));
+    __write_uint32_little_endian(buff_start, hash32);
 
     // vint
     memcpy(buff_start + sizeof(uint32_t), vint, vint_len);
