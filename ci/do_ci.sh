@@ -79,6 +79,10 @@ elif [[ "$1" == "coverage" ]]; then
   timeout 5s ./tools/benchmark_shm_channel_recv 12345679 1024 4194304 >recv.log 2>&1 &
   timeout 6s ./tools/benchmark_shm_channel_send 12345679 1024 4194304 >send.log 2>&1 || true
   ./tools/show_shm_channel 12345679 1 16 >/dev/null || true
+  lcov --directory $PWD --capture --output-file coverage-full.info
+  lcov --remove coverage-full.info \
+    '*/sample/*' '*/test/*' '*/tools/*' '*/third_party/*' \
+    --output-file coverage.info
 elif [[ "$1" == "codeql.configure" ]]; then
   CONFIGURATION=Debug
   vcpkg install --triplet=$VCPKG_TARGET_TRIPLET fmt openssl libuv
