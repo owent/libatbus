@@ -8,7 +8,7 @@ queries:
 # paths:
 #   - include
 #   - src
-# paths-ignore:
-#   - third_party
-#   - test
-
+paths-ignore:
+  - third_party
+  - test
+  - atframework

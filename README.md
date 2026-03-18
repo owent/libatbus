@@ -2,12 +2,18 @@
 
 用于搭建高性能、全异步(a)、树形结构(t)的BUS消息系统的跨平台框架库
 
-[![ci-badge]][ci-link] [![codecov badge]][codecov status]
+[![ci-badge]][ci-link]
+[![codeql-badge]][codeql-link]
+[![codecov badge]][codecov status]
+![license-badge]
 
 [ci-badge]: https://github.com/atframework/libatbus/actions/workflows/main.yml/badge.svg "Github action build status"
 [ci-link]:  https://github.com/atframework/libatbus/actions/workflows/main.yml "Github action build status"
+[codeql-badge]: https://github.com/atframework/libatbus/actions/workflows/codeql.yml/badge.svg "CodeQL"
+[codeql-link]:  https://github.com/atframework/libatbus/actions/workflows/codeql.yml "CodeQL"
 [codecov badge]: https://codecov.io/gh/atframework/libatbus/branch/main/graph/badge.svg
 [codecov status]: https://codecov.io/gh/atframework/libatbus
+[license-badge]: https://img.shields.io/github/license/atframework/libatbus
 
 ## CI Job Matrix
 

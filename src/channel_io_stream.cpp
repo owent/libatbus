@@ -346,7 +346,7 @@ static io_stream_handle_private_data *io_stream_handle_mutable_private_data_inte
     return reinterpret_cast<io_stream_handle_private_data *>(handle->data);
   }
 
-  io_stream_handle_private_data *ret = new io_stream_handle_private_data();
+  io_stream_handle_private_data *ret = new (std::nothrow) io_stream_handle_private_data();
   if (nullptr == ret) {
     return nullptr;
   }
@@ -894,7 +894,7 @@ static int io_stream_shutdown_connection(io_stream_connection *conn) {
     if (0 == uv_is_writable(conn->handle.get())) {
       break;
     }
-    adapter::shutdown_t *shutdown_request = new adapter::shutdown_t();
+    adapter::shutdown_t *shutdown_request = new (std::nothrow) adapter::shutdown_t();
     if (nullptr == shutdown_request) {
       break;
     }
@@ -927,7 +927,7 @@ static int io_stream_shutdown_async_data(io_stream_connect_async_data *async_dat
     if (0 == uv_is_writable(async_data->stream.get())) {
       break;
     }
-    adapter::shutdown_t *shutdown_request = new adapter::shutdown_t();
+    adapter::shutdown_t *shutdown_request = new (std::nothrow) adapter::shutdown_t();
     if (nullptr == shutdown_request) {
       break;
     }
@@ -954,7 +954,7 @@ static int io_stream_shutdown_ev_handle(::atfw::util::memory::strong_rc_ptr<adap
     if (0 == uv_is_writable(stream.get())) {
       break;
     }
-    uv_shutdown_t *shutdown_request = new uv_shutdown_t();
+    uv_shutdown_t *shutdown_request = new (std::nothrow) uv_shutdown_t();
     if (nullptr == shutdown_request) {
       break;
     }
@@ -1036,7 +1036,7 @@ static void io_stream_delete_stream_fn(adapter::stream_t *handle) {
 
 template <typename T>
 static T *io_stream_make_stream_ptr(::atfw::util::memory::strong_rc_ptr<adapter::stream_t> &res) {
-  T *real_conn = new T();
+  T *real_conn = new (std::nothrow) T();
   adapter::stream_t *stream_conn = reinterpret_cast<adapter::stream_t *>(real_conn);
   res = ::atfw::util::memory::strong_rc_ptr<adapter::stream_t>(stream_conn, io_stream_delete_stream_fn<T>);
   stream_conn->data = nullptr;
