@@ -28,7 +28,7 @@
 #include "libatbus_protocol.h"      // NOLINT: build/include_subdir
 
 ATBUS_MACRO_NAMESPACE_BEGIN
-namespace detail {
+namespace {
 
 #if !defined(_WIN32)
 static int try_flock_file(const std::string &lock_path) {
@@ -100,7 +100,7 @@ struct connection_async_data {
     return *this;
   }
 };
-}  // namespace detail
+}  // namespace
 
 connection::connection(ctor_guard_t &guard)
     : state_(state_t::kDisconnected),
@@ -329,7 +329,7 @@ ATBUS_MACRO_API int connection::listen() {
       }
     }
 
-    detail::connection_async_data *async_data = new detail::connection_async_data(owner_);
+    connection_async_data *async_data = new connection_async_data(owner_);
     if (nullptr == async_data) {
       ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_MALLOC, 0,
                             "listen {} but malloc async data failed", address_.address);
@@ -462,7 +462,7 @@ ATBUS_MACRO_API int connection::connect() {
       flags_.set(static_cast<size_t>(flag_t::kAccessShareHost), true);
     }
 
-    detail::connection_async_data *async_data = new detail::connection_async_data(owner_);
+    connection_async_data *async_data = new connection_async_data(owner_);
     if (nullptr == async_data) {
       ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_MALLOC, 0,
                             "connect {} but malloc async data failed", address_.address);
@@ -609,7 +609,7 @@ ATBUS_MACRO_API void connection::unlock_address() noexcept {
 ATBUS_MACRO_API void connection::iostream_on_listen_cb(channel::io_stream_channel *channel,
                                                        channel::io_stream_connection *connection, int status,
                                                        void *buffer, size_t) {
-  detail::connection_async_data *async_data = reinterpret_cast<detail::connection_async_data *>(buffer);
+  connection_async_data *async_data = reinterpret_cast<connection_async_data *>(buffer);
   assert(nullptr != async_data);
   if (nullptr == async_data) {
     return;
@@ -649,7 +649,7 @@ ATBUS_MACRO_API void connection::iostream_on_listen_cb(channel::io_stream_channe
 ATBUS_MACRO_API void connection::iostream_on_connected_cb(channel::io_stream_channel *channel,
                                                           channel::io_stream_connection *connection, int status,
                                                           void *buffer, size_t) {
-  detail::connection_async_data *async_data = reinterpret_cast<detail::connection_async_data *>(buffer);
+  connection_async_data *async_data = reinterpret_cast<connection_async_data *>(buffer);
   assert(nullptr != async_data);
   if (nullptr == async_data) {
     return;
