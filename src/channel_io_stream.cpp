@@ -75,7 +75,15 @@
 #  define __ATFW_LIBATBUS_BINARY_CAN_USE_STD_ENDIAN_IF_CONSTEXPR 0
 #endif
 
-#define ATBUS_MACRO_TLS_MERGE_BUFFER_LEN (ATBUS_MACRO_MESSAGE_LIMIT - ATBUS_MACRO_DATA_ALIGN_SIZE - sizeof(uv_write_t))
+#define ATBUS_MACRO_TLS_MERGE_BUFFER_LEN \
+  (ATBUS_MACRO_MESSAGE_MAX_MERGE_SIZE - ATBUS_MACRO_DATA_ALIGN_SIZE - sizeof(uv_write_t))
+
+static_assert(ATBUS_MACRO_TLS_MERGE_BUFFER_LEN >
+                  (3 * ATBUS_MACRO_DATA_SMALL_SIZE) + ATBUS_MACRO_DATA_ALIGN_SIZE + sizeof(uv_write_t),
+              "ATBUS_MACRO_MESSAGE_MAX_MERGE_SIZE is too small to merge small messages");
+
+static_assert(ATBUS_MACRO_MESSAGE_LIMIT > ATBUS_MACRO_TLS_MERGE_BUFFER_LEN + (2 * ATBUS_MACRO_DATA_SMALL_SIZE),
+              "ATBUS_MACRO_MESSAGE_LIMIT is too small to merge small messages");
 
 ATBUS_MACRO_NAMESPACE_BEGIN
 namespace channel {
