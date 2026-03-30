@@ -308,7 +308,7 @@ ATBUS_MACRO_API int connection::listen() {
         unlock_address();
 
         std::string lock_path = address_.host + ".lock";
-        int lock_fd = detail::try_flock_file(lock_path);
+        int lock_fd = try_flock_file(lock_path);
         if (lock_fd < 0) {
           ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED, errno,
                                 "listen {} and lock {} failed", address_.address, lock_path.c_str());

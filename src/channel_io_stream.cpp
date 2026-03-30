@@ -75,19 +75,21 @@
 #  define __ATFW_LIBATBUS_BINARY_CAN_USE_STD_ENDIAN_IF_CONSTEXPR 0
 #endif
 
-#define ATBUS_MACRO_TLS_MERGE_BUFFER_LEN \
-  (ATBUS_MACRO_MESSAGE_MAX_MERGE_SIZE - ATBUS_MACRO_DATA_ALIGN_SIZE - sizeof(uv_write_t))
-
-static_assert(ATBUS_MACRO_TLS_MERGE_BUFFER_LEN >
-                  (3 * ATBUS_MACRO_DATA_SMALL_SIZE) + ATBUS_MACRO_DATA_ALIGN_SIZE + sizeof(uv_write_t),
-              "ATBUS_MACRO_MESSAGE_MAX_MERGE_SIZE is too small to merge small messages");
-
-static_assert(ATBUS_MACRO_MESSAGE_LIMIT > ATBUS_MACRO_TLS_MERGE_BUFFER_LEN + (2 * ATBUS_MACRO_DATA_SMALL_SIZE),
-              "ATBUS_MACRO_MESSAGE_LIMIT is too small to merge small messages");
-
 ATBUS_MACRO_NAMESPACE_BEGIN
 namespace channel {
 namespace {
+
+constexpr static const size_t kMessageMergeReserveSize = (ATBUS_MACRO_DATA_ALIGN_SIZE + sizeof(uv_write_t)) > 256
+                                                             ? (ATBUS_MACRO_DATA_ALIGN_SIZE + sizeof(uv_write_t))
+                                                             : 256;
+
+constexpr static const size_t kMessageTlsMergeBufferLen = ATBUS_MACRO_MESSAGE_MAX_MERGE_SIZE - kMessageMergeReserveSize;
+
+static_assert(kMessageTlsMergeBufferLen > (3 * ATBUS_MACRO_DATA_SMALL_SIZE) + kMessageMergeReserveSize,
+              "ATBUS_MACRO_MESSAGE_MAX_MERGE_SIZE is too small to merge small messages");
+
+static_assert(ATBUS_MACRO_MESSAGE_LIMIT > kMessageTlsMergeBufferLen + (2 * ATBUS_MACRO_DATA_SMALL_SIZE),
+              "ATBUS_MACRO_MESSAGE_LIMIT is too small to merge small messages");
 
 #if !__ATFW_LIBATBUS_BINARY_CAN_USE_STD_ENDIAN_IF_CONSTEXPR
 constexpr static inline bool __is_little_endian_fallback() {
@@ -156,7 +158,7 @@ static uint32_t __read_uint32_little_endian(const unsigned char *buf) {
     defined(UTIL_CONFIG_THREAD_LOCAL)
 
 static unsigned char *io_stream_get_msg_buffer() {
-  static UTIL_CONFIG_THREAD_LOCAL unsigned char ret[ATBUS_MACRO_TLS_MERGE_BUFFER_LEN];
+  static UTIL_CONFIG_THREAD_LOCAL unsigned char ret[kMessageTlsMergeBufferLen];
   return ret;
 }
 #else
@@ -181,7 +183,7 @@ static unsigned char *io_stream_get_msg_buffer() {
   (void)pthread_once(&gt_io_stream_get_msg_buffer_tls_once, init_pthread_io_stream_get_msg_buffer_tls);
   unsigned char *ret = reinterpret_cast<unsigned char *>(pthread_getspecific(gt_io_stream_get_msg_buffer_tls_key));
   if (nullptr == ret) {
-    ret = new unsigned char[ATBUS_MACRO_TLS_MERGE_BUFFER_LEN];
+    ret = new unsigned char[kMessageTlsMergeBufferLen];
     pthread_setspecific(gt_io_stream_get_msg_buffer_tls_key, ret);
   }
   return ret;
@@ -1979,7 +1981,7 @@ int io_stream_try_write(io_stream_connection *connection) {
   // merge only if message is smaller than read buffer
   if (connection->write_buffer_manager.limit().cost_number_ > 1 &&
       connection->write_buffer_manager.front()->raw_size() <= ATBUS_MACRO_DATA_SMALL_SIZE) {
-    size_t available_bytes = ATBUS_MACRO_TLS_MERGE_BUFFER_LEN;
+    size_t available_bytes = kMessageTlsMergeBufferLen;
     unsigned char *buffer_start = ::atframework::atbus::channel::io_stream_get_msg_buffer();
     unsigned char *free_buffer = buffer_start;
 
@@ -2014,7 +2016,7 @@ int io_stream_try_write(io_stream_connection *connection) {
     assert(data);
     // at least merge one block
     assert(free_buffer > buffer_start);
-    assert(static_cast<size_t>(free_buffer - buffer_start) <= ATBUS_MACRO_TLS_MERGE_BUFFER_LEN);
+    assert(static_cast<size_t>(free_buffer - buffer_start) <= kMessageTlsMergeBufferLen);
 
     data = ::atframework::atbus::detail::fn::buffer_next(data, sizeof(uv_write_t));
     // copy back merged data

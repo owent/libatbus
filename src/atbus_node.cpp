@@ -891,7 +891,7 @@ ATBUS_MACRO_API int node::poll() {
   ret += dispatch_all_self_messages();
 
   // GC - endpoint
-  if (!event_timer_.pending_endpoint_gc_list.empty()) {
+  if (!event_timer_.pending_endpoint_gc_list.empty() && !check_flag(flag_t::kInGcEndpoints)) {
     flag_guard_t fgd_gc_endpoints(this, flag_t::kInGcEndpoints);
     std::list<endpoint::ptr_t> checked;
     checked.swap(event_timer_.pending_endpoint_gc_list);
@@ -911,7 +911,7 @@ ATBUS_MACRO_API int node::poll() {
   }
 
   // GC - connection
-  if (!event_timer_.pending_connection_gc_list.empty()) {
+  if (!event_timer_.pending_connection_gc_list.empty() && !check_flag(flag_t::kInGcConnections)) {
     flag_guard_t fgd_gc_connections(this, flag_t::kInGcConnections);
     event_timer_.pending_connection_gc_list.clear();
   }

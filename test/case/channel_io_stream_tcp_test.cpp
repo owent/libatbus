@@ -617,3 +617,111 @@ CASE_TEST(channel, io_stream_callback_on_written) {
 
   uv_loop_close(&loop);
 }
+
+// Test read_head buffer compaction (memmove) and read_buffer_manager fallback.
+//
+// Exercises io_stream_on_recv_read_fn paths:
+//   1. Multiple small packets dispatched from read_head.buffer in a single callback
+//   2. Partial packet data remaining in read_head triggers memmove compaction
+//   3. Additional small packets continue using read_head.buffer after compaction
+//   4. A large packet (payload > ATBUS_MACRO_DATA_SMALL_SIZE) transitions to read_buffer_manager
+//   5. Small packets after the large packet return to read_head.buffer
+CASE_TEST(channel, io_stream_tcp_read_head_compaction) {
+  atbus::adapter::loop_t loop;
+  uv_loop_init(&loop);
+
+  atbus::channel::io_stream_channel svr, cli;
+  atbus::channel::io_stream_init(&svr, &loop, nullptr);
+  atbus::channel::io_stream_init(&cli, &loop, nullptr);
+  CASE_EXPECT_EQ(&loop, svr.ev_loop);
+  CASE_EXPECT_EQ(&loop, cli.ev_loop);
+
+  g_check_flag = 0;
+
+  int inited_fds = 0;
+  inited_fds += setup_channel(svr, "ipv4://127.0.0.1:16390", nullptr);
+  CASE_EXPECT_EQ(1, g_check_flag);
+
+  if (0 == inited_fds) {
+    uv_loop_close(&loop);
+    return;
+  }
+
+  inited_fds = 0;
+  inited_fds += setup_channel(cli, nullptr, "ipv4://127.0.0.1:16390");
+
+  int check_flag = g_check_flag;
+  while (g_check_flag - check_flag < 2 * inited_fds) {
+    uv_run(&loop, UV_RUN_ONCE);
+  }
+
+  svr.evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::kReceived)] =
+      recv_callback_check_fn;
+
+  char *buf = get_test_buffer();
+  g_check_buff_sequence.clear();
+  g_recv_rec = std::make_pair(0, 0);
+  check_flag = g_check_flag;
+
+  int expected_count = 0;
+  size_t offset = 0;
+
+  // Phase 1: 15 small packets, payload 1000 bytes each.
+  // Wire frame size = 4(hash) + 2(varint for 1000) + 1000(payload) = 1006 bytes.
+  // Total wire = 15090 bytes, which is ~2.1x ATBUS_MACRO_DATA_SMALL_SIZE (7168).
+  // When multiple frames arrive in one TCP read, read_head processes them in a while
+  // loop. After dispatching complete frames, any partial frame data remaining in
+  // read_head is memmoved to the front (compaction). This exercises that path
+  // multiple times as the head buffer is filled and compacted repeatedly.
+  for (int i = 0; i < 15; ++i) {
+    atbus::channel::io_stream_send(cli.conn_pool.begin()->second.get(), buf + offset, 1000);
+    g_check_buff_sequence.push_back(std::make_pair(offset, 1000));
+    offset += 1000;
+    ++expected_count;
+  }
+
+  // Phase 2: 3 small packets, payload 500 bytes each.
+  // After compaction, these continue using read_head.buffer for small packet dispatch.
+  for (int i = 0; i < 3; ++i) {
+    atbus::channel::io_stream_send(cli.conn_pool.begin()->second.get(), buf + offset, 500);
+    g_check_buff_sequence.push_back(std::make_pair(offset, 500));
+    offset += 500;
+    ++expected_count;
+  }
+
+  // Phase 3: 1 large packet, payload 10000 bytes.
+  // Wire frame = 4 + 2 + 10000 = 10006 bytes > ATBUS_MACRO_DATA_SMALL_SIZE (7168).
+  // When read_head parses the varint and finds the full frame doesn't fit, it pushes
+  // the data into read_buffer_manager for multi-read assembly.
+  atbus::channel::io_stream_send(cli.conn_pool.begin()->second.get(), buf + offset, 10000);
+  g_check_buff_sequence.push_back(std::make_pair(offset, 10000));
+  offset += 10000;
+  ++expected_count;
+
+  // Phase 4: 2 small packets, payload 200 bytes each.
+  // After the large packet completes and read_buffer_manager is freed, these verify
+  // that read_head.buffer is used again for subsequent small packets.
+  for (int i = 0; i < 2; ++i) {
+    atbus::channel::io_stream_send(cli.conn_pool.begin()->second.get(), buf + offset, 200);
+    g_check_buff_sequence.push_back(std::make_pair(offset, 200));
+    offset += 200;
+    ++expected_count;
+  }
+
+  CASE_MSG_INFO() << "send " << offset << " bytes data with " << expected_count << " packages." << std::endl;
+
+  while (g_check_flag - check_flag < expected_count) {
+    uv_run(&loop, UV_RUN_ONCE);
+  }
+
+  CASE_EXPECT_EQ(static_cast<size_t>(expected_count), g_recv_rec.first);
+  CASE_MSG_INFO() << "recv " << g_recv_rec.second << " bytes data with " << g_recv_rec.first
+                  << " packages and checked done." << std::endl;
+
+  atbus::channel::io_stream_close(&svr);
+  atbus::channel::io_stream_close(&cli);
+  CASE_EXPECT_EQ(0, svr.conn_pool.size());
+  CASE_EXPECT_EQ(0, cli.conn_pool.size());
+
+  uv_loop_close(&loop);
+}
