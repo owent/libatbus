@@ -166,5 +166,6 @@ jobs:
         uses: codecov/codecov-action@v5
         if: ${{ github.event_name != 'pull_request' }}
         with:
+          token: ${{secrets.CODECOV_TOKEN}}
           fail_ci_if_error: true
           files: ${{ github.workspace }}/build_jobs_coverage/coverage.info
