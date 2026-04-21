@@ -1134,8 +1134,11 @@ CASE_TEST(atbus_connection_context_crosslang, generate_encrypted_test_files) {
   // 16字节IV（用于CBC模式）
   static const unsigned char test_iv_16[16] = {0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7,
                                                0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf};
-  // 12字节IV（用于GCM模式）
+  // 12字节IV（用于GCM模式和ChaCha20-Poly1305-IETF）
   static const unsigned char test_iv_12[12] = {0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb};
+  // 16字节IV（用于libsodium ChaCha20纯流密码：8字节counter + 8字节nonce）
+  static const unsigned char test_iv_chacha20_16[16] = {0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7,
+                                                        0xb8, 0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf};
   // 24字节IV（用于XChaCha20-Poly1305）
   static const unsigned char test_iv_24[24] = {0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7, 0xc8, 0xc9, 0xca, 0xcb,
                                                0xcc, 0xcd, 0xce, 0xcf, 0xd0, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xd7};
@@ -1172,9 +1175,9 @@ CASE_TEST(atbus_connection_context_crosslang, generate_encrypted_test_files) {
       // AES-256-GCM
       {"aes_256_gcm", atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM, test_key_256, 32, test_iv_12,
        12, "aes-256-gcm"},
-      // ChaCha20
-      {"chacha20", atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20, test_key_256, 32, test_iv_12, 12,
-       "chacha20"},
+      // ChaCha20 (libsodium纯流密码，需要16字节IV：8字节counter + 8字节nonce)
+      {"chacha20", atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20, test_key_256, 32, test_iv_chacha20_16,
+       16, "chacha20"},
       // ChaCha20-Poly1305-IETF
       {"chacha20_poly1305", atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20_POLY1305_IETF, test_key_256,
        32, test_iv_12, 12, "chacha20-poly1305-ietf"},
@@ -1763,6 +1766,8 @@ CASE_TEST(atbus_connection_context_crosslang, verify_encrypted_test_files) {
   static const unsigned char test_iv_16[16] = {0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7,
                                                0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf};
   static const unsigned char test_iv_12[12] = {0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7, 0xb8, 0xb9, 0xba, 0xbb};
+  static const unsigned char test_iv_chacha20_16[16] = {0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7,
+                                                        0xb8, 0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf};
   static const unsigned char test_iv_24[24] = {0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7, 0xc8, 0xc9, 0xca, 0xcb,
                                                0xcc, 0xcd, 0xce, 0xcf, 0xd0, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xd7};
 
@@ -1790,8 +1795,8 @@ CASE_TEST(atbus_connection_context_crosslang, verify_encrypted_test_files) {
        12, "aes-192-gcm"},
       {"aes_256_gcm", atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM, test_key_256, 32, test_iv_12,
        12, "aes-256-gcm"},
-      {"chacha20", atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20, test_key_256, 32, test_iv_12, 12,
-       "chacha20"},
+      {"chacha20", atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20, test_key_256, 32, test_iv_chacha20_16,
+       16, "chacha20"},
       {"chacha20_poly1305", atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20_POLY1305_IETF, test_key_256,
        32, test_iv_12, 12, "chacha20-poly1305-ietf"},
       {"xchacha20_poly1305", atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_XCHACHA20_POLY1305_IETF, test_key_256,
@@ -2003,4 +2008,3 @@ CASE_TEST(atbus_connection_context_crosslang, generate_full_index_file) {
   write_json_file("index.json", json.str());
 }
 #endif
-

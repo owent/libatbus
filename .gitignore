@@ -21,6 +21,8 @@
 *.app
 
 # Build directory
+/.cmake-toolset
+
 build/*
 build_*
 _codeql_build_dir/
