@@ -1190,8 +1190,9 @@ CASE_TEST(atbus_connection_context_crosslang, generate_encrypted_test_files) {
   for (const auto& crypto_config : crypto_configs) {
     // 检查算法是否可用
     auto test_cipher = atfw::util::memory::make_strong_rc<atfw::util::crypto::cipher>();
-    if (test_cipher->init(crypto_config.cipher_name, atfw::util::crypto::cipher::mode_t::EN_CMODE_ENCRYPT) !=
-        atfw::util::crypto::cipher::error_code_t::OK) {
+    if (test_cipher->init(crypto_config.cipher_name,
+                          static_cast<int32_t>(atfw::util::crypto::cipher::mode_t::kEncrypt)) !=
+        static_cast<int32_t>(atfw::util::crypto::cipher::error_code_t::kOk)) {
       CASE_MSG_INFO() << "Cipher " << crypto_config.cipher_name << " not available, skipping" << std::endl;
       continue;
     }
@@ -1808,8 +1809,8 @@ CASE_TEST(atbus_connection_context_crosslang, verify_encrypted_test_files) {
   for (const auto& config : verify_configs) {
     // 检查算法是否可用
     auto test_cipher = atfw::util::memory::make_strong_rc<atfw::util::crypto::cipher>();
-    if (test_cipher->init(config.cipher_name, atfw::util::crypto::cipher::mode_t::EN_CMODE_DECRYPT) !=
-        atfw::util::crypto::cipher::error_code_t::OK) {
+    if (test_cipher->init(config.cipher_name, static_cast<int32_t>(atfw::util::crypto::cipher::mode_t::kDecrypt)) !=
+        static_cast<int32_t>(atfw::util::crypto::cipher::error_code_t::kOk)) {
       CASE_MSG_INFO() << "Cipher " << config.cipher_name << " not available, skipping verification" << std::endl;
       continue;
     }
@@ -1859,8 +1860,9 @@ CASE_TEST(atbus_connection_context_crosslang, verify_encrypted_test_files) {
 
         auto decrypt_with_aad = [&](const std::string& aad) -> int {
           atfw::util::crypto::cipher verify_cipher;
-          if (verify_cipher.init(config.cipher_name, atfw::util::crypto::cipher::mode_t::EN_CMODE_DECRYPT) !=
-              atfw::util::crypto::cipher::error_code_t::OK) {
+          if (verify_cipher.init(config.cipher_name,
+                                 static_cast<int32_t>(atfw::util::crypto::cipher::mode_t::kDecrypt)) !=
+              static_cast<int32_t>(atfw::util::crypto::cipher::error_code_t::kOk)) {
             return -1;
           }
           if (verify_cipher.set_key(gsl::span<const unsigned char>(config.key, config.key_size)) != 0) {

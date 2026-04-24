@@ -54,8 +54,8 @@ static bool is_cipher_algorithm_available(const std::string& algo_name) {
 // Helper function to verify cipher can encrypt/decrypt
 static bool test_cipher_encrypt_decrypt(const char* cipher_name) {
   atfw::util::crypto::cipher ci;
-  int init_res = ci.init(cipher_name, atfw::util::crypto::cipher::mode_t::EN_CMODE_ENCRYPT |
-                                          atfw::util::crypto::cipher::mode_t::EN_CMODE_DECRYPT);
+  int init_res =
+      ci.init(cipher_name, atfw::util::crypto::cipher::mode_t::kEncrypt | atfw::util::crypto::cipher::mode_t::kDecrypt);
   if (init_res != 0) {
     CASE_MSG_INFO() << "cipher init failed: " << init_res << ", errno: " << ci.get_last_errno() << '\n';
     return false;
@@ -125,7 +125,7 @@ static bool test_cipher_encrypt_decrypt(const char* cipher_name) {
 static bool test_cipher_encrypt_only_mode(const char* cipher_name) {
   atfw::util::crypto::cipher ci;
   // Use ONLY encrypt mode, just like _create_crypto_cipher does for send_cipher_
-  int init_res = ci.init(cipher_name, atfw::util::crypto::cipher::mode_t::EN_CMODE_ENCRYPT);
+  int init_res = ci.init(cipher_name, static_cast<int32_t>(atfw::util::crypto::cipher::mode_t::kEncrypt));
   if (init_res != 0) {
     CASE_MSG_INFO() << "[SINGLE MODE] cipher init failed: " << init_res << ", errno: " << ci.get_last_errno() << '\n';
     return false;
@@ -568,19 +568,18 @@ CASE_TEST(atbus_connection_context, update_compression_algorithm_unsupported) {
 // Helper friend class for accessing private cipher members in tests
 class connection_context_test_helper {
  public:
-  static const ::atfw::util::crypto::cipher *get_send_cipher_ptr(
-      const atfw::atbus::connection_context &ctx) noexcept {
+  static const ::atfw::util::crypto::cipher* get_send_cipher_ptr(const atfw::atbus::connection_context& ctx) noexcept {
     return ctx.send_cipher_.get();
   }
-  static const ::atfw::util::crypto::cipher *get_receive_cipher_ptr(
-      const atfw::atbus::connection_context &ctx) noexcept {
+  static const ::atfw::util::crypto::cipher* get_receive_cipher_ptr(
+      const atfw::atbus::connection_context& ctx) noexcept {
     return ctx.receive_cipher_.get();
   }
-  static const ::atfw::util::crypto::cipher *get_handshake_receive_cipher_ptr(
-      const atfw::atbus::connection_context &ctx) noexcept {
+  static const ::atfw::util::crypto::cipher* get_handshake_receive_cipher_ptr(
+      const atfw::atbus::connection_context& ctx) noexcept {
     return ctx.handshake_receive_cipher_.get();
   }
-  static bool get_handshake_pending_confirm(const atfw::atbus::connection_context &ctx) noexcept {
+  static bool get_handshake_pending_confirm(const atfw::atbus::connection_context& ctx) noexcept {
     return ctx.handshake_pending_confirm_;
   }
 };
@@ -1119,7 +1118,7 @@ CASE_TEST(atbus_connection_context, pack_unpack_message_with_encryption) {
   // Additional debug: test cipher encryption directly with the same setup pattern as connection_context
   {
     atfw::util::crypto::cipher test_ci;
-    int init_res = test_ci.init("aes-256-gcm", atfw::util::crypto::cipher::mode_t::EN_CMODE_ENCRYPT);
+    int init_res = test_ci.init("aes-256-gcm", static_cast<int32_t>(atfw::util::crypto::cipher::mode_t::kEncrypt));
     CASE_MSG_INFO() << "Direct cipher init result: " << init_res << '\n';
     if (init_res == 0) {
       // Use the exact same key size as connection_context would

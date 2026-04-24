@@ -132,47 +132,47 @@ static uint64_t _build_handshake_sequence_init_id() {
 
 static ::atfw::util::memory::strong_rc_ptr<::atfw::util::crypto::cipher> _create_crypto_cipher(
     protocol::ATBUS_CRYPTO_ALGORITHM_TYPE type, bool is_encrypt) {
-  ::atfw::util::crypto::cipher::mode_t::type mode = is_encrypt ? ::atfw::util::crypto::cipher::mode_t::EN_CMODE_ENCRYPT
-                                                               : ::atfw::util::crypto::cipher::mode_t::EN_CMODE_DECRYPT;
+  int32_t mode = is_encrypt ? static_cast<int32_t>(::atfw::util::crypto::cipher::mode_t::kEncrypt)
+                            : static_cast<int32_t>(::atfw::util::crypto::cipher::mode_t::kDecrypt);
   switch (type) {
     case protocol::ATBUS_CRYPTO_ALGORITHM_XXTEA: {
       auto cipher_ptr = ::atfw::util::memory::make_strong_rc<::atfw::util::crypto::cipher>();
-      if (cipher_ptr->init("xxtea", mode) != ::atfw::util::crypto::cipher::error_code_t::OK) {
+      if (cipher_ptr->init("xxtea", mode) != static_cast<int>(::atfw::util::crypto::cipher::error_code_t::kOk)) {
         return nullptr;
       }
       return cipher_ptr;
     }
     case protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_CBC: {
       auto cipher_ptr = ::atfw::util::memory::make_strong_rc<::atfw::util::crypto::cipher>();
-      if (cipher_ptr->init("aes-128-cbc", mode) != ::atfw::util::crypto::cipher::error_code_t::OK) {
+      if (cipher_ptr->init("aes-128-cbc", mode) != static_cast<int>(::atfw::util::crypto::cipher::error_code_t::kOk)) {
         return nullptr;
       }
       return cipher_ptr;
     }
     case protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_GCM: {
       auto cipher_ptr = ::atfw::util::memory::make_strong_rc<::atfw::util::crypto::cipher>();
-      if (cipher_ptr->init("aes-128-gcm", mode) != ::atfw::util::crypto::cipher::error_code_t::OK) {
+      if (cipher_ptr->init("aes-128-gcm", mode) != static_cast<int>(::atfw::util::crypto::cipher::error_code_t::kOk)) {
         return nullptr;
       }
       return cipher_ptr;
     }
     case protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_CBC: {
       auto cipher_ptr = ::atfw::util::memory::make_strong_rc<::atfw::util::crypto::cipher>();
-      if (cipher_ptr->init("aes-192-cbc", mode) != ::atfw::util::crypto::cipher::error_code_t::OK) {
+      if (cipher_ptr->init("aes-192-cbc", mode) != static_cast<int>(::atfw::util::crypto::cipher::error_code_t::kOk)) {
         return nullptr;
       }
       return cipher_ptr;
     }
     case protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_GCM: {
       auto cipher_ptr = ::atfw::util::memory::make_strong_rc<::atfw::util::crypto::cipher>();
-      if (cipher_ptr->init("aes-192-gcm", mode) != ::atfw::util::crypto::cipher::error_code_t::OK) {
+      if (cipher_ptr->init("aes-192-gcm", mode) != static_cast<int>(::atfw::util::crypto::cipher::error_code_t::kOk)) {
         return nullptr;
       }
       return cipher_ptr;
     }
     case protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_CBC: {
       auto cipher_ptr = ::atfw::util::memory::make_strong_rc<::atfw::util::crypto::cipher>();
-      if (cipher_ptr->init("aes-256-cbc", mode) != ::atfw::util::crypto::cipher::error_code_t::OK) {
+      if (cipher_ptr->init("aes-256-cbc", mode) != static_cast<int>(::atfw::util::crypto::cipher::error_code_t::kOk)) {
         return nullptr;
       }
       return cipher_ptr;
@@ -180,28 +180,30 @@ static ::atfw::util::memory::strong_rc_ptr<::atfw::util::crypto::cipher> _create
     case protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM: {
       auto cipher_ptr = ::atfw::util::memory::make_strong_rc<::atfw::util::crypto::cipher>();
       auto init_ret = cipher_ptr->init("aes-256-gcm", mode);
-      if (init_ret != ::atfw::util::crypto::cipher::error_code_t::OK) {
+      if (init_ret != static_cast<int>(::atfw::util::crypto::cipher::error_code_t::kOk)) {
         return nullptr;
       }
       return cipher_ptr;
     }
     case protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20: {
       auto cipher_ptr = ::atfw::util::memory::make_strong_rc<::atfw::util::crypto::cipher>();
-      if (cipher_ptr->init("chacha20", mode) != ::atfw::util::crypto::cipher::error_code_t::OK) {
+      if (cipher_ptr->init("chacha20", mode) != static_cast<int>(::atfw::util::crypto::cipher::error_code_t::kOk)) {
         return nullptr;
       }
       return cipher_ptr;
     }
     case protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20_POLY1305_IETF: {
       auto cipher_ptr = ::atfw::util::memory::make_strong_rc<::atfw::util::crypto::cipher>();
-      if (cipher_ptr->init("chacha20-poly1305-ietf", mode) != ::atfw::util::crypto::cipher::error_code_t::OK) {
+      if (cipher_ptr->init("chacha20-poly1305-ietf", mode) !=
+          static_cast<int>(::atfw::util::crypto::cipher::error_code_t::kOk)) {
         return nullptr;
       }
       return cipher_ptr;
     }
     case protocol::ATBUS_CRYPTO_ALGORITHM_XCHACHA20_POLY1305_IETF: {
       auto cipher_ptr = ::atfw::util::memory::make_strong_rc<::atfw::util::crypto::cipher>();
-      if (cipher_ptr->init("xchacha20-poly1305-ietf", mode) != ::atfw::util::crypto::cipher::error_code_t::OK) {
+      if (cipher_ptr->init("xchacha20-poly1305-ietf", mode) !=
+          static_cast<int>(::atfw::util::crypto::cipher::error_code_t::kOk)) {
         return nullptr;
       }
       return cipher_ptr;
@@ -324,7 +326,7 @@ ATBUS_MACRO_API connection_context::connection_context(
       handshake_sequence_id_(0),
       handshake_pending_confirm_(false),
       handshake_start_time_(std::chrono::system_clock::from_time_t(0)) {
-  if (!shared_dh_context || shared_dh_context->get_method() != ::atfw::util::crypto::dh::method_t::EN_CDT_ECDH) {
+  if (!shared_dh_context || shared_dh_context->get_method() != ::atfw::util::crypto::dh::method_t::kEcdh) {
     crypto_key_exchange_algorithm_ = protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE;
   }
 
