@@ -1,6 +1,6 @@
 ---
 name: libatbus-protocol-crypto
-description: libatbus protocol transport, ECDH key exchange, encryption/compression algorithm negotiation, message pack/unpack, and access token authentication. Use when working with connection_context, handshake flow, cipher algorithms, compression, message framing, or writing crypto-related tests.
+description: "Use when: working on libatbus protocol transport, ECDH handshakes, cipher/compression negotiation, message framing, access token auth, connection_context, or crypto-related tests."
 ---
 
 # libatbus Protocol Transport & Crypto

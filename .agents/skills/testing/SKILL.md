@@ -1,6 +1,6 @@
 ---
 name: testing
-description: Run and write unit tests for libatbus using the private test framework, including Windows DLL/PATH setup, test groups, encryption/compression tests, multi-node patterns, and shared memory notes.
+description: "Use when: running or writing libatbus unit tests, filtering private test cases, testing topology/shared-memory behavior, or fixing Windows DLL/PATH startup issues."
 ---
 
 # Unit testing (libatbus)
