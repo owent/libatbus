@@ -51,6 +51,7 @@ Checks:
   # 过于常见的用法而忽略
   - "-bugprone-easily-swappable-parameters" # 参数容易被隐式转换而被调用者传错顺序
   - "-misc-no-recursion" # 递归调用
+  - "-misc-include-cleaner" # 包含清理，某些头文件互相依赖时容易被误判
   - "-performance-move-const-arg" # 无意义的move可用于标记生命周期
   - "-cppcoreguidelines-pro-type-const-cast" # 使用const_cast的地方通常都是故意使用的
   - "-modernize-use-nodiscard"
@@ -64,6 +65,7 @@ Checks:
   - "-modernize-use-ranges"
   - "-modernize-use-starts-ends-with"
   - "-readability-use-anyofallof"
+  - "-readability-use-concise-preprocessor-directives"
   # 以下检查由于性能问题被关闭(@see https://github.com/llvm/llvm-project/blob/main/clang-tools-extra/clangd/TidyFastChecks.inc)
   - "-misc-confusable-identifiers"
   - "-misc-const-correctness"
