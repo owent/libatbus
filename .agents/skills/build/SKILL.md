@@ -1,6 +1,6 @@
 ---
 name: build
-description: Configure and build libatbus with CMake, including key options for shared libs and bus ID type.
+description: "Use when: configuring or building libatbus with CMake, changing shared/static builds, or adjusting bus ID/build type options."
 ---
 
 # Build (libatbus)

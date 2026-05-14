@@ -1,22 +1,26 @@
 # Skills (Agent Playbooks)
 
-Actionable guides for common workflows in this repo.
+This folder contains subproject workflows that agents load on demand. Keep `AGENTS.md` small; put task-specific steps,
+commands, caveats, and examples here.
 
-Each skill is a directory containing a `SKILL.md` file with YAML frontmatter, following the [Agent Skills](https://agentskills.io/) specification.
+## Contents
 
-| Skill | Directory | Description |
-| ----- | --------- | ----------- |
-| Build | `build/` | Configure/build with CMake |
-| Testing | `testing/` | Run and write unit tests (incl. Windows DLL/PATH, topology tests, shared memory notes) |
-| Protocol & Crypto | `libatbus-protocol-crypto/` | ECDH key exchange, encryption/compression negotiation, message framing, access token auth |
+| Skill | Description |
+| --- | --- |
+| `build/` | Configure and build libatbus with CMake |
+| `testing/` | Run and write private-framework unit tests |
+| `libatbus-protocol-crypto/` | Work on protocol transport, ECDH, ciphers, compression, framing, and auth |
+| `ai-agent-maintenance/` | Audit and optimize AI agent prompts, bridge files, and skills |
 
-## Key Components
+## When to read what
 
-- **Node** (`atbus_node.h`) — Central bus node: init, listen, connect, send, routing, crypto config
-- **Endpoint** (`atbus_endpoint.h`) — Remote node representation with ctrl + data connections
-- **Connection** (`atbus_connection.h`) — Single connection state machine (kDisconnected → kConnecting → kHandshaking → kConnected)
-- **Connection Context** (`atbus_connection_context.h`) — ECDH handshake, cipher/compression negotiation, message pack/unpack
-- **Message Handler** (`atbus_message_handler.h`) — Dispatch table for register, ping/pong, forward, handshake_confirm
-- **Topology** (`atbus_topology.h`) — Peer registry, upstream/downstream relation types, routing decisions
-- **Channels** — Transport layer: memory (`mem://`), shared memory (`shm://`), TCP (`ipv4://`/`ipv6://`), Unix (`unix://`), pipe (`pipe://`)
-- **Protocol** (`libatbus_protocol.proto`) — Protobuf v3 wire format definition
+- If you want to **build**: start with `build/SKILL.md`.
+- If you want to **run or write unit tests**: start with `testing/SKILL.md`.
+- If you are changing protocol transport, crypto, compression, framing, or auth: see `libatbus-protocol-crypto/SKILL.md`.
+- If you are updating AI agent prompts or skills: see `ai-agent-maintenance/SKILL.md`.
+
+## Maintenance rules
+
+- Folder name and frontmatter `name` must match.
+- `description` is the discovery surface: start with `Use when:` and include concrete trigger words.
+- Keep each `SKILL.md` focused; move bulky examples or reference material into sibling files when needed.
