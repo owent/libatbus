@@ -1,7 +1,8 @@
 # libatbus Agent Guide
 
-This is the canonical, cross-agent guide for this subproject. Keep it short: put repeatable workflows in
-`.agents/skills/*/SKILL.md`, and keep `.github/copilot-instructions.md` / `CLAUDE.md` as lightweight bridges.
+This is the canonical, self-contained cross-agent guide for this repository. Keep it short: put repeatable workflows in
+`.agents/skills/*/SKILL.md`, keep `CLAUDE.md` as a lightweight bridge, and avoid redundant tool-specific prompt copies.
+This repository manages its own AI agent prompts and skills; it must not depend on a parent or sibling repository guide.
 
 **libatbus** is a high-performance asynchronous, tree-structured message bus with TCP, memory/shared-memory channels,
 ECDH-based encryption, compression, and topology-aware routing.
@@ -20,6 +21,9 @@ ECDH-based encryption, compression, and topology-aware routing.
 ## Always-On Rules
 
 - Respect the user's dirty workspace: inspect current file contents before editing and avoid unrelated reformatting.
+- When creating AI scratch files or asking scripts to emit temporary data/logs, use a subdirectory inside an ignored
+  build tree (prefer `build/_agent_tmp/` or an existing `build_*/_agent_tmp/`) so `.gitignore` covers it; never write
+  temporary artifacts to the repository root.
 - Read the matching `.agents/skills/*/SKILL.md` before build, test, protocol, crypto, or compression work.
 - `include/libatbus_protocol.proto` is the wire-protocol source of truth; generated outputs should normally be
   regenerated, not edited by hand.
@@ -55,6 +59,8 @@ Read the matching `.agents/skills/*/SKILL.md` before specialized work:
 ## Agent File Compatibility
 
 - `AGENTS.md` is canonical for tools that support hierarchical agent instructions.
-- `.github/copilot-instructions.md` exists only to point VS Code Copilot at this guide and `.agents/skills/`.
+- `.agents/skills/` is the portable project skill location; keep each `SKILL.md` focused and self-contained.
+- Do not maintain `.github/copilot-instructions.md` copies when `AGENTS.md` and `.agents/skills/` cover the same rules.
 - `CLAUDE.md` exists only to point Claude-compatible tools at this guide and `.agents/skills/`.
+- Do not make this repository depend on root, sibling, or vendored-submodule prompt files.
 - Keep skill folder names and frontmatter `name` values identical; descriptions are the discovery surface.
