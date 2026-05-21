@@ -27,19 +27,11 @@
 #if defined(__ANDROID__)
 #elif defined(__APPLE__)
 #  if __dest_os == __mac_os_x
-#    include <sys/ipc.h>
-#    include <sys/shm.h>
-
 #    define ATBUS_CHANNEL_SHM 1
 #  endif
 #elif defined(__unix__)
-#  include <sys/ipc.h>
-#  include <sys/shm.h>
-
 #  define ATBUS_CHANNEL_SHM 1
 #else
-#  include <Windows.h>
-
 #  define ATBUS_CHANNEL_SHM 1
 #endif
 
