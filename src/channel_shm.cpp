@@ -6,10 +6,10 @@
  *        附带c++的部分是为了避免命名空间污染并且c++的跨平台适配更加简单
  */
 
-#include <cassert>
-#include <cstdint>
 #include <algorithm>
+#include <cassert>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -17,6 +17,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "config/compile_optimize.h"
 #include "lock/atomic_int_type.h"
 #include "lock/spin_lock.h"
 
@@ -52,6 +53,20 @@
 #  endif
 
 #else
+
+#  if defined(__ANDROID__)
+#  elif defined(__APPLE__)
+#    if __dest_os == __mac_os_x
+#      include <sys/ipc.h>
+#      include <sys/shm.h>
+
+#      define ATBUS_CHANNEL_SHM 1
+#    endif
+#  elif defined(__unix__)
+#    include <sys/ipc.h>
+#    include <sys/shm.h>
+#  endif
+
 #  include <fcntl.h> /* For O_* constants */
 #  include <sys/mman.h>
 #  include <sys/stat.h> /* For mode constants */
@@ -67,6 +82,8 @@ struct shm_channel {};
 
 struct shm_conf {};
 
+namespace {
+
 union shm_channel_switcher {
   shm_channel *shm;
   mem_channel *mem;
@@ -78,13 +95,13 @@ union shm_conf_cswitcher {
 };
 
 #  ifdef WIN32
-struct shm_mapped_handle_info {
+struct ATFW_UTIL_SYMBOL_LOCAL shm_mapped_handle_info {
   HANDLE handle;
   LPCTSTR buffer;
   size_t size;
 };
 #  else
-struct shm_mapped_handle_info {
+struct ATFW_UTIL_SYMBOL_LOCAL shm_mapped_handle_info {
   int shm_id;
   int shm_fd;
   std::string shm_path;
@@ -92,7 +109,7 @@ struct shm_mapped_handle_info {
   size_t size;
 };
 #  endif
-struct shm_mapped_record_type {
+struct ATFW_UTIL_SYMBOL_LOCAL shm_mapped_record_type {
   shm_mapped_handle_info handle = {};
   atfw::util::lock::atomic_int_type<size_t> reference_count;
 };
@@ -100,7 +117,6 @@ struct shm_mapped_record_type {
 using shm_mapped_by_key_t =
     std::unordered_map<std::string, ::atfw::util::memory::strong_rc_ptr<shm_mapped_record_type>>;
 
-namespace {
 // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
 static shm_mapped_by_key_t shm_mapped_by_key_records;
 static ::atfw::util::lock::spin_lock shm_mapped_records_lock;
@@ -255,10 +271,9 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
                                               ATBUS_VC_TEXT(shm_file_name)  // name of mapping object
   );
   if (nullptr != shm_record->handle.handle) {
-    shm_record->handle.buffer =
-        static_cast<LPTSTR>(MapViewOfFile(shm_record->handle.handle,  // handle to map object
-                                          FILE_MAP_ALL_ACCESS,        // read/write permission
-                                          0, 0, len));
+    shm_record->handle.buffer = static_cast<LPTSTR>(MapViewOfFile(shm_record->handle.handle,  // handle to map object
+                                                                  FILE_MAP_ALL_ACCESS,        // read/write permission
+                                                                  0, 0, len));
 
     if (nullptr == shm_record->handle.buffer) {
       CloseHandle(shm_record->handle.handle);
@@ -295,10 +310,9 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
     return EN_ATBUS_ERR_SHM_GET_FAILED;
   }
 
-  shm_record->handle.buffer =
-      static_cast<LPTSTR>(MapViewOfFile(shm_record->handle.handle,  // handle to map object
-                                        FILE_MAP_ALL_ACCESS,        // read/write permission
-                                        0, 0, len));
+  shm_record->handle.buffer = static_cast<LPTSTR>(MapViewOfFile(shm_record->handle.handle,  // handle to map object
+                                                                FILE_MAP_ALL_ACCESS,        // read/write permission
+                                                                0, 0, len));
 
   if (nullptr == shm_record->handle.buffer) {
     return EN_ATBUS_ERR_SHM_GET_FAILED;
@@ -543,4 +557,3 @@ ATBUS_MACRO_API void shm_stats_get_error(shm_channel *channel, shm_stats_block_e
 ATBUS_MACRO_NAMESPACE_END
 
 #endif
-

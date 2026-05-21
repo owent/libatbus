@@ -14,10 +14,9 @@
 
 #  include <gsl/select-gsl.h>
 
-#  include <stdint.h>
 #  include <cstddef>
+#  include <cstdint>
 #  include <ostream>
-#  include <string>
 #  include <utility>
 
 #  include "detail/libatbus_config.h"
