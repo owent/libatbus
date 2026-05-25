@@ -13,6 +13,7 @@
 #include <common/string_oprs.h>
 #include <string/string_format.h>
 #include <time/time_utility.h>
+#include <chrono>
 
 #ifndef _MSC_VER
 
@@ -50,6 +51,10 @@
 ATBUS_MACRO_NAMESPACE_BEGIN
 
 namespace {
+
+// 2026-01-01 00:00:00 UTC
+constexpr const static uint64_t kInitialSequenceOffset = static_cast<uint64_t>(1767225600) * 1000000;
+
 static void atbus_node_global_init_once() {
   uv_loop_t loop;
   // Call uv_loop_init() to initialize the global data.
@@ -194,6 +199,11 @@ node::node()
   event_timer_.tick = std::chrono::system_clock::from_time_t(0);
   event_timer_.upstream_op_timepoint = std::chrono::system_clock::from_time_t(0);
   random_engine_.init_seed(static_cast<uint64_t>(time(nullptr)));
+
+  message_sequence_allocator_.set(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
+                                                            std::chrono::system_clock::now().time_since_epoch())
+                                                            .count()) -
+                                  kInitialSequenceOffset);
 
   flags_.reset();
 
@@ -976,12 +986,12 @@ ATBUS_MACRO_API int node::connect(gsl::string_view addr_str) {
   }
 
   // 内存通道和共享内存通道不允许协商握手，必须直接指定endpoint
-  if (addr_str.size() >= 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr_str.data(),
-                                                             4)) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
+  // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
+  if (addr_str.size() >= 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr_str.data(), 4)) {
     return EN_ATBUS_ERR_ACCESS_DENY;
   }
-  if (addr_str.size() >= 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr_str.data(),
-                                                             4)) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
+  // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
+  if (addr_str.size() >= 4 && 0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr_str.data(), 4)) {
     return EN_ATBUS_ERR_ACCESS_DENY;
   }
 
@@ -1027,10 +1037,10 @@ ATBUS_MACRO_API int node::connect(gsl::string_view addr_str, endpoint *ep) {
                         ep->get_id());
 
   if (addr_str.size() >= 4 &&
-      (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr_str.data(),
-                                      4) ||  // NOLINT(bugprone-suspicious-stringview-data-usage)
-       0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr_str.data(),
-                                      4))) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
+      // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
+      (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr_str.data(), 4) ||
+       // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
+       0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr_str.data(), 4))) {
     if (ep->add_connection(conn.get(), true)) {
       return EN_ATBUS_ERR_SUCCESS;
     }
