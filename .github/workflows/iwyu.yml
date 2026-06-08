@@ -1,0 +1,91 @@
+# Copyright 2026 atframework
+name: "include-what-you-use"
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  iwyu:
+    name: Include-What-You-Use
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - cc: clang
+            cxx_standard: "14"
+    env:
+      CC: ${{ matrix.cc }}
+      CXX: "clang++"
+      CXX_STANDARD: ${{ matrix.cxx_standard }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Generate cache key
+        shell: bash
+        run: git submodule > '.github/.cache-key'
+
+      - name: Cache packages
+        uses: actions/cache@v5
+        with:
+          path: |
+            third_party/install
+          key: ${{ runner.os }}-iwyu-${{ hashFiles('.github/.cache-key') }}
+
+      - name: Setup dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build \
+            libssl-dev libcurl4-openssl-dev libuv1-dev \
+            clang llvm-dev libclang-dev
+
+      - name: Install include-what-you-use
+        shell: bash
+        run: |
+          sudo bash ci/install_iwyu.sh
+
+      - name: Build with include-what-you-use
+        id: build
+        shell: bash
+        run: |
+          bash ci/do_ci.sh iwyu
+          echo "build_log=${{ github.workspace }}/build_jobs_iwyu/iwyu.log" >> "$GITHUB_OUTPUT"
+
+      - name: Count IWYU warnings
+        id: analyze
+        shell: bash
+        run: |
+          BUILD_LOG="${{ steps.build.outputs.build_log }}"
+          if [[ -f "$BUILD_LOG" ]]; then
+            WARNING_COUNT=$(grep -c "include-what-you-use reported diagnostics:" "$BUILD_LOG" || true)
+          else
+            WARNING_COUNT=0
+          fi
+          echo "warning_count=$WARNING_COUNT" >> "$GITHUB_OUTPUT"
+          echo "IWYU warning count: $WARNING_COUNT"
+
+      - name: Upload IWYU log
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Logs-iwyu
+          path: ${{ steps.build.outputs.build_log }}
+
+      - name: Report warnings
+        if: always() && steps.analyze.outputs.warning_count > 0
+        shell: bash
+        run: |
+          echo "::warning::include-what-you-use found ${{ steps.analyze.outputs.warning_count }} diagnostics. See the uploaded log for details."

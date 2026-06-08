@@ -138,5 +138,18 @@ elif [[ "$1" == "msys2.mingw.test" ]]; then
   #   export PATH="$PWD/$EXT_PATH:$PATH"
   # done
   # ctest -VV . -C $CONFIGURATION -L libatbus.unit_test
+elif [[ "$1" == "clang-tidy" ]]; then
+  CRYPTO_OPTIONS="-DATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_CRYPTO_USE_OPENSSL=ON"
+  bash cmake_dev.sh -t -u -b RelWithDebInfo -r build_jobs_clang_tidy -c "${USE_CC:-clang}" -- $CRYPTO_OPTIONS \
+    -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON "-DATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_LOW_MEMORY_MODE=ON"
+  cd build_jobs_clang_tidy
+  cmake --build . -j --config $CONFIGURATION 2>&1 | tee clang-tidy.log || cmake --build . --config $CONFIGURATION 2>&1 | tee clang-tidy.log
+elif [[ "$1" == "iwyu" ]]; then
+  CRYPTO_OPTIONS="-DATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_CRYPTO_USE_OPENSSL=ON"
+  IWYU_OPTIONS="-DCMAKE_CXX_INCLUDE_WHAT_YOU_USE=include-what-you-use"
+  bash cmake_dev.sh -u -b RelWithDebInfo -r build_jobs_iwyu -c "${USE_CC:-clang}" -- $CRYPTO_OPTIONS $IWYU_OPTIONS \
+    -DATBUS_MACRO_ABORT_ON_PROTECTED_ERROR=ON "-DATFRAMEWORK_CMAKE_TOOLSET_THIRD_PARTY_LOW_MEMORY_MODE=ON"
+  cd build_jobs_iwyu
+  cmake --build . -j --config $CONFIGURATION 2>&1 | tee iwyu.log || cmake --build . --config $CONFIGURATION 2>&1 | tee iwyu.log
 fi
 
