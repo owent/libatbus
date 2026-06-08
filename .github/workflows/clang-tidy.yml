@@ -1,0 +1,100 @@
+# Copyright 2026 atframework
+name: "clang-tidy"
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  clang-tidy:
+    name: Clang-Tidy
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - cc: clang
+            cxx_standard: "14"
+    env:
+      CC: ${{ matrix.cc }}
+      CXX: "clang++"
+      CXX_STANDARD: ${{ matrix.cxx_standard }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Generate cache key
+        shell: bash
+        run: git submodule > '.github/.cache-key'
+
+      - name: Cache packages
+        uses: actions/cache@v5
+        with:
+          path: |
+            third_party/install
+          key: ${{ runner.os }}-clang-tidy-${{ hashFiles('.github/.cache-key') }}
+
+      - name: Setup dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake ninja-build \
+            libssl-dev libcurl4-openssl-dev libuv1-dev \
+            clang-tidy
+
+      - name: Build with clang-tidy
+        id: build
+        shell: bash
+        run: |
+          bash ci/do_ci.sh clang-tidy
+          echo "build_log=${{ github.workspace }}/build_jobs_clang_tidy/clang-tidy.log" >> "$GITHUB_OUTPUT"
+
+      - name: Analyze clang-tidy output
+        id: analyze
+        shell: bash
+        run: |
+          python3 ci/parse_clang_tidy_warnings.py \
+            --build_log "${{ steps.build.outputs.build_log }}" \
+            --output "./clang_tidy_report.md"
+
+          TOTAL_WARNINGS=$(python3 ci/parse_clang_tidy_warnings.py \
+            --build_log "${{ steps.build.outputs.build_log }}" \
+            --count-only)
+
+          echo "warning_count=$TOTAL_WARNINGS" >> "$GITHUB_OUTPUT"
+          echo "report_path=./clang_tidy_report.md" >> "$GITHUB_OUTPUT"
+
+          # Append report to step summary
+          if [[ -f "./clang_tidy_report.md" ]]; then
+            cat "./clang_tidy_report.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload build log
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Logs-clang-tidy
+          path: ${{ steps.build.outputs.build_log }}
+
+      - name: Upload warning report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Report-clang-tidy
+          path: ${{ steps.analyze.outputs.report_path }}
+
+      - name: Report warnings
+        if: always() && steps.analyze.outputs.warning_count > 0
+        shell: bash
+        run: |
+          echo "::warning::clang-tidy found ${{ steps.analyze.outputs.warning_count }} warnings. See the uploaded report for details."

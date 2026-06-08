@@ -139,7 +139,7 @@ while getopts "ab:c:d:e:hlm:o:pr:stu-" OPTION; do
             CMAKE_OPTIONS="$CMAKE_OPTIONS -DPROJECT_ENABLE_SAMPLE=YES";
         ;;
         t)
-            CMAKE_CLANG_TIDY="-D -checks=* --";
+            CMAKE_CLANG_TIDY="-DCMAKE_CXX_CLANG_TIDY=clang-tidy";
         ;;
         u)
             CMAKE_OPTIONS="$CMAKE_OPTIONS -DPROJECT_ENABLE_UNITTEST=YES";
@@ -174,11 +174,11 @@ else
 fi
 
 if [ "x$NINJA_BIN" != "x" ]; then
-    cmake .. -G Ninja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE $CMAKE_OPTIONS "$@";
+    cmake .. -G Ninja -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE $CMAKE_OPTIONS $CMAKE_CLANG_TIDY "$@";
 elif [ "$CHECK_MSYS" == "mingw" ]; then
-    cmake .. -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE $CMAKE_OPTIONS "$@";
+    cmake .. -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE $CMAKE_OPTIONS $CMAKE_CLANG_TIDY "$@";
 else
-    cmake .. -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE $CMAKE_OPTIONS "$@";
+    cmake .. -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE $CMAKE_OPTIONS $CMAKE_CLANG_TIDY "$@";
 fi
 
 
