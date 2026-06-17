@@ -28,7 +28,7 @@ cd "$IWYU_BUILD_DIR/iwyu/build"
 echo "Configuring include-what-you-use..."
 cmake .. \
   -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_BUILD_TYPE=RelWithDebInfo \
   -DCMAKE_PREFIX_PATH="$(llvm-config --prefix)"
 
 echo "Building include-what-you-use..."

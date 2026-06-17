@@ -139,7 +139,7 @@ while getopts "ab:c:d:e:hlm:o:pr:stu-" OPTION; do
             CMAKE_OPTIONS="$CMAKE_OPTIONS -DPROJECT_ENABLE_SAMPLE=YES";
         ;;
         t)
-            CMAKE_CLANG_TIDY="-DCMAKE_CXX_CLANG_TIDY=clang-tidy";
+            CMAKE_OPTIONS="$CMAKE_OPTIONS -DCMAKE_CXX_CLANG_TIDY=$(which clang-tidy)";
         ;;
         u)
             CMAKE_OPTIONS="$CMAKE_OPTIONS -DPROJECT_ENABLE_UNITTEST=YES";
