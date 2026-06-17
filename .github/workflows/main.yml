@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: CI Job
         shell: bash
         run: |
@@ -38,7 +38,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Generate cache key
         shell: bash
         run: git submodule > '.github/.cache-key'
@@ -63,23 +63,23 @@ jobs:
           else
             bash ci/do_ci.sh ssl.openssl ;
           fi
-  vs2022_build: # job id, can be any string
-    name: "Visual Studio 2022 Build"
+  vs2026_build: # job id, can be any string
+    name: "Visual Studio 2026 Build"
     strategy:
       matrix:
         include:
           - os: windows-latest
-            generator: "Visual Studio 17 2022"
+            generator: "Visual Studio 18 2026"
             build_shared_libs: "ON"
             platform: x64
           - os: windows-latest
-            generator: "Visual Studio 17 2022"
+            generator: "Visual Studio 18 2026"
             build_shared_libs: "OFF"
             platform: x64
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Generate cache key
         shell: bash
         run: git submodule > '.github/.cache-key'
@@ -108,7 +108,7 @@ jobs:
   #   runs-on: ${{ matrix.os }}
   #   steps:
   #     - name: Checkout
-  #       uses: actions/checkout@v4
+  #       uses: actions/checkout@v6
   #     - name: Generate cache key
   #       shell: bash
   #       run: git submodule > '.github/.cache-key'
