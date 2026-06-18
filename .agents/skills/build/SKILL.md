@@ -9,15 +9,19 @@ This repo uses **CMake (>= 3.24)** and requires C++17.
 
 ## Typical build flow
 
-- Configure (Debug): `cmake ..`
-- Configure (RelWithDebInfo): `cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo`
+- Resolve `<BUILD_DIR>` first: read the nearest `.vscode/settings.json` for `cmake.buildDirectory`; if absent, infer from
+  clangd `--compile-commands-dir=...` or an existing configured build tree; if no user setting is readable, use `build`.
+- Keep all build output and agent-generated scratch/log/temp files under `<BUILD_DIR>/...`; use
+  `<BUILD_DIR>/_agent_tmp/...` for agent scratch.
+- Configure (Debug): `cmake -S . -B <BUILD_DIR>`
+- Configure (RelWithDebInfo): `cmake -S . -B <BUILD_DIR> -DCMAKE_BUILD_TYPE=RelWithDebInfo`
 - Build:
-  - Linux/macOS: `cmake --build .`
-  - Windows (MSVC): `cmake --build . --config RelWithDebInfo`
+  - Linux/macOS: `cmake --build <BUILD_DIR>`
+  - Windows (MSVC): `cmake --build <BUILD_DIR> --config RelWithDebInfo`
 
 ## Run tests via CTest
 
-- `ctest . -V`
+- `ctest --test-dir <BUILD_DIR> -V`
 
 ## Key CMake options
 

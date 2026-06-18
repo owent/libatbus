@@ -264,7 +264,7 @@ auto tp = unit_test_make_timepoint(seconds, microseconds);
 ## Address schemes for tests
 
 - **TCP**: `ipv4://127.0.0.1:PORT` or `ipv6://[::1]:PORT`
-- **Unix** (non-Windows): `unix:///tmp/path.sock` (3 slashes)
+- **Unix** (non-Windows): `unix:///<BUILD_DIR>/_agent_tmp/path.sock` (3 slashes)
 - **Memory**: `mem://0xADDRESS` (single process, pointer-based)
 - **Shared Memory**: `shm://NAME` (cross-process)
 - **Pipe** (Windows): `pipe:///path`

@@ -21,9 +21,11 @@ ECDH-based encryption, compression, and topology-aware routing.
 ## Always-On Rules
 
 - Respect the user's dirty workspace: inspect current file contents before editing and avoid unrelated reformatting.
-- When creating AI scratch files or asking scripts to emit temporary data/logs, use a subdirectory inside an ignored
-  build tree (prefer `build/_agent_tmp/` or an existing `build_*/_agent_tmp/`) so `.gitignore` covers it; never write
-  temporary artifacts to the repository root.
+- Resolve `<BUILD_DIR>` before creating build trees or temporary files: read the nearest `.vscode/settings.json` for
+  `cmake.buildDirectory`; if absent, infer from clangd `--compile-commands-dir=...` or an existing configured build
+  tree; if no user setting is readable, use `build`.
+- Put all CMake build trees, AI scratch files, script output/logs, and temporary data under `<BUILD_DIR>/...`; for agent
+  scratch use `<BUILD_DIR>/_agent_tmp/...`. Never create ad-hoc temp files in the repository root.
 - Read the matching `.agents/skills/*/SKILL.md` before build, test, protocol, crypto, or compression work.
 - `include/libatbus_protocol.proto` is the wire-protocol source of truth; generated outputs should normally be
   regenerated, not edited by hand.
@@ -33,10 +35,14 @@ ECDH-based encryption, compression, and topology-aware routing.
 
 1. **C++ standard**: C++17 required.
 2. **Include guards**: use `#pragma once`.
-3. **Naming**: follow existing `snake_case` APIs and `EN_ATBUS_ERR_*` error names.
-4. **Error handling**: return `ATBUS_ERROR_TYPE` / negative error codes as existing code does.
-5. **Protocol stability**: avoid renaming public protocol fields, enum values, or error codes unless migration is planned.
-6. **Anonymous namespace + static**: in `.cpp` files, file-local functions should be inside an anonymous namespace **and**
+3. **Header code**: any function, method, friend, or operator body written in a header must use
+   `ATFW_UTIL_FORCEINLINE`; avoid plain `inline` for project code unless matching generated or third-party code.
+4. **Exported ABI**: interfaces declared with `ATBUS_MACRO_API` or other `*_API` export macros must be implemented in
+   `.cpp` files, not headers, so ABI stays stable across compilers and build options.
+5. **Naming**: follow existing `snake_case` APIs and `EN_ATBUS_ERR_*` error names.
+6. **Error handling**: return `ATBUS_ERROR_TYPE` / negative error codes as existing code does.
+7. **Protocol stability**: avoid renaming public protocol fields, enum values, or error codes unless migration is planned.
+8. **Anonymous namespace + static**: in `.cpp` files, file-local functions should be inside an anonymous namespace **and**
    keep the `static` keyword.
 
    ```cpp

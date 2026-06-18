@@ -23,5 +23,6 @@ commands, caveats, and examples here.
 
 - Folder name and frontmatter `name` must match.
 - `description` is the discovery surface: start with `Use when:` and include concrete trigger words.
-- Keep each `SKILL.md` focused; move bulky examples or reference material into sibling files when needed.
+- Keep each `SKILL.md` focused and procedural. Use progressive disclosure: put only core steps, gotchas, and validation
+  in `SKILL.md`, and move bulky examples or reference material into sibling files with clear load conditions.
 - This index is local to `libatbus`; do not require parent or sibling repository skills for this repo's workflows.
