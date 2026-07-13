@@ -21,6 +21,10 @@ ECDH-based encryption, compression, and topology-aware routing.
 ## Always-On Rules
 
 - Respect the user's dirty workspace: inspect current file contents before editing and avoid unrelated reformatting.
+- Never unconditionally `touch` or same-content overwrite code/resources consumed by `add_custom_command`,
+  `add_custom_target`, `add_executable`, `add_library`, `target_sources`, or another dependency edge, whether generated,
+  copied, or non-handwritten. Use content-stable writes and accurate `OUTPUT`/`BYPRODUCTS`/`DEPENDS`/`DEPFILE`; only
+  dedicated non-consumed stamp files may be touched.
 - Resolve `<BUILD_DIR>` before creating build trees or temporary files: read the nearest `.vscode/settings.json` for
   `cmake.buildDirectory`; if absent, infer from clangd `--compile-commands-dir=...` or an existing configured build
   tree; if no user setting is readable, use `build`.
