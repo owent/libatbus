@@ -1,98 +1,84 @@
----
+﻿---
 name: ai-agent-maintenance
-description: "Use when: auditing or optimizing AI agent prompts, bridge files, skills, SKILL.md metadata, and cross-tool compatibility."
+description: "Use when: initializing, auditing, or optimizing repository AI guidance, including AGENTS.md/CLAUDE.md bridges, Agent Skills, trigger descriptions, progressive disclosure, source tracking, or cross-tool compatibility. Do not use when: only implementing code under existing guidance."
 ---
 
 # AI Agent Maintenance
 
-Use this skill when updating AI-agent guidance for this repository or subproject.
+Use this Skill for AI-facing surfaces in `libatbus`. Keep this repository self-contained; do not depend on parent,
+sibling, or vendored-submodule prompt files.
 
-## Required Outcomes
+## Outcome
 
-- Deeply research the current prompt/skill layout and current AI-agent customization practices before editing.
-- Ground changes in real project artifacts, existing task traces, and official docs; avoid generic best-practice text
-  that does not change agent behavior in this repository.
-- Keep always-on guidance compact, actionable, and non-redundant.
-- Keep temporary-artifact guidance consistent: resolve `<BUILD_DIR>` from user settings first, then put AI-created
-  scratch files and script/log output under `<BUILD_DIR>/_agent_tmp/...`, not repository roots.
-- Preserve compatibility across AGENTS-aware tools, VS Code Copilot, Codex, Claude Code, Kilo Code/CLI, Roo Code,
-  Windsurf, Antigravity, OpenClaw/Hermes-style skills, and OpenCode where the repository intentionally supports them.
-- Keep this repository's AI surfaces independently maintainable; do not require parent, sibling, or vendored-submodule
-  prompt files for `libatbus` guidance to make sense.
-- Use progressive disclosure: keep frontmatter descriptions concise, keep `SKILL.md` bodies focused on procedures,
-  gotchas, and validation, and move rarely needed detail to sibling files with explicit load conditions.
-- Re-check and record official source URLs whenever compatibility behavior, skill locations, or frontmatter semantics
-  are changed.
-- Merge improvements into existing prompt and skill content; do not leave old versions, migration notes, changelog notes,
-  or historical comparison sections.
+- Keep AI-facing guidance source-backed, compact, task-routed, and independently usable in this repository.
+- Merge improvements into the current authoritative files; remove stale, duplicated, or historical variants.
+- Preserve the user's dirty workspace and avoid tool-specific configuration without a verified need.
 
-## Compatibility Model
+## Workflow
 
-- Prefer `AGENTS.md` as the canonical repository guide; nested `AGENTS.md` files should be specific to the subtree they
-  govern.
-- Keep `.agents/skills/<name>/SKILL.md` as the portable skill source for VS Code, Roo/Kilo/Windsurf/Antigravity-style
-  skill discovery, and OpenClaw/Hermes external skill directories.
-- Do not maintain `.github/copilot-instructions.md` copies when `AGENTS.md` and `.agents/skills/` cover the same rules.
-- Keep `CLAUDE.md` as a thin Claude Code bridge that imports `AGENTS.md` and the skills index with `@...` references;
-  prefer imports over symlinks for Windows compatibility.
-- Keep repeatable workflows in `.agents/skills/<name>/SKILL.md`; bridge files should not duplicate full skill bodies.
-- Do not mirror `.agents/skills` workflows into `.claude/skills`; keep `CLAUDE.md` as the Claude-compatible bridge.
-- For Roo/Kilo/Windsurf/OpenCode/Antigravity/OpenClaw compatibility, preserve `AGENTS.md` and `.agents/skills/` first.
-  Add tool-specific folders or config (`.roo`, `.kilo`, `.windsurf`, `.opencode`, etc.) only when the
-  repository already uses them or the task explicitly asks for that surface.
-- Do not commit MCP server secrets, OAuth tokens, or local runtime configuration. If MCP guidance is needed, document
-  least-privilege tool exposure, explicit user consent, timeouts, and secret handling instead of checked-in credentials.
+### 1. Discover before loading
 
-## Procedure
+- Inspect the active harness's actual Skills, tools, modes, permissions, and extensions. Do not assume another client's
+  capabilities or install a workflow without user authorization.
+- Read `AGENTS.md`, `CLAUDE.md`, `.agents/skills/README.md`, repository status, and Skill `name`/`description` metadata
+  first. Inspect whether tool-specific directories or AI docs exist; do not preload every Skill body or reference.
+- Load a full `SKILL.md`, bundled resource, legacy prompt, or client-specific config only when the task or index routes
+  there. Read generated/template inputs when they are the real source of truth.
 
-1. **Research first**
-   - Read the nearest `AGENTS.md`, `CLAUDE.md`, `.agents/skills/README.md`, and any relevant `SKILL.md` files before
-     editing. Read legacy `.github` AI customization files only when migrating or deleting them.
-   - Check the nearest `.gitignore`, `.vscode/settings.json`, and existing build-directory names before changing
-     temp-file guidance. Prefer `cmake.buildDirectory`; if absent, infer from clangd `--compile-commands-dir=...`; if no
-     user setting is readable, use `build`.
-   - If compatibility behavior may change, check current official docs or maintained references for the affected tools.
-   - Capture the URLs or local docs consulted in the final summary, and add a compact source note only when it helps
-     future maintainers avoid repeating the same research.
-   - Respect dirty workspaces: preserve unrelated user or formatter edits and avoid broad reformatting.
+### 2. Verify facts and choose process strength
 
-2. **Choose the right surface**
-   - Put facts that apply to nearly every task in `AGENTS.md`.
-   - Repository-wide build/temp placement rules belong in `AGENTS.md`; skills should explain how to resolve
-     `<BUILD_DIR>` and preserve the rule, not replace it.
-   - Put path-specific or tool-specific rules in their native file only when that scope is needed.
-   - Put multi-step, task-specific, or rarely used guidance in skills.
-   - Prefer links to existing docs or skills over copying long reference material into always-on prompts.
+- Separate stable repository facts from mutable external behavior. Verify the former in current code/config/tests and the
+  latter in current official documentation before writing compatibility or security claims.
+- Treat OpenSpec and Superpowers as optional, mutable integrations. Verify repository adoption and the active harness's
+  current capabilities before referencing their artifacts or commands; never install or initialize them implicitly.
+- State assumptions, the smallest sufficient plan, rollback, and validation after the source pass.
+- Use the shortest verified path for small, low-risk edits. Require reviewable scope and acceptance criteria before
+  cross-module behavior, public API, data model, security, or deployment changes; reuse existing project artifacts rather
+  than initializing a methodology for ceremony.
 
-3. **Write compact, discoverable skills**
-   - Keep skill folder names and frontmatter `name` values identical; use lowercase hyphenated names.
-   - Quote descriptions that contain colons and start them with `Use when:` plus concrete user-intent trigger words.
-   - Front-load the most important trigger phrases; descriptions are the primary trigger surface and may be truncated in
-     listings.
-   - Prefer procedures, gotchas, and validation loops over broad declarations. Provide a clear default path and mention
-     alternatives only when they materially change the work.
-   - Keep each `SKILL.md` focused. Move bulky examples, scripts, or reference material into sibling files when needed,
-     and say exactly when to load them.
+### 3. Choose one authoritative surface
 
-4. **Validate before finishing**
-   - Check markdown/frontmatter diagnostics for changed prompt and skill files.
-   - Confirm each changed skill's `name` matches its folder, `description` still says when to use it, and no bridge file
-     has grown into a duplicate skill body.
-   - Run a scoped whitespace check for changed prompt and skill files.
-   - Re-read representative files to ensure bridge files stay thin and skill routing points to the current skill.
-   - For nested Git repositories, run status and whitespace checks from each affected repository root.
+- Put stable, high-signal, broadly applicable rules in `AGENTS.md`.
+- Keep `CLAUDE.md` as a thin `@AGENTS.md` and Skill-index bridge; add only verified Claude-specific differences.
+- Keep `.agents/skills/README.md` to names, one-line routing, and compact maintenance rules.
+- Put repeatable, specialized procedures and non-obvious project knowledge in `.agents/skills/<name>/SKILL.md`.
+- Add client-specific rules, agents, prompts, or Skill mirrors only when the shared surfaces cannot express a verified
+  requirement. Write only the difference and do not duplicate shared rules.
 
-5. **Summarize clearly**
-   - Report the files changed, compatibility surfaces preserved, and validations run.
-   - Call out skipped build/test work when the change is documentation-only.
+### 4. Maintain Skills for low context cost
 
-## Source Links to Re-check
+- Keep folder and `name` identical, lowercase, hyphenated, and at most 64 characters. Keep portable frontmatter to
+  `name` and `description` unless a verified client-specific requirement justifies a separate client-owned surface.
+- Make `description` intent-first and specific: say what the Skill does, when it should trigger, and a useful near-miss
+  boundary. Keep the key trigger early and stay within 1024 characters.
+- Write imperative, project-specific procedures. Remove explanations the agent already knows; use one clear default and
+  make control stricter only where the workflow is fragile.
+- Keep the main body under 500 lines and about 5,000 tokens. Move detailed APIs, examples, and variants to one-level
+  `references/`; keep deterministic repeated logic in tested, non-interactive `scripts/` with actionable errors.
+- For a new or materially changed trigger, draft 8-10 realistic should-trigger queries and 8-10 near-miss
+  should-not-trigger queries. Measure invocation only when the active client exposes observable Skill calls; otherwise
+  perform a manual boundary review and report that no trigger rate was measured.
 
-- AGENTS.md guidance: <https://agents.md/>
-- Agent Skills specification and best practices: <https://agentskills.io/specification>
-- Agent Skills creator practices: <https://agentskills.io/skill-creation/best-practices>
-- Agent Skills description tuning: <https://agentskills.io/skill-creation/optimizing-descriptions>
-- VS Code Copilot custom instructions and skills: <https://code.visualstudio.com/docs/copilot/customization/overview>
-- Claude Code memory and skills: <https://docs.anthropic.com/claude-code/>
-- MCP security and tool design: <https://modelcontextprotocol.io/docs/>
-- Roo/Kilo/Windsurf/OpenCode/OpenClaw/Hermes/Antigravity docs when touching those compatibility surfaces.
+### 5. Validate and report
+
+- Run an available Agent Skills validator; otherwise check YAML delimiters, required fields, folder/name equality,
+  description length, referenced paths, and absence of placeholders directly.
+- Run markdown diagnostics, line-ending/trailing-whitespace checks, and scoped `git diff --check`. Re-read routing files
+  to confirm bridges remain thin and references load only on demand.
+- Validate from every affected nested Git root. Run code/build/tests only when behavior or executable content changed;
+  for documentation-only work, state what was skipped and why.
+- Report changed surfaces, verified sources, capability boundaries, validation results, and unresolved risks.
+
+## Repository invariants
+
+- Keep engineering conventions in `../engineering-guidelines/SKILL.md`; route to them instead of duplicating details.
+- Resolve `<BUILD_DIR>` from the nearest VS Code CMake setting, clangd compile-command path, or existing configured tree;
+  fall back to `build`. Put scratch and script/log output under `<BUILD_DIR>/_agent_tmp/...`.
+- Keep this repository self-contained; do not mirror rules into parent, sibling, or vendored-submodule prompts.
+
+## References
+
+- Read [compatibility sources](references/compatibility-sources.md) only when changing Skill formats, discovery paths,
+  bridge behavior, client-specific configuration, MCP guidance, or cross-tool compatibility claims.
+- Read [upstream change-workflow methods](../change-workflow/references/upstream-methods.md) only when changing risk
+  routing or OpenSpec/Superpowers integration policy.

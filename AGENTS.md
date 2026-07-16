@@ -1,4 +1,4 @@
-# libatbus Agent Guide
+﻿# libatbus Agent Guide
 
 This is the canonical, self-contained cross-agent guide for this repository. Keep it short: put repeatable workflows in
 `.agents/skills/*/SKILL.md`, keep `CLAUDE.md` as a lightweight bridge, and avoid redundant tool-specific prompt copies.
@@ -16,11 +16,20 @@ ECDH-based encryption, compression, and topology-aware routing.
 - `src/`: node, endpoint, connection, topology, channel, protocol, crypto/compression implementations.
 - `test/case/`: private unit tests and cross-language protocol/auth vectors.
 - `sample/`, `docs/`, `tools/`: examples, documentation, and utilities.
-- `.agents/skills/`: build, testing, protocol/crypto, and AI-agent maintenance playbooks.
+- `.agents/skills/`: engineering, build, testing, protocol/crypto, and AI-agent maintenance playbooks.
 
 ## Always-On Rules
 
 - Respect the user's dirty workspace: inspect current file contents before editing and avoid unrelated reformatting.
+- Start with the current task, nearest instructions, Skill index, and capabilities actually exposed by the active agent
+  harness. Load full Skill bodies or tool-specific directories only when the task routes there; do not assume or install
+  absent workflows, tools, modes, or extensions.
+- Before a nontrivial plan or edit, inspect the relevant code, configs, docs, generated sources, tests, and current
+  official docs for mutable external behavior. Separate verified facts from assumptions, then state the smallest plan
+  and verification path.
+- Match process to risk: use the shortest verified path for small changes; read `change-workflow` for defects and for
+  cross-module behavior, public API/ABI, data model/migration, security, or deployment changes. Keep their scope and
+  acceptance in one existing authoritative artifact or active task plan; do not initialize a methodology for ceremony.
 - Never unconditionally `touch` or same-content overwrite code/resources consumed by `add_custom_command`,
   `add_custom_target`, `add_executable`, `add_library`, `target_sources`, or another dependency edge, whether generated,
   copied, or non-handwritten. Use content-stable writes and accurate `OUTPUT`/`BYPRODUCTS`/`DEPENDS`/`DEPFILE`; only
@@ -30,7 +39,7 @@ ECDH-based encryption, compression, and topology-aware routing.
   tree; if no user setting is readable, use `build`.
 - Put all CMake build trees, AI scratch files, script output/logs, and temporary data under `<BUILD_DIR>/...`; for agent
   scratch use `<BUILD_DIR>/_agent_tmp/...`. Never create ad-hoc temp files in the repository root.
-- Read the matching `.agents/skills/*/SKILL.md` before build, test, protocol, crypto, or compression work.
+- Read the matching `.agents/skills/*/SKILL.md` before C++ edit/review, build, test, protocol, crypto, or compression work.
 - `include/libatbus_protocol.proto` is the wire-protocol source of truth; generated outputs should normally be
   regenerated, not edited by hand.
 - After C++ edits, run `clang-format -i <file>` and verify with `clang-format --dry-run --Werror <file>` when practical.
@@ -39,10 +48,11 @@ ECDH-based encryption, compression, and topology-aware routing.
 
 1. **C++ standard**: C++17 required.
 2. **Include guards**: use `#pragma once`.
-3. **Header code**: any function, method, friend, or operator body written in a header must use
-   `ATFW_UTIL_FORCEINLINE`; avoid plain `inline` for project code unless matching generated or third-party code.
-4. **Exported ABI**: interfaces declared with `ATBUS_MACRO_API` or other `*_API` export macros must be implemented in
-   `.cpp` files, not headers, so ABI stays stable across compilers and build options.
+3. **Header/API visibility**: public non-template APIs must use `ATBUS_MACRO_API` (or the matching `*_API` macro) or
+   `ATFW_UTIL_FORCEINLINE`; public template functions defined in headers may use `ATFW_UTIL_SYMBOL_VISIBLE`. Read
+   `engineering-guidelines` for the ODR and internal-only rules.
+4. **Exported ABI**: keep non-template implementations covered by `ATBUS_MACRO_API` or another `*_API` macro in `.cpp`
+   files so ABI stays stable across compilers and build options.
 5. **Naming**: follow existing `snake_case` APIs and `EN_ATBUS_ERR_*` error names.
 6. **Error handling**: return `ATBUS_ERROR_TYPE` / negative error codes as existing code does.
 7. **Protocol stability**: avoid renaming public protocol fields, enum values, or error codes unless migration is planned.
@@ -61,6 +71,8 @@ Read the matching `.agents/skills/*/SKILL.md` before specialized work:
 
 | Skill | Use when |
 | --- | --- |
+| `engineering-guidelines` | Writing/reviewing C++, header template visibility, or exported API ABI |
+| `change-workflow` | Diagnosing defects or delivering nontrivial/high-risk changes with a reviewable contract |
 | `build` | Configuring or building with CMake |
 | `testing` | Running or writing private test-framework cases |
 | `libatbus-protocol-crypto` | Working on protocol transport, ECDH, ciphers, compression, framing, or auth |
