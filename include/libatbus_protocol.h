@@ -12,7 +12,7 @@
 #include <nostd/nullability.h>
 
 #include <memory>
-#include <utility>
+#include <string>
 
 #include "detail/libatbus_config.h"
 
@@ -89,4 +89,3 @@ ATBUS_MACRO_NAMESPACE_END
 #ifndef ATBUS_MACRO_PROTOBUF_NAMESPACE_ID
 #  define ATBUS_MACRO_PROTOBUF_NAMESPACE_ID google::protobuf
 #endif
-

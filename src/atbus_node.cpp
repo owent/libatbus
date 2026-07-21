@@ -6,7 +6,7 @@
  *        附带c++的部分是为了避免命名空间污染并且c++的跨平台适配更加简单
  */
 
-#include "atbus_node.h"
+#include "atbus_node.h"  // NOLINT: build/include_subdir
 
 #include <algorithm/crypto_cipher.h>
 #include <algorithm/sha.h>
@@ -17,11 +17,6 @@
 
 #ifndef _MSC_VER
 
-#  include <algorithm>
-#  include <string>
-#  include <unordered_set>
-#  include <vector>
-
 #  include <sys/types.h>
 #  include <unistd.h>
 
@@ -29,6 +24,7 @@
 #  pragma comment(lib, "Ws2_32.lib")
 #endif
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -37,6 +33,14 @@
 #include <cstring>
 #include <ctime>
 #include <functional>
+#include <list>
+#include <memory>
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
+
 #if !(defined(ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD) && ATFRAMEWORK_UTILS_THREAD_TLS_USE_PTHREAD) && \
     __cplusplus >= 201103L
 #  include <mutex>
@@ -44,9 +48,9 @@
 
 #include "detail/buffer.h"
 
-#include "atbus_message_handler.h"
+#include "atbus_message_handler.h"  // NOLINT: build/include_subdir
 
-#include "libatbus_protocol.h"
+#include "libatbus_protocol.h"  // NOLINT: build/include_subdir
 
 ATBUS_MACRO_NAMESPACE_BEGIN
 
@@ -1165,7 +1169,6 @@ ATBUS_MACRO_API int node::send_custom_command(bus_id_t tid, gsl::span<gsl::span<
 
   ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
   arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
-  ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::Arena arena(arena_options);
   message m{arena_options};
 
   atbus::protocol::message_head &head = m.mutable_head();
@@ -1608,7 +1611,7 @@ ATBUS_MACRO_API const endpoint *node::get_self_endpoint() const { return self_ ?
 
 ATBUS_MACRO_API const endpoint *node::get_upstream_endpoint() const { return node_upstream_.node_.get(); }
 
-ATBUS_MACRO_API const node::endpoint_collection_t &node::get_immediate_endpoint_set() const { return node_route_; };
+ATBUS_MACRO_API const node::endpoint_collection_t &node::get_immediate_endpoint_set() const { return node_route_; }
 
 ATBUS_MACRO_API adapter::loop_t *node::get_evloop() {
   // if just created, do not alloc new event loop
@@ -1760,7 +1763,7 @@ ATBUS_MACRO_API const std::string &node::get_hostname() {
     hn = buffer;
   }
 #ifdef _MSC_VER
-  else {
+  else {  // NOLINT: readability/braces
     if (WSANOTINITIALISED == WSAGetLastError()) {
       WSADATA wsaData;
       WORD version = MAKEWORD(2, 0);
@@ -2185,7 +2188,6 @@ ATBUS_MACRO_API int node::dispatch_all_self_messages() {
 
       on_receive_message(nullptr, std::move(m), 0, EN_ATBUS_ERR_SUCCESS);
       ++ret;
-
     } while (false);
   }
   return ret;
