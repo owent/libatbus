@@ -1,6 +1,6 @@
 // Copyright 2026 atframework
 
-#include "atbus_connection_context.h"
+#include "atbus_connection_context.h"  // NOLINT: build/include_subdir
 
 #include <algorithm/bit.h>
 #include <algorithm/compression.h>
@@ -10,12 +10,13 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <string>
 #include <unordered_set>
 #include <vector>
 
 #include "detail/buffer.h"
 #include "detail/libatbus_error.h"
-#include "libatbus_protocol.h"
+#include "libatbus_protocol.h"  // NOLINT: build/include_subdir
 
 ATBUS_MACRO_NAMESPACE_BEGIN
 
@@ -777,10 +778,17 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
 
   static_buffer_block buffer = _allocate_temporary_buffer_block(total_size);
   memcpy(buffer.data(), head_len_buffer, head_vint_size);
-  head.SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t *>(buffer.data() + head_vint_size));
+  auto *next_buffer = head.SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t *>(buffer.data() + head_vint_size));
+  if (next_buffer - reinterpret_cast<uint8_t *>(buffer.data()) != static_cast<ptrdiff_t>(head_vint_size + head_size)) {
+    return buffer_result_t::make_error(EN_ATBUS_ERR_PACK);
+  }
   const auto *body = m.get_body();
   if (body != nullptr && body_size > 0) {
-    body->SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t *>(buffer.data() + head_vint_size + head_size));
+    next_buffer =
+        body->SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t *>(buffer.data() + head_vint_size + head_size));
+    if (next_buffer - reinterpret_cast<uint8_t *>(buffer.data()) != static_cast<ptrdiff_t>(total_size)) {
+      return buffer_result_t::make_error(EN_ATBUS_ERR_PACK);
+    }
   }
 
   return buffer_result_t::make_success(std::move(buffer));
@@ -851,7 +859,10 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
 
   const auto *body = m.get_body();
   if (body != nullptr && static_cast<size_t>(head.body_size()) > 0) {
-    body->SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t *>(origin_buffer.data()));
+    auto *next_buffer = body->SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t *>(origin_buffer.data()));
+    if (next_buffer - reinterpret_cast<uint8_t *>(origin_buffer.data()) != static_cast<ptrdiff_t>(head.body_size())) {
+      return buffer_result_t::make_error(EN_ATBUS_ERR_PACK);
+    }
   }
 
   size_t head_size = 0;
@@ -937,7 +948,12 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
     final_buffer = _allocate_temporary_buffer_block(total_size);
 
     memcpy(final_buffer.data(), head_len_buffer, head_vint_size);
-    head.SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t *>(final_buffer.data() + head_vint_size));
+    auto *next_buffer =
+        head.SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t *>(final_buffer.data() + head_vint_size));
+    if (next_buffer - reinterpret_cast<uint8_t *>(final_buffer.data()) !=
+        static_cast<ptrdiff_t>(head_vint_size + head_size)) {
+      return buffer_result_t::make_error(EN_ATBUS_ERR_PACK);
+    }
     if (!body_data_span.empty()) {
       memcpy(final_buffer.data() + head_vint_size + head_size, body_data_span.data(), body_data_span.size());
     }
@@ -977,7 +993,12 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
     final_buffer = _allocate_temporary_buffer_block(total_size);
 
     memcpy(final_buffer.data(), head_len_buffer, head_vint_size);
-    head.SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t *>(final_buffer.data() + head_vint_size));
+    auto *next_buffer =
+        head.SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t *>(final_buffer.data() + head_vint_size));
+    if (next_buffer - reinterpret_cast<uint8_t *>(final_buffer.data()) !=
+        static_cast<ptrdiff_t>(head_vint_size + head_size)) {
+      return buffer_result_t::make_error(EN_ATBUS_ERR_PACK);
+    }
 
     int encrypt_result = send_cipher_->encrypt_aead(
         body_data_span.data(), body_data_span.size(), final_buffer.data() + head_vint_size + head_size,
@@ -998,7 +1019,12 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
     final_buffer = _allocate_temporary_buffer_block(total_size);
 
     memcpy(final_buffer.data(), head_len_buffer, head_vint_size);
-    head.SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t *>(final_buffer.data() + head_vint_size));
+    auto *next_buffer =
+        head.SerializeWithCachedSizesToArray(reinterpret_cast<uint8_t *>(final_buffer.data() + head_vint_size));
+    if (next_buffer - reinterpret_cast<uint8_t *>(final_buffer.data()) !=
+        static_cast<ptrdiff_t>(head_vint_size + head_size)) {
+      return buffer_result_t::make_error(EN_ATBUS_ERR_PACK);
+    }
 
     if (send_cipher_->encrypt(body_data_span.data(), body_data_span.size(),
                               final_buffer.data() + head_vint_size + head_size, &body_at_least_size) < 0) {

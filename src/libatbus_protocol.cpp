@@ -1,6 +1,6 @@
 // Copyright 2026 atframework
 
-#include "libatbus_protocol.h"
+#include "libatbus_protocol.h"  // NOLINT: build/include_subdir
 
 // clang-format off
 #include <config/compiler/protobuf_prefix.h>  // NOLINT(misc-include-cleaner)
@@ -13,6 +13,8 @@
 // clang-format on
 
 #include <memory>
+#include <string>
+#include <utility>
 
 ATBUS_MACRO_NAMESPACE_BEGIN
 
@@ -128,7 +130,9 @@ ATBUS_MACRO_API std::string message::get_head_debug_string() const {
   printer.SetTruncateStringFieldLongerThan(2048);
   printer.SetPrintMessageFieldsInIndexOrder(false);
 
-  printer.PrintToString(*head_, &debug_string);
+  if (!printer.PrintToString(*head_, &debug_string)) {
+    debug_string += "... PrintToString failed.";
+  }
 
   return debug_string;
 }
@@ -150,7 +154,9 @@ ATBUS_MACRO_API std::string message::get_body_debug_string() const {
   printer.SetTruncateStringFieldLongerThan(2048);
   printer.SetPrintMessageFieldsInIndexOrder(false);
 
-  printer.PrintToString(*body_, &debug_string);
+  if (!printer.PrintToString(*body_, &debug_string)) {
+    debug_string += "... PrintToString failed.";
+  }
 
   return debug_string;
 }
@@ -177,4 +183,3 @@ ATBUS_MACRO_API std::string message::get_unpack_error_message() const noexcept {
 }
 
 ATBUS_MACRO_NAMESPACE_END
-

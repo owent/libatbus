@@ -268,11 +268,13 @@ char                      test_buffer[] = "hello world!";
     m_src->mutable_data_transform_req()->add_router(0x12345678);
     m_src->mutable_data_transform_req()->set_flags(atbus::protocol::FORWARD_DATA_FLAG_REQUIRE_RSP);
 
-    m_src->SerializeToString(&packed_buffer);
-    std::stringstream so;
-    atfw::util::string::serialization(packed_buffer.data(), packed_buffer.size(), so);
-    std::cout << "arena(allocated= " << arena.SpaceAllocated() << ", used= " << arena.SpaceUsed() << "), protobuf encoded(size=" << packed_buffer.size()
-              << "): " << so.str() << std::endl;
+    if(m_src->SerializeToString(&packed_buffer)) {
+        std::stringstream so;
+        atfw::util::string::serialization(packed_buffer.data(), packed_buffer.size(), so);
+        std::cout << "arena(allocated= " << arena.SpaceAllocated() << ", used= " << arena.SpaceUsed() << "), protobuf encoded(size=" << packed_buffer.size() << "): " << so.str() << std::endl;
+    } else {
+        std::cout << "arena(allocated= " << arena.SpaceAllocated() << ", used= " << arena.SpaceUsed() << "), protobuf encode failed" << std::endl;
+    }
 }
 ```
 

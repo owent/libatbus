@@ -545,7 +545,10 @@ CASE_TEST(atbus_access_data_crosslang, generate_full_access_data_test_files) {
 
     // Serialize access_data to binary
     std::string serialized;
-    ad.SerializeToString(&serialized);
+    if (!ad.SerializeToString(&serialized)) {
+      CASE_MSG_INFO() << "[FAIL] " << test_name << ": Failed to serialize access_data" << std::endl;
+      CASE_EXPECT_TRUE(false);
+    }
     write_binary_file(std::string(test_name) + ".bytes", reinterpret_cast<const unsigned char*>(serialized.data()),
                       serialized.size());
 
@@ -634,7 +637,10 @@ CASE_TEST(atbus_access_data_crosslang, generate_full_access_data_test_files) {
     }
 
     std::string serialized;
-    ad.SerializeToString(&serialized);
+    if (!ad.SerializeToString(&serialized)) {
+      CASE_MSG_INFO() << "[FAIL] " << test_name << ": Failed to serialize access_data" << std::endl;
+      CASE_EXPECT_TRUE(false);
+    }
     write_binary_file(std::string(test_name) + ".bytes", reinterpret_cast<const unsigned char*>(serialized.data()),
                       serialized.size());
 
@@ -719,7 +725,10 @@ CASE_TEST(atbus_access_data_crosslang, generate_full_access_data_test_files) {
     }
 
     std::string serialized;
-    ad.SerializeToString(&serialized);
+    if (!ad.SerializeToString(&serialized)) {
+      CASE_MSG_INFO() << "[FAIL] " << test_name << ": Failed to serialize access_data" << std::endl;
+      CASE_EXPECT_TRUE(false);
+    }
     write_binary_file(std::string(test_name) + ".bytes", reinterpret_cast<const unsigned char*>(serialized.data()),
                       serialized.size());
 
@@ -801,7 +810,10 @@ CASE_TEST(atbus_access_data_crosslang, generate_full_access_data_test_files) {
     }
 
     std::string serialized;
-    ad.SerializeToString(&serialized);
+    if (!ad.SerializeToString(&serialized)) {
+      CASE_MSG_INFO() << "[FAIL] " << test_name << ": Failed to serialize access_data" << std::endl;
+      CASE_EXPECT_TRUE(false);
+    }
     write_binary_file(std::string(test_name) + ".bytes", reinterpret_cast<const unsigned char*>(serialized.data()),
                       serialized.size());
 
@@ -1310,4 +1322,3 @@ CASE_TEST(atbus_access_data_crosslang, verify_access_data_from_generated_files) 
                   << " failed" << std::endl;
   CASE_EXPECT_EQ(0, failed_count);
 }
-
