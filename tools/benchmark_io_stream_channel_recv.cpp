@@ -82,8 +82,9 @@ static void stat_callback(uv_timer_t * /*handle*/) {
 
   ++secs;
 
-  while (conf.sum_recv_len / unit_devi[unit_index] > 1024 && unit_index < (sizeof(unit_devi) / sizeof(size_t)) - 1)
+  while (unit_index < ((sizeof(unit_devi) / sizeof(size_t))) - 1 && conf.sum_recv_len / unit_devi[unit_index] > 1024) {
     ++unit_index;
+  }
 
   while (conf.sum_recv_len / unit_devi[unit_index] <= 1024 && unit_index > 0) {
     --unit_index;
