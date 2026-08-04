@@ -2120,10 +2120,11 @@ ATBUS_MACRO_API int node::fatal_shutdown(const atfw::util::log::log_wrapper::cal
 
   shutdown(errcode);
   if (logger_ && logger_->check_level(caller.level_id)) {
-    logger_->format_log(caller, "node={:#x}, endpoint={:#x}, connection={}, status: {}, error_code: {}: ",
+    logger_->format_log(caller, "node={:#x}, endpoint={:#x}, connection={}, status: {}, error_code: {}({}): ",
                         ::atframework::atbus::details::__log_get_node_id(*this),
                         ::atframework::atbus::details::__log_get_endpoint_id(ep),
-                        ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), status, errcode);
+                        ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), status,
+                        static_cast<int32_t>(errcode), libatbus_strerror(errcode));
   }
   return 0;
 }

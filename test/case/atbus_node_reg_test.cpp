@@ -89,7 +89,15 @@ static int node_reg_test_on_error(const atfw::util::log::log_formatter::caller_i
   }
   pos = content.find("error_code:", pos);
   if (gsl::string_view::npos != pos) {
-    errcode = static_cast<ATBUS_ERROR_TYPE>(atfw::util::string::to_int<int>(content.substr(pos + 11)));
+    pos += 11;
+    for (; pos < content.size(); ++pos) {
+      if ((content[pos] >= '0' && content[pos] <= '9') || content[pos] == '-') {
+        break;
+      }
+    }
+    if (pos < content.size()) {
+      errcode = static_cast<ATBUS_ERROR_TYPE>(atfw::util::string::to_int<int>(content.substr(pos)));
+    }
   }
   if ((0 == status && 0 == errcode) || UV_EOF == status || UV_ECONNRESET == status) {
     return 0;
@@ -97,7 +105,7 @@ static int node_reg_test_on_error(const atfw::util::log::log_formatter::caller_i
 
   // 随时可能收到网络错误，排除错误检查
   if (recv_msg_history.status == 0 || errcode > EN_ATBUS_ERR_DNS_GETADDR_FAILED || errcode < EN_ATBUS_ERR_NOT_READY) {
-    recv_msg_history.status = status;
+    recv_msg_history.status = (0 != errcode) ? static_cast<int>(errcode) : status;
   }
   ++recv_msg_history.register_failed_count;
 
