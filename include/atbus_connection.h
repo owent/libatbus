@@ -196,27 +196,27 @@ class connection final : public atfw::util::design_pattern::noncopyable {
 
  public:
   static ATBUS_MACRO_API void iostream_on_listen_cb(channel::io_stream_channel *channel,
-                                                    channel::io_stream_connection *connection, int status, void *buffer,
-                                                    size_t s);
+                                                    channel::io_stream_connection *connection,
+                                                    ATBUS_ERROR_TYPE result_code, void *buffer, size_t s);
   static ATBUS_MACRO_API void iostream_on_connected_cb(channel::io_stream_channel *channel,
-                                                       channel::io_stream_connection *connection, int status,
-                                                       void *buffer, size_t s);
+                                                       channel::io_stream_connection *connection,
+                                                       ATBUS_ERROR_TYPE result_code, void *buffer, size_t s);
 
   static ATBUS_MACRO_API void iostream_on_receive_cb(channel::io_stream_channel *channel,
-                                                     channel::io_stream_connection *conn_ios, int status, void *buffer,
-                                                     size_t s);
+                                                     channel::io_stream_connection *conn_ios,
+                                                     ATBUS_ERROR_TYPE result_code, void *buffer, size_t s);
   static ATBUS_MACRO_API void iostream_on_accepted(channel::io_stream_channel *channel,
-                                                   channel::io_stream_connection *conn_ios, int status, void *buffer,
-                                                   size_t s);
+                                                   channel::io_stream_connection *conn_ios,
+                                                   ATBUS_ERROR_TYPE result_code, void *buffer, size_t s);
   static ATBUS_MACRO_API void iostream_on_connected(channel::io_stream_channel *channel,
-                                                    channel::io_stream_connection *connection, int status, void *buffer,
-                                                    size_t s);
+                                                    channel::io_stream_connection *connection,
+                                                    ATBUS_ERROR_TYPE result_code, void *buffer, size_t s);
   static ATBUS_MACRO_API void iostream_on_disconnected(channel::io_stream_channel *channel,
-                                                       channel::io_stream_connection *conn_ios, int status,
-                                                       void *buffer, size_t s);
+                                                       channel::io_stream_connection *conn_ios,
+                                                       ATBUS_ERROR_TYPE result_code, void *buffer, size_t s);
   static ATBUS_MACRO_API void iostream_on_written(channel::io_stream_channel *channel,
-                                                  channel::io_stream_connection *conn_ios, int status, void *buffer,
-                                                  size_t s);
+                                                  channel::io_stream_connection *conn_ios, ATBUS_ERROR_TYPE result_code,
+                                                  void *buffer, size_t s);
 
 #ifdef ATBUS_CHANNEL_SHM
   static ATBUS_MACRO_API ATBUS_ERROR_TYPE shm_proc_fn(node &n, connection &conn,

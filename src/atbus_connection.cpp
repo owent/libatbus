@@ -233,7 +233,8 @@ ATBUS_MACRO_API int connection::listen() {
     // NOLINTEND(performance-no-int-to-ptr)
 
     if (res < 0) {
-      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, 0, "listen to mem address {} failed", address_.address);
+      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, 0, static_cast<ATBUS_ERROR_TYPE>(res),
+                            "listen to mem address {} failed", address_.address);
       return res;
     }
 
@@ -265,7 +266,8 @@ ATBUS_MACRO_API int connection::listen() {
     }
 
     if (res < 0) {
-      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, 0, "listen to shm address {} failed", address_.address);
+      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, 0, static_cast<ATBUS_ERROR_TYPE>(res),
+                            "listen to shm address {} failed", address_.address);
       return res;
     }
 
@@ -310,7 +312,7 @@ ATBUS_MACRO_API int connection::listen() {
         std::string lock_path = address_.host + ".lock";
         int lock_fd = try_flock_file(lock_path);
         if (lock_fd < 0) {
-          ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED, errno,
+          ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, errno, EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED,
                                 "listen {} and lock {} failed", address_.address, lock_path.c_str());
           return EN_ATBUS_ERR_PIPE_LOCK_PATH_FAILED;
         }
@@ -322,7 +324,7 @@ ATBUS_MACRO_API int connection::listen() {
 
       if (atfw::util::file_system::is_exist(address_.host.c_str())) {
         if (false == atfw::util::file_system::remove(address_.host.c_str())) {
-          ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_PIPE_REMOVE_FAILED, 0,
+          ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, 0, EN_ATBUS_ERR_PIPE_REMOVE_FAILED,
                                 "listen {} and remove old file {} failed", address_.address, address_.host.c_str());
           return EN_ATBUS_ERR_PIPE_REMOVE_FAILED;
         }
@@ -331,7 +333,7 @@ ATBUS_MACRO_API int connection::listen() {
 
     connection_async_data *async_data = new connection_async_data(owner_);
     if (nullptr == async_data) {
-      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_MALLOC, 0,
+      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, 0, EN_ATBUS_ERR_MALLOC,
                             "listen {} but malloc async data failed", address_.address);
       return EN_ATBUS_ERR_MALLOC;
     }
@@ -341,8 +343,8 @@ ATBUS_MACRO_API int connection::listen() {
     set_status(state_t::kConnecting);
     int res = channel::io_stream_listen(owner_->get_iostream_channel(), address_, iostream_on_listen_cb, async_data, 0);
     if (res < 0) {
-      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, owner_->get_iostream_channel()->error_code,
-                            "listen {} failed", address_.address);
+      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, owner_->get_iostream_channel()->error_code,
+                            static_cast<ATBUS_ERROR_TYPE>(res), "listen {} failed", address_.address);
       delete async_data;
     }
 
@@ -376,7 +378,8 @@ ATBUS_MACRO_API int connection::connect() {
     // NOLINTEND(performance-no-int-to-ptr)
 
     if (res < 0) {
-      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, 0, "connect to address {} failed", address_.address);
+      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, 0, static_cast<ATBUS_ERROR_TYPE>(res),
+                            "connect to address {} failed", address_.address);
       return res;
     }
 
@@ -416,7 +419,8 @@ ATBUS_MACRO_API int connection::connect() {
     }
 
     if (res < 0) {
-      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, 0, "connect to address {} failed", address_.address);
+      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, 0, static_cast<ATBUS_ERROR_TYPE>(res),
+                            "connect to address {} failed", address_.address);
       return res;
     }
 
@@ -464,7 +468,7 @@ ATBUS_MACRO_API int connection::connect() {
 
     connection_async_data *async_data = new connection_async_data(owner_);
     if (nullptr == async_data) {
-      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, EN_ATBUS_ERR_MALLOC, 0,
+      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, 0, EN_ATBUS_ERR_MALLOC,
                             "connect {} but malloc async data failed", address_.address);
       return EN_ATBUS_ERR_MALLOC;
     }
@@ -475,8 +479,8 @@ ATBUS_MACRO_API int connection::connect() {
     int res =
         channel::io_stream_connect(owner_->get_iostream_channel(), address_, iostream_on_connected_cb, async_data, 0);
     if (res < 0) {
-      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, res, owner_->get_iostream_channel()->error_code,
-                            "connect {} failed", address_.address);
+      ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, owner_->get_iostream_channel()->error_code,
+                            static_cast<ATBUS_ERROR_TYPE>(res), "connect {} failed", address_.address);
       delete async_data;
     }
 
@@ -607,8 +611,8 @@ ATBUS_MACRO_API void connection::unlock_address() noexcept {
 #endif
 
 ATBUS_MACRO_API void connection::iostream_on_listen_cb(channel::io_stream_channel *channel,
-                                                       channel::io_stream_connection *connection, int status,
-                                                       void *buffer, size_t) {
+                                                       channel::io_stream_connection *connection,
+                                                       ATBUS_ERROR_TYPE result_code, void *buffer, size_t) {
   connection_async_data *async_data = reinterpret_cast<connection_async_data *>(buffer);
   assert(nullptr != async_data);
   if (nullptr == async_data) {
@@ -620,9 +624,9 @@ ATBUS_MACRO_API void connection::iostream_on_listen_cb(channel::io_stream_channe
     addr_str = connection->addr.address;
   }
 
-  if (status < 0) {
-    ATBUS_FUNC_NODE_ERROR(*async_data->owner_node, async_data->conn->binding_, async_data->conn.get(), status,
-                          channel->error_code, "channel listen to {} failed", addr_str);
+  if (result_code < 0) {
+    ATBUS_FUNC_NODE_ERROR(*async_data->owner_node, async_data->conn->binding_, async_data->conn.get(),
+                          channel->error_code, result_code, "channel listen to {} failed", addr_str);
     async_data->conn->set_status(state_t::kDisconnected);
     ATBUS_FUNC_NODE_INFO(*async_data->conn->owner_, async_data->conn->binding_, async_data->conn.get(),
                          "channel disconnected(listen failed)");
@@ -647,8 +651,8 @@ ATBUS_MACRO_API void connection::iostream_on_listen_cb(channel::io_stream_channe
 }
 
 ATBUS_MACRO_API void connection::iostream_on_connected_cb(channel::io_stream_channel *channel,
-                                                          channel::io_stream_connection *connection, int status,
-                                                          void *buffer, size_t) {
+                                                          channel::io_stream_connection *connection,
+                                                          ATBUS_ERROR_TYPE result_code, void *buffer, size_t) {
   connection_async_data *async_data = reinterpret_cast<connection_async_data *>(buffer);
   assert(nullptr != async_data);
   if (nullptr == async_data) {
@@ -659,9 +663,9 @@ ATBUS_MACRO_API void connection::iostream_on_connected_cb(channel::io_stream_cha
   if (nullptr != connection) {
     addr_str = connection->addr.address;
   }
-  if (status < 0) {
-    ATBUS_FUNC_NODE_ERROR(*async_data->owner_node, async_data->conn->binding_, async_data->conn.get(), status,
-                          channel->error_code, "channel connect to {} failed", addr_str);
+  if (result_code < 0) {
+    ATBUS_FUNC_NODE_ERROR(*async_data->owner_node, async_data->conn->binding_, async_data->conn.get(),
+                          channel->error_code, result_code, "channel connect to {} failed", addr_str);
     // 连接失败，重置连接
     async_data->conn->reset();
 
@@ -686,8 +690,8 @@ ATBUS_MACRO_API void connection::iostream_on_connected_cb(channel::io_stream_cha
 }
 
 ATBUS_MACRO_API void connection::iostream_on_receive_cb(channel::io_stream_channel *channel,
-                                                        channel::io_stream_connection *conn_ios, int status,
-                                                        void *buffer, size_t s) {
+                                                        channel::io_stream_connection *conn_ios,
+                                                        ATBUS_ERROR_TYPE result_code, void *buffer, size_t s) {
   assert(channel && channel->data);
   if (nullptr == channel || nullptr == channel->data) {
     return;
@@ -701,7 +705,7 @@ ATBUS_MACRO_API void connection::iostream_on_receive_cb(channel::io_stream_chann
   }
   connection *conn = reinterpret_cast<connection *>(conn_ios->data);
 
-  if (status < 0 || nullptr == buffer || s <= 0) {
+  if (result_code < 0 || nullptr == buffer || s <= 0) {
     if (nullptr != conn && (UV_EOF == channel->error_code || UV_ECONNRESET == channel->error_code)) {
       conn->flags_.set(static_cast<size_t>(flag_t::kPeerClosed), true);
     }
@@ -709,7 +713,7 @@ ATBUS_MACRO_API void connection::iostream_on_receive_cb(channel::io_stream_chann
     ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
     arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
     message m{arena_options};
-    _this->on_receive_message(conn, std::move(m), status, static_cast<ATBUS_ERROR_TYPE>(channel->error_code));
+    _this->on_receive_message(conn, std::move(m), channel->error_code, result_code);
     return;
   }
 
@@ -733,13 +737,13 @@ ATBUS_MACRO_API void connection::iostream_on_receive_cb(channel::io_stream_chann
   }
 
   if (nullptr != _this) {
-    _this->on_receive_message(conn, std::move(m), status, static_cast<ATBUS_ERROR_TYPE>(channel->error_code));
+    _this->on_receive_message(conn, std::move(m), 0, EN_ATBUS_ERR_SUCCESS);
   }
 }
 
 ATBUS_MACRO_API void connection::iostream_on_accepted(channel::io_stream_channel *channel,
-                                                      channel::io_stream_connection *conn_ios, int /*status*/,
-                                                      void * /*buffer*/, size_t) {
+                                                      channel::io_stream_connection *conn_ios,
+                                                      ATBUS_ERROR_TYPE /*result_code*/, void * /*buffer*/, size_t) {
   // 连接成功加入点对点传输池
   // 加入超时检测
   node *n = reinterpret_cast<node *>(channel->data);
@@ -775,11 +779,11 @@ ATBUS_MACRO_API void connection::iostream_on_accepted(channel::io_stream_channel
 }
 
 ATBUS_MACRO_API void connection::iostream_on_connected(channel::io_stream_channel *, channel::io_stream_connection *,
-                                                       int /*status*/, void * /*buffer*/, size_t) {}
+                                                       ATBUS_ERROR_TYPE /*result_code*/, void * /*buffer*/, size_t) {}
 
 ATBUS_MACRO_API void connection::iostream_on_disconnected(channel::io_stream_channel *,
-                                                          channel::io_stream_connection *conn_ios, int /*status*/,
-                                                          void * /*buffer*/, size_t) {
+                                                          channel::io_stream_connection *conn_ios,
+                                                          ATBUS_ERROR_TYPE /*result_code*/, void * /*buffer*/, size_t) {
   connection *conn = reinterpret_cast<connection *>(conn_ios->data);
 
   // 主动关闭时会先释放connection，这时候connection已经被释放，不需要再重置
@@ -792,8 +796,8 @@ ATBUS_MACRO_API void connection::iostream_on_disconnected(channel::io_stream_cha
 }
 
 ATBUS_MACRO_API void connection::iostream_on_written(channel::io_stream_channel *channel,
-                                                     channel::io_stream_connection *conn_ios, int status,
-                                                     void * /*buffer*/, size_t s) {
+                                                     channel::io_stream_connection *conn_ios,
+                                                     ATBUS_ERROR_TYPE result_code, void * /*buffer*/, size_t s) {
   node *n = reinterpret_cast<node *>(channel->data);
   assert(nullptr != n);
   if (nullptr == n) {
@@ -801,14 +805,14 @@ ATBUS_MACRO_API void connection::iostream_on_written(channel::io_stream_channel 
   }
   connection *conn = reinterpret_cast<connection *>(conn_ios->data);
 
-  if (EN_ATBUS_ERR_SUCCESS != status) {
+  if (EN_ATBUS_ERR_SUCCESS != result_code) {
     if (nullptr != conn) {
       ++conn->stat_.push_failed_times;
       conn->stat_.push_failed_size += s;
     }
 
     // NOLINTNEXTLINE(clang-analyzer-core.CallAndMessage)
-    ATBUS_FUNC_NODE_ERROR(*n, nullptr != conn ? conn->get_binding() : nullptr, conn, status, channel->error_code,
+    ATBUS_FUNC_NODE_ERROR(*n, nullptr != conn ? conn->get_binding() : nullptr, conn, channel->error_code, result_code,
                           "write data({} bytes) to {} failed", s, conn_ios->addr.address);
   } else {
     if (nullptr != conn) {
@@ -831,7 +835,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE connection::shm_proc_fn(node &n, connection &co
   size_t left_times = static_cast<size_t>(n.get_conf().loop_times);
   detail::buffer_block *static_buffer = n.get_temp_static_buffer();
   if (nullptr == static_buffer) {
-    ATBUS_FUNC_NODE_ERROR(n, nullptr, &conn, static_cast<int>(EN_ATBUS_ERR_NOT_INITED), 0, "node not inited");
+    ATBUS_FUNC_NODE_ERROR(n, nullptr, &conn, 0, EN_ATBUS_ERR_NOT_INITED, "node not inited");
     return EN_ATBUS_ERR_NOT_INITED;
   }
 
@@ -851,7 +855,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE connection::shm_proc_fn(node &n, connection &co
       arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
       message m{arena_options};
 
-      n.on_receive_message(&conn, std::move(m), res, static_cast<ATBUS_ERROR_TYPE>(res));
+      n.on_receive_message(&conn, std::move(m), 0, static_cast<ATBUS_ERROR_TYPE>(res));
       break;
     }
 
@@ -869,7 +873,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE connection::shm_proc_fn(node &n, connection &co
       continue;
     }
 
-    n.on_receive_message(&conn, std::move(m), res, static_cast<ATBUS_ERROR_TYPE>(res));
+    n.on_receive_message(&conn, std::move(m), 0, EN_ATBUS_ERR_SUCCESS);
     ++ret;
   }
 
@@ -900,7 +904,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE connection::mem_proc_fn(node &n, connection &co
   size_t left_times = static_cast<size_t>(n.get_conf().loop_times);
   detail::buffer_block *static_buffer = n.get_temp_static_buffer();
   if (nullptr == static_buffer) {
-    ATBUS_FUNC_NODE_ERROR(n, nullptr, &conn, EN_ATBUS_ERR_NOT_INITED, 0, "node not inited");
+    ATBUS_FUNC_NODE_ERROR(n, nullptr, &conn, 0, EN_ATBUS_ERR_NOT_INITED, "node not inited");
     return EN_ATBUS_ERR_NOT_INITED;
   }
 
@@ -920,7 +924,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE connection::mem_proc_fn(node &n, connection &co
       arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
       message m{arena_options};
 
-      n.on_receive_message(&conn, std::move(m), res, static_cast<ATBUS_ERROR_TYPE>(res));
+      n.on_receive_message(&conn, std::move(m), 0, static_cast<ATBUS_ERROR_TYPE>(res));
       break;
     }
 
@@ -937,7 +941,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE connection::mem_proc_fn(node &n, connection &co
       continue;
     }
 
-    n.on_receive_message(&conn, std::move(m), res, static_cast<ATBUS_ERROR_TYPE>(res));
+    n.on_receive_message(&conn, std::move(m), 0, EN_ATBUS_ERR_SUCCESS);
     ++ret;
   }
 
@@ -984,14 +988,14 @@ ATBUS_MACRO_API bool connection::unpack(connection &conn, message &m, gsl::span<
       ATBUS_FUNC_NODE_DEBUG(*conn.owner_, conn.binding_, &conn, &m, "{}", m.get_unpack_error_message());
     }
 
-    ATBUS_FUNC_NODE_ERROR(*conn.owner_, conn.binding_, &conn, EN_ATBUS_ERR_UNPACK, res, "unpack message failed: {}",
-                          m.get_unpack_error_message());
+    ATBUS_FUNC_NODE_ERROR(*conn.owner_, conn.binding_, &conn, 0, static_cast<ATBUS_ERROR_TYPE>(res),
+                          "unpack message failed: {}", m.get_unpack_error_message());
     return false;
   }
 
   if (message_body_type::MESSAGE_TYPE_NOT_SET == m.get_body_type()) {
-    ATBUS_FUNC_NODE_ERROR(*conn.owner_, conn.binding_, &conn, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_BAD_DATA,
-                          "unpack message failed: {}", "body type not set");
+    ATBUS_FUNC_NODE_ERROR(*conn.owner_, conn.binding_, &conn, 0, EN_ATBUS_ERR_BAD_DATA, "unpack message failed: {}",
+                          "body type not set");
     return false;
   }
 

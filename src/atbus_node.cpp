@@ -706,7 +706,7 @@ ATBUS_MACRO_API int node::proc(std::chrono::system_clock::time_point now) {
     }
 
     if (!timer_obj_ptr->second->check_flag(connection::flag_t::kTemporary)) {
-      ATBUS_FUNC_NODE_ERROR(*this, nullptr, timer_obj_ptr->second.get(), EN_ATBUS_ERR_NODE_TIMEOUT, 0,
+      ATBUS_FUNC_NODE_ERROR(*this, nullptr, timer_obj_ptr->second.get(), 0, EN_ATBUS_ERR_NODE_TIMEOUT,
                             "connection {} timeout", timer_obj_ptr->second->get_address().address);
     }
     timer_obj_ptr->second->reset();
@@ -735,8 +735,8 @@ ATBUS_MACRO_API int node::proc(std::chrono::system_clock::time_point now) {
     if (nullptr == ctl_conn) {
       int res = connect(conf_.upstream_address);
       if (res < 0) {
-        ATBUS_FUNC_NODE_ERROR(*this, nullptr, nullptr, res, 0, "reconnect upstream node {} failed",
-                              conf_.upstream_address);
+        ATBUS_FUNC_NODE_ERROR(*this, nullptr, nullptr, 0, static_cast<ATBUS_ERROR_TYPE>(res),
+                              "reconnect upstream node {} failed", conf_.upstream_address);
 
         event_timer_.upstream_op_timepoint = now + conf_.retry_interval;
       } else {
@@ -751,8 +751,8 @@ ATBUS_MACRO_API int node::proc(std::chrono::system_clock::time_point now) {
       } else {
         int res = ping_endpoint(*node_upstream_.node_);
         if (res < 0) {
-          ATBUS_FUNC_NODE_ERROR(*this, nullptr, nullptr, res, 0, "ping upstream node {} failed",
-                                conf_.upstream_address);
+          ATBUS_FUNC_NODE_ERROR(*this, nullptr, nullptr, 0, static_cast<ATBUS_ERROR_TYPE>(res),
+                                "ping upstream node {} failed", conf_.upstream_address);
         }
       }
 
@@ -1117,8 +1117,7 @@ ATBUS_MACRO_API int node::send_data(bus_id_t tid, int32_t type, gsl::span<const 
   atbus::protocol::message_head &head = m.mutable_head();
   atbus::protocol::forward_data *body = m.mutable_body().mutable_data_transform_req();
   if (nullptr == body) {
-    ATBUS_FUNC_NODE_ERROR(*this, nullptr, nullptr, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC,
-                          "failed to allocate forward_data");
+    ATBUS_FUNC_NODE_ERROR(*this, nullptr, nullptr, 0, EN_ATBUS_ERR_MALLOC, "failed to allocate forward_data");
     return EN_ATBUS_ERR_MALLOC;
   }
 
@@ -1174,8 +1173,7 @@ ATBUS_MACRO_API int node::send_custom_command(bus_id_t tid, gsl::span<gsl::span<
   atbus::protocol::message_head &head = m.mutable_head();
   atbus::protocol::custom_command_data *body = m.mutable_body().mutable_custom_command_req();
   if (nullptr == body) {
-    ATBUS_FUNC_NODE_ERROR(*this, nullptr, nullptr, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_MALLOC,
-                          "failed to allocate custom command");
+    ATBUS_FUNC_NODE_ERROR(*this, nullptr, nullptr, 0, EN_ATBUS_ERR_MALLOC, "failed to allocate custom command");
     return EN_ATBUS_ERR_MALLOC;
   }
 
@@ -1543,7 +1541,7 @@ ATBUS_MACRO_API bool node::check_access_hash(const ::atframework::atbus::protoco
                                              atfw::util::nostd::string_view plaintext, connection *conn) const {
   const endpoint *ep = conn == nullptr ? nullptr : conn->get_binding();
   if (access_key.algorithm() != ::atframework::atbus::protocol::ATBUS_ACCESS_DATA_ALGORITHM_HMAC_SHA256) {
-    ATBUS_FUNC_NODE_ERROR(*this, ep, conn, EN_ATBUS_ERR_ALGORITHM_NOT_SUPPORT, 0,
+    ATBUS_FUNC_NODE_ERROR(*this, ep, conn, 0, EN_ATBUS_ERR_ALGORITHM_NOT_SUPPORT,
                           "access hash algorithm {} not supported", static_cast<int>(access_key.algorithm()));
     return false;
   }
@@ -1554,13 +1552,13 @@ ATBUS_MACRO_API bool node::check_access_hash(const ::atframework::atbus::protoco
 
   if (conf_.access_tokens.empty()) {
     ATBUS_FUNC_NODE_ERROR(
-        *this, ep, conn, EN_ATBUS_ERR_ACCESS_DENY, 0,
+        *this, ep, conn, 0, EN_ATBUS_ERR_ACCESS_DENY,
         "access hash configuration is empty; we do not allow handshaking an endpoint with a signature.");
     return false;
   }
 
   if (access_key.signature().empty()) {
-    ATBUS_FUNC_NODE_ERROR(*this, ep, conn, EN_ATBUS_ERR_ACCESS_DENY, 0,
+    ATBUS_FUNC_NODE_ERROR(*this, ep, conn, 0, EN_ATBUS_ERR_ACCESS_DENY,
                           "access hash configuration is not empty; signature is required.");
     return false;
   }
@@ -1577,7 +1575,7 @@ ATBUS_MACRO_API bool node::check_access_hash(const ::atframework::atbus::protoco
     }
   }
 
-  ATBUS_FUNC_NODE_ERROR(*this, ep, conn, EN_ATBUS_ERR_ACCESS_DENY, 0, "no valid access hash found.");
+  ATBUS_FUNC_NODE_ERROR(*this, ep, conn, 0, EN_ATBUS_ERR_ACCESS_DENY, "no valid access hash found.");
   return false;
 }
 
@@ -1887,7 +1885,12 @@ ATBUS_MACRO_API void node::on_receive_message(connection *conn, message &&m, int
     if (conn != nullptr) {
       conn_addr = conn->get_address().address;
     }
-    ATBUS_FUNC_NODE_ERROR(*this, nullptr, conn, status, errcode, "receive message from {} failed", conn_addr);
+    if (UV_EOF == status || UV_ECONNRESET == status) {
+      const char *msg = UV_EOF == status ? "EOF" : "reset by peer";
+      ATBUS_FUNC_NODE_INFO(*this, nullptr, conn, "got {} from {}", msg, conn_addr);
+    } else {
+      ATBUS_FUNC_NODE_ERROR(*this, nullptr, conn, status, errcode, "receive message from {} failed", conn_addr);
+    }
 
     if (nullptr != conn) {
       // maybe removed all reference of this connection after call add_endpoint_fault()
@@ -1999,7 +2002,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_new_connection(connection *conn) {
     ATBUS_ERROR_TYPE ret = message_handler::send_register(message_body_type::kNodeRegisterReq, *this, *conn, 0,
                                                           allocate_message_sequence());
     if (ret != EN_ATBUS_ERR_SUCCESS) {
-      ATBUS_FUNC_NODE_ERROR(*this, nullptr, conn, ret, 0, "send node register message to {} failed",
+      ATBUS_FUNC_NODE_ERROR(*this, nullptr, conn, 0, ret, "send node register message to {} failed",
                             conn->get_address().address);
       conn->reset();
       return ret;
@@ -2147,8 +2150,7 @@ ATBUS_MACRO_API int node::dispatch_all_self_messages() {
       // unpack
       auto body_type = m.get_body_type();
       if (nullptr == m.get_head() || message_body_type::MESSAGE_TYPE_NOT_SET == body_type) {
-        ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), nullptr, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_UNPACK,
-                              "head or body type unset");
+        ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), nullptr, 0, EN_ATBUS_ERR_UNPACK, "head or body type unset");
         break;
       }
 
@@ -2181,8 +2183,7 @@ ATBUS_MACRO_API int node::dispatch_all_self_messages() {
       // unpack
       auto body_type = m.get_body_type();
       if (nullptr == m.get_head() || message_body_type::MESSAGE_TYPE_NOT_SET == body_type) {
-        ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), nullptr, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_UNPACK,
-                              "head or body type unset");
+        ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), nullptr, 0, EN_ATBUS_ERR_UNPACK, "head or body type unset");
         break;
       }
 
@@ -2711,8 +2712,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::send_message(bus_id_t tid, message_builde
     auto body_type = mb.get_body_type();
 
     if (nullptr == head || message_body_type::MESSAGE_TYPE_NOT_SET == body_type) {
-      ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), nullptr, EN_ATBUS_ERR_UNPACK, EN_ATBUS_ERR_UNPACK,
-                            "head or body type unset");
+      ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), nullptr, 0, EN_ATBUS_ERR_UNPACK, "head or body type unset");
       return EN_ATBUS_ERR_UNPACK;
     }
 
@@ -2722,7 +2722,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::send_message(bus_id_t tid, message_builde
 
     if (!(message_body_type::kDataTransformReq == body_type || message_body_type::kDataTransformRsp == body_type ||
           message_body_type::kCustomCommandReq == body_type || message_body_type::kCustomCommandRsp == body_type)) {
-      ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), nullptr, EN_ATBUS_ERR_ATNODE_INVALID_MSG, 0,
+      ATBUS_FUNC_NODE_ERROR(*this, get_self_endpoint(), nullptr, 0, EN_ATBUS_ERR_ATNODE_INVALID_MSG,
                             "invalid body type {}", static_cast<int>(body_type));
       return EN_ATBUS_ERR_ATNODE_INVALID_MSG;
     }
@@ -2765,8 +2765,8 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::send_message(bus_id_t tid, message_builde
   const auto *head = mb.get_head();
   auto body_type = mb.get_body_type();
   if (nullptr == head || message_body_type::MESSAGE_TYPE_NOT_SET == body_type) {
-    ATBUS_FUNC_NODE_ERROR(*this, ep_out ? (*ep_out) : conn->get_binding(), conn, EN_ATBUS_ERR_UNPACK,
-                          EN_ATBUS_ERR_UNPACK, "head or body type unset");
+    ATBUS_FUNC_NODE_ERROR(*this, ep_out ? (*ep_out) : conn->get_binding(), conn, 0, EN_ATBUS_ERR_UNPACK,
+                          "head or body type unset");
     return EN_ATBUS_ERR_UNPACK;
   }
 

@@ -954,13 +954,14 @@ ATBUS_MACRO_NAMESPACE_END
 
 #ifdef _MSC_VER
 // NOLINTNEXTLINE(bugprone-macro-parentheses)
-#  define ATBUS_FUNC_NODE_ERROR(n, ep, conn, status, errorcode, fmt, ...)                                              \
-    if ((n).get_logger()) {                                                                                            \
-      FWINSTLOGERROR(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}, status: {}, error_code: {}: " fmt, \
-                     ::atframework::atbus::details::__log_get_node_id(n),                                              \
-                     ::atframework::atbus::details::__log_get_endpoint_id(ep),                                         \
-                     ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), (status), (errorcode),         \
-                     __VA_ARGS__)                                                                                      \
+#  define ATBUS_FUNC_NODE_ERROR(n, ep, conn, status, errorcode, fmt, ...)                                            \
+    if ((n).get_logger()) {                                                                                          \
+      FWINSTLOGERROR(                                                                                                \
+          *(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}, status: {}, error_code: {}({}): " fmt,      \
+          ::atframework::atbus::details::__log_get_node_id(n),                                                       \
+          ::atframework::atbus::details::__log_get_endpoint_id(ep),                                                  \
+          ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), (status),                               \
+          static_cast<int32_t>(errorcode), libatbus_strerror(static_cast<ATBUS_ERROR_TYPE>(errorcode)), __VA_ARGS__) \
     }
 
 // NOLINTNEXTLINE(bugprone-macro-parentheses)
@@ -988,12 +989,14 @@ ATBUS_MACRO_NAMESPACE_END
 #else
 
 // NOLINTNEXTLINE(bugprone-macro-parentheses)
-#  define ATBUS_FUNC_NODE_ERROR(n, ep, conn, status, errorcode, fmt, args...)                                          \
-    if ((n).get_logger()) {                                                                                            \
-      FWINSTLOGERROR(*(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}, status: {}, error_code: {}: " fmt, \
-                     ::atframework::atbus::details::__log_get_node_id(n),                                              \
-                     ::atframework::atbus::details::__log_get_endpoint_id(ep),                                         \
-                     ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), (status), (errorcode), ##args) \
+#  define ATBUS_FUNC_NODE_ERROR(n, ep, conn, status, errorcode, fmt, args...)                                   \
+    if ((n).get_logger()) {                                                                                     \
+      FWINSTLOGERROR(                                                                                           \
+          *(n).get_logger(), "node={:#x}, endpoint={:#x}, connection={}, status: {}, error_code: {}({}): " fmt, \
+          ::atframework::atbus::details::__log_get_node_id(n),                                                  \
+          ::atframework::atbus::details::__log_get_endpoint_id(ep),                                             \
+          ::atframework::atbus::details::__log_get_connection_fmt_ptr(conn), (status),                          \
+          static_cast<int32_t>(errorcode), libatbus_strerror(static_cast<ATBUS_ERROR_TYPE>(errorcode)), ##args) \
     }
 
 // NOLINTNEXTLINE(bugprone-macro-parentheses)

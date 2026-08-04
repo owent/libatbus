@@ -20,6 +20,7 @@
 #include <unordered_map>
 
 #include "detail/libatbus_config.h"
+#include "detail/libatbus_error.h"
 
 #include "buffer.h"
 #include "detail/libatbus_adapter_libuv.h"
@@ -73,11 +74,12 @@ using shm_stats_block_error = mem_stats_block_error;
 // stream channel(tcp,pipe(unix socket) and etc. udp is not a stream)
 struct io_stream_connection;
 struct io_stream_channel;
-using io_stream_callback_t = void (*)(io_stream_channel *channel,        // 事件触发的channel
-                                      io_stream_connection *connection,  // 事件触发的连接
-                                      int status,                        // libuv传入的转态码
-                                      void *,                            // 额外参数(不同事件不同含义)
-                                      size_t s                           // 额外参数长度
+using io_stream_callback_t = void (*)(
+    io_stream_channel *channel,        // 事件触发的channel
+    io_stream_connection *connection,  // 事件触发的连接
+    ATBUS_ERROR_TYPE result_code,      // 内部错误码，libuv传入的错误码记录在 channel->error_code
+    void *,                            // 额外参数(不同事件不同含义)
+    size_t s                           // 额外参数长度
 );
 
 struct ATBUS_MACRO_API_HEAD_ONLY io_stream_callback_event_t {

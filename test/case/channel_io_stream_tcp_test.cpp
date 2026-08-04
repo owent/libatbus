@@ -22,9 +22,9 @@ static std::list<std::pair<size_t, size_t> > g_check_buff_sequence;
 
 static void disconnected_callback_test_fn(atbus::channel::io_stream_channel *channel,        // 事件触发的channel
                                           atbus::channel::io_stream_connection *connection,  // 事件触发的连接
-                                          int status,                                        // libuv传入的转态码
-                                          void *,  // 额外参数(不同事件不同含义)
-                                          size_t   // 额外参数长度
+                                          ATBUS_ERROR_TYPE status,  // 内部错误码，libuv错误码见 channel->error_code
+                                          void *,                   // 额外参数(不同事件不同含义)
+                                          size_t                    // 额外参数长度
 ) {
   CASE_EXPECT_NE(nullptr, channel);
   CASE_EXPECT_NE(nullptr, connection);
@@ -42,9 +42,9 @@ static void disconnected_callback_test_fn(atbus::channel::io_stream_channel *cha
 
 static void accepted_callback_test_fn(atbus::channel::io_stream_channel *channel,        // 事件触发的channel
                                       atbus::channel::io_stream_connection *connection,  // 事件触发的连接
-                                      int status,                                        // libuv传入的转态码
-                                      void *,                                            // 额外参数(不同事件不同含义)
-                                      size_t                                             // 额外参数长度
+                                      ATBUS_ERROR_TYPE status,  // 内部错误码，libuv错误码见 channel->error_code
+                                      void *,                   // 额外参数(不同事件不同含义)
+                                      size_t                    // 额外参数长度
 ) {
   CASE_EXPECT_NE(nullptr, channel);
   CASE_EXPECT_NE(nullptr, connection);
@@ -62,9 +62,9 @@ static void accepted_callback_test_fn(atbus::channel::io_stream_channel *channel
 
 static void listen_callback_test_fn(atbus::channel::io_stream_channel *channel,        // 事件触发的channel
                                     atbus::channel::io_stream_connection *connection,  // 事件触发的连接
-                                    int status,                                        // libuv传入的转态码
-                                    void *,                                            // 额外参数(不同事件不同含义)
-                                    size_t                                             // 额外参数长度
+                                    ATBUS_ERROR_TYPE status,  // 内部错误码，libuv错误码见 channel->error_code
+                                    void *,                   // 额外参数(不同事件不同含义)
+                                    size_t                    // 额外参数长度
 ) {
   CASE_EXPECT_NE(nullptr, channel);
   CASE_EXPECT_NE(nullptr, connection);
@@ -80,9 +80,9 @@ static void listen_callback_test_fn(atbus::channel::io_stream_channel *channel, 
 
 static void connected_callback_test_fn(atbus::channel::io_stream_channel *channel,        // 事件触发的channel
                                        atbus::channel::io_stream_connection *connection,  // 事件触发的连接
-                                       int status,                                        // libuv传入的转态码
-                                       void *,                                            // 额外参数(不同事件不同含义)
-                                       size_t                                             // 额外参数长度
+                                       ATBUS_ERROR_TYPE status,  // 内部错误码，libuv错误码见 channel->error_code
+                                       void *,                   // 额外参数(不同事件不同含义)
+                                       size_t                    // 额外参数长度
 ) {
   CASE_EXPECT_NE(nullptr, channel);
   CASE_EXPECT_NE(nullptr, connection);
@@ -133,9 +133,9 @@ static char *get_test_buffer() {
 
 static void recv_callback_check_fn(atbus::channel::io_stream_channel *channel,        // 事件触发的channel
                                    atbus::channel::io_stream_connection *connection,  // 事件触发的连接
-                                   int status,                                        // libuv传入的转态码
-                                   void *input,                                       // 额外参数(不同事件不同含义)
-                                   size_t s                                           // 额外参数长度
+                                   ATBUS_ERROR_TYPE status,  // 内部错误码，libuv错误码见 channel->error_code
+                                   void *input,              // 额外参数(不同事件不同含义)
+                                   size_t s                  // 额外参数长度
 ) {
   CASE_EXPECT_NE(nullptr, channel);
   CASE_EXPECT_NE(nullptr, connection);
@@ -362,9 +362,9 @@ CASE_TEST(channel, io_stream_tcp_reset_by_server) {
 
 static void recv_size_err_callback_check_fn(atbus::channel::io_stream_channel *channel,        // 事件触发的channel
                                             atbus::channel::io_stream_connection *connection,  // 事件触发的连接
-                                            int status,                                        // libuv传入的转态码
-                                            void *input,  // 额外参数(不同事件不同含义)
-                                            size_t        // 额外参数长度
+                                            ATBUS_ERROR_TYPE status,  // 内部错误码，libuv错误码见 channel->error_code
+                                            void *input,              // 额外参数(不同事件不同含义)
+                                            size_t                    // 额外参数长度
 ) {
   CASE_EXPECT_NE(nullptr, channel);
   CASE_EXPECT_NE(nullptr, connection);
@@ -458,9 +458,9 @@ CASE_TEST(channel, io_stream_tcp_size_extended) {
 
 static void connect_failed_callback_test_fn(atbus::channel::io_stream_channel *channel,        // 事件触发的channel
                                             atbus::channel::io_stream_connection *connection,  // 事件触发的连接
-                                            int status,                                        // libuv传入的转态码
-                                            void *,  // 额外参数(不同事件不同含义)
-                                            size_t   // 额外参数长度
+                                            ATBUS_ERROR_TYPE status,  // 内部错误码，libuv错误码见 channel->error_code
+                                            void *,                   // 额外参数(不同事件不同含义)
+                                            size_t                    // 额外参数长度
 ) {
   CASE_EXPECT_NE(nullptr, channel);
   CASE_EXPECT_EQ(nullptr, connection);
@@ -525,12 +525,13 @@ static int g_written_callback_count = 0;
 static size_t g_written_callback_total_size = 0;
 
 static void written_callback_test_fn(atbus::channel::io_stream_channel *channel,
-                                     atbus::channel::io_stream_connection *connection, int status, void *, size_t s) {
+                                     atbus::channel::io_stream_connection *connection, ATBUS_ERROR_TYPE result_code,
+                                     void *, size_t s) {
   CASE_EXPECT_NE(nullptr, channel);
   CASE_EXPECT_NE(nullptr, connection);
-  CASE_EXPECT_EQ(0, status);
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result_code);
 
-  if (0 != status) {
+  if (EN_ATBUS_ERR_SUCCESS != result_code) {
     CASE_MSG_INFO() << "write failed: " << uv_err_name(channel->error_code) << ":" << uv_strerror(channel->error_code)
                     << std::endl;
   } else {

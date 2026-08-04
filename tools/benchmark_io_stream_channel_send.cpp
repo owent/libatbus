@@ -34,9 +34,9 @@ static void send_data(atbus::channel::io_stream_connection *connection);
 
 static void connect_callback(atbus::channel::io_stream_channel *channel,        // 事件触发的channel
                              atbus::channel::io_stream_connection *connection,  // 事件触发的连接
-                             int status,                                        // libuv传入的转态码
-                             void *,                                            // 额外参数(不同事件不同含义)
-                             size_t                                             // 额外参数长度
+                             ATBUS_ERROR_TYPE status,  // 内部错误码，libuv错误码见 channel->error_code
+                             void *,                   // 额外参数(不同事件不同含义)
+                             size_t                    // 额外参数长度
 ) {
   if (0 != status) {
     std::cerr << "connect failed, statue: " << status << std::endl;
@@ -50,18 +50,18 @@ static void connect_callback(atbus::channel::io_stream_channel *channel,        
 
 static void sended_callback(atbus::channel::io_stream_channel *channel,        // 事件触发的channel
                             atbus::channel::io_stream_connection *connection,  // 事件触发的连接
-                            int status,                                        // libuv传入的转态码
-                            void *,                                            // 额外参数(不同事件不同含义)
-                            size_t s                                           // 额外参数长度
+                            ATBUS_ERROR_TYPE result_code,  // 内部错误码，libuv错误码见 channel->error_code
+                            void *,                        // 额外参数(不同事件不同含义)
+                            size_t s                       // 额外参数长度
 ) {
   assert(channel);
   assert(connection);
 
   --conf.pending_send;
 
-  if (0 != status) {
-    fprintf(stderr, "io_stream_send callback error, ret code: %d. %s: %s\n", status, uv_err_name(channel->error_code),
-            uv_strerror(channel->error_code));
+  if (EN_ATBUS_ERR_SUCCESS != result_code) {
+    fprintf(stderr, "io_stream_send callback error, ret code: %d. %s: %s\n", static_cast<int>(result_code),
+            uv_err_name(channel->error_code), uv_strerror(channel->error_code));
 
     ++conf.sum_send_err;
     return;
@@ -74,9 +74,9 @@ static void sended_callback(atbus::channel::io_stream_channel *channel,        /
 
 static void closed_callback(EXPLICIT_UNUSED_ATTR atbus::channel::io_stream_channel *channel,        // 事件触发的channel
                             EXPLICIT_UNUSED_ATTR atbus::channel::io_stream_connection *connection,  // 事件触发的连接
-                            int /*status*/,                                                         // libuv传入的转态码
-                            void *,  // 额外参数(不同事件不同含义)
-                            size_t   // 额外参数长度
+                            ATBUS_ERROR_TYPE /*result_code*/,  // 内部错误码，libuv错误码见 channel->error_code
+                            void *,                            // 额外参数(不同事件不同含义)
+                            size_t                             // 额外参数长度
 ) {
   assert(channel);
   assert(connection);
@@ -202,4 +202,3 @@ static void send_data(atbus::channel::io_stream_connection *connection) {
     }
   }
 }
-

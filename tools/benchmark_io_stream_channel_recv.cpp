@@ -30,16 +30,16 @@ run_config conf;
 
 static void recv_callback(atbus::channel::io_stream_channel *channel,        // 事件触发的channel
                           atbus::channel::io_stream_connection *connection,  // 事件触发的连接
-                          int status,                                        // libuv传入的转态码
-                          void *buff,                                        // 额外参数(不同事件不同含义)
-                          size_t s                                           // 额外参数长度
+                          ATBUS_ERROR_TYPE result_code,  // 内部错误码，libuv错误码见 channel->error_code
+                          void *buff,                    // 额外参数(不同事件不同含义)
+                          size_t s                       // 额外参数长度
 ) {
   assert(channel);
   assert(connection);
 
-  if (0 != status) {
-    fprintf(stderr, "recv callback error, ret code: %d. %s: %s\n", status, uv_err_name(channel->error_code),
-            uv_strerror(channel->error_code));
+  if (0 != result_code) {
+    fprintf(stderr, "recv callback error, ret code: %d. %s: %s\n", static_cast<int>(result_code),
+            uv_err_name(channel->error_code), uv_strerror(channel->error_code));
 
     ++conf.sum_recv_err;
     return;
@@ -62,7 +62,7 @@ static void recv_callback(atbus::channel::io_stream_channel *channel,        // 
 
     if (!passed) {
       ++conf.sum_recv_err;
-      std::cerr << "recv callback check error" << std::endl;
+      std::cerr << "recv callback check error" << '\n';
     } else {
       ++conf.sum_recv_times;
       conf.sum_recv_len += s;
@@ -82,16 +82,18 @@ static void stat_callback(uv_timer_t * /*handle*/) {
 
   ++secs;
 
-  while (conf.sum_recv_len / unit_devi[unit_index] > 1024 && unit_index < sizeof(unit_devi) / sizeof(size_t) - 1)
+  while (conf.sum_recv_len / unit_devi[unit_index] > 1024 && unit_index < (sizeof(unit_devi) / sizeof(size_t)) - 1)
     ++unit_index;
 
-  while (conf.sum_recv_len / unit_devi[unit_index] <= 1024 && unit_index > 0) --unit_index;
+  while (conf.sum_recv_len / unit_devi[unit_index] <= 1024 && unit_index > 0) {
+    --unit_index;
+  }
 
-  std::cout << "[ RUNNING  ] NO." << secs << " m" << std::endl
+  std::cout << "[ RUNNING  ] NO." << secs << " m" << '\n'
             << "[ RUNNING  ] recv(" << conf.sum_recv_times << " times, " << (conf.sum_recv_len / unit_devi[unit_index])
             << " " << unit_desc[unit_index] << ") " << "full " << conf.sum_recv_full << " times, err "
-            << conf.sum_recv_err << " times" << std::endl
-            << std::endl;
+            << conf.sum_recv_err << " times" << '\n'
+            << '\n';
 
   std::cout.flush();
   std::cerr.flush();
@@ -99,9 +101,9 @@ static void stat_callback(uv_timer_t * /*handle*/) {
 
 static void closed_callback(EXPLICIT_UNUSED_ATTR atbus::channel::io_stream_channel *channel,        // 事件触发的channel
                             EXPLICIT_UNUSED_ATTR atbus::channel::io_stream_connection *connection,  // 事件触发的连接
-                            int /*status*/,                                                         // libuv传入的转态码
-                            void *,  // 额外参数(不同事件不同含义)
-                            size_t   // 额外参数长度
+                            ATBUS_ERROR_TYPE /*result_code*/,  // 内部错误码，libuv错误码见 channel->error_code
+                            void *,                            // 额外参数(不同事件不同含义)
+                            size_t                             // 额外参数长度
 ) {
   assert(channel);
   assert(connection);
@@ -152,7 +154,7 @@ int main(int argc, char *argv[]) {
 
   if (io_stream_listen(&channel, addr, nullptr, nullptr, 0) < 0) {
     std::cerr << "listen to " << argv[1] << " failed." << uv_err_name(channel.error_code) << ":"
-              << uv_strerror(channel.error_code) << std::endl;
+              << uv_strerror(channel.error_code) << '\n';
     io_stream_close(&channel);
     return -1;
   }
@@ -165,4 +167,3 @@ int main(int argc, char *argv[]) {
   io_stream_close(&channel);
   return ret;
 }
-

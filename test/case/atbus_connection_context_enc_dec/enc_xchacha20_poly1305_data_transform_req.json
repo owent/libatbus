@@ -1,0 +1,23 @@
+{
+  "name": "enc_xchacha20_poly1305_data_transform_req",
+  "description": "Data transform request with xchacha20_poly1305 encryption",
+  "protocol_version": 3,
+  "body_type": "data_transform_req",
+  "body_type_case": 13,
+  "crypto_algorithm": "xchacha20_poly1305",
+  "crypto_algorithm_type": 33,
+  "key_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "key_size": 32,
+  "iv_hex": "c0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7",
+  "iv_size": 24,
+  "aad_hex": "0ae97d2cf100bf386f9893dc7e71aaae",
+  "aad_size": 16,
+  "packed_size": 118,
+  "packed_hex": "340803322e08211218c0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d75a100ae97d2cf100bf386f9893dc7e71aaae4831eab1822321e5401a2a5640e544c9ab251995bea17ab798741075f5c0014bdddea315e464b2747afd9cc5f04269303dd4746d06d86f8b2efa4cd120ac9fad82a829",
+  "expected": {
+    "from": 1311768467463790320,
+    "to": 1147797409030816545,
+    "content": "Hello, encrypted atbus!",
+    "flags": 1
+  }
+}
