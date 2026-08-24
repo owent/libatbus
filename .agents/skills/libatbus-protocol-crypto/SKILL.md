@@ -15,8 +15,8 @@ This skill covers the libatbus wire protocol, ECDH key exchange handshake, encry
 - `include/atbus_message_handler.h` — Message dispatch table, access_data signature generation
 - `src/atbus_message_handler.cpp` — Handlers for register, ping/pong, forward, handshake_confirm
 - `include/atbus_node.h` — Node configuration (`conf_t`) with crypto/compression settings
-- `test/case/atbus_connection_context_test.cpp` — 37 tests for handshake, pack/unpack, algorithm combos
-- `test/case/atbus_message_handler_test.cpp` — 16 tests for access_data and HMAC signatures
+- `test/case/atbus_connection_context_test.cpp` — handshake, pack/unpack, and algorithm cases
+- `test/case/atbus_message_handler_test.cpp` — access-data and HMAC-signature cases
 
 ## Protobuf Protocol Enums
 
@@ -345,111 +345,24 @@ node->reload_compression(
 );
 ```
 
-## Writing Crypto Tests
+## Testing Protocol and Crypto Changes
 
-### Test Pattern: Handshake Round-Trip
+Read `../testing/references/test-design-and-acceptance.md` before designing or reviewing cases, and use the exact current
+test source as the API/fixture reference. Do not copy placeholder handshakes, messages, fixed ports, or wait loops into a
+new test.
 
-```cpp
-CASE_TEST(atbus_connection_context, handshake_with_x25519) {
-    // 1. Init global crypto
-    atfw::util::crypto::cipher::init_global_algorithm();
-
-    // 2. Create shared DH context
-    auto dh_ctx = atfw::util::crypto::dh::shared_context::create("x25519");
-
-    // 3. Create client and server contexts
-    auto client_ctx = atbus::connection_context::create(
-        protocol::ATBUS_CRYPTO_KEY_EXCHANGE_X25519, dh_ctx);
-    auto server_ctx = atbus::connection_context::create(
-        protocol::ATBUS_CRYPTO_KEY_EXCHANGE_X25519, dh_ctx);
-
-    // 4. Client generates keypair
-    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, client_ctx->handshake_generate_self_key(0));
-    protocol::crypto_handshake_data client_pub;
-    std::vector<protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> algorithms = {
-        protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM};
-    client_ctx->handshake_write_self_public_key(client_pub, algorithms);
-
-    // 5. Server generates keypair using client's sequence
-    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS,
-        server_ctx->handshake_generate_self_key(client_pub.sequence()));
-    // Server reads client's public key (need_confirm=true)
-    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS,
-        server_ctx->handshake_read_peer_key(client_pub, algorithms, true));
-    protocol::crypto_handshake_data server_pub;
-    server_ctx->handshake_write_self_public_key(server_pub, algorithms);
-
-    // 6. Client reads server's public key (need_confirm=false)
-    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS,
-        client_ctx->handshake_read_peer_key(server_pub, algorithms, false));
-
-    // 7. Server confirms
-    server_ctx->confirm_handshake(client_pub.sequence());
-
-    // 8. Verify both selected the same algorithm
-    CASE_EXPECT_EQ(client_ctx->get_crypto_select_algorithm(),
-                   server_ctx->get_crypto_select_algorithm());
-
-    // 9. Test encrypted round-trip
-    atbus::message send_msg;
-    // ... populate send_msg ...
-    auto packed = client_ctx->pack_message(send_msg, 3, rng, 65536);
-    CASE_EXPECT_TRUE(packed.is_success());
-
-    atbus::message recv_msg;
-    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS,
-        server_ctx->unpack_message(recv_msg, packed.get_success().as_span(), 65536));
-
-    atfw::util::crypto::cipher::cleanup_global_algorithm();
-}
-```
-
-### Test Pattern: Multi-Node with Encryption
-
-```cpp
-CASE_TEST(atbus_node_msg, crypto_config_cipher_algorithms) {
-    // Setup libuv
-    uv_loop_t ev_loop;
-    uv_loop_init(&ev_loop);
-
-    // Configure two nodes with encryption
-    atbus::node::conf_t conf;
-    atbus::node::default_conf(&conf);
-    conf.ev_loop = &ev_loop;
-    conf.crypto_key_exchange_type = protocol::ATBUS_CRYPTO_KEY_EXCHANGE_X25519;
-    conf.crypto_allow_algorithms = {protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM};
-
-    auto node1 = atbus::node::create();
-    auto node2 = atbus::node::create();
-    node1->init(0x12345678, &conf);
-    node2->init(0x12356789, &conf);
-
-    node1->listen("ipv4://127.0.0.1:16387");
-    node2->listen("ipv4://127.0.0.1:16388");
-
-    atbus::node::start_conf_t start_conf;
-    start_conf.timer_timepoint = unit_test_make_timepoint(0, 0);
-    node1->start(start_conf);
-    node2->start(start_conf);
-
-    // Connect and wait for handshake
-    node2->connect("ipv4://127.0.0.1:16387");
-    UNITTEST_WAIT_UNTIL(ev_loop,
-        node1->is_endpoint_available(0x12356789), 8000, 8) {
-        ++proc_usec;
-        node1->proc(unit_test_make_timepoint(0, proc_usec));
-        node2->proc(unit_test_make_timepoint(0, proc_usec));
-    }
-
-    // Send encrypted data
-    unsigned char data[] = "hello encrypted";
-    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS,
-        node1->send_data(0x12356789, 1, {data, sizeof(data)}));
-
-    // ... verify receipt in callback ...
-    uv_loop_close(&ev_loop);
-}
-```
+- Prefer real in-process `connection_context` and message-handler paths for handshake, negotiation, pack/unpack,
+  authentication, boundary, and failure semantics. Use real node/transport setup only when end-to-end transport behavior
+  is the subject.
+- Construct a complete contract-valid handshake/message baseline from the current proto and nearest healthy case, then
+  vary one named risk. Verify return codes plus selected algorithms, decoded payload/state, authentication result, and
+  cleanup; do not assert random key/IV/nonce bytes.
+- Guard optional algorithms with the current build-support query. An unavailable cipher/compressor is skipped capability,
+  not evidence that its behavior passed.
+- For actual asynchronous transport, follow the testing Skill's predicate-driven wait rule and explicitly assert the
+  predicate after the safety timeout. Never use elapsed time, a fixed port, or a precise pump count as correctness.
+- Keep global crypto/libuv/protobuf initialization and teardown balanced on every exit path. `CASE_EXPECT_*` is
+  non-fatal, so do not continue a handshake after a failed setup assertion.
 
 ### Cross-Language Test Vectors
 

@@ -1,1 +1,6 @@
-Checks: "-misc-use-anonymous-namespace"
+InheritParentConfig: true
+Checks:
+  - "-misc-use-anonymous-namespace"
+  - "-misc-use-internal-linkage"
+  - "-bugprone-throwing-static-initialization"
+  - "-cppcoreguidelines-avoid-non-const-global-variables"

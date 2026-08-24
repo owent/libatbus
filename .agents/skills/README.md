@@ -10,7 +10,7 @@ commands, caveats, and examples here.
 | `engineering-guidelines/` | C++ header template visibility, exported API ABI, and review checks |
 | `change-workflow/` | Risk-scaled design, change contracts, debugging, TDD, review, and completion evidence |
 | `build/` | Configure/build libatbus and edit or review CMake generation rules |
-| `testing/` | Run and write private-framework unit tests |
+| `testing/` | Design, review, and run private-framework unit tests |
 | `libatbus-protocol-crypto/` | Work on protocol transport, ECDH, ciphers, compression, framing, and auth |
 | `ai-agent-maintenance/` | Audit and optimize AI agent prompts, bridge files, and skills |
 

@@ -27,6 +27,12 @@ ECDH-based encryption, compression, and topology-aware routing.
 - Before a nontrivial plan or edit, inspect the relevant code, configs, docs, generated sources, tests, and current
   official docs for mutable external behavior. Separate verified facts from assumptions, then state the smallest plan
   and verification path.
+- For test work, derive cases from verified behavior and risk. Exercise a contract-valid workflow with deterministic
+  controls, then cover the highest-value boundaries and failures. Do not invent interfaces, fields, environments, or
+  root causes; do not shape data only to make a test pass or add redundant cases for counts. When a check fails, fix
+  the implementation or the case design; never weaken, skip, or loosen an existing assertion, add a retry, or widen a
+  timeout merely to force green. If scope or prerequisites remain unclear, state assumptions and coverage gaps instead
+  of claiming completeness.
 - Match process to risk: use the shortest verified path for small changes; read `change-workflow` for defects and for
   cross-module behavior, public API/ABI, data model/migration, security, or deployment changes. Keep their scope and
   acceptance in one existing authoritative artifact or active task plan; do not initialize a methodology for ceremony.
