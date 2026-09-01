@@ -42,6 +42,7 @@ Checks:
   - "-readability-static-definition-in-anonymous-namespace"
   - "-readability-named-parameter"
   - "-readability-simplify-boolean-expr"
+  - "-readability-redundant-nested-if"
   - "-bugprone-misplaced-widening-cast"
   - "-bugprone-branch-clone"
   # 虽然按规范下划线开头的都是保留字，但是写通用库的时候常见使用私有的保留字来减少冲突

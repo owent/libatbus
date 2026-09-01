@@ -13,6 +13,8 @@
 
 #include <detail/libatbus_error.h>
 #include "detail/libatbus_channel_export.h"
+
+#include "atbus_test_utils.h"
 #include "frame/test_macros.h"
 
 static constexpr const size_t MAX_TEST_BUFFER_LEN = ATBUS_MACRO_MESSAGE_LIMIT * 4;
@@ -198,13 +200,19 @@ CASE_TEST(channel, io_stream_tcp_basic) {
 
   inited_fds = 0;
   inited_fds += setup_channel(cli, nullptr, "ipv4://127.0.0.1:16387");
-  inited_fds += setup_channel(cli, nullptr, "dns://localhost:16387");
-  inited_fds += setup_channel(cli, nullptr, "ipv6://::1:16387");
+  // localhost resolves to ::1 first on IPv6-capable hosts, and io_stream_connect only tries the first resolved
+  // address, so dns://localhost depends on the same IPv6 loopback connectivity as ipv6://::1.
+  if (unit_test_probe_ipv6_loopback()) {
+    inited_fds += setup_channel(cli, nullptr, "dns://localhost:16387");
+    inited_fds += setup_channel(cli, nullptr, "ipv6://::1:16387");
+  } else {
+    CASE_MSG_INFO() << CASE_MSG_FCOLOR(YELLOW)
+                    << "ipv6 loopback is not available, skip dns://localhost and ipv6://::1 connections" << std::endl;
+  }
 
   int check_flag = g_check_flag;
-  while (g_check_flag - check_flag < 2 * inited_fds) {
-    uv_run(&loop, UV_RUN_ONCE);
-  }
+  UNITTEST_WAIT_UNTIL(&loop, g_check_flag - check_flag >= 2 * inited_fds, 30000, 0) {}
+  CASE_EXPECT_GE(g_check_flag - check_flag, 2 * inited_fds);
 
   svr.evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::kReceived)] =
       recv_callback_check_fn;
@@ -225,9 +233,8 @@ CASE_TEST(channel, io_stream_tcp_basic) {
   atbus::channel::io_stream_send(cli.conn_pool.begin()->second.get(), buf + 1024, 56 * 1024 + 3);
   g_check_buff_sequence.push_back(std::make_pair(1024, 56 * 1024 + 3));
 
-  while (g_check_flag - check_flag < 4) {
-    uv_run(&loop, UV_RUN_ONCE);
-  }
+  UNITTEST_WAIT_UNTIL(&loop, g_check_flag - check_flag >= 4, 30000, 0) {}
+  CASE_EXPECT_GE(g_check_flag - check_flag, 4);
 
   // many big buffer
   {
@@ -251,9 +258,8 @@ CASE_TEST(channel, io_stream_tcp_basic) {
     CASE_MSG_INFO() << "send " << sum_size << " bytes data with " << g_check_buff_sequence.size() << " packages done."
                     << std::endl;
 
-    while (g_check_flag - check_flag < 153) {
-      uv_run(&loop, UV_RUN_ONCE);
-    }
+    UNITTEST_WAIT_UNTIL(&loop, g_check_flag - check_flag >= 153, 30000, 0) {}
+    CASE_EXPECT_GE(g_check_flag - check_flag, 153);
 
     CASE_MSG_INFO() << "recv " << g_recv_rec.second << " bytes data with " << g_recv_rec.first
                     << " packages and checked done." << std::endl;
@@ -292,24 +298,28 @@ CASE_TEST(channel, io_stream_tcp_reset_by_client) {
 
   inited_fds = 0;
   inited_fds += setup_channel(cli, nullptr, "ipv4://127.0.0.1:16387");
-  inited_fds += setup_channel(cli, nullptr, "dns://localhost:16387");
-  inited_fds += setup_channel(cli, nullptr, "ipv6://::1:16387");
-
-  while (g_check_flag - check_flag < 2 * inited_fds + 1) {
-    atbus::channel::io_stream_run(&svr, atbus::adapter::run_mode_t::kNoWait);
-    atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::kNoWait);
-    CASE_THREAD_SLEEP_MS(8);
+  // localhost resolves to ::1 first on IPv6-capable hosts, and io_stream_connect only tries the first resolved
+  // address, so dns://localhost depends on the same IPv6 loopback connectivity as ipv6://::1.
+  if (unit_test_probe_ipv6_loopback()) {
+    inited_fds += setup_channel(cli, nullptr, "dns://localhost:16387");
+    inited_fds += setup_channel(cli, nullptr, "ipv6://::1:16387");
+  } else {
+    CASE_MSG_INFO() << CASE_MSG_FCOLOR(YELLOW)
+                    << "ipv6 loopback is not available, skip dns://localhost and ipv6://::1 connections" << std::endl;
   }
+
+  UNITTEST_WAIT_UNTIL(svr.ev_loop, g_check_flag - check_flag >= 2 * inited_fds + 1, 30000, 8) {
+    atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::kNoWait);
+  }
+  CASE_EXPECT_GE(g_check_flag - check_flag, 2 * inited_fds + 1);
   CASE_EXPECT_NE(0, cli.conn_pool.size());
 
   check_flag = g_check_flag;
   atbus::channel::io_stream_close(&cli);
   CASE_EXPECT_EQ(0, cli.conn_pool.size());
 
-  while (g_check_flag - check_flag < inited_fds) {
-    atbus::channel::io_stream_run(&svr, atbus::adapter::run_mode_t::kNoWait);
-    CASE_THREAD_SLEEP_MS(8);
-  }
+  UNITTEST_WAIT_UNTIL(svr.ev_loop, g_check_flag - check_flag >= inited_fds, 30000, 8) {}
+  CASE_EXPECT_GE(g_check_flag - check_flag, inited_fds);
   CASE_EXPECT_EQ(1, svr.conn_pool.size());
 
   atbus::channel::io_stream_close(&svr);
@@ -337,24 +347,28 @@ CASE_TEST(channel, io_stream_tcp_reset_by_server) {
 
   inited_fds = 0;
   inited_fds += setup_channel(cli, nullptr, "ipv4://127.0.0.1:16387");
-  inited_fds += setup_channel(cli, nullptr, "dns://localhost:16387");
-  inited_fds += setup_channel(cli, nullptr, "ipv6://::1:16387");
-
-  while (g_check_flag - check_flag < 2 * inited_fds + 1) {
-    atbus::channel::io_stream_run(&svr, atbus::adapter::run_mode_t::kNoWait);
-    atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::kNoWait);
-    CASE_THREAD_SLEEP_MS(8);
+  // localhost resolves to ::1 first on IPv6-capable hosts, and io_stream_connect only tries the first resolved
+  // address, so dns://localhost depends on the same IPv6 loopback connectivity as ipv6://::1.
+  if (unit_test_probe_ipv6_loopback()) {
+    inited_fds += setup_channel(cli, nullptr, "dns://localhost:16387");
+    inited_fds += setup_channel(cli, nullptr, "ipv6://::1:16387");
+  } else {
+    CASE_MSG_INFO() << CASE_MSG_FCOLOR(YELLOW)
+                    << "ipv6 loopback is not available, skip dns://localhost and ipv6://::1 connections" << std::endl;
   }
+
+  UNITTEST_WAIT_UNTIL(svr.ev_loop, g_check_flag - check_flag >= 2 * inited_fds + 1, 30000, 8) {
+    atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::kNoWait);
+  }
+  CASE_EXPECT_GE(g_check_flag - check_flag, 2 * inited_fds + 1);
   CASE_EXPECT_NE(0, cli.conn_pool.size());
 
   check_flag = g_check_flag;
   atbus::channel::io_stream_close(&svr);
   CASE_EXPECT_EQ(0, svr.conn_pool.size());
 
-  while (g_check_flag - check_flag < inited_fds) {
-    atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::kNoWait);
-    CASE_THREAD_SLEEP_MS(8);
-  }
+  UNITTEST_WAIT_UNTIL(cli.ev_loop, g_check_flag - check_flag >= inited_fds, 30000, 8) {}
+  CASE_EXPECT_GE(g_check_flag - check_flag, inited_fds);
   CASE_EXPECT_EQ(0, cli.conn_pool.size());
 
   atbus::channel::io_stream_close(&cli);
@@ -413,11 +427,10 @@ CASE_TEST(channel, io_stream_tcp_size_extended) {
   int inited_fds = 0;
   inited_fds += setup_channel(cli, nullptr, "ipv4://127.0.0.1:16387");
 
-  while (g_check_flag - check_flag < 2 * inited_fds) {
-    atbus::channel::io_stream_run(&svr, atbus::adapter::run_mode_t::kNoWait);
+  UNITTEST_WAIT_UNTIL(svr.ev_loop, g_check_flag - check_flag >= 2 * inited_fds, 30000, 8) {
     atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::kNoWait);
-    CASE_THREAD_SLEEP_MS(8);
   }
+  CASE_EXPECT_GE(g_check_flag - check_flag, 2 * inited_fds);
   CASE_EXPECT_NE(0, cli.conn_pool.size());
 
   check_flag = g_check_flag;
@@ -430,11 +443,10 @@ CASE_TEST(channel, io_stream_tcp_size_extended) {
                                        conf.send_buffer_limit_size + 1);
   CASE_EXPECT_EQ(EN_ATBUS_ERR_INVALID_SIZE, res);
 
-  while (g_check_flag - check_flag < 1) {
-    atbus::channel::io_stream_run(&svr, atbus::adapter::run_mode_t::kNoWait);
+  UNITTEST_WAIT_UNTIL(svr.ev_loop, g_check_flag - check_flag >= 1, 30000, 32) {
     atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::kNoWait);
-    CASE_THREAD_SLEEP_MS(32);
   }
+  CASE_EXPECT_GE(g_check_flag - check_flag, 1);
 
   // 错误的数据大小会导致连接断开
   res = atbus::channel::io_stream_send(cli.conn_pool.begin()->second.get(), get_test_buffer(),
@@ -443,10 +455,8 @@ CASE_TEST(channel, io_stream_tcp_size_extended) {
 
   // 有接收端关闭，所以一定是接收端先出发关闭连接。
   // 这里只要判定后触发方完成回调，那么先触发方必然已经完成
-  while (!cli.conn_pool.empty()) {
-    atbus::channel::io_stream_run(&svr, atbus::adapter::run_mode_t::kNoWait);
+  UNITTEST_WAIT_UNTIL(svr.ev_loop, cli.conn_pool.empty(), 30000, 32) {
     atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::kNoWait);
-    CASE_THREAD_SLEEP_MS(32);
   }
 
   CASE_EXPECT_EQ(0, cli.conn_pool.size());
@@ -499,11 +509,18 @@ CASE_TEST(channel, io_stream_tcp_connect_failed) {
     ++inited_fds;
   }
 
-  atbus::channel::make_address("dns://localhost:16388", addr);
-  res = atbus::channel::io_stream_connect(&cli, addr, connect_failed_callback_test_fn, nullptr, 0);
-  // CASE_EXPECT_EQ(0, res); // travis ci dns error
-  if (0 == res) {
-    ++inited_fds;
+  // dns://localhost resolves to ::1 first on IPv6-capable hosts; connect to ::1 then expects ECONNREFUSED.
+  // Skip it when IPv6 loopback is unavailable (the connect would fail with a different error).
+  if (unit_test_probe_ipv6_loopback()) {
+    atbus::channel::make_address("dns://localhost:16388", addr);
+    res = atbus::channel::io_stream_connect(&cli, addr, connect_failed_callback_test_fn, nullptr, 0);
+    // CASE_EXPECT_EQ(0, res); // travis ci dns error
+    if (0 == res) {
+      ++inited_fds;
+    }
+  } else {
+    CASE_MSG_INFO() << CASE_MSG_FCOLOR(YELLOW) << "ipv6 loopback is not available, skip dns://localhost connection"
+                    << std::endl;
   }
 
   atbus::channel::make_address("dns://localhost_invalid:16388", addr);
@@ -513,9 +530,8 @@ CASE_TEST(channel, io_stream_tcp_connect_failed) {
     ++inited_fds;
   }
 
-  while (g_check_flag - check_flag < inited_fds) {
-    atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::kOnce);
-  }
+  UNITTEST_WAIT_UNTIL(cli.ev_loop, g_check_flag - check_flag >= inited_fds, 30000, 0) {}
+  CASE_EXPECT_GE(g_check_flag - check_flag, inited_fds);
 
   atbus::channel::io_stream_close(&cli);
 }
@@ -567,9 +583,8 @@ CASE_TEST(channel, io_stream_callback_on_written) {
   inited_fds += setup_channel(cli, nullptr, "ipv4://127.0.0.1:16389");
 
   int check_flag = g_check_flag;
-  while (g_check_flag - check_flag < 2 * inited_fds) {
-    uv_run(&loop, UV_RUN_ONCE);
-  }
+  UNITTEST_WAIT_UNTIL(&loop, g_check_flag - check_flag >= 2 * inited_fds, 30000, 0) {}
+  CASE_EXPECT_GE(g_check_flag - check_flag, 2 * inited_fds);
 
   // Set written callback on client connection
   CASE_EXPECT_FALSE(cli.conn_pool.empty());
@@ -602,9 +617,8 @@ CASE_TEST(channel, io_stream_callback_on_written) {
   g_check_buff_sequence.push_back(std::make_pair(320, 1024));
 
   // Wait for receive callbacks
-  while (g_check_flag - check_flag < 3) {
-    uv_run(&loop, UV_RUN_ONCE);
-  }
+  UNITTEST_WAIT_UNTIL(&loop, g_check_flag - check_flag >= 3, 30000, 0) {}
+  CASE_EXPECT_GE(g_check_flag - check_flag, 3);
 
   // Verify written callback was called
   CASE_EXPECT_GT(g_written_callback_count, 0);
@@ -652,9 +666,8 @@ CASE_TEST(channel, io_stream_tcp_read_head_compaction) {
   inited_fds += setup_channel(cli, nullptr, "ipv4://127.0.0.1:16390");
 
   int check_flag = g_check_flag;
-  while (g_check_flag - check_flag < 2 * inited_fds) {
-    uv_run(&loop, UV_RUN_ONCE);
-  }
+  UNITTEST_WAIT_UNTIL(&loop, g_check_flag - check_flag >= 2 * inited_fds, 30000, 0) {}
+  CASE_EXPECT_GE(g_check_flag - check_flag, 2 * inited_fds);
 
   svr.evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::kReceived)] =
       recv_callback_check_fn;
@@ -711,9 +724,7 @@ CASE_TEST(channel, io_stream_tcp_read_head_compaction) {
 
   CASE_MSG_INFO() << "send " << offset << " bytes data with " << expected_count << " packages." << std::endl;
 
-  while (g_check_flag - check_flag < expected_count) {
-    uv_run(&loop, UV_RUN_ONCE);
-  }
+  UNITTEST_WAIT_UNTIL(&loop, g_check_flag - check_flag >= expected_count, 30000, 0) {}
 
   CASE_EXPECT_EQ(static_cast<size_t>(expected_count), g_recv_rec.first);
   CASE_MSG_INFO() << "recv " << g_recv_rec.second << " bytes data with " << g_recv_rec.first

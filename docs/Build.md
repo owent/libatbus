@@ -109,7 +109,7 @@ bash cmake-Linux-x86_64.sh --skip-license --prefix=/usr ;
 + Flatbuffers_ROOT: 手动指定flatbuffers的安装目录，需要符合cmake的find_package规则，使用flatbuffers官方提供的config文件，且必须编译lib和flatc
 + CMAKE_MSVC_RUNTIME （默认: MD）: 使用MSVC编译时默认使用MD/MDd运行时，如果需要尽可能一处依赖并使用MT请把这个值设为MT
 + PROJECT_ENABLE_SAMPLE (默认: NO): 是否编译Sample代码
-+ PROJECT_ENABLE_UNITTEST (默认: NO): 是否编译单元测试代码
++ PROJECT_ENABLE_UNITTEST (默认: Debug时为YES，否则为NO): 是否编译单元测试代码
 + PROJECT_ENABLE_TOOLS (默认: NO): 是否编译工具集（主要是压力测试工具）
 + ============= 以上选项根据实际环境配置，以下选项不建议修改 =============
 + ATBUS_MACRO_BUSID_TYPE (默认: uint64_t): busid的类型，建议不要设置成大于64位，否则需要修改protocol目录内的busid类型，并且重新生成协议文件

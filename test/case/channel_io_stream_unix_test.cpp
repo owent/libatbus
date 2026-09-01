@@ -14,6 +14,8 @@
 
 #include <detail/libatbus_error.h>
 #include "detail/libatbus_channel_export.h"
+
+#include "atbus_test_utils.h"
 #include "frame/test_macros.h"
 
 #include <common/file_system.h>
@@ -253,9 +255,8 @@ CASE_TEST(channel, io_stream_unix_basic) {
   setup_channel(cli, nullptr, g_channel_ios_unix_test_path.file_path.c_str());
 
   int check_flag = g_check_flag;
-  while (g_check_flag - check_flag < 6) {
-    uv_run(&loop, UV_RUN_ONCE);
-  }
+  UNITTEST_WAIT_UNTIL(&loop, g_check_flag - check_flag >= 6, 30000, 0) {}
+  CASE_EXPECT_GE(g_check_flag - check_flag, 6);
 
   svr.evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::kReceived)] =
       recv_callback_check_fn;
@@ -276,9 +277,8 @@ CASE_TEST(channel, io_stream_unix_basic) {
   atbus::channel::io_stream_send(cli.conn_pool.begin()->second.get(), buf + 1024, 56 * 1024 + 3);
   g_check_buff_sequence.push_back(std::make_pair(1024, 56 * 1024 + 3));
 
-  while (g_check_flag - check_flag < 4) {
-    uv_run(&loop, UV_RUN_ONCE);
-  }
+  UNITTEST_WAIT_UNTIL(&loop, g_check_flag - check_flag >= 4, 30000, 0) {}
+  CASE_EXPECT_GE(g_check_flag - check_flag, 4);
 
   // many big buffer
   {
@@ -302,9 +302,8 @@ CASE_TEST(channel, io_stream_unix_basic) {
     CASE_MSG_INFO() << "send " << sum_size << " bytes data with " << g_check_buff_sequence.size() << " packages done."
                     << std::endl;
 
-    while (g_check_flag - check_flag < 153) {
-      uv_run(&loop, UV_RUN_ONCE);
-    }
+    UNITTEST_WAIT_UNTIL(&loop, g_check_flag - check_flag >= 153, 30000, 0) {}
+    CASE_EXPECT_GE(g_check_flag - check_flag, 153);
 
     CASE_MSG_INFO() << "recv " << g_recv_rec.second << " bytes data with " << g_recv_rec.first
                     << " packages and checked done." << std::endl;
@@ -337,21 +336,18 @@ CASE_TEST(channel, io_stream_unix_reset_by_client) {
   setup_channel(cli, nullptr, g_channel_ios_unix_test_path.file_path.c_str());
   setup_channel(cli, nullptr, g_channel_ios_unix_test_path.file_path.c_str());
 
-  while (g_check_flag - check_flag < 7) {
-    atbus::channel::io_stream_run(&svr, atbus::adapter::run_mode_t::kNoWait);
+  UNITTEST_WAIT_UNTIL(svr.ev_loop, g_check_flag - check_flag >= 7, 30000, 32) {
     atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::kNoWait);
-    CASE_THREAD_SLEEP_MS(32);
   }
+  CASE_EXPECT_GE(g_check_flag - check_flag, 7);
   CASE_EXPECT_NE(0, cli.conn_pool.size());
 
   check_flag = g_check_flag;
   atbus::channel::io_stream_close(&cli);
   CASE_EXPECT_EQ(0, cli.conn_pool.size());
 
-  while (g_check_flag - check_flag < 3) {
-    atbus::channel::io_stream_run(&svr, atbus::adapter::run_mode_t::kNoWait);
-    CASE_THREAD_SLEEP_MS(64);
-  }
+  UNITTEST_WAIT_UNTIL(svr.ev_loop, g_check_flag - check_flag >= 3, 30000, 64) {}
+  CASE_EXPECT_GE(g_check_flag - check_flag, 3);
   CASE_EXPECT_EQ(1, svr.conn_pool.size());
 
   atbus::channel::io_stream_close(&svr);
@@ -377,21 +373,18 @@ CASE_TEST(channel, io_stream_unix_reset_by_server) {
   setup_channel(cli, nullptr, g_channel_ios_unix_test_path.file_path.c_str());
   setup_channel(cli, nullptr, g_channel_ios_unix_test_path.file_path.c_str());
 
-  while (g_check_flag - check_flag < 7) {
-    atbus::channel::io_stream_run(&svr, atbus::adapter::run_mode_t::kNoWait);
+  UNITTEST_WAIT_UNTIL(svr.ev_loop, g_check_flag - check_flag >= 7, 30000, 64) {
     atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::kNoWait);
-    CASE_THREAD_SLEEP_MS(64);
   }
+  CASE_EXPECT_GE(g_check_flag - check_flag, 7);
   CASE_EXPECT_NE(0, cli.conn_pool.size());
 
   check_flag = g_check_flag;
   atbus::channel::io_stream_close(&svr);
   CASE_EXPECT_EQ(0, svr.conn_pool.size());
 
-  while (g_check_flag - check_flag < 3) {
-    atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::kNoWait);
-    CASE_THREAD_SLEEP_MS(64);
-  }
+  UNITTEST_WAIT_UNTIL(cli.ev_loop, g_check_flag - check_flag >= 3, 30000, 64) {}
+  CASE_EXPECT_GE(g_check_flag - check_flag, 3);
   CASE_EXPECT_EQ(0, cli.conn_pool.size());
 
   atbus::channel::io_stream_close(&cli);
@@ -449,11 +442,10 @@ CASE_TEST(channel, io_stream_unix_size_extended) {
 
   setup_channel(cli, nullptr, g_channel_ios_unix_test_path.file_path.c_str());
 
-  while (g_check_flag - check_flag < 3) {
-    atbus::channel::io_stream_run(&svr, atbus::adapter::run_mode_t::kNoWait);
+  UNITTEST_WAIT_UNTIL(svr.ev_loop, g_check_flag - check_flag >= 3, 30000, 64) {
     atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::kNoWait);
-    CASE_THREAD_SLEEP_MS(64);
   }
+  CASE_EXPECT_GE(g_check_flag - check_flag, 3);
   CASE_EXPECT_NE(0, cli.conn_pool.size());
 
   check_flag = g_check_flag;
@@ -466,11 +458,10 @@ CASE_TEST(channel, io_stream_unix_size_extended) {
                                        conf.send_buffer_limit_size + 1);
   CASE_EXPECT_EQ(EN_ATBUS_ERR_INVALID_SIZE, res);
 
-  while (g_check_flag - check_flag < 1) {
-    atbus::channel::io_stream_run(&svr, atbus::adapter::run_mode_t::kNoWait);
+  UNITTEST_WAIT_UNTIL(svr.ev_loop, g_check_flag - check_flag >= 1, 30000, 32) {
     atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::kNoWait);
-    CASE_THREAD_SLEEP_MS(32);
   }
+  CASE_EXPECT_GE(g_check_flag - check_flag, 1);
 
   // 错误的数据大小会导致连接断开
   res = atbus::channel::io_stream_send(cli.conn_pool.begin()->second.get(), get_test_buffer(),
@@ -479,10 +470,8 @@ CASE_TEST(channel, io_stream_unix_size_extended) {
 
   // 有接收端关闭，所以一定是接收端先出发关闭连接。
   // 这里只要判定后触发方完成回调，那么先触发方必然已经完成
-  while (!cli.conn_pool.empty()) {
-    atbus::channel::io_stream_run(&svr, atbus::adapter::run_mode_t::kNoWait);
+  UNITTEST_WAIT_UNTIL(svr.ev_loop, cli.conn_pool.empty(), 30000, 32) {
     atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::kNoWait);
-    CASE_THREAD_SLEEP_MS(32);
   }
 
   CASE_EXPECT_EQ(0, cli.conn_pool.size());
@@ -525,9 +514,8 @@ CASE_TEST(channel, io_stream_unix_connect_failed) {
   int res = atbus::channel::io_stream_connect(&cli, addr, connect_failed_callback_test_fn, nullptr, 0);
   CASE_EXPECT_EQ(0, res);
 
-  while (g_check_flag - check_flag < 1) {
-    atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::kOnce);
-  }
+  UNITTEST_WAIT_UNTIL(cli.ev_loop, g_check_flag - check_flag >= 1, 30000, 0) {}
+  CASE_EXPECT_GE(g_check_flag - check_flag, 1);
 
   atbus::channel::io_stream_close(&cli);
 }

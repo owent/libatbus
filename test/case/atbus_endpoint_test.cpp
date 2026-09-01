@@ -17,6 +17,7 @@
 #include <atbus_node.h>
 #include <detail/libatbus_error.h>
 
+#include "atbus_test_utils.h"
 #include "frame/test_macros.h"
 
 CASE_TEST(atbus_endpoint, connection_basic) {
@@ -114,9 +115,7 @@ CASE_TEST(atbus_endpoint, get_connection) {
     CASE_EXPECT_EQ(0, node->add_endpoint(ep));
   }
 
-  while (UV_EBUSY == uv_loop_close(&ev_loop)) {
-    uv_run(&ev_loop, UV_RUN_ONCE);
-  }
+  unit_test_setup_exit(&ev_loop);
 
   delete[] buffer;
 }
@@ -138,4 +137,3 @@ CASE_TEST(atbus_channel, address) {
   CASE_EXPECT_FALSE(atbus::channel::is_local_process_address({}));
   CASE_EXPECT_TRUE(atbus::channel::is_local_process_address("mem://0x1234"));
 }
-

@@ -17,6 +17,11 @@ void unit_test_tick_handle(uv_timer_t *handle);
 void unit_test_timeout_handle(uv_timer_t *handle);
 void unit_test_setup_exit(uv_loop_t *ev, uint64_t timeout_ms = 30000);
 
+// Probe whether a TCP connect to the IPv6 loopback (::1) works in this environment. Some machines have no IPv6 stack
+// or block loopback IPv6 connects (e.g. firewall rules), in which case tests should skip IPv6/localhost-dns cases
+// instead of failing.
+bool unit_test_probe_ipv6_loopback();
+
 struct unit_test_libuv_wait_manager {
   unit_test_libuv_wait_manager(uv_loop_t *ev, uint64_t timeout_ms, uint64_t tick_ms, bool print_error);
   ~unit_test_libuv_wait_manager();
@@ -46,4 +51,3 @@ struct unit_test_libuv_wait_manager {
     if (!libuv_wait_mgr.is_timeout_)
 
 #endif
-

@@ -88,6 +88,14 @@ set(BOOST_ROOT
     CACHE STRING "Boost root directory")
 option(PROJECT_TEST_ENABLE_BOOST_UNIT_TEST "Enable boost unit test." OFF)
 
+set(PROJECT_SAMPLE_RUNTIME_OUTPUT_DIRECTORY
+    "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+    CACHE STRING "Default output directory for samples.")
+
+set(PROJECT_TEST_RUNTIME_OUTPUT_DIRECTORY
+    "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+    CACHE STRING "Default output directory for tests.")
+
 # find if we have Unix Sock
 include(CheckIncludeFiles)
 check_include_files("sys/un.h;sys/socket.h" ATBUS_MACRO_WITH_UNIX_SOCK)

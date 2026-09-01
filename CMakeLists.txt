@@ -81,7 +81,7 @@ if(PROJECT_ENABLE_SAMPLE)
   add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/sample")
 endif()
 
-if(PROJECT_ENABLE_UNITTEST OR BUILD_TESTING)
+if(PROJECT_ENABLE_UNITTEST)
   atframework_atframe_utils_populate()
   include("${ATFRAMEWORK_ATFRAME_UTILS_REPO_DIR}/test/test.utils-macro.cmake")
   add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/test")
