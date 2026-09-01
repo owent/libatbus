@@ -427,11 +427,21 @@ CASE_TEST(channel, io_stream_tcp_size_extended) {
   int inited_fds = 0;
   inited_fds += setup_channel(cli, nullptr, "ipv4://127.0.0.1:16387");
 
-  UNITTEST_WAIT_UNTIL(svr.ev_loop, g_check_flag - check_flag >= 2 * inited_fds, 30000, 8) {
+  // check_flag is captured before the listen callback fires, so the listen event already counts one increment. Wait
+  // for both the client connected callback (the only place that inserts the connection into cli.conn_pool) and the
+  // server accepted callback. With only 2 * inited_fds, the server-side accept alone can satisfy the wait before the
+  // client loop is ever pumped, leaving cli.conn_pool empty.
+  UNITTEST_WAIT_UNTIL(svr.ev_loop, g_check_flag - check_flag >= 2 * inited_fds + 1, 30000, 8) {
     atbus::channel::io_stream_run(&cli, atbus::adapter::run_mode_t::kNoWait);
   }
-  CASE_EXPECT_GE(g_check_flag - check_flag, 2 * inited_fds);
+  CASE_EXPECT_GE(g_check_flag - check_flag, 2 * inited_fds + 1);
   CASE_EXPECT_NE(0, cli.conn_pool.size());
+  if (cli.conn_pool.empty()) {
+    // CASE_EXPECT_* is non-fatal, but the sends below dereference cli.conn_pool.begin()
+    atbus::channel::io_stream_close(&cli);
+    atbus::channel::io_stream_close(&svr);
+    return;
+  }
 
   check_flag = g_check_flag;
 
