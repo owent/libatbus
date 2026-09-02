@@ -178,7 +178,7 @@ struct gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t {
   gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t() {}
 
   ~gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t() {
-    char *buffer_ptr = reinterpret_cast<void *>(pthread_getspecific(gt_io_stream_get_msg_buffer_tls_key));
+    void *buffer_ptr = reinterpret_cast<void *>(pthread_getspecific(gt_io_stream_get_msg_buffer_tls_key));
     pthread_setspecific(gt_io_stream_get_msg_buffer_tls_key, nullptr);
     dtor_pthread_io_stream_get_msg_buffer_tls(buffer_ptr);
   }
