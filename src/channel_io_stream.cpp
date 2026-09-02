@@ -79,9 +79,8 @@ ATBUS_MACRO_NAMESPACE_BEGIN
 namespace channel {
 namespace {
 
-constexpr static const size_t kMessageMergeReserveSize = (ATBUS_MACRO_DATA_ALIGN_SIZE + sizeof(uv_write_t)) > 256
-                                                             ? (ATBUS_MACRO_DATA_ALIGN_SIZE + sizeof(uv_write_t))
-                                                             : 256;
+constexpr static const size_t kMessageMergeReserveSize =
+    (ATBUS_MACRO_DATA_ALIGN_SIZE + sizeof(uv_write_t)) > 256 ? (ATBUS_MACRO_DATA_ALIGN_SIZE + sizeof(uv_write_t)) : 256;
 
 constexpr static const size_t kMessageTlsMergeBufferLen = ATBUS_MACRO_MESSAGE_MAX_MERGE_SIZE - kMessageMergeReserveSize;
 
@@ -175,7 +174,18 @@ static void dtor_pthread_io_stream_get_msg_buffer_tls(void *p) {
   }
 }
 
+struct gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t {
+  gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t() {}
+
+  ~gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t() {
+    char *buffer_ptr = reinterpret_cast<void *>(pthread_getspecific(gt_io_stream_get_msg_buffer_tls_key));
+    pthread_setspecific(gt_io_stream_get_msg_buffer_tls_key, nullptr);
+    dtor_pthread_io_stream_get_msg_buffer_tls(buffer_ptr);
+  }
+};
+
 static void init_pthread_io_stream_get_msg_buffer_tls() {
+  static gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t gt_io_stream_get_msg_buffer_tls_main_thread_dtor;
   (void)pthread_key_create(&gt_io_stream_get_msg_buffer_tls_key, dtor_pthread_io_stream_get_msg_buffer_tls);
 }
 
@@ -188,17 +198,6 @@ static unsigned char *io_stream_get_msg_buffer() {
   }
   return ret;
 }
-
-struct gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t {
-  unsigned char *buffer_ptr;
-  gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t() { buffer_ptr = io_stream_get_msg_buffer(); }
-
-  ~gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t() {
-    pthread_setspecific(gt_io_stream_get_msg_buffer_tls_key, nullptr);
-    dtor_pthread_io_stream_get_msg_buffer_tls(buffer_ptr);
-  }
-};
-static gt_io_stream_get_msg_buffer_tls_main_thread_dtor_t gt_io_stream_get_msg_buffer_tls_main_thread_dtor;
 
 #endif
 
