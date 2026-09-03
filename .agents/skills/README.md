@@ -13,6 +13,7 @@ commands, caveats, and examples here.
 | `testing/` | Design, review, and run private-framework unit tests |
 | `libatbus-protocol-crypto/` | Work on protocol transport, ECDH, ciphers, compression, framing, and auth |
 | `ai-agent-maintenance/` | Audit and optimize AI agent prompts, bridge files, and skills |
+| `shell-tooling/` | Modern CLI tool inventory, shell selection, and PowerShell authoring rules |
 
 ## When to read what
 
@@ -22,6 +23,7 @@ commands, caveats, and examples here.
 - If you want to **run or write unit tests**: start with `testing/SKILL.md`.
 - If you are changing protocol transport, crypto, compression, framing, or auth: see `libatbus-protocol-crypto/SKILL.md`.
 - If you are updating AI agent prompts or skills: see `ai-agent-maintenance/SKILL.md`.
+- If you are running terminal commands or writing/debugging PowerShell: see `shell-tooling/SKILL.md`.
 
 ## Maintenance rules
 
