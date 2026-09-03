@@ -37,8 +37,10 @@ tools over traditional Unix tools whenever they are installed.
   on POSIX redirect stdin from `/dev/null` for commands that may read input.
 - Cap output before it floods context: `rg --max-count 50`, `fd --max-results 100`, `Select-Object -First 200`,
   `head -n 200`.
-- Exit code 1 from `rg`/`grep`/`fd` means "no match", not an error; only codes >= 2 are real failures. In PowerShell
-  check `$LASTEXITCODE` after native commands; `$ErrorActionPreference` and `try/catch` do not apply to them.
+- Exit-code semantics differ per tool; verify the tool's convention before branching on codes. `rg`/`grep`/`ugrep`
+  exit 1 on "no match" and >= 2 on real errors; `fd` and `sd` exit 0 when nothing matched and 1 on real errors (e.g.,
+  an invalid regex) — only `fd --quiet` switches fd to grep-style codes. In PowerShell check `$LASTEXITCODE` after
+  native commands; `$ErrorActionPreference` and `try/catch` do not apply to them.
 
 ## PowerShell authoring rules
 
