@@ -100,10 +100,49 @@ struct connection_async_data {
     return *this;
   }
 };
+
+static void normalize_address_for_listen_channel(channel::channel_address_t &address) {
+  if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix", address.scheme.c_str(), 4) ||
+      0 == UTIL_STRFUNC_STRNCASE_CMP("pipe", address.scheme.c_str(), 4)) {
+    if (false == atfw::util::file_system::is_abs_path(address.host.c_str())) {
+      std::string abs_host_path = atfw::util::file_system::get_abs_path(address.host.c_str());
+      size_t max_addr_size = ::atframework::atbus::channel::io_stream_get_max_unix_socket_length();
+      if (max_addr_size > 0 && abs_host_path.size() <= max_addr_size) {
+        address.host = abs_host_path;
+      }
+    }
+  }
+}
+
+static void normalize_address_for_connect_channel(channel::channel_address_t &address) {
+  if (0 == UTIL_STRFUNC_STRNCASE_CMP("atcp", address.scheme.c_str(), 4) ||
+      0 == UTIL_STRFUNC_STRNCASE_CMP("ipv6", address.scheme.c_str(), 4) ||
+      0 == UTIL_STRFUNC_STRNCASE_CMP("ipv4", address.scheme.c_str(), 4)) {
+    if ("0.0.0.0" == address.host) {
+      make_address("atcp", "127.0.0.1", address.port, address);
+    } else if ("::" == address.host) {
+      make_address("atcp", "::1", address.port, address);
+    }
+  }
+}
+
+static channel::channel_address_t make_connection_address(gsl::string_view addr, bool listen_mode) {
+  channel::channel_address_t address;
+  channel::make_address(addr, address);
+
+  if (listen_mode) {
+    normalize_address_for_listen_channel(address);
+  } else {
+    normalize_address_for_connect_channel(address);
+  }
+  return address;
+}
 }  // namespace
 
 connection::connection(ctor_guard_t &guard)
     : state_(state_t::kDisconnected),
+      address_(make_connection_address(guard.addr, guard.listen_mode)),
+      origin_address_(guard.addr),
 #if !defined(_WIN32)
       address_lock_(0),
 #endif
@@ -113,14 +152,12 @@ connection::connection(ctor_guard_t &guard)
       conn_context_(connection_context::create(guard.crypto_algorithm, guard.shared_dh_context)),
       stat_{} {
 
-  channel::make_address(guard.addr, address_);
-
   flags_.reset();
   memset(&conn_data_, 0, sizeof(conn_data_));
   memset(&stat_, 0, sizeof(stat_));
 }
 
-ATBUS_MACRO_API connection::ptr_t connection::create(node *owner, gsl::string_view addr) {
+ATBUS_MACRO_API connection::ptr_t connection::create(node *owner, gsl::string_view addr, bool listen_mode) {
   if (nullptr == owner || addr.empty()) {
     return {};
   }
@@ -128,6 +165,7 @@ ATBUS_MACRO_API connection::ptr_t connection::create(node *owner, gsl::string_vi
   ctor_guard_t guard;
   guard.owner = owner;
   guard.addr = addr;
+  guard.listen_mode = listen_mode;
   guard.crypto_algorithm = owner->get_crypto_key_exchange_type();
   guard.shared_dh_context = owner->get_crypto_key_exchange_context();
 
@@ -138,7 +176,9 @@ ATBUS_MACRO_API connection::ptr_t connection::create(node *owner, gsl::string_vi
 
   ret->watcher_ = ret;
 
-  owner->add_connection_timer(ret);
+  if (!owner->add_connection_timer(ret)) {
+    return nullptr;
+  }
   return ret;
 }
 
@@ -167,7 +207,7 @@ ATBUS_MACRO_API void connection::reset() {
   ptr_t tmp_holder = watch();
 
   // 后面会重置状态，影响事件判定，所以要先移除检查队列
-  owner_->remove_connection_timer(this);
+  owner_->remove_connection_timer(this, false);
 
   disconnect();
 
@@ -294,14 +334,6 @@ ATBUS_MACRO_API int connection::listen() {
     // Unix sock也必须共享Host
     if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix", address_.scheme.c_str(), 4) ||
         0 == UTIL_STRFUNC_STRNCASE_CMP("pipe", address_.scheme.c_str(), 4)) {
-      if (false == atfw::util::file_system::is_abs_path(address_.host.c_str())) {
-        std::string abs_host_path = atfw::util::file_system::get_abs_path(address_.host.c_str());
-        size_t max_addr_size = ::atframework::atbus::channel::io_stream_get_max_unix_socket_length();
-        if (max_addr_size > 0 && abs_host_path.size() <= max_addr_size) {
-          address_.host = abs_host_path;
-        }
-      }
-
       flags_.set(static_cast<size_t>(flag_t::kAccessShareHost), true);
 
       // We use file lock to check and reuse unix domain socket
@@ -453,16 +485,8 @@ ATBUS_MACRO_API int connection::connect() {
 #endif
   } else {
     // redirect loopback address to local address
-    if (0 == UTIL_STRFUNC_STRNCASE_CMP("atcp", address_.scheme.c_str(), 4) ||
-        0 == UTIL_STRFUNC_STRNCASE_CMP("ipv6", address_.scheme.c_str(), 4) ||
-        0 == UTIL_STRFUNC_STRNCASE_CMP("ipv4", address_.scheme.c_str(), 4)) {
-      if ("0.0.0.0" == address_.host) {
-        make_address("atcp", "127.0.0.1", address_.port, address_);
-      } else if ("::" == address_.host) {
-        make_address("atcp", "::1", address_.port, address_);
-      }
-    } else if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix", address_.scheme.c_str(), 4) ||
-               0 == UTIL_STRFUNC_STRNCASE_CMP("pipe", address_.scheme.c_str(), 4)) {
+    if (0 == UTIL_STRFUNC_STRNCASE_CMP("unix", address_.scheme.c_str(), 4) ||
+        0 == UTIL_STRFUNC_STRNCASE_CMP("pipe", address_.scheme.c_str(), 4)) {
       flags_.set(static_cast<size_t>(flag_t::kAccessShareHost), true);
     }
 
@@ -547,7 +571,9 @@ ATBUS_MACRO_API size_t connection::add_stat_fault() { return ++stat_.fault_count
 /** 清空错误计数 **/
 ATBUS_MACRO_API void connection::clear_stat_fault() { stat_.fault_count = 0; }
 
-ATBUS_MACRO_API const channel::channel_address_t &connection::get_address() const { return address_; }
+ATBUS_MACRO_API const channel::channel_address_t &connection::get_address() const noexcept { return address_; }
+
+ATBUS_MACRO_API const std::string &connection::get_origin_address() const noexcept { return origin_address_; }
 
 ATBUS_MACRO_API bool connection::is_connected() const { return state_t::kConnected == state_; }
 
@@ -576,7 +602,7 @@ ATBUS_MACRO_API const connection::stat_t &connection::get_statistic() const { re
 
 ATBUS_MACRO_API void connection::remove_owner_checker() {
   if (nullptr != owner_) {
-    owner_->remove_connection_timer(this);
+    owner_->remove_connection_timer(this, false);
   }
 }
 
@@ -590,7 +616,7 @@ ATBUS_MACRO_API void connection::set_status(state_t v) {
   state_ = v;
 
   if (nullptr != owner_ && v == state_t::kConnected) {
-    owner_->remove_connection_timer(this);
+    owner_->remove_connection_timer(this, false);
   }
 }
 
@@ -759,7 +785,11 @@ ATBUS_MACRO_API void connection::iostream_on_accepted(channel::io_stream_channel
     return;
   }
 
-  ptr_t conn = create(n, conn_ios->addr.address);
+  ptr_t conn = create(n, conn_ios->addr.address, false);
+  if (!conn) {
+    channel::io_stream_disconnect(channel, conn_ios, nullptr);
+    return;
+  }
   conn->set_status(state_t::kHandshaking);
   conn->flags_.set(static_cast<size_t>(flag_t::kRegFd), true);
   conn->flags_.set(static_cast<size_t>(flag_t::kServerMode), true);
@@ -770,9 +800,6 @@ ATBUS_MACRO_API void connection::iostream_on_accepted(channel::io_stream_channel
   conn->conn_data_.shared.ios_fd.channel = channel;
   conn->conn_data_.shared.ios_fd.conn = conn_ios;
   conn_ios->data = conn.get();
-
-  // copy address
-  conn->address_ = conn_ios->addr;
 
   ATBUS_FUNC_NODE_INFO(*n, nullptr, conn.get(), "channel handshaking(accepted callback)");
   n->on_new_connection(conn.get());

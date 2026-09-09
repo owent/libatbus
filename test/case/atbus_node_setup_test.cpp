@@ -10,6 +10,7 @@
 #include <sstream>
 #include <string>
 
+#include <atbus_connection.h>
 #include <atbus_node.h>
 #include <libatbus_protocol.h>
 
@@ -170,4 +171,180 @@ CASE_TEST(atbus_node_setup, compression_algorithms) {
   }
 
   CASE_EXPECT_GT(count, 0);
+}
+
+// 复现: 以 0.0.0.0 为目标的连接在 connect() 内被重定向到 127.0.0.1 时会改写 connection 的地址,
+// 而未完成连接列表的索引 key 仍是原始地址字符串, reset 按新地址查找导致条目无法移除
+CASE_TEST(atbus_node_setup, reset_connection_after_loopback_redirect) {
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+
+  conf.ev_loop = &ev_loop;
+
+  {
+    atbus::node::ptr_t node = atbus::node::create();
+    node->init(0x12345678, &conf);
+
+    atbus::connection::ptr_t conn = atbus::connection::create(node.get(), "atcp://0.0.0.0:16433", false);
+    CASE_EXPECT_TRUE(!!conn);
+    CASE_EXPECT_EQ(1, node->get_connection_timer_size());
+
+    conn->connect();
+    // 连接发起后, reset 必须把连接从未完成连接列表中移除
+    conn->reset();
+    CASE_EXPECT_EQ(0, node->get_connection_timer_size());
+  }
+
+  unit_test_setup_exit(&ev_loop);
+}
+
+// 复现: node::reset 清理未完成连接列表的循环曾依赖 connection::reset 自行摘除条目,
+// 一旦摘除失败(地址已被改写)且条目非空, while 循环永远无法推进并且 pending_connection_gc_list 无限增长
+CASE_TEST(atbus_node_setup, reset_node_with_pending_loopback_redirect_connection) {
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+
+  conf.ev_loop = &ev_loop;
+
+  {
+    atbus::node::ptr_t node = atbus::node::create();
+    node->init(0x12345678, &conf);
+
+    atbus::connection::ptr_t conn = atbus::connection::create(node.get(), "atcp://0.0.0.0:16433", false);
+    CASE_EXPECT_TRUE(!!conn);
+    conn->connect();
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node->reset());
+    CASE_EXPECT_EQ(0, node->get_connection_timer_size());
+  }
+
+  unit_test_setup_exit(&ev_loop);
+}
+
+// 复现: 连接失败后残留的连接条目会让后续同地址 connect 被去重判定直接吞掉, 永远不再真正发起连接
+CASE_TEST(atbus_node_setup, reconnect_after_failed_loopback_redirect_connect) {
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+
+  conf.ev_loop = &ev_loop;
+
+  {
+    atbus::node::ptr_t node = atbus::node::create();
+    node->init(0x12345678, &conf);
+
+    // 首次连接到未监听端口, 等待异步连接失败被处理
+    atbus::connection::ptr_t conn = atbus::connection::create(node.get(), "atcp://0.0.0.0:16433", false);
+    CASE_EXPECT_TRUE(!!conn);
+    conn->connect();
+
+    UNITTEST_WAIT_UNTIL(conf.ev_loop, atbus::connection::state_t::kDisconnected == conn->get_status(), 8000, 0) {}
+    CASE_EXPECT_EQ(atbus::connection::state_t::kDisconnected, conn->get_status());
+    if (atbus::connection::state_t::kDisconnected != conn->get_status()) {
+      return;
+    }
+
+    // 失败的连接必须从未完成连接列表中移除
+    CASE_EXPECT_EQ(0, node->get_connection_timer_size());
+    if (0 != node->get_connection_timer_size()) {
+      return;
+    }
+
+    // 再次 connect 必须真正发起新连接, 并在失败后再次清空列表
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node->connect("atcp://0.0.0.0:16433"));
+    UNITTEST_WAIT_UNTIL(conf.ev_loop, 0 == node->get_connection_timer_size(), 8000, 0) {}
+    CASE_EXPECT_EQ(0, node->get_connection_timer_size());
+  }
+
+  unit_test_setup_exit(&ev_loop);
+}
+
+// 同地址的多个连接允许共存(按连接指针独立跟踪超时), 每个连接都必须能独立移除;
+// node::connect 通过 by_channel 索引去重, 已有同地址未完成连接时不再发起新连接
+CASE_TEST(atbus_node_setup, create_connection_with_duplicated_address) {
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+
+  conf.ev_loop = &ev_loop;
+
+  {
+    atbus::node::ptr_t node = atbus::node::create();
+    node->init(0x12345678, &conf);
+
+    atbus::connection::ptr_t conn1 = atbus::connection::create(node.get(), "ipv4://127.0.0.1:16434", false);
+    CASE_EXPECT_TRUE(!!conn1);
+    CASE_EXPECT_EQ(1, node->get_connection_timer_size());
+
+    atbus::connection::ptr_t conn2 = atbus::connection::create(node.get(), "ipv4://127.0.0.1:16434", false);
+    CASE_EXPECT_TRUE(!!conn2);
+    CASE_EXPECT_EQ(2, node->get_connection_timer_size());
+    if (!conn1 || !conn2) {
+      return;
+    }
+
+    // 已有同地址未完成连接时, node::connect 去重, 不再发起新连接
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node->connect("ipv4://127.0.0.1:16434"));
+    CASE_EXPECT_EQ(2, node->get_connection_timer_size());
+
+    // 两个连接必须能互不影响地移除
+    conn1->reset();
+    CASE_EXPECT_EQ(1, node->get_connection_timer_size());
+
+    conn2->reset();
+    CASE_EXPECT_EQ(0, node->get_connection_timer_size());
+  }
+
+  unit_test_setup_exit(&ev_loop);
+}
+
+// 复现: 上游配置为 0.0.0.0 通配地址时, 连接的归一化地址(atcp://127.0.0.1:PORT)与配置串不同,
+// 注册回包必须能通过原始地址匹配上游并刷新拓扑关系
+CASE_TEST(atbus_node_setup, upstream_topology_with_wildcard_upstream_address) {
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+
+  conf.ev_loop = &ev_loop;
+
+  {
+    atbus::node::ptr_t node1 = atbus::node::create();
+    atbus::node::ptr_t node2 = atbus::node::create();
+
+    node1->init(0x12345678, &conf);
+
+    atbus::node::conf_t conf_upstream;
+    atbus::node::default_conf(&conf_upstream);
+    conf_upstream.ev_loop = &ev_loop;
+    conf_upstream.upstream_address = "ipv4://0.0.0.0:16435";
+    node2->init(0x12356789, &conf_upstream);
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->listen("ipv4://127.0.0.1:16435"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node1->start());
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node2->start());
+
+    // 注册成功后 node2 必须通过原始地址匹配上游并建立上游拓扑
+    UNITTEST_WAIT_UNTIL(
+        conf.ev_loop,
+        nullptr != node2->get_upstream_endpoint() && node2->get_upstream_endpoint()->get_id() == node1->get_id(), 8000,
+        0) {}
+    CASE_EXPECT_TRUE(nullptr != node2->get_upstream_endpoint());
+    if (nullptr != node2->get_upstream_endpoint()) {
+      CASE_EXPECT_EQ(node1->get_id(), node2->get_upstream_endpoint()->get_id());
+    }
+  }
+
+  unit_test_setup_exit(&ev_loop);
 }

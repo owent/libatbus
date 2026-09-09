@@ -94,6 +94,7 @@ class connection final : public atfw::util::design_pattern::noncopyable {
   struct ctor_guard_t {
     node *owner = nullptr;
     gsl::string_view addr;
+    bool listen_mode = false;
     protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE crypto_algorithm = {};
     ::atfw::util::crypto::dh::shared_context::ptr_t shared_dh_context;
   };
@@ -101,7 +102,7 @@ class connection final : public atfw::util::design_pattern::noncopyable {
  public:
   connection(ctor_guard_t &guard);
 
-  static ATBUS_MACRO_API ptr_t create(node *owner, gsl::string_view addr);
+  static ATBUS_MACRO_API ptr_t create(node *owner, gsl::string_view addr, bool listen_mode);
 
   ATBUS_MACRO_API ~connection();
 
@@ -149,9 +150,14 @@ class connection final : public atfw::util::design_pattern::noncopyable {
   ATBUS_MACRO_API void clear_stat_fault();
 
   /**
-   * @brief 获取连接的地址
+   * @brief 获取实际（标准化后）的连接的地址
    */
-  ATBUS_MACRO_API const channel::channel_address_t &get_address() const;
+  ATBUS_MACRO_API const channel::channel_address_t &get_address() const noexcept;
+
+  /**
+   * @brief 获取原始的连接的地址
+   */
+  ATBUS_MACRO_API const std::string &get_origin_address() const noexcept;
 
   /**
    * @brief 是否已连接
@@ -242,7 +248,9 @@ class connection final : public atfw::util::design_pattern::noncopyable {
 
  private:
   state_t state_;
-  channel::channel_address_t address_;
+  // address_ 会被作为key，一旦创建，不允许修改
+  const channel::channel_address_t address_;
+  const std::string origin_address_;
 #if !defined(_WIN32)
   int address_lock_;
   std::string address_lock_path_;

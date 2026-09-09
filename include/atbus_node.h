@@ -26,6 +26,7 @@
 #include <memory>
 #include <set>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32)
@@ -657,7 +658,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   ATBUS_MACRO_API bool add_connection_timer(const connection::ptr_t &conn);
 
-  ATBUS_MACRO_API bool remove_connection_timer(const connection *conn);
+  ATBUS_MACRO_API bool remove_connection_timer(const connection *conn, bool reset);
 
   ATBUS_MACRO_API size_t get_connection_timer_size() const;
 
@@ -845,7 +846,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
   ::atfw::util::crypto::dh::shared_context::ptr_t crypto_key_exchange_context_;
 
   // 引用的资源标记（释放时要保证这些资源引用被移除）
-  std::set<void *> ref_objs_;
+  std::unordered_set<void *> ref_objs_;
 
   // ============ IO事件数据 ============
   // 事件分发器
@@ -864,9 +865,13 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
     std::chrono::system_clock::time_point upstream_op_timepoint;  // 上游节点操作时间（断线重连或Ping）
     timer_desc_ls<const endpoint *, ::atfw::util::memory::weak_rc_ptr<endpoint>>::type ping_list;  // 定时ping
-    timer_desc_ls<std::string, connection::ptr_t>::type connecting_list;  // 未完成连接（正在网络连接或握手）
-    std::list<endpoint::ptr_t> pending_endpoint_gc_list;                  // 待检测GC的endpoint列表
-    std::list<connection::ptr_t> pending_connection_gc_list;              // 待检测GC的connection列表
+    // 未完成连接（正在网络连接或握手）
+    std::unordered_map<std::string, connection::ptr_t> connecting_list_by_channel;      // 按地址去重索引
+    timer_desc_ls<const connection *, connection::ptr_t>::type connecting_list_by_ptr;  // 超时判定池
+    // 待检测GC的endpoint列表
+    std::list<endpoint::ptr_t> pending_endpoint_gc_list;
+    // 待检测GC的connection列表
+    std::list<connection::ptr_t> pending_connection_gc_list;
   };
   evt_timer_t event_timer_;
 

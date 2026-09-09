@@ -1362,7 +1362,9 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_register_rsp(node
     }
 
     // 先刷新拓扑关系
-    if (n.get_id() != 0 && reg_data->bus_id() != 0 && conn->get_address().address == n.get_conf().upstream_address) {
+    if (n.get_id() != 0 && reg_data->bus_id() != 0 &&
+        (conn->get_address().address == n.get_conf().upstream_address ||
+         conn->get_origin_address() == n.get_conf().upstream_address)) {
       n.set_topology_upstream(reg_data->bus_id());
     }
 
@@ -1378,7 +1380,9 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_register_rsp(node
     }
 
     // 如果是父节点回的错误注册包，且未被激活过，则要关闭进程
-    if (conn->get_address().address == n.get_conf().upstream_address && !n.check_flag(node::flag_t::kActived)) {
+    if ((conn->get_address().address == n.get_conf().upstream_address ||
+         conn->get_origin_address() == n.get_conf().upstream_address) &&
+        !n.check_flag(node::flag_t::kActived)) {
       ATBUS_FUNC_NODE_DEBUG(n, ep, conn, &m, "node register to upstream node failed, shutdown");
       ATBUS_FUNC_NODE_FATAL_SHUTDOWN(n, ep, conn, 0, result_code);
     } else {

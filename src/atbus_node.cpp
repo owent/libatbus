@@ -564,19 +564,14 @@ ATBUS_MACRO_API int node::reset() {
   // 清空正在连接或握手的列表
   // 必须显式指定断开，以保证会主动断开正在进行的连接
   // 因为正在进行的连接会增加connection的引用计数
-  while (!event_timer_.connecting_list.empty()) {
-    timer_desc_ls<std::string, connection::ptr_t>::type::iterator iter = event_timer_.connecting_list.begin();
-    if (iter->second) {
-      iter->second->second->reset();
+  while (!event_timer_.connecting_list_by_ptr.empty()) {
+    timer_desc_ls<const connection *, connection::ptr_t>::type::iterator iter =
+        event_timer_.connecting_list_by_ptr.begin();
+    if (!iter->second || !iter->second->second) {
+      event_timer_.connecting_list_by_ptr.erase(iter);
+      continue;
     }
-
-    // 保护性清理操作
-    if (!event_timer_.connecting_list.empty()) {
-      iter = event_timer_.connecting_list.begin();
-      if (!iter->second || !iter->second->second) {
-        event_timer_.connecting_list.pop_front();
-      }
-    }
+    remove_connection_timer(iter->second->second.get(), true);
   }
 
   // 重置自身的endpoint
@@ -677,48 +672,36 @@ ATBUS_MACRO_API int node::proc(std::chrono::system_clock::time_point now) {
   }
 
   // connection超时下线
-  while (!event_timer_.connecting_list.empty()) {
-    timer_desc_ls<std::string, connection::ptr_t>::type::iterator iter = event_timer_.connecting_list.begin();
+  while (!event_timer_.connecting_list_by_ptr.empty()) {
+    timer_desc_ls<const connection *, connection::ptr_t>::type::iterator iter =
+        event_timer_.connecting_list_by_ptr.begin();
 
     if (!iter->second) {
-      event_timer_.connecting_list.erase(iter);
+      event_timer_.connecting_list_by_ptr.erase(iter);
       continue;
     }
 
     if (!iter->second->second) {
-      event_timer_.connecting_list.erase(iter);
+      event_timer_.connecting_list_by_ptr.erase(iter);
       continue;
     }
 
-    auto &timer_obj_ptr = iter->second;
+    auto conn = iter->second->second;
 
-    if (timer_obj_ptr->second->is_connected()) {
-      timer_obj_ptr->second->remove_owner_checker();
-      // 保护性清理操作
-      if (!event_timer_.connecting_list.empty() && event_timer_.connecting_list.begin() == iter) {
-        event_timer_.connecting_list.erase(iter);
-      }
+    if (conn->is_connected()) {
+      remove_connection_timer(conn.get(), false);
       continue;
     }
 
-    if (timer_obj_ptr->first >= now) {
+    if (iter->second->first >= now) {
       break;
     }
 
-    if (!timer_obj_ptr->second->check_flag(connection::flag_t::kTemporary)) {
-      ATBUS_FUNC_NODE_ERROR(*this, nullptr, timer_obj_ptr->second.get(), 0, EN_ATBUS_ERR_NODE_TIMEOUT,
-                            "connection {} timeout", timer_obj_ptr->second->get_address().address);
+    if (!conn->check_flag(connection::flag_t::kTemporary)) {
+      ATBUS_FUNC_NODE_ERROR(*this, nullptr, conn.get(), 0, EN_ATBUS_ERR_NODE_TIMEOUT, "connection {} timeout",
+                            conn->get_address().address);
     }
-    timer_obj_ptr->second->reset();
-
-    // 保护性清理操作
-    if (!event_timer_.connecting_list.empty() && event_timer_.connecting_list.begin() == iter) {
-      if (event_message_.on_invalid_connection) {
-        flag_guard_t fgd(this, flag_t::kInCallback);
-        event_message_.on_invalid_connection(std::cref(*this), timer_obj_ptr->second.get(), EN_ATBUS_ERR_NODE_TIMEOUT);
-      }
-      event_timer_.connecting_list.erase(iter);
-    }
+    remove_connection_timer(conn.get(), true);
   }
 
   // 上游节点操作
@@ -948,7 +931,7 @@ ATBUS_MACRO_API int node::listen(gsl::string_view addr_str) {
     return EN_ATBUS_ERR_NOT_INITED;
   }
 
-  connection::ptr_t conn = connection::create(this, addr_str);
+  connection::ptr_t conn = connection::create(this, addr_str, true);
   if (!conn) {
     return EN_ATBUS_ERR_MALLOC;
   }
@@ -977,14 +960,14 @@ ATBUS_MACRO_API int node::connect(gsl::string_view addr_str) {
   }
 
   // if there is already connection of this addr not completed, just return success
-  auto iter = event_timer_.connecting_list.find(std::string{addr_str}, false);
-  if (iter != event_timer_.connecting_list.end()) {
-    if (iter->second && iter->second->second && !iter->second->second->is_connected()) {
+  auto iter = event_timer_.connecting_list_by_channel.find(std::string{addr_str});
+  if (iter != event_timer_.connecting_list_by_channel.end()) {
+    if (iter->second && !iter->second->is_connected()) {
       return EN_ATBUS_ERR_SUCCESS;
     }
   }
 
-  connection::ptr_t conn = connection::create(this, addr_str);
+  connection::ptr_t conn = connection::create(this, addr_str, false);
   if (!conn) {
     return EN_ATBUS_ERR_MALLOC;
   }
@@ -1019,15 +1002,14 @@ ATBUS_MACRO_API int node::connect(gsl::string_view addr_str, endpoint *ep) {
   }
 
   // if there is already connection of this addr not completed, just return success
-  auto iter = event_timer_.connecting_list.find(std::string{addr_str}, false);
-  if (iter != event_timer_.connecting_list.end()) {
-    if (iter->second && iter->second->second && !iter->second->second->is_connected() &&
-        iter->second->second->get_binding() == ep) {
+  auto iter = event_timer_.connecting_list_by_channel.find(std::string{addr_str});
+  if (iter != event_timer_.connecting_list_by_channel.end()) {
+    if (iter->second && !iter->second->is_connected() && iter->second->get_binding() == ep) {
       return EN_ATBUS_ERR_SUCCESS;
     }
   }
 
-  connection::ptr_t conn = connection::create(this, addr_str);
+  connection::ptr_t conn = connection::create(this, addr_str, false);
   if (!conn) {
     return EN_ATBUS_ERR_MALLOC;
   }
@@ -1838,44 +1820,68 @@ ATBUS_MACRO_API bool node::add_connection_timer(const connection::ptr_t &conn) {
 
   // 如果处于握手阶段，发送节点关系逻辑并加入握手连接池并加入超时判定池
   if (false == conn->is_connected()) {
-    event_timer_.connecting_list.insert_key_value(conn->get_address().address,
-                                                  std::make_pair(event_timer_.tick + conf_.first_idle_timeout, conn));
+    bool added = event_timer_.connecting_list_by_ptr
+                     .insert_key_value(conn.get(), std::make_pair(event_timer_.tick + conf_.first_idle_timeout, conn))
+                     .second;
+    if (!added) {
+      return false;
+    }
+    event_timer_.connecting_list_by_channel[conn->get_address().address] = conn;
   }
 
   return true;
 }
 
-ATBUS_MACRO_API bool node::remove_connection_timer(const connection *conn) {
+ATBUS_MACRO_API bool node::remove_connection_timer(const connection *conn, bool reset) {
   if (conn == nullptr) {
     return false;
   }
 
-  auto iter = event_timer_.connecting_list.find(conn->get_address().address, false);
-  if (iter == event_timer_.connecting_list.end()) {
-    return false;
-  }
-  if (!iter->second) {
-    event_timer_.connecting_list.erase(iter);
-    return false;
-  }
-  if (iter->second->second.get() != conn) {
-    return false;
-  }
+  connection::ptr_t conn_with_lifetime;
+  do {
+    auto iter_ptr = event_timer_.connecting_list_by_ptr.find(conn, false);
+    if (iter_ptr == event_timer_.connecting_list_by_ptr.end()) {
+      break;
+    }
+    if (!iter_ptr->second) {
+      event_timer_.connecting_list_by_ptr.erase(iter_ptr);
+      break;
+    }
 
-  if (event_message_.on_invalid_connection && !iter->second->second->is_connected()) {
-    // 确认的临时连接断开不属于无效连接
-    if (!iter->second->second->check_flag(connection::flag_t::kTemporary) ||
-        !iter->second->second->check_flag(connection::flag_t::kPeerClosed)) {
-      flag_guard_t fgd(this, flag_t::kInCallback);
-      event_message_.on_invalid_connection(std::cref(*this), iter->second->second.get(), EN_ATBUS_ERR_NODE_TIMEOUT);
+    conn_with_lifetime = std::move(iter_ptr->second->second);
+    event_timer_.connecting_list_by_ptr.erase(iter_ptr);
+  } while (false);
+
+  {
+    auto iter_channel = event_timer_.connecting_list_by_channel.find(conn->get_address().address);
+    if (iter_channel != event_timer_.connecting_list_by_channel.end() && iter_channel->second.get() == conn) {
+      conn_with_lifetime = std::move(iter_channel->second);
+      event_timer_.connecting_list_by_channel.erase(iter_channel);
     }
   }
 
-  event_timer_.connecting_list.erase(iter);
+  // connection::reset 可能重入回调进来，此时已删除则直接直接返回即可
+  if (!conn_with_lifetime) {
+    return false;
+  }
+
+  if (reset) {
+    conn_with_lifetime->reset();
+  }
+
+  if (event_message_.on_invalid_connection && !conn_with_lifetime->is_connected()) {
+    // 确认的临时连接断开不属于无效连接
+    if (!conn_with_lifetime->check_flag(connection::flag_t::kTemporary) ||
+        !conn_with_lifetime->check_flag(connection::flag_t::kPeerClosed)) {
+      flag_guard_t fgd(this, flag_t::kInCallback);
+      event_message_.on_invalid_connection(std::cref(*this), conn_with_lifetime.get(), EN_ATBUS_ERR_NODE_TIMEOUT);
+    }
+  }
+
   return true;
 }
 
-ATBUS_MACRO_API size_t node::get_connection_timer_size() const { return event_timer_.connecting_list.size(); }
+ATBUS_MACRO_API size_t node::get_connection_timer_size() const { return event_timer_.connecting_list_by_ptr.size(); }
 
 ATBUS_MACRO_API std::chrono::system_clock::time_point node::get_timer_tick() const { return event_timer_.tick; }
 
@@ -1963,7 +1969,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_disconnect(const endpoint *ep, const c
 
   // 上游节点断线逻辑则重置状态
   if (state_t::kConnectingUpstream == state_ && !conf_.upstream_address.empty() &&
-      conf_.upstream_address == conn->get_address().address) {
+      (conf_.upstream_address == conn->get_address().address || conf_.upstream_address == conn->get_origin_address())) {
     state_ = state_t::kLostUpstream;
 
     // set reconnect to upstream into retry interval
