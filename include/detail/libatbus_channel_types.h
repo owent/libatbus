@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "detail/libatbus_config.h"
 #include "detail/libatbus_error.h"
@@ -191,6 +192,22 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_channel {
 
   // 自定义数据区域
   void *data = nullptr;
+};
+
+struct ATBUS_MACRO_API_HEAD_ONLY gateway_t {
+  std::string address;
+
+  std::string match_scope;
+  std::unordered_set<std::string> match_hosts;
+  std::unordered_set<std::string> match_namespaces;
+  std::unordered_map<std::string, std::string> match_labels;
+
+  gateway_t() = default;
+  gateway_t(const gateway_t &) = default;
+  gateway_t(gateway_t &&) = default;
+  ~gateway_t() = default;
+  gateway_t &operator=(const gateway_t &) = default;
+  gateway_t &operator=(gateway_t &&) = default;
 };
 
 #define ATBUS_CHANNEL_IOS_CHECK_FLAG(f, v) (0 != ((f) & (static_cast<uint32_t>(1) << static_cast<uint32_t>(v))))

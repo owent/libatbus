@@ -22,9 +22,7 @@
 #include <ctime>
 #include <functional>
 #include <list>
-#include <map>
 #include <memory>
-#include <set>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -205,6 +203,8 @@ class node final : public atfw::util::design_pattern::noncopyable {
     ATFW_UTIL_FORCEINLINE constexpr void set_blacklist(gsl::span<const bus_id_t> bl) noexcept { blacklist = bl; }
   };
 
+  using gateway_t = channel::gateway_t;
+
   struct conf_t {
     adapter::loop_t *ev_loop;
     std::bitset<static_cast<size_t>(conf_flag_t::kMax)> flags;    /** 开关配置 **/
@@ -219,6 +219,7 @@ class node final : public atfw::util::design_pattern::noncopyable {
     std::string scope;
     std::string namespace_name;
     std::unordered_map<std::string, std::string> node_labels;
+    std::vector<gateway_t> gateway;
 
     // ===== 连接配置 =====
     int32_t backlog;
@@ -352,20 +353,25 @@ class node final : public atfw::util::design_pattern::noncopyable {
   ATBUS_MACRO_API int init(bus_id_t id, const conf_t *conf);
 
   /**
-   * @brief 启动连接流程
-   * @return 0或错误码
+   * @brief 刷新加密算法配置
    */
   ATBUS_MACRO_API void reload_crypto(protocol::ATBUS_CRYPTO_KEY_EXCHANGE_TYPE crypto_key_exchange_type,
                                      std::chrono::microseconds crypto_key_refresh_interval,
                                      gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> crypto_allow_algorithms);
 
   /**
-   * @brief 启动连接流程
-   * @return 0或错误码
+   * @brief 刷新压缩算法配置
    */
   ATBUS_MACRO_API void reload_compression(
       gsl::span<const protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE> compression_allow_algorithms,
       protocol::ATBUS_COMPRESSION_LEVEL compression_level);
+
+  /**
+   * @brief 刷新自身节点配置
+   */
+  ATBUS_MACRO_API void reload_self_endpoint(gsl::string_view scope, gsl::string_view ns,
+                                            const std::unordered_map<std::string, std::string> &labels,
+                                            gsl::span<const channel::gateway_t> gateways);
 
   /**
    * @brief 启动连接流程
@@ -683,6 +689,8 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   ATBUS_MACRO_API const std::list<channel::channel_address_t> &get_listen_list() const;
 
+  ATBUS_MACRO_API const std::vector<gateway_t> &get_gateway_address() const;
+
   ATBUS_MACRO_API bool add_proc_connection(const connection::ptr_t &conn);
   ATBUS_MACRO_API bool remove_proc_connection(const std::string &conn_key);
 
@@ -817,6 +825,10 @@ class node final : public atfw::util::design_pattern::noncopyable {
 
   static ATBUS_MACRO_API protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE parse_compression_algorithm_name(
       gsl::string_view name) noexcept;
+
+  static ATBUS_MACRO_API gateway_t build_gateway_from_channel_data(const protocol::channel_data &ch);
+  static ATBUS_MACRO_API void dump_gateway_to_channel_data(const gateway_t &gw, protocol::channel_data &ch);
+  ATBUS_MACRO_API void dump_listen_to_channel_data(gsl::string_view listen_address, protocol::channel_data &ch);
 
  private:
   static endpoint *find_route(endpoint_collection_t &coll, bus_id_t id);

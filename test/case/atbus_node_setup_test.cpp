@@ -348,3 +348,119 @@ CASE_TEST(atbus_node_setup, upstream_topology_with_wildcard_upstream_address) {
 
   unit_test_setup_exit(&ev_loop);
 }
+
+// 集群隔离: conf_t 的拷贝构造与赋值必须保留 gateway 列表, default_conf 必须清空它
+CASE_TEST(atbus_node_setup, gateway_conf_copy_and_default) {
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+
+  atbus::node::gateway_t gw;
+  gw.address = "ipv4://127.0.0.1:16450";
+  gw.match_scope = "prod";
+  gw.match_hosts.insert("host-a");
+  gw.match_namespaces.insert("game");
+  gw.match_labels.emplace("zone", "a");
+  conf.gateway.push_back(gw);
+
+  atbus::node::conf_t conf_copied(conf);
+  CASE_EXPECT_EQ(static_cast<size_t>(1), conf_copied.gateway.size());
+  if (!conf_copied.gateway.empty()) {
+    CASE_EXPECT_EQ(gw.address, conf_copied.gateway[0].address);
+    CASE_EXPECT_EQ(gw.match_scope, conf_copied.gateway[0].match_scope);
+    CASE_EXPECT_TRUE(gw.match_hosts == conf_copied.gateway[0].match_hosts);
+    CASE_EXPECT_TRUE(gw.match_namespaces == conf_copied.gateway[0].match_namespaces);
+    CASE_EXPECT_TRUE(gw.match_labels == conf_copied.gateway[0].match_labels);
+  }
+
+  atbus::node::conf_t conf_assigned;
+  conf_assigned = conf;
+  CASE_EXPECT_EQ(static_cast<size_t>(1), conf_assigned.gateway.size());
+  if (!conf_assigned.gateway.empty()) {
+    CASE_EXPECT_EQ(gw.address, conf_assigned.gateway[0].address);
+    CASE_EXPECT_TRUE(gw.match_labels == conf_assigned.gateway[0].match_labels);
+  }
+
+  // 复用 conf_t 时 default_conf 必须清掉旧的隔离配置
+  atbus::node::default_conf(&conf_assigned);
+  CASE_EXPECT_TRUE(conf_assigned.gateway.empty());
+}
+
+// 集群隔离: gateway_t 与 channel_data 互转必须保留全部匹配规则, 空规则保持通配
+CASE_TEST(atbus_node_setup, gateway_channel_data_roundtrip) {
+  atbus::node::gateway_t gw;
+  gw.address = "ipv4://127.0.0.1:16450";
+  gw.match_scope = "prod";
+  gw.match_hosts.insert("host-a");
+  gw.match_hosts.insert("host-b");
+  gw.match_namespaces.insert("game");
+  gw.match_labels.emplace("zone", "a");
+  gw.match_labels.emplace("app", "x");
+
+  atbus::protocol::channel_data chan;
+  atbus::node::dump_gateway_to_channel_data(gw, chan);
+  CASE_EXPECT_EQ(gw.address, chan.address());
+  CASE_EXPECT_EQ(gw.match_scope, chan.match_scope());
+  CASE_EXPECT_EQ(2, chan.match_hosts_size());
+  CASE_EXPECT_EQ(1, chan.match_namespaces_size());
+  CASE_EXPECT_EQ(2, static_cast<int>(chan.match_labels().size()));
+
+  atbus::node::gateway_t restored = atbus::node::build_gateway_from_channel_data(chan);
+  CASE_EXPECT_EQ(gw.address, restored.address);
+  CASE_EXPECT_EQ(gw.match_scope, restored.match_scope);
+  CASE_EXPECT_TRUE(gw.match_hosts == restored.match_hosts);
+  CASE_EXPECT_TRUE(gw.match_namespaces == restored.match_namespaces);
+  CASE_EXPECT_TRUE(gw.match_labels == restored.match_labels);
+
+  // 未配置任何匹配规则的地址对所有对端可达
+  atbus::protocol::channel_data wildcard_chan;
+  wildcard_chan.set_address("ipv4://127.0.0.1:16451");
+  atbus::node::gateway_t wildcard_gw = atbus::node::build_gateway_from_channel_data(wildcard_chan);
+  CASE_EXPECT_TRUE(wildcard_gw.match_scope.empty());
+  CASE_EXPECT_TRUE(wildcard_gw.match_hosts.empty());
+  CASE_EXPECT_TRUE(wildcard_gw.match_namespaces.empty());
+  CASE_EXPECT_TRUE(wildcard_gw.match_labels.empty());
+}
+
+// 集群隔离: listen 地址导出时按本端 scope/namespace 附加默认限制, 未配置则为通配
+CASE_TEST(atbus_node_setup, dump_listen_to_channel_data) {
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+  conf.ev_loop = &ev_loop;
+  conf.scope = "prod";
+  conf.namespace_name = "game";
+
+  {
+    atbus::node::ptr_t node = atbus::node::create();
+    node->init(0x12345678, &conf);
+
+    atbus::protocol::channel_data chan;
+    node->dump_listen_to_channel_data("ipv4://127.0.0.1:16450", chan);
+    CASE_EXPECT_EQ(std::string("ipv4://127.0.0.1:16450"), chan.address());
+    CASE_EXPECT_EQ(std::string("prod"), chan.match_scope());
+    CASE_EXPECT_EQ(1, chan.match_namespaces_size());
+    if (chan.match_namespaces_size() > 0) {
+      CASE_EXPECT_EQ(std::string("game"), chan.match_namespaces(0));
+    }
+    CASE_EXPECT_EQ(0, chan.match_hosts_size());
+    CASE_EXPECT_EQ(0, static_cast<int>(chan.match_labels().size()));
+  }
+
+  {
+    atbus::node::conf_t wildcard_conf;
+    atbus::node::default_conf(&wildcard_conf);
+    wildcard_conf.ev_loop = &ev_loop;
+
+    atbus::node::ptr_t node = atbus::node::create();
+    node->init(0x12345679, &wildcard_conf);
+
+    atbus::protocol::channel_data chan;
+    node->dump_listen_to_channel_data("ipv4://127.0.0.1:16450", chan);
+    CASE_EXPECT_TRUE(chan.match_scope().empty());
+    CASE_EXPECT_EQ(0, chan.match_namespaces_size());
+  }
+
+  unit_test_setup_exit(&ev_loop);
+}

@@ -2563,3 +2563,456 @@ CASE_TEST(atbus_node_reg, reconnect_upstream_retry_backoff) {
 
   unit_test_setup_exit(&ev_loop);
 }
+
+// 集群隔离: scope/namespace/labels 一致时正常注册, 身份信息随注册包传递, 服务端照常通过单工通道反向建连
+CASE_TEST(atbus_node_reg, reg_pc_success_with_same_scope) {
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+  conf.ev_loop = &ev_loop;
+
+  const size_t memory_chan_len = conf.receive_buffer_size;
+  char *upstream_mem_buf = reinterpret_cast<char *>(malloc(memory_chan_len));
+  char *downstream_mem_buf = reinterpret_cast<char *>(malloc(memory_chan_len));
+  memset(upstream_mem_buf, 0, memory_chan_len);
+  memset(downstream_mem_buf, 0, memory_chan_len);
+
+  {
+    atbus::node::ptr_t node_upstream = atbus::node::create();
+    atbus::node::ptr_t node_downstream = atbus::node::create();
+    setup_atbus_node_logger(*node_upstream);
+    setup_atbus_node_logger(*node_downstream);
+
+    atbus::node::conf_t upstream_conf = conf;
+    upstream_conf.scope = "prod";
+    upstream_conf.namespace_name = "game";
+    upstream_conf.node_labels.emplace("zone", "a");
+    node_upstream->init(0x12345678, &upstream_conf);
+
+    atbus::node::conf_t downstream_conf = upstream_conf;
+    downstream_conf.upstream_address = "ipv4://127.0.0.1:16450";
+    node_downstream->init(0x12346789, &downstream_conf);
+
+    char upstream_mem_addr[64] = {0};
+    UTIL_STRFUNC_SNPRINTF(upstream_mem_addr, sizeof(upstream_mem_addr), "mem://0x%llx",
+                          reinterpret_cast<unsigned long long>(upstream_mem_buf));
+    char downstream_mem_addr[64] = {0};
+    UTIL_STRFUNC_SNPRINTF(downstream_mem_addr, sizeof(downstream_mem_addr), "mem://0x%llx",
+                          reinterpret_cast<unsigned long long>(downstream_mem_buf));
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->listen("ipv4://127.0.0.1:16450"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->listen(upstream_mem_addr));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream->listen(downstream_mem_addr));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->start());
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream->start());
+
+    time_t proc_t_sec = time(nullptr);
+    time_t proc_t_usec = 0;
+    UNITTEST_WAIT_UNTIL(conf.ev_loop,
+                        node_downstream->is_endpoint_available(node_upstream->get_id()) &&
+                            node_upstream->is_endpoint_available(node_downstream->get_id()),
+                        8000, 8) {
+      proc_t_usec += 8000;
+      if (proc_t_usec >= 1000000) {
+        proc_t_usec = 0;
+        ++proc_t_sec;
+      }
+      node_upstream->proc(unit_test_make_timepoint(proc_t_sec, proc_t_usec));
+      node_downstream->proc(unit_test_make_timepoint(proc_t_sec, proc_t_usec));
+    }
+    CASE_EXPECT_TRUE(node_downstream->is_endpoint_available(node_upstream->get_id()));
+    CASE_EXPECT_TRUE(node_upstream->is_endpoint_available(node_downstream->get_id()));
+
+    // 对端的 scope/namespace/labels 必须随注册包传递
+    atbus::endpoint *ep_downstream = node_upstream->get_endpoint(node_downstream->get_id());
+    CASE_EXPECT_NE(nullptr, ep_downstream);
+    if (nullptr != ep_downstream) {
+      CASE_EXPECT_EQ(std::string("prod"), ep_downstream->get_scope());
+      CASE_EXPECT_EQ(std::string("game"), ep_downstream->get_namespace());
+      auto label_iter = ep_downstream->get_labels().find("zone");
+      CASE_EXPECT_TRUE(label_iter != ep_downstream->get_labels().end() && label_iter->second == "a");
+    }
+
+    atbus::endpoint *ep_upstream = node_downstream->get_endpoint(node_upstream->get_id());
+    CASE_EXPECT_NE(nullptr, ep_upstream);
+    if (nullptr != ep_upstream) {
+      CASE_EXPECT_EQ(std::string("prod"), ep_upstream->get_scope());
+      CASE_EXPECT_EQ(std::string("game"), ep_upstream->get_namespace());
+      auto label_iter = ep_upstream->get_labels().find("zone");
+      CASE_EXPECT_TRUE(label_iter != ep_upstream->get_labels().end() && label_iter->second == "a");
+    }
+
+    // 内存通道是单工通道: scope/namespace 匹配时双方必须互相通过对方的内存通道建立数据连接。
+    // 反向连接在注册流程中同步发起, 可用性满足时必然已经完成
+    atbus::endpoint *test_ep = nullptr;
+    atbus::connection *test_conn = nullptr;
+    atbus::topology_peer::ptr_t next_hop;
+    node_upstream->get_peer_channel(node_downstream->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
+                                    &test_conn, &next_hop);
+    CASE_EXPECT_NE(nullptr, test_conn);
+    if (nullptr != test_conn) {
+      CASE_EXPECT_EQ(std::string(downstream_mem_addr), test_conn->get_address().address);
+    }
+    test_ep = nullptr;
+    test_conn = nullptr;
+    node_downstream->get_peer_channel(node_upstream->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
+                                      &test_conn, &next_hop);
+    CASE_EXPECT_NE(nullptr, test_conn);
+    if (nullptr != test_conn) {
+      CASE_EXPECT_EQ(std::string(upstream_mem_addr), test_conn->get_address().address);
+    }
+  }
+
+  unit_test_setup_exit(&ev_loop);
+  free(upstream_mem_buf);
+  free(downstream_mem_buf);
+}
+
+// 集群隔离: scope 不匹配时自动建连必须跳过不可达的通告地址, 仅通过已知可达的上游地址建立数据连接
+CASE_TEST(atbus_node_reg, reg_pc_scope_mismatch_without_redial) {
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+  conf.ev_loop = &ev_loop;
+
+  const size_t memory_chan_len = conf.receive_buffer_size;
+  char *upstream_mem_buf = reinterpret_cast<char *>(malloc(memory_chan_len));
+  memset(upstream_mem_buf, 0, memory_chan_len);
+
+  {
+    atbus::node::ptr_t node_upstream = atbus::node::create();
+    atbus::node::ptr_t node_downstream = atbus::node::create();
+    setup_atbus_node_logger(*node_upstream);
+    setup_atbus_node_logger(*node_downstream);
+
+    atbus::node::conf_t upstream_conf = conf;
+    upstream_conf.scope = "prod";
+    node_upstream->init(0x12345678, &upstream_conf);
+
+    atbus::node::conf_t downstream_conf = conf;
+    downstream_conf.scope = "dev";
+    downstream_conf.upstream_address = "ipv4://127.0.0.1:16452";
+    node_downstream->init(0x12346789, &downstream_conf);
+
+    char upstream_mem_addr[64] = {0};
+    UTIL_STRFUNC_SNPRINTF(upstream_mem_addr, sizeof(upstream_mem_addr), "mem://0x%llx",
+                          reinterpret_cast<unsigned long long>(upstream_mem_buf));
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->listen("ipv4://127.0.0.1:16452"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->listen(upstream_mem_addr));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->start());
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream->start());
+
+    UNITTEST_WAIT_UNTIL(conf.ev_loop,
+                        node_downstream->is_endpoint_available(node_upstream->get_id()) &&
+                            node_upstream->is_endpoint_available(node_downstream->get_id()),
+                        8000, 8) {}
+    CASE_EXPECT_TRUE(node_downstream->is_endpoint_available(node_upstream->get_id()));
+    CASE_EXPECT_TRUE(node_upstream->is_endpoint_available(node_downstream->get_id()));
+
+    // 上游通告的内存通道地址(匹配 prod)与 listen 地址都必须被跳过,
+    // 否则内存通道优先级更高, 数据连接地址会变成 mem://
+    atbus::endpoint *test_ep = nullptr;
+    atbus::connection *test_conn = nullptr;
+    atbus::topology_peer::ptr_t next_hop;
+    node_downstream->get_peer_channel(node_upstream->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
+                                      &test_conn, &next_hop);
+    CASE_EXPECT_NE(nullptr, test_conn);
+    if (nullptr != test_conn) {
+      CASE_EXPECT_EQ(std::string("ipv4://127.0.0.1:16452"), test_conn->get_address().address);
+    }
+  }
+
+  unit_test_setup_exit(&ev_loop);
+  free(upstream_mem_buf);
+}
+
+// 集群隔离: scope 相同但 namespace 不匹配时同样必须跳过不可达的通告地址
+CASE_TEST(atbus_node_reg, reg_pc_namespace_mismatch_without_redial) {
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+  conf.ev_loop = &ev_loop;
+
+  const size_t memory_chan_len = conf.receive_buffer_size;
+  char *upstream_mem_buf = reinterpret_cast<char *>(malloc(memory_chan_len));
+  memset(upstream_mem_buf, 0, memory_chan_len);
+
+  {
+    atbus::node::ptr_t node_upstream = atbus::node::create();
+    atbus::node::ptr_t node_downstream = atbus::node::create();
+    setup_atbus_node_logger(*node_upstream);
+    setup_atbus_node_logger(*node_downstream);
+
+    atbus::node::conf_t upstream_conf = conf;
+    upstream_conf.scope = "prod";
+    upstream_conf.namespace_name = "game";
+    node_upstream->init(0x12345678, &upstream_conf);
+
+    atbus::node::conf_t downstream_conf = conf;
+    downstream_conf.scope = "prod";
+    downstream_conf.namespace_name = "lobby";
+    downstream_conf.upstream_address = "ipv4://127.0.0.1:16454";
+    node_downstream->init(0x12346789, &downstream_conf);
+
+    char upstream_mem_addr[64] = {0};
+    UTIL_STRFUNC_SNPRINTF(upstream_mem_addr, sizeof(upstream_mem_addr), "mem://0x%llx",
+                          reinterpret_cast<unsigned long long>(upstream_mem_buf));
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->listen("ipv4://127.0.0.1:16454"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->listen(upstream_mem_addr));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->start());
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream->start());
+
+    UNITTEST_WAIT_UNTIL(conf.ev_loop,
+                        node_downstream->is_endpoint_available(node_upstream->get_id()) &&
+                            node_upstream->is_endpoint_available(node_downstream->get_id()),
+                        8000, 8) {}
+    CASE_EXPECT_TRUE(node_downstream->is_endpoint_available(node_upstream->get_id()));
+    CASE_EXPECT_TRUE(node_upstream->is_endpoint_available(node_downstream->get_id()));
+
+    // namespace 不匹配时, 内存通道地址(匹配 game)与 listen 地址都必须被跳过
+    atbus::endpoint *test_ep = nullptr;
+    atbus::connection *test_conn = nullptr;
+    atbus::topology_peer::ptr_t next_hop;
+    node_downstream->get_peer_channel(node_upstream->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
+                                      &test_conn, &next_hop);
+    CASE_EXPECT_NE(nullptr, test_conn);
+    if (nullptr != test_conn) {
+      CASE_EXPECT_EQ(std::string("ipv4://127.0.0.1:16454"), test_conn->get_address().address);
+    }
+  }
+
+  unit_test_setup_exit(&ev_loop);
+  free(upstream_mem_buf);
+}
+
+// 集群隔离: 配置 gateway 后只通告 gateway 地址, 下游必须选中匹配自身 scope 的地址而不是回退到注册地址
+CASE_TEST(atbus_node_reg, reg_pc_gateway_select_matching_scope) {
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+  conf.ev_loop = &ev_loop;
+
+  {
+    atbus::node::ptr_t node_upstream = atbus::node::create();
+    atbus::node::ptr_t node_downstream = atbus::node::create();
+    setup_atbus_node_logger(*node_upstream);
+    setup_atbus_node_logger(*node_downstream);
+
+    atbus::node::conf_t upstream_conf = conf;
+    upstream_conf.scope = "prod";
+    atbus::node::gateway_t gw_other;
+    gw_other.address = "ipv4://127.0.0.1:16456";
+    gw_other.match_scope = "other";
+    upstream_conf.gateway.push_back(gw_other);
+    atbus::node::gateway_t gw_dev;
+    gw_dev.address = "ipv4://127.0.0.1:16457";
+    gw_dev.match_scope = "dev";
+    upstream_conf.gateway.push_back(gw_dev);
+    node_upstream->init(0x12345678, &upstream_conf);
+
+    atbus::node::conf_t downstream_conf = conf;
+    downstream_conf.scope = "dev";
+    downstream_conf.node_labels.emplace("zone", "a");
+    downstream_conf.upstream_address = "ipv4://127.0.0.1:16456";
+    node_downstream->init(0x12346789, &downstream_conf);
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->listen("ipv4://127.0.0.1:16456"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->listen("ipv4://127.0.0.1:16457"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream->listen("ipv4://127.0.0.1:16458"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->start());
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream->start());
+
+    UNITTEST_WAIT_UNTIL(conf.ev_loop,
+                        node_downstream->is_endpoint_available(node_upstream->get_id()) &&
+                            node_upstream->is_endpoint_available(node_downstream->get_id()),
+                        8000, 8) {}
+    CASE_EXPECT_TRUE(node_downstream->is_endpoint_available(node_upstream->get_id()));
+    CASE_EXPECT_TRUE(node_upstream->is_endpoint_available(node_downstream->get_id()));
+
+    // 下游必须选中匹配自身 scope 的 gateway 地址
+    atbus::endpoint *test_ep = nullptr;
+    atbus::connection *test_conn = nullptr;
+    atbus::topology_peer::ptr_t next_hop;
+    node_downstream->get_peer_channel(node_upstream->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
+                                      &test_conn, &next_hop);
+    CASE_EXPECT_NE(nullptr, test_conn);
+    if (nullptr != test_conn) {
+      CASE_EXPECT_EQ(std::string("ipv4://127.0.0.1:16457"), test_conn->get_address().address);
+    }
+
+    // 下游 endpoint 必须保存上游通告的 gateway 匹配规则
+    atbus::endpoint *ep_upstream = node_downstream->get_endpoint(node_upstream->get_id());
+    CASE_EXPECT_NE(nullptr, ep_upstream);
+    if (nullptr != ep_upstream) {
+      CASE_EXPECT_EQ(static_cast<size_t>(2), ep_upstream->get_gateway().size());
+      if (ep_upstream->get_gateway().size() >= 2) {
+        CASE_EXPECT_EQ(std::string("ipv4://127.0.0.1:16456"), ep_upstream->get_gateway()[0].address);
+        CASE_EXPECT_EQ(std::string("other"), ep_upstream->get_gateway()[0].match_scope);
+        CASE_EXPECT_EQ(std::string("ipv4://127.0.0.1:16457"), ep_upstream->get_gateway()[1].address);
+        CASE_EXPECT_EQ(std::string("dev"), ep_upstream->get_gateway()[1].match_scope);
+      }
+    }
+
+    // 上游 endpoint 必须拿到下游上报的身份信息
+    atbus::endpoint *ep_downstream = node_upstream->get_endpoint(node_downstream->get_id());
+    CASE_EXPECT_NE(nullptr, ep_downstream);
+    if (nullptr != ep_downstream) {
+      CASE_EXPECT_EQ(std::string("dev"), ep_downstream->get_scope());
+      auto label_iter = ep_downstream->get_labels().find("zone");
+      CASE_EXPECT_TRUE(label_iter != ep_downstream->get_labels().end() && label_iter->second == "a");
+    }
+  }
+
+  unit_test_setup_exit(&ev_loop);
+}
+
+// 集群隔离: gateway 未配置匹配规则时不限制, 任何 scope 的对端都可达
+CASE_TEST(atbus_node_reg, reg_pc_gateway_wildcard_reachable) {
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+  conf.ev_loop = &ev_loop;
+
+  {
+    atbus::node::ptr_t node_upstream = atbus::node::create();
+    atbus::node::ptr_t node_downstream = atbus::node::create();
+    setup_atbus_node_logger(*node_upstream);
+    setup_atbus_node_logger(*node_downstream);
+
+    atbus::node::conf_t upstream_conf = conf;
+    upstream_conf.scope = "prod";
+    atbus::node::gateway_t gw_other;
+    gw_other.address = "ipv4://127.0.0.1:16459";
+    gw_other.match_scope = "other";
+    upstream_conf.gateway.push_back(gw_other);
+    atbus::node::gateway_t gw_wildcard;
+    gw_wildcard.address = "ipv4://127.0.0.1:16460";
+    upstream_conf.gateway.push_back(gw_wildcard);
+    node_upstream->init(0x12345678, &upstream_conf);
+
+    atbus::node::conf_t downstream_conf = conf;
+    downstream_conf.scope = "dev";
+    downstream_conf.upstream_address = "ipv4://127.0.0.1:16459";
+    node_downstream->init(0x12346789, &downstream_conf);
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->listen("ipv4://127.0.0.1:16459"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->listen("ipv4://127.0.0.1:16460"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream->listen("ipv4://127.0.0.1:16461"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->start());
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream->start());
+
+    UNITTEST_WAIT_UNTIL(conf.ev_loop,
+                        node_downstream->is_endpoint_available(node_upstream->get_id()) &&
+                            node_upstream->is_endpoint_available(node_downstream->get_id()),
+                        8000, 8) {}
+    CASE_EXPECT_TRUE(node_downstream->is_endpoint_available(node_upstream->get_id()));
+    CASE_EXPECT_TRUE(node_upstream->is_endpoint_available(node_downstream->get_id()));
+
+    // scope 受限的地址被跳过, 通配地址必须被选中
+    atbus::endpoint *test_ep = nullptr;
+    atbus::connection *test_conn = nullptr;
+    atbus::topology_peer::ptr_t next_hop;
+    node_downstream->get_peer_channel(node_upstream->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
+                                      &test_conn, &next_hop);
+    CASE_EXPECT_NE(nullptr, test_conn);
+    if (nullptr != test_conn) {
+      CASE_EXPECT_EQ(std::string("ipv4://127.0.0.1:16460"), test_conn->get_address().address);
+    }
+  }
+
+  unit_test_setup_exit(&ev_loop);
+}
+
+// 集群隔离: gateway 的 match_labels 必须是对端 labels 的子集才可达
+CASE_TEST(atbus_node_reg, reg_pc_gateway_label_subset) {
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+  conf.ev_loop = &ev_loop;
+
+  {
+    atbus::node::ptr_t node_upstream = atbus::node::create();
+    atbus::node::ptr_t node_downstream_full = atbus::node::create();
+    atbus::node::ptr_t node_downstream_partial = atbus::node::create();
+    setup_atbus_node_logger(*node_upstream);
+    setup_atbus_node_logger(*node_downstream_full);
+    setup_atbus_node_logger(*node_downstream_partial);
+
+    atbus::node::conf_t upstream_conf = conf;
+    upstream_conf.scope = "prod";
+    atbus::node::gateway_t gw_labeled;
+    gw_labeled.address = "ipv4://127.0.0.1:16462";
+    gw_labeled.match_labels.emplace("zone", "a");
+    gw_labeled.match_labels.emplace("app", "x");
+    upstream_conf.gateway.push_back(gw_labeled);
+    atbus::node::gateway_t gw_wildcard;
+    gw_wildcard.address = "ipv4://127.0.0.1:16463";
+    upstream_conf.gateway.push_back(gw_wildcard);
+    node_upstream->init(0x12345678, &upstream_conf);
+
+    // labels 覆盖 match_labels 全部键值的对端可以使用受限地址
+    atbus::node::conf_t downstream_full_conf = conf;
+    downstream_full_conf.scope = "dev";
+    downstream_full_conf.node_labels.emplace("zone", "a");
+    downstream_full_conf.node_labels.emplace("app", "x");
+    downstream_full_conf.node_labels.emplace("extra", "1");
+    downstream_full_conf.upstream_address = "ipv4://127.0.0.1:16463";
+    node_downstream_full->init(0x12346789, &downstream_full_conf);
+
+    // labels 只覆盖部分键值的对端必须跳过受限地址
+    atbus::node::conf_t downstream_partial_conf = conf;
+    downstream_partial_conf.scope = "dev";
+    downstream_partial_conf.node_labels.emplace("zone", "a");
+    downstream_partial_conf.upstream_address = "ipv4://127.0.0.1:16462";
+    node_downstream_partial->init(0x12349012, &downstream_partial_conf);
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->listen("ipv4://127.0.0.1:16462"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->listen("ipv4://127.0.0.1:16463"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream_full->listen("ipv4://127.0.0.1:16464"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream_partial->listen("ipv4://127.0.0.1:16465"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->start());
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream_full->start());
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream_partial->start());
+
+    UNITTEST_WAIT_UNTIL(conf.ev_loop,
+                        node_downstream_full->is_endpoint_available(node_upstream->get_id()) &&
+                            node_upstream->is_endpoint_available(node_downstream_full->get_id()) &&
+                            node_downstream_partial->is_endpoint_available(node_upstream->get_id()) &&
+                            node_upstream->is_endpoint_available(node_downstream_partial->get_id()),
+                        8000, 8) {}
+    CASE_EXPECT_TRUE(node_downstream_full->is_endpoint_available(node_upstream->get_id()));
+    CASE_EXPECT_TRUE(node_downstream_partial->is_endpoint_available(node_upstream->get_id()));
+
+    // 全量 labels 的对端选中受限地址(列表顺序优先), 而不是回退到注册地址
+    atbus::endpoint *test_ep = nullptr;
+    atbus::connection *test_conn = nullptr;
+    atbus::topology_peer::ptr_t next_hop;
+    node_downstream_full->get_peer_channel(node_upstream->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
+                                           &test_conn, &next_hop);
+    CASE_EXPECT_NE(nullptr, test_conn);
+    if (nullptr != test_conn) {
+      CASE_EXPECT_EQ(std::string("ipv4://127.0.0.1:16462"), test_conn->get_address().address);
+    }
+
+    // 部分 labels 的对端只能选中通配地址, 而不是受限的注册地址
+    test_ep = nullptr;
+    test_conn = nullptr;
+    next_hop.reset();
+    node_downstream_partial->get_peer_channel(node_upstream->get_id(), &atbus::endpoint::get_data_connection, &test_ep,
+                                              &test_conn, &next_hop);
+    CASE_EXPECT_NE(nullptr, test_conn);
+    if (nullptr != test_conn) {
+      CASE_EXPECT_EQ(std::string("ipv4://127.0.0.1:16463"), test_conn->get_address().address);
+    }
+  }
+
+  unit_test_setup_exit(&ev_loop);
+}

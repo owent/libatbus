@@ -137,3 +137,81 @@ CASE_TEST(atbus_channel, address) {
   CASE_EXPECT_FALSE(atbus::channel::is_local_process_address({}));
   CASE_EXPECT_TRUE(atbus::channel::is_local_process_address("mem://0x1234"));
 }
+
+// 集群隔离: endpoint 必须保存对端的 scope/namespace/labels 与通道匹配规则
+CASE_TEST(atbus_endpoint, reload_scope_labels_and_gateway) {
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+  conf.ev_loop = &ev_loop;
+
+  {
+    atbus::node::ptr_t node = atbus::node::create();
+    node->init(0x12345678, &conf);
+
+    atbus::endpoint::ptr_t ep = atbus::endpoint::create(node.get(), 0x12345679, node->get_pid(), node->get_hostname());
+    CASE_EXPECT_TRUE(!!ep);
+    if (!ep) {
+      unit_test_setup_exit(&ev_loop);
+      return;
+    }
+
+    // 初始为空, 表示不限制
+    CASE_EXPECT_TRUE(ep->get_scope().empty());
+    CASE_EXPECT_TRUE(ep->get_namespace().empty());
+    CASE_EXPECT_TRUE(ep->get_labels().empty());
+    CASE_EXPECT_TRUE(ep->get_gateway().empty());
+
+    // 本地配置源 reload
+    std::unordered_map<std::string, std::string> labels;
+    labels.emplace("zone", "a");
+    std::vector<atbus::node::gateway_t> gateways;
+    atbus::node::gateway_t gw;
+    gw.address = "ipv4://127.0.0.1:16450";
+    gw.match_scope = "prod";
+    gateways.push_back(gw);
+    ep->reload("prod", "game", labels, gsl::span<const atbus::node::gateway_t>(gateways.data(), gateways.size()));
+    CASE_EXPECT_EQ(std::string("prod"), ep->get_scope());
+    CASE_EXPECT_EQ(std::string("game"), ep->get_namespace());
+    CASE_EXPECT_EQ(static_cast<size_t>(1), ep->get_labels().size());
+    CASE_EXPECT_EQ(static_cast<size_t>(1), ep->get_gateway().size());
+    if (!ep->get_gateway().empty()) {
+      CASE_EXPECT_EQ(gw.address, ep->get_gateway()[0].address);
+      CASE_EXPECT_EQ(gw.match_scope, ep->get_gateway()[0].match_scope);
+    }
+
+    // 注册包数据源 reload (线上协议字段)
+    atbus::protocol::register_data reg;
+    reg.set_scope("dev");
+    reg.set_namespace_name("lobby");
+    (*reg.mutable_labels())["zone"] = "b";
+    atbus::protocol::channel_data *chan = reg.add_channels();
+    chan->set_address("ipv4://127.0.0.1:16451");
+    chan->set_match_scope("dev");
+    chan->add_match_hosts("host-a");
+    chan->add_match_namespaces("lobby");
+    (*chan->mutable_match_labels())["zone"] = "b";
+    ep->reload(reg.scope(), reg.namespace_name(), reg.labels(), reg.channels());
+    CASE_EXPECT_EQ(std::string("dev"), ep->get_scope());
+    CASE_EXPECT_EQ(std::string("lobby"), ep->get_namespace());
+    CASE_EXPECT_EQ(static_cast<size_t>(1), ep->get_labels().size());
+    {
+      auto label_iter = ep->get_labels().find("zone");
+      CASE_EXPECT_TRUE(label_iter != ep->get_labels().end() && label_iter->second == "b");
+    }
+    CASE_EXPECT_EQ(static_cast<size_t>(1), ep->get_gateway().size());
+    if (!ep->get_gateway().empty()) {
+      const auto &wire_gw = ep->get_gateway()[0];
+      CASE_EXPECT_EQ(std::string("ipv4://127.0.0.1:16451"), wire_gw.address);
+      CASE_EXPECT_EQ(std::string("dev"), wire_gw.match_scope);
+      CASE_EXPECT_TRUE(wire_gw.match_hosts.end() != wire_gw.match_hosts.find("host-a"));
+      CASE_EXPECT_TRUE(wire_gw.match_namespaces.end() != wire_gw.match_namespaces.find("lobby"));
+      auto label_iter = wire_gw.match_labels.find("zone");
+      CASE_EXPECT_TRUE(label_iter != wire_gw.match_labels.end() && label_iter->second == "b");
+    }
+  }
+
+  unit_test_setup_exit(&ev_loop);
+}

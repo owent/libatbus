@@ -218,6 +218,31 @@ static const dispatch_handle_set &_get_handle_set() {
   static dispatch_handle_set s_handle_set = _build_handle_set();
   return s_handle_set;
 }
+
+template <class TMap>
+static bool check_reachable(const ::atfw::atbus::channel::gateway_t &gw, gsl::string_view ep_scope,
+                            const std::string &ep_namespace, const std::string &ep_hostname, TMap &&gw_labels) {
+  if (!gw.match_scope.empty() && gw.match_scope != ep_scope) {
+    return false;
+  }
+
+  if (!gw.match_namespaces.empty() && gw.match_namespaces.end() == gw.match_namespaces.find(ep_namespace)) {
+    return false;
+  }
+
+  if (!gw.match_hosts.empty() && gw.match_hosts.end() == gw.match_hosts.find(ep_hostname)) {
+    return false;
+  }
+
+  for (const auto &label_kv : gw.match_labels) {
+    auto iter = gw_labels.find(label_kv.first);
+    if (iter == gw_labels.end() || iter->second != label_kv.second) {
+      return false;
+    }
+  }
+
+  return true;
+}
 }  // namespace
 
 ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::unpack_message(connection_context &conn_ctx, message &target,
@@ -464,18 +489,44 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::send_register(int32_t msg_id, 
   head.set_sequence(msg_seq);
   head.set_source_bus_id(self_id);
 
-  body->mutable_channels()->Reserve(static_cast<int>(n.get_listen_list().size()));
-  for (const auto &addr : n.get_listen_list()) {
-    ::atframework::atbus::protocol::channel_data *chan = body->add_channels();
-    if (chan == nullptr) {
-      continue;
+  if (n.get_gateway_address().empty()) {
+    body->mutable_channels()->Reserve(static_cast<int>(n.get_listen_list().size()));
+    for (const auto &addr : n.get_listen_list()) {
+      if (addr.address.empty()) {
+        continue;
+      }
+      ::atframework::atbus::protocol::channel_data *chan = body->add_channels();
+      if (chan == nullptr) {
+        continue;
+      }
+
+      n.dump_listen_to_channel_data(addr.address, *chan);
     }
-    chan->set_address(addr.address);
+  } else {
+    body->mutable_channels()->Reserve(static_cast<int>(n.get_gateway_address().size()));
+    for (const auto &gw : n.get_gateway_address()) {
+      if (gw.address.empty()) {
+        continue;
+      }
+      ::atframework::atbus::protocol::channel_data *chan = body->add_channels();
+      if (chan == nullptr) {
+        continue;
+      }
+
+      node::dump_gateway_to_channel_data(gw, *chan);
+    }
   }
 
   body->set_bus_id(n.get_id());
   body->set_pid(n.get_self_pid());
   body->set_hostname(n.get_self_hostname());
+
+  // 上报部署集群标识，对端用它们判定本端通告地址的可达性
+  body->set_scope(n.get_conf().scope);
+  body->set_namespace_name(n.get_conf().namespace_name);
+  for (const auto &label_kv : n.get_conf().node_labels) {
+    (*body->mutable_labels())[label_kv.first] = label_kv.second;
+  }
 
   const endpoint *self_ep = n.get_self_endpoint();
   if (nullptr == self_ep) {
@@ -961,6 +1012,7 @@ static ATBUS_ERROR_TYPE accept_node_registration_step_make_endpoint(
     }
 
     ep->update_hash_code(reg_data.hash_code());
+    ep->reload(reg_data.scope(), reg_data.namespace_name(), reg_data.labels(), reg_data.channels());
     ATBUS_FUNC_NODE_INFO(n, ep, &conn, "connection already connected receive register again");
     return EN_ATBUS_ERR_SUCCESS;
   }
@@ -995,6 +1047,7 @@ static ATBUS_ERROR_TYPE accept_node_registration_step_make_endpoint(
     }
 
     ep->update_hash_code(reg_data.hash_code());
+    ep->reload(reg_data.scope(), reg_data.namespace_name(), reg_data.labels(), reg_data.channels());
     ATBUS_FUNC_NODE_DEBUG(n, ep, &conn, &m, "connection added to existed endpoint");
     return EN_ATBUS_ERR_SUCCESS;
   }
@@ -1009,6 +1062,7 @@ static ATBUS_ERROR_TYPE accept_node_registration_step_make_endpoint(
   }
   ep = new_ep.get();
   ep->update_hash_code(reg_data.hash_code());
+  ep->reload(reg_data.scope(), reg_data.namespace_name(), reg_data.labels(), reg_data.channels());
 
   ATBUS_ERROR_TYPE result = n.add_endpoint(new_ep);
   if (result != EN_ATBUS_ERR_SUCCESS) {
@@ -1076,19 +1130,45 @@ static ATBUS_ERROR_TYPE accept_node_registration_step_data_channel(
   if (conn.check_flag(connection::flag_t::kServerMode)) {
     int endpoint_select_priority = 0;
     gsl::string_view endpoint_select_address;
-    for (const auto &addr : n.get_listen_list()) {
-      if (!ep.is_schema_supported(addr.scheme)) {
-        continue;
-      }
+    if (!n.get_gateway_address().empty()) {
+      for (const auto &gw : n.get_gateway_address()) {
+        channel::channel_address_t addr;
+        channel::make_address(gw.address, addr);
+        if (!ep.is_schema_supported(addr.scheme)) {
+          continue;
+        }
 
-      if (get_supported_channel_schemes().count(addr.scheme) == 0) {
-        continue;
-      }
+        if (get_supported_channel_schemes().count(addr.scheme) == 0) {
+          continue;
+        }
 
-      int check_priority = calculate_channel_address_priority(addr.address, is_same_host, is_same_process);
-      if (check_priority > endpoint_select_priority) {
-        endpoint_select_address = addr.address;
-        endpoint_select_priority = check_priority;
+        if (!check_reachable(gw, reg_data.scope(), reg_data.namespace_name(), reg_data.hostname(), reg_data.labels())) {
+          continue;
+        }
+
+        int check_priority = calculate_channel_address_priority(addr.address, is_same_host, is_same_process);
+        if (check_priority > endpoint_select_priority) {
+          endpoint_select_address = gw.address;
+          endpoint_select_priority = check_priority;
+        }
+      }
+    } else if ((n.get_conf().scope.empty() || n.get_conf().scope == reg_data.scope()) &&
+               (n.get_conf().namespace_name.empty() || n.get_conf().namespace_name == reg_data.namespace_name())) {
+      // 尝试listen地址时要求scope和namespace匹配
+      for (const auto &addr : n.get_listen_list()) {
+        if (!ep.is_schema_supported(addr.scheme)) {
+          continue;
+        }
+
+        if (get_supported_channel_schemes().count(addr.scheme) == 0) {
+          continue;
+        }
+
+        int check_priority = calculate_channel_address_priority(addr.address, is_same_host, is_same_process);
+        if (check_priority > endpoint_select_priority) {
+          endpoint_select_address = addr.address;
+          endpoint_select_priority = check_priority;
+        }
       }
     }
     if (!endpoint_select_address.empty() && atbus::channel::is_duplex_address(endpoint_select_address)) {
@@ -1104,19 +1184,17 @@ static ATBUS_ERROR_TYPE accept_node_registration_step_data_channel(
   // io_stream channel only need one connection
   // 按优先级尝试连接对方的地址列表，建立数据连接
   std::vector<std::pair<int, gsl::string_view>> address_priority_list;
-  address_priority_list.reserve(static_cast<size_t>(reg_data.channels_size()));
-  for (int i = 0; i < reg_data.channels_size(); ++i) {
-    const ::atframework::atbus::protocol::channel_data &chan = reg_data.channels(i);
-    if (chan.address().empty()) {
-      continue;
-    }
-
-    bool is_peer_local_process_address = atbus::channel::is_local_process_address(chan.address());
+  size_t gateway_count = ep.get_gateway().size();
+  address_priority_list.reserve(gateway_count);
+  int index = -1;
+  for (const auto &gw : ep.get_gateway()) {
+    ++index;
+    bool is_peer_local_process_address = atbus::channel::is_local_process_address(gw.address);
     if (is_peer_local_process_address && !is_same_process) {
       continue;
     }
 
-    bool is_peer_local_host_address = atbus::channel::is_local_host_address(chan.address());
+    bool is_peer_local_host_address = atbus::channel::is_local_host_address(gw.address);
     if (is_peer_local_host_address && !is_same_host) {
       continue;
     }
@@ -1126,16 +1204,21 @@ static ATBUS_ERROR_TYPE accept_node_registration_step_data_channel(
       continue;
     }
 
+    if (!check_reachable(gw, n.get_conf().scope, n.get_conf().namespace_name, n.get_self_hostname(),
+                         n.get_conf().node_labels)) {
+      continue;
+    }
+
     channel::channel_address_t addr;
-    channel::make_address(chan.address(), addr);
+    channel::make_address(gw.address, addr);
     if (get_supported_channel_schemes().count(addr.scheme) == 0) {
       continue;
     }
 
-    int priority = calculate_channel_address_priority(chan.address(), is_same_host, is_same_process);
+    int priority = calculate_channel_address_priority(gw.address, is_same_host, is_same_process);
     // 同类型优先级时，使用在通道列表中的顺序作为次级排序依据
-    address_priority_list.emplace_back(priority * kAddressPriorityMultiplier + reg_data.channels_size() - i,
-                                       gsl::string_view(chan.address()));
+    address_priority_list.emplace_back(priority * kAddressPriorityMultiplier + static_cast<int>(gateway_count) - index,
+                                       gsl::string_view(gw.address));
   }
 
   // 如果没有可用的更高优先级的地址，则使用已知可达的地址（上游配置或当前注册连接的地址）

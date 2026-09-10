@@ -5,7 +5,6 @@
 #include <gsl/select-gsl.h>
 
 #include <list>
-#include <memory>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -24,7 +23,6 @@
 
 #include "detail/libatbus_channel_export.h"
 #include "detail/libatbus_config.h"
-#include "detail/libatbus_error.h"
 
 #include "atbus_connection.h"
 
@@ -79,12 +77,26 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
 
   ATBUS_MACRO_API void reset();
 
+  ATBUS_MACRO_API void reload(gsl::string_view scope, gsl::string_view ns,
+                              const std::unordered_map<std::string, std::string> &labels,
+                              gsl::span<const channel::gateway_t> gateways);
+
+  ATBUS_MACRO_API void reload(gsl::string_view scope, gsl::string_view ns,
+                              const ::google::protobuf::Map<std::string, std::string> &labels,
+                              const ::google::protobuf::RepeatedPtrField<protocol::channel_data> &channels);
+
   ATBUS_MACRO_API bus_id_t get_id() const;
 
   ATBUS_MACRO_API int32_t get_pid() const;
   ATBUS_MACRO_API const std::string &get_hostname() const;
   ATBUS_MACRO_API const std::string &get_hash_code() const;
   ATBUS_MACRO_API void update_hash_code(gsl::string_view);
+
+  ATBUS_MACRO_API const std::string &get_scope() const noexcept;
+
+  ATBUS_MACRO_API const std::string &get_namespace() const noexcept;
+
+  ATBUS_MACRO_API const std::unordered_map<std::string, std::string> &get_labels() const noexcept;
 
   ATBUS_MACRO_API bool add_connection(connection *conn, bool force_data);
 
@@ -123,6 +135,8 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
    * @breif 获取自身的资源holder
    */
   ATBUS_MACRO_API ptr_t watch() const;
+
+  ATBUS_MACRO_API gsl::span<const channel::gateway_t> get_gateway() const;
 
   ATBUS_MACRO_API const std::list<channel::channel_address_t> &get_listen() const;
 
@@ -180,6 +194,11 @@ class endpoint final : public atfw::util::design_pattern::noncopyable {
   std::bitset<static_cast<size_t>(flag_t::kMax)> flags_;
   std::string hostname_;
   int32_t pid_;
+
+  std::string scope_;
+  std::string namespace_name_;
+  std::unordered_map<std::string, std::string> labels_;
+  std::vector<channel::gateway_t> gateways_;
 
   // 这里不用智能指针是为了该值在上层对象（node）析构时仍然可用
   node *ATFW_UTIL_MACRO_NONNULL owner_;

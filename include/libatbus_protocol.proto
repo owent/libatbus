@@ -12,8 +12,8 @@ option cc_enable_arenas = true;
 enum ATBUS_PROTOCOL_CONST {
   option allow_alias = true;
   ATBUS_PROTOCOL_CONST_UNKNOWN = 0;
-  ATBUS_PROTOCOL_VERSION = 3;
-  ATBUS_PROTOCOL_MINIMAL_VERSION = 3;  // minimal protocol version supported
+  ATBUS_PROTOCOL_VERSION = 5;
+  ATBUS_PROTOCOL_MINIMAL_VERSION = 5;  // minimal protocol version supported
 }
 
 enum ATBUS_FORWARD_DATA_FLAG_TYPE {

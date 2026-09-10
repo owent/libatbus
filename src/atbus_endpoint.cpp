@@ -98,17 +98,57 @@ ATBUS_MACRO_API void endpoint::reset() {
   // 并且这个值只能在创建时指定，所以不能重置这个值
 }
 
+ATBUS_MACRO_API void endpoint::reload(gsl::string_view scope, gsl::string_view ns,
+                                      const std::unordered_map<std::string, std::string> &labels,
+                                      gsl::span<const channel::gateway_t> gateways) {
+  scope_ = std::string(scope);
+  namespace_name_ = std::string(ns);
+  labels_ = labels;
+  if (gateways.data() != gateways_.data()) {
+    gateways_.assign(gateways.begin(), gateways.end());
+  }
+}
+
+ATBUS_MACRO_API void endpoint::reload(gsl::string_view scope, gsl::string_view ns,
+                                      const ::google::protobuf::Map<std::string, std::string> &labels,
+                                      const ::google::protobuf::RepeatedPtrField<protocol::channel_data> &channels) {
+  scope_ = std::string(scope);
+  namespace_name_ = std::string(ns);
+  labels_.clear();
+  labels_.reserve(static_cast<size_t>(labels.size()));
+  for (const auto &item : labels) {
+    labels_.emplace(item.first, item.second);
+  }
+
+  gateways_.clear();
+  gateways_.reserve(static_cast<size_t>(channels.size()));
+  for (const auto &ch : channels) {
+    gateways_.emplace_back(node::build_gateway_from_channel_data(ch));
+  }
+}
+
 ATBUS_MACRO_API bus_id_t endpoint::get_id() const { return id_; }
 
 ATBUS_MACRO_API int32_t endpoint::get_pid() const { return pid_; }
+
 ATBUS_MACRO_API const std::string &endpoint::get_hostname() const { return hostname_; }
+
 ATBUS_MACRO_API const std::string &endpoint::get_hash_code() const { return hash_code_; }
+
 ATBUS_MACRO_API void endpoint::update_hash_code(gsl::string_view in) {
   if (in.empty()) {
     return;
   }
 
   hash_code_ = std::string(in);
+}
+
+ATBUS_MACRO_API const std::string &endpoint::get_scope() const noexcept { return scope_; }
+
+ATBUS_MACRO_API const std::string &endpoint::get_namespace() const noexcept { return namespace_name_; }
+
+ATBUS_MACRO_API const std::unordered_map<std::string, std::string> &endpoint::get_labels() const noexcept {
+  return labels_;
 }
 
 ATBUS_MACRO_API bool endpoint::add_connection(connection *conn, bool force_data) {
@@ -230,6 +270,10 @@ ATBUS_MACRO_API endpoint::ptr_t endpoint::watch() const {
   }
 
   return watcher_.lock();
+}
+
+ATBUS_MACRO_API gsl::span<const channel::gateway_t> endpoint::get_gateway() const {
+  return gsl::span<const channel::gateway_t>(gateways_);
 }
 
 ATBUS_MACRO_API const std::list<channel::channel_address_t> &endpoint::get_listen() const { return listen_address_; }

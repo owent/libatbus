@@ -175,6 +175,7 @@ ATBUS_MACRO_API node::conf_t &node::conf_t::operator=(const conf_t &other) {
   scope = other.scope;
   namespace_name = other.namespace_name;
   node_labels = other.node_labels;
+  gateway = other.gateway;
 
   first_idle_timeout = other.first_idle_timeout;
   ping_interval = other.ping_interval;
@@ -279,6 +280,7 @@ ATBUS_MACRO_API void node::default_conf(conf_t *conf) {
   conf->scope.clear();
   conf->namespace_name.clear();
   conf->node_labels.clear();
+  conf->gateway.clear();
 
   conf->first_idle_timeout = std::chrono::duration_cast<std::chrono::microseconds>(
       std::chrono::seconds{ATBUS_MACRO_CONNECTION_CONFIRM_TIMEOUT});
@@ -409,6 +411,9 @@ ATBUS_MACRO_API int node::init(bus_id_t id, const conf_t *conf) {
   if (!self_) {
     return EN_ATBUS_ERR_MALLOC;
   }
+  // 集群隔离配置
+  reload_self_endpoint(conf_.scope, conf_.namespace_name, conf_.node_labels,
+                       gsl::span<const channel::gateway_t>(conf_.gateway.data(), conf_.gateway.size()));
   self_->clear_ping_timer();
   // 复制配置
 
@@ -509,6 +514,43 @@ ATBUS_MACRO_API void node::reload_compression(
   conf_.compression_allow_algorithms.assign(compression_allow_algorithms.begin(), compression_allow_algorithms.end());
 }
 
+ATBUS_MACRO_API void node::reload_self_endpoint(gsl::string_view scope, gsl::string_view ns,
+                                                const std::unordered_map<std::string, std::string> &labels,
+                                                gsl::span<const channel::gateway_t> gateways) {
+  if (scope.data() != conf_.scope.data() || scope.size() != conf_.scope.size()) {
+    if (scope.data() == conf_.scope.data()) {
+      conf_.scope.resize(scope.size());
+    } else {
+      conf_.scope = std::string(scope.data(), scope.size());
+    }
+  }
+
+  if (ns.data() != conf_.namespace_name.data() || ns.size() != conf_.namespace_name.size()) {
+    if (ns.data() == conf_.namespace_name.data()) {
+      conf_.namespace_name.resize(ns.size());
+    } else {
+      conf_.namespace_name = std::string(ns.data(), ns.size());
+    }
+  }
+
+  if (&labels != &conf_.node_labels) {
+    conf_.node_labels = labels;
+  }
+
+  if (gateways.data() != conf_.gateway.data() || gateways.size() != conf_.gateway.size()) {
+    if (gateways.data() == conf_.gateway.data()) {
+      conf_.gateway.resize(gateways.size());
+    } else {
+      conf_.gateway.assign(gateways.begin(), gateways.end());
+    }
+  }
+
+  if (self_) {
+    self_->reload(conf_.scope, conf_.namespace_name, conf_.node_labels,
+                  gsl::span<const channel::gateway_t>(conf_.gateway.data(), conf_.gateway.size()));
+  }
+}
+
 ATBUS_MACRO_API int node::start(const start_conf_t &start_conf) {
   if (state_t::kCreated == state_) {
     return EN_ATBUS_ERR_NOT_INITED;
@@ -525,6 +567,8 @@ ATBUS_MACRO_API int node::start(const start_conf_t &start_conf) {
   init_hash_code();
   if (self_) {
     self_->update_hash_code(get_hash_code());
+    self_->reload(conf_.scope, conf_.namespace_name, conf_.node_labels,
+                  gsl::span<const node::gateway_t>{conf_.gateway.data(), conf_.gateway.size()});
   }
 
   // 连接上游节点
@@ -1843,6 +1887,8 @@ ATBUS_MACRO_API const std::list<channel::channel_address_t> &node::get_listen_li
   return empty;
 }
 
+ATBUS_MACRO_API const std::vector<node::gateway_t> &node::get_gateway_address() const { return conf_.gateway; }
+
 ATBUS_MACRO_API bool node::add_proc_connection(const connection::ptr_t &conn) {
   if (state_t::kCreated == state_) {
     return false;
@@ -2522,6 +2568,58 @@ ATBUS_MACRO_API protocol::ATBUS_COMPRESSION_ALGORITHM_TYPE node::parse_compressi
   }
 
   return protocol::ATBUS_COMPRESSION_ALGORITHM_NONE;
+}
+
+ATBUS_MACRO_API node::gateway_t node::build_gateway_from_channel_data(const protocol::channel_data &chan) {
+  gateway_t gw;
+
+  gw.address = chan.address();
+  gw.match_scope = chan.match_scope();
+  gw.match_namespaces.reserve(static_cast<int>(chan.match_namespaces_size()));
+  for (const auto &ns : chan.match_namespaces()) {
+    gw.match_namespaces.insert(ns);
+  }
+  gw.match_hosts.reserve(static_cast<int>(chan.match_hosts_size()));
+  for (const auto &host : chan.match_hosts()) {
+    gw.match_hosts.insert(host);
+  }
+  for (const auto &label_kv : chan.match_labels()) {
+    gw.match_labels.emplace(label_kv.first, label_kv.second);
+  }
+
+  return gw;
+}
+
+ATBUS_MACRO_API void node::dump_gateway_to_channel_data(const gateway_t &gw, protocol::channel_data &chan) {
+  chan.set_address(gw.address);
+  chan.set_match_scope(gw.match_scope);
+  if (!gw.match_namespaces.empty()) {
+    chan.mutable_match_namespaces()->Reserve(static_cast<int>(gw.match_namespaces.size()));
+    for (const auto &ns : gw.match_namespaces) {
+      chan.add_match_namespaces(ns);
+    }
+  }
+  if (!gw.match_hosts.empty()) {
+    chan.mutable_match_hosts()->Reserve(static_cast<int>(gw.match_hosts.size()));
+    for (const auto &host : gw.match_hosts) {
+      chan.add_match_hosts(host);
+    }
+  }
+  if (!gw.match_labels.empty()) {
+    for (const auto &label_kv : gw.match_labels) {
+      chan.mutable_match_labels()->emplace(label_kv.first, label_kv.second);
+    }
+  }
+}
+
+ATBUS_MACRO_API void node::dump_listen_to_channel_data(gsl::string_view listen_address, protocol::channel_data &chan) {
+  chan.set_address(listen_address.data(), listen_address.size());
+
+  // 默认监听地址要隔离scope和namespace
+  chan.set_match_scope(conf_.scope);
+  if (!conf_.namespace_name.empty()) {
+    chan.add_match_namespaces(conf_.namespace_name);
+  }
 }
 
 endpoint *node::find_route(endpoint_collection_t &coll, bus_id_t id) {
