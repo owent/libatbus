@@ -3,19 +3,19 @@
 #include <common/string_oprs.h>
 
 #include <cassert>
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
 
-#include "detail/buffer.h"
+#include "detail/buffer.h"  // IWYU pragma: keep
 
 #include "atbus_endpoint.h"  // NOLINT: build/include_subdir
 #include "atbus_node.h"      // NOLINT: build/include_subdir
 
-#include "libatbus_protocol.h"  // NOLINT: build/include_subdir
+#include "libatbus_protocol.h"  // IWYU pragma: keep, NOLINT: build/include_subdir
 
 ATBUS_MACRO_NAMESPACE_BEGIN
 
@@ -245,8 +245,9 @@ ATBUS_MACRO_API void endpoint::add_listen(gsl::string_view addr) {
     return;
   }
 
-  if (addr.size() >= 4 && (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr.data(), 4) ||  // NOLINT(bugprone-suspicious-stringview-data-usage)
-                           0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr.data(), 4))) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
+  if (addr.size() >= 4 &&
+      (0 == UTIL_STRFUNC_STRNCASE_CMP("mem:", addr.data(), 4) ||   // NOLINT(bugprone-suspicious-stringview-data-usage)
+       0 == UTIL_STRFUNC_STRNCASE_CMP("shm:", addr.data(), 4))) {  // NOLINT(bugprone-suspicious-stringview-data-usage)
     flags_.set(static_cast<size_t>(flag_t::kHasListenPorc), true);
   } else {
     flags_.set(static_cast<size_t>(flag_t::kHasListenFd), true);
@@ -559,4 +560,3 @@ ATBUS_MACRO_API std::chrono::system_clock::time_point endpoint::get_stat_created
 ATBUS_MACRO_API const node *endpoint::get_owner() const { return owner_; }
 
 ATBUS_MACRO_NAMESPACE_END
-

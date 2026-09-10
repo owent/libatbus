@@ -185,6 +185,18 @@ message access_data {
 
 message channel_data {
   string address = 1;
+
+  // match register_data.scope with "Equal" operator
+  string match_scope = 11;
+
+  // match register_data.hostname with "In" operator
+  repeated string match_hosts = 12;
+
+  // match register_data.namespace_name with "In" operator
+  repeated string match_namespaces = 21;
+
+  // match register_data.labels with "Contains" operator
+  map<string, string> match_labels = 22;
 }
 
 message ping_data {
@@ -203,6 +215,9 @@ message register_data {
   access_data access_key = 8;
   string hash_code = 10;
   crypto_handshake_data crypto_handshake = 11;
+  string scope = 12;
+  string namespace_name = 13;
+  map<string, string> labels = 14;
 }
 
 message handshake_confirm_data {

@@ -43,6 +43,7 @@
 ATBUS_MACRO_NAMESPACE_BEGIN
 
 namespace {
+static constexpr const int32_t kAddressPriorityMultiplier = 65536;
 static const char *_get_body_type_name(message_body_type cmd) {
   switch (cmd) {
     case ::atframework::atbus::protocol::message_body::kCustomCommandReq: {
@@ -1132,13 +1133,15 @@ static ATBUS_ERROR_TYPE accept_node_registration_step_data_channel(
     }
 
     int priority = calculate_channel_address_priority(chan.address(), is_same_host, is_same_process);
-    address_priority_list.emplace_back(priority, gsl::string_view(chan.address()));
+    // 同类型优先级时，使用在通道列表中的顺序作为次级排序依据
+    address_priority_list.emplace_back(priority * kAddressPriorityMultiplier + reg_data.channels_size() - i,
+                                       gsl::string_view(chan.address()));
   }
 
   // 如果没有可用的更高优先级的地址，则使用已知可达的地址（上游配置或当前注册连接的地址）
   if (address_priority_list.empty() && !known_reachable_address.empty()) {
     int priority = calculate_channel_address_priority(known_reachable_address, is_same_host, is_same_process);
-    address_priority_list.emplace_back(priority, known_reachable_address);
+    address_priority_list.emplace_back(priority * kAddressPriorityMultiplier, known_reachable_address);
   }
 
   std::sort(address_priority_list.begin(), address_priority_list.end(),

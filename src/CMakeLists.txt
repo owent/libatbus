@@ -43,6 +43,11 @@ set(PROJECT_LIB_PROTOCOL_SRC_LIST "${PROJECT_LIBATBUS_GENERATED_DIR}/include/lib
 set_source_files_properties("${PROJECT_LIBATBUS_GENERATED_DIR}/include/libatbus_protocol.pb.h"
                             "${PROJECT_LIBATBUS_GENERATED_DIR}/src/libatbus_protocol.pb.cc" PROPERTIES GENERATED TRUE)
 
+set_property(
+  SOURCE ${PROJECT_LIB_SRC_LIST}
+  APPEND
+  PROPERTY OBJECT_DEPENDS "${PROJECT_LIBATBUS_GENERATED_DIR}/include/libatbus_protocol.pb.h")
+
 # ============ libatbus - src ============
 if(NOT DEFINED ATBUS_MACRO_PROTOCOL_USE_DYNAMIC_LIBRARY)
   if(BUILD_SHARED_LIBS OR ATFRAMEWORK_USE_DYNAMIC_LIBRARY)

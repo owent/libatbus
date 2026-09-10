@@ -86,6 +86,22 @@ static bool is_in_blacklist(bus_id_t tid, const node::get_peer_options_t &option
 
   return false;
 }
+
+// 计算下一次上游操作（断线重连或Ping）的等待间隔
+// 节点未激活时保持 conf.retry_interval，保证首次接入足够快；激活后每次失败翻倍，最高 conf.max_retry_interval
+// conf.max_retry_interval <= conf.retry_interval 时关闭退避
+static std::chrono::microseconds next_upstream_op_retry_interval(const node::conf_t &conf,
+                                                                 std::chrono::microseconds current, bool actived) {
+  if (current < conf.retry_interval || conf.max_retry_interval <= conf.retry_interval || !actived) {
+    return conf.retry_interval;
+  }
+
+  current *= 2;
+  if (current > conf.max_retry_interval) {
+    return conf.max_retry_interval;
+  }
+  return current;
+}
 }  // namespace
 
 bool node_access_controller::add_ping_timer(node &n, const endpoint::ptr_t &ep) { return n.add_ping_timer(ep); }
@@ -102,6 +118,7 @@ ATBUS_MACRO_API node::conf_t::conf_t()
       first_idle_timeout{},
       ping_interval{},
       retry_interval{},
+      max_retry_interval{},
       fault_tolerant(0),
       access_token_max_number(0),
       overwrite_listen_path(false),
@@ -125,6 +142,7 @@ ATBUS_MACRO_API node::conf_t::conf_t(const conf_t &other)
       first_idle_timeout{},
       ping_interval{},
       retry_interval{},
+      max_retry_interval{},
       fault_tolerant(0),
       access_token_max_number(0),
       overwrite_listen_path(false),
@@ -154,9 +172,14 @@ ATBUS_MACRO_API node::conf_t &node::conf_t::operator=(const conf_t &other) {
   protocol_version = other.protocol_version;
   protocol_minimal_version = other.protocol_minimal_version;
 
+  scope = other.scope;
+  namespace_name = other.namespace_name;
+  node_labels = other.node_labels;
+
   first_idle_timeout = other.first_idle_timeout;
   ping_interval = other.ping_interval;
   retry_interval = other.retry_interval;
+  max_retry_interval = other.max_retry_interval;
   fault_tolerant = other.fault_tolerant;
   backlog = other.backlog;
   access_token_max_number = other.access_token_max_number;
@@ -203,6 +226,7 @@ node::node()
 
   event_timer_.tick = std::chrono::system_clock::from_time_t(0);
   event_timer_.upstream_op_timepoint = std::chrono::system_clock::from_time_t(0);
+  event_timer_.upstream_op_retry_interval = std::chrono::microseconds{0};
   random_engine_.init_seed(static_cast<uint64_t>(time(nullptr)));
 
   message_sequence_allocator_.set(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
@@ -252,11 +276,16 @@ ATBUS_MACRO_API void node::default_conf(conf_t *conf) {
   conf->protocol_version = atbus::protocol::ATBUS_PROTOCOL_VERSION;
   conf->protocol_minimal_version = atbus::protocol::ATBUS_PROTOCOL_MINIMAL_VERSION;
 
+  conf->scope.clear();
+  conf->namespace_name.clear();
+  conf->node_labels.clear();
+
   conf->first_idle_timeout = std::chrono::duration_cast<std::chrono::microseconds>(
       std::chrono::seconds{ATBUS_MACRO_CONNECTION_CONFIRM_TIMEOUT});
   conf->ping_interval =
       std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::seconds{8});  // 默认ping包间隔为8s
   conf->retry_interval = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::seconds{3});
+  conf->max_retry_interval = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::seconds{60});
   conf->fault_tolerant = 2;  // 允许最多失败2次，第3次直接失败，默认配置里3次ping包无响应则是最多24s可以发现节点下线
   conf->backlog = ATBUS_MACRO_CONNECTION_BACKLOG;
   conf->access_token_max_number = 5;
@@ -503,10 +532,13 @@ ATBUS_MACRO_API int node::start(const start_conf_t &start_conf) {
     if (!node_upstream_.node_) {
       // 如果上游节点被激活了，那么上游节点操作时间必须更新到非0值，以启用这个功能
       if (connect(conf_.upstream_address) >= 0) {
+        // first_idle_timeout 是连接和握手的确认时限，不影响重试退避间隔
         event_timer_.upstream_op_timepoint = event_timer_.tick + conf_.first_idle_timeout;
         state_ = state_t::kConnectingUpstream;
       } else {
-        event_timer_.upstream_op_timepoint = event_timer_.tick + conf_.retry_interval;
+        // 首次失败占用一级退避间隔
+        event_timer_.upstream_op_retry_interval = conf_.retry_interval;
+        event_timer_.upstream_op_timepoint = event_timer_.tick + event_timer_.upstream_op_retry_interval;
         state_ = state_t::kLostUpstream;
       }
     }
@@ -721,10 +753,13 @@ ATBUS_MACRO_API int node::proc(std::chrono::system_clock::time_point now) {
       if (res < 0) {
         ATBUS_FUNC_NODE_ERROR(*this, nullptr, nullptr, 0, static_cast<ATBUS_ERROR_TYPE>(res),
                               "reconnect upstream node {} failed", conf_.upstream_address);
+        event_timer_.upstream_op_retry_interval = next_upstream_op_retry_interval(
+            conf_, event_timer_.upstream_op_retry_interval, flags_.test(static_cast<size_t>(flag_t::kActived)));
 
-        event_timer_.upstream_op_timepoint = now + conf_.retry_interval;
+        event_timer_.upstream_op_timepoint = now + event_timer_.upstream_op_retry_interval;
       } else {
         // 下一次判定上游节点连接超时再重新连接
+        // first_idle_timeout 是连接和握手的确认时限，不影响重试退避间隔
         event_timer_.upstream_op_timepoint = now + conf_.first_idle_timeout;
         state_ = state_t::kConnectingUpstream;
       }
@@ -1996,7 +2031,9 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_disconnect(const endpoint *ep, const c
     state_ = state_t::kLostUpstream;
 
     // set reconnect to upstream into retry interval
-    event_timer_.upstream_op_timepoint = get_timer_tick() + conf_.retry_interval;
+    event_timer_.upstream_op_retry_interval = next_upstream_op_retry_interval(
+        conf_, event_timer_.upstream_op_retry_interval, flags_.test(static_cast<size_t>(flag_t::kActived)));
+    event_timer_.upstream_op_timepoint = get_timer_tick() + event_timer_.upstream_op_retry_interval;
 
     // if not activited, shutdown
     if (!flags_.test(static_cast<size_t>(flag_t::kActived))) {
@@ -2067,6 +2104,9 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_register(const endpoint *ep, const con
 
 ATBUS_MACRO_API ATBUS_ERROR_TYPE node::on_actived() {
   state_ = state_t::kRunning;
+
+  // 每次激活成功（包括断线重连后的再次激活）都要重置重试退避间隔
+  event_timer_.upstream_op_retry_interval = std::chrono::microseconds{0};
 
   if (flags_.test(static_cast<size_t>(flag_t::kActived))) {
     return EN_ATBUS_ERR_SUCCESS;
@@ -2265,6 +2305,7 @@ ATBUS_MACRO_API int node::ping_endpoint(endpoint &ep) {
   }
 
   ep.set_stat_unfinished_ping(ping_seq);
+  // 重试退避间隔在激活成功时（on_actived）已经重置，Ping 成功不代表需要重置退避
   return EN_ATBUS_ERR_SUCCESS;
 }
 
@@ -2683,7 +2724,9 @@ ATBUS_ERROR_TYPE node::remove_endpoint(bus_id_t tid, endpoint *expected) {
       event_timer_.upstream_op_timepoint = get_timer_tick();
     } else {
       // set reconnect to upstream into retry interval
-      event_timer_.upstream_op_timepoint = get_timer_tick() + conf_.retry_interval;
+      event_timer_.upstream_op_retry_interval = next_upstream_op_retry_interval(
+          conf_, event_timer_.upstream_op_retry_interval, flags_.test(static_cast<size_t>(flag_t::kActived)));
+      event_timer_.upstream_op_timepoint = get_timer_tick() + event_timer_.upstream_op_retry_interval;
     }
 
     // event

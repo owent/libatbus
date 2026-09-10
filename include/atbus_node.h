@@ -215,11 +215,17 @@ class node final : public atfw::util::design_pattern::noncopyable {
     int32_t protocol_version;
     int32_t protocol_minimal_version;
 
+    // ===== 部署集群配置，影响连接地址的可用性 =====
+    std::string scope;
+    std::string namespace_name;
+    std::unordered_map<std::string, std::string> node_labels;
+
     // ===== 连接配置 =====
     int32_t backlog;
     std::chrono::microseconds first_idle_timeout; /** 第一个包允许的空闲时间 **/
     std::chrono::microseconds ping_interval;      /** ping包间隔 **/
     std::chrono::microseconds retry_interval;     /** 重试包间隔 **/
+    std::chrono::microseconds max_retry_interval; /** 最大重试包间隔 **/
     size_t fault_tolerant;                        /** 容错次数，次 **/
     size_t access_token_max_number;               /** 最大access token数量，请不要设置的太大，验证次数最大可能是N^2 **/
     std::vector<std::vector<unsigned char>> access_tokens; /** access token列表 **/
@@ -891,7 +897,10 @@ class node final : public atfw::util::design_pattern::noncopyable {
   struct evt_timer_t {
     std::chrono::system_clock::time_point tick;
 
-    std::chrono::system_clock::time_point upstream_op_timepoint;  // 上游节点操作时间（断线重连或Ping）
+    // 上游节点操作时间（断线重连或Ping）
+    std::chrono::system_clock::time_point upstream_op_timepoint;
+    // 上游节点操作重试间隔（激活后每次失败翻倍，上限 conf_t::max_retry_interval，激活成功后重置）
+    std::chrono::microseconds upstream_op_retry_interval;
     timer_desc_ls<const endpoint *, ::atfw::util::memory::weak_rc_ptr<endpoint>>::type ping_list;  // 定时ping
     // 未完成连接（正在网络连接或握手）
     std::unordered_map<std::string, connection::ptr_t> connecting_list_by_channel;      // 按地址去重索引

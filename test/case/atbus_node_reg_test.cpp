@@ -2424,3 +2424,142 @@ CASE_TEST(atbus_node_reg, on_topology_upstream_change_id) {
 
   unit_test_setup_exit(&ev_loop);
 }
+
+// 上游断线重连的退避测试：
+// 节点激活后，每次重连失败，下一次重试间隔应翻倍且不超过 max_retry_interval；
+// 重新激活成功后，退避间隔应重置回 retry_interval
+CASE_TEST(atbus_node_reg, reconnect_upstream_retry_backoff) {
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+
+  conf.ev_loop = &ev_loop;
+
+  const time_t retry_secs = static_cast<time_t>(conf.retry_interval.count() / 1000000);
+  const time_t max_retry_secs = static_cast<time_t>(conf.max_retry_interval.count() / 1000000);
+
+  {
+    atbus::node::ptr_t node_upstream = atbus::node::create();
+    atbus::node::ptr_t node_downstream = atbus::node::create();
+    setup_atbus_node_logger(*node_upstream);
+    setup_atbus_node_logger(*node_downstream);
+
+    node_upstream->init(0x12356790, &conf);
+
+    atbus::node::conf_t downstream_conf = conf;
+    downstream_conf.upstream_address = "ipv4://127.0.0.1:16441";
+    node_downstream->init(0x12345679, &downstream_conf);
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->listen("ipv4://127.0.0.1:16441"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream->listen("ipv4://127.0.0.1:16442"));
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->start());
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream->start());
+
+    time_t proc_t = time(nullptr) + 1;
+    UNITTEST_WAIT_UNTIL(conf.ev_loop, atbus::node::state_t::kRunning == node_downstream->get_state(), 8000, 64) {
+      ++proc_t;
+      node_upstream->proc(unit_test_make_timepoint(proc_t, 0));
+      node_downstream->proc(unit_test_make_timepoint(proc_t, 0));
+    }
+    CASE_EXPECT_EQ(static_cast<uint32_t>(atbus::node::state_t::kRunning),
+                   static_cast<uint32_t>(node_downstream->get_state()));
+    if (atbus::node::state_t::kRunning != node_downstream->get_state()) {
+      node_upstream->reset();
+      node_downstream->reset();
+      unit_test_setup_exit(&ev_loop);
+      return;
+    }
+
+    // 重连是否失败由真实IO异步通知，等待当前进行中的连接被回收
+    auto wait_connecting_done = [&node_downstream, &ev_loop]() {
+      for (int i = 0; i < 256 && node_downstream->get_connection_timer_size() > 0; ++i) {
+        CASE_THREAD_SLEEP_MS(4);
+        uv_run(&ev_loop, UV_RUN_NOWAIT);
+      }
+    };
+
+    // 关闭上游节点，等待下游感知断线并发起第一次即时重连，返回发起重连的逻辑时刻
+    auto wait_first_attempt = [&node_downstream, &ev_loop](time_t &tp) -> time_t {
+      for (int i = 0; i < 256; ++i) {
+        ++tp;
+        node_downstream->proc(unit_test_make_timepoint(tp, 0));
+        if (node_downstream->get_connection_timer_size() > 0) {
+          return tp;
+        }
+        CASE_THREAD_SLEEP_MS(4);
+        uv_run(&ev_loop, UV_RUN_NOWAIT);
+      }
+      return 0;
+    };
+
+    // 校验退避阶梯中的一级：到达重试时间之前（含 timepoint 边界，判定为严格小于）不应重连，
+    // 超过重试时间后应恰好发起一次重连，随后等待这次重连真实失败
+    auto expect_retry_step = [&node_downstream, &wait_connecting_done](time_t &attempt_tick, time_t retry_gap) {
+      node_downstream->proc(unit_test_make_timepoint(attempt_tick + retry_gap - 1, 0));
+      CASE_EXPECT_EQ(0, node_downstream->get_connection_timer_size());
+      node_downstream->proc(unit_test_make_timepoint(attempt_tick + retry_gap, 0));
+      CASE_EXPECT_EQ(0, node_downstream->get_connection_timer_size());
+
+      attempt_tick += retry_gap + 1;
+      node_downstream->proc(unit_test_make_timepoint(attempt_tick, 0));
+      CASE_EXPECT_EQ(1, node_downstream->get_connection_timer_size());
+
+      wait_connecting_done();
+      CASE_EXPECT_EQ(0, node_downstream->get_connection_timer_size());
+      CASE_EXPECT_EQ(static_cast<uint32_t>(atbus::node::state_t::kLostUpstream),
+                     static_cast<uint32_t>(node_downstream->get_state()));
+    };
+
+    // 第一次即时重连失败以后，退避间隔从 retry_interval 开始
+    node_upstream->reset();
+    time_t attempt_tick = wait_first_attempt(proc_t);
+    CASE_EXPECT_TRUE(attempt_tick > 0);
+
+    wait_connecting_done();
+    CASE_EXPECT_EQ(0, node_downstream->get_connection_timer_size());
+    CASE_EXPECT_EQ(static_cast<uint32_t>(atbus::node::state_t::kLostUpstream),
+                   static_cast<uint32_t>(node_downstream->get_state()));
+
+    // 退避阶梯：每次失败翻倍，封顶 max_retry_interval
+    time_t retry_gap = retry_secs;
+    for (int round = 0; round < 7 && attempt_tick > 0; ++round) {
+      expect_retry_step(attempt_tick, retry_gap);
+
+      retry_gap *= 2;
+      if (retry_gap > max_retry_secs) {
+        retry_gap = max_retry_secs;
+      }
+    }
+
+    // 重启上游节点，下游应能在下一次重试时重连成功，重新激活后退避间隔重置
+    node_upstream->init(0x12356790, &conf);
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->listen("ipv4://127.0.0.1:16441"));
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->start());
+
+    UNITTEST_WAIT_UNTIL(conf.ev_loop, atbus::node::state_t::kRunning == node_downstream->get_state(), 8000, 64) {
+      attempt_tick += 4;
+      node_upstream->proc(unit_test_make_timepoint(attempt_tick, 0));
+      node_downstream->proc(unit_test_make_timepoint(attempt_tick, 0));
+    }
+    CASE_EXPECT_EQ(static_cast<uint32_t>(atbus::node::state_t::kRunning),
+                   static_cast<uint32_t>(node_downstream->get_state()));
+
+    // 再次关闭上游节点，第一次重试间隔应重置为 retry_interval
+    node_upstream->reset();
+    attempt_tick = wait_first_attempt(attempt_tick);
+    CASE_EXPECT_TRUE(attempt_tick > 0);
+
+    wait_connecting_done();
+    CASE_EXPECT_EQ(0, node_downstream->get_connection_timer_size());
+
+    expect_retry_step(attempt_tick, retry_secs);
+    expect_retry_step(attempt_tick, retry_secs * 2);
+
+    node_upstream->reset();
+    node_downstream->reset();
+  }
+
+  unit_test_setup_exit(&ev_loop);
+}
