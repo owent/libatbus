@@ -647,6 +647,30 @@ class node final : public atfw::util::design_pattern::noncopyable {
    */
   static ATBUS_MACRO_API bool set_hostname(gsl::string_view hn, bool force = false);
 
+  /**
+   * @brief 获取本节点自身身份使用的物理机名称
+   * @return 未被 set_self_hostname 覆盖时回退到全局 get_hostname()
+   */
+  ATBUS_MACRO_API const std::string &get_self_hostname() const;
+
+  /**
+   * @brief 设置本节点自身身份使用的物理机名称，传入空串则恢复回退到全局 get_hostname()
+   * @note 应在 init 之前调用；自身 endpoint 在 init 时创建，init 之后的修改不会同步到已创建的自身 endpoint
+   */
+  ATBUS_MACRO_API void set_self_hostname(gsl::string_view hostname);
+
+  /**
+   * @brief 获取本节点自身身份使用的进程号
+   * @return 未被 set_self_pid 覆盖时回退到全局 get_pid()
+   */
+  ATBUS_MACRO_API int32_t get_self_pid() const;
+
+  /**
+   * @brief 设置本节点自身身份使用的进程号，传入 0 则恢复回退到全局 get_pid()
+   * @note 应在 init 之前调用；自身 endpoint 在 init 时创建，init 之后的修改不会同步到已创建的自身 endpoint
+   */
+  ATBUS_MACRO_API void set_self_pid(int32_t pid) noexcept;
+
   ATBUS_MACRO_API int32_t get_protocol_version() const;
 
   ATBUS_MACRO_API int32_t get_protocol_minimal_version() const;
@@ -838,6 +862,10 @@ class node final : public atfw::util::design_pattern::noncopyable {
   // 配置
   conf_t conf_;
   std::string hash_code_;
+  // 节点自身身份信息覆盖，self_hostname_ 为空或 self_pid_ 为 0 时回退到全局 get_hostname()/get_pid()
+  // 主要供单元测试在同一进程内模拟不同物理机/进程，或容器环境显式指定节点身份
+  std::string self_hostname_;
+  int32_t self_pid_;
   ::atfw::util::memory::weak_rc_ptr<node> watcher_;  // just like std::shared_from_this<T>
   atfw::util::lock::seq_alloc_u64 message_sequence_allocator_;
 

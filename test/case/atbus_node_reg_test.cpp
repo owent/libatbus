@@ -1434,6 +1434,208 @@ CASE_TEST(atbus_node_reg, reconnect_upstream_failed) {
   unit_test_setup_exit(&ev_loop);
 }
 
+// 上游节点上报的通道地址对下游不可达时的注册流程测试
+// 用 set_self_hostname 模拟双方处于不同物理机：上游只监听本机回环地址，下游对 127.0.0.1 的地址会按跨机地址跳过，
+// 下游即无法建立数据通道。期望行为（当前实现不满足，此用例用于重现失败）：
+// 注册完成后上游端点应保持可用，而不是因没有数据通道被回收并不断重连。
+CASE_TEST(atbus_node_reg, reg_pc_success_with_unreachable_upstream_channel) {
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+
+  conf.ev_loop = &ev_loop;
+
+  {
+    atbus::node::ptr_t node_upstream = atbus::node::create();
+    atbus::node::ptr_t node_downstream = atbus::node::create();
+    setup_atbus_node_logger(*node_upstream);
+    setup_atbus_node_logger(*node_downstream);
+
+    // 模拟上游和下游处于不同物理机
+    node_upstream->set_self_hostname("test-host-a");
+    node_downstream->set_self_hostname("test-host-b");
+
+    node_upstream->init(0x12345678, &conf);
+
+    conf.upstream_address = "ipv4://127.0.0.1:16395";
+    node_downstream->init(0x12346789, &conf);
+
+    // 上游只监听本机回环地址（对处于其他物理机的下游不可达），下游不监听任何地址
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->listen("ipv4://127.0.0.1:16395"));
+
+    int old_register_count = recv_msg_history.register_count;
+    node_downstream->set_on_register_handle(node_reg_test_on_register_fn);
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->start());
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream->start());
+
+    time_t proc_sec = time(nullptr) + 1;
+    time_t proc_usec = 0;
+
+    // 等待下游完成第一次到上游的注册，每次 proc 推进 100ms 虚拟时间
+    UNITTEST_WAIT_UNTIL(conf.ev_loop, recv_msg_history.register_count > old_register_count, 8000, 64) {
+      node_upstream->proc(unit_test_make_timepoint(proc_sec, proc_usec));
+      node_downstream->proc(unit_test_make_timepoint(proc_sec, proc_usec));
+      proc_usec += 100000;
+      if (proc_usec >= 1000000) {
+        proc_usec -= 1000000;
+        ++proc_sec;
+      }
+    }
+
+    // 注册被接受后，下游会使用 upstream 配置地址异步建立数据通道，等待其完成
+    UNITTEST_WAIT_UNTIL(conf.ev_loop, node_downstream->is_endpoint_available(node_upstream->get_id()), 8000, 8) {
+      node_upstream->poll();
+      node_upstream->proc(unit_test_make_timepoint(proc_sec, proc_usec));
+      node_downstream->poll();
+      node_downstream->proc(unit_test_make_timepoint(proc_sec, proc_usec));
+      proc_usec += 100000;
+      if (proc_usec >= 1000000) {
+        proc_usec -= 1000000;
+        ++proc_sec;
+      }
+    }
+
+    // 数据通道建立完成后上游端点应该可用
+    CASE_EXPECT_NE(nullptr, node_downstream->get_endpoint(node_upstream->get_id()));
+    CASE_EXPECT_TRUE(node_downstream->is_endpoint_available(node_upstream->get_id()));
+
+    // 再推进若干次 ping 周期的虚拟时间后，上游端点应该保持存活且可用
+    // ping_interval 单位为微秒，每次循环推进 100ms
+    time_t wait_tick_count = 2 * static_cast<time_t>(conf.ping_interval.count() / 100000) + 20;
+    time_t waited_tick_count = 0;
+    UNITTEST_WAIT_UNTIL(conf.ev_loop, waited_tick_count >= wait_tick_count, 30000, 8) {
+      proc_usec += 100000;
+      if (proc_usec >= 1000000) {
+        proc_usec -= 1000000;
+        ++proc_sec;
+      }
+      ++waited_tick_count;
+      node_upstream->poll();
+      node_upstream->proc(unit_test_make_timepoint(proc_sec, proc_usec));
+      node_downstream->poll();
+      node_downstream->proc(unit_test_make_timepoint(proc_sec, proc_usec));
+    }
+
+    CASE_EXPECT_EQ(static_cast<uint32_t>(atbus::node::state_t::kRunning),
+                   static_cast<uint32_t>(node_downstream->get_state()));
+    CASE_EXPECT_NE(nullptr, node_downstream->get_endpoint(node_upstream->get_id()));
+    CASE_EXPECT_TRUE(node_downstream->is_endpoint_available(node_upstream->get_id()));
+  }
+
+  unit_test_setup_exit(&ev_loop);
+}
+
+// 上游节点上报通配监听地址(0.0.0.0)且双方处于不同物理机时的注册流程测试
+// 用真实上游节点配合注入的 register 回包：对端位于其他物理机，上报的监听地址为不可达的通配地址
+// （本进程内 0.0.0.0 会被重定向到 127.0.0.1 对应端口，这里使用无监听的端口模拟跨机不可达）。
+// 下游不应使用该地址建立数据通道，而应改用注册连接的已知可达地址。
+// 期望行为（当前实现不满足，此用例用于重现失败）：注册完成后上游端点应保持可用，而不是被回收。
+CASE_TEST(atbus_node_reg, reg_with_wildcard_upstream_channel_cross_host) {
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+  uv_loop_t ev_loop;
+  uv_loop_init(&ev_loop);
+
+  conf.ev_loop = &ev_loop;
+
+  {
+    atbus::node::ptr_t node_upstream = atbus::node::create();
+    atbus::node::ptr_t node_downstream = atbus::node::create();
+    setup_atbus_node_logger(*node_upstream);
+    setup_atbus_node_logger(*node_downstream);
+
+    // 模拟上游和下游处于不同物理机
+    node_upstream->set_self_hostname("test-host-a");
+    node_downstream->set_self_hostname("test-host-b");
+
+    node_upstream->init(0x12345678, &conf);
+    // 下游不配置 upstream_address，通过手动连接发起注册
+    node_downstream->init(0x12346789, &conf);
+
+    // 上游只监听本机回环地址（对处于其他物理机的下游不可达），下游不监听任何地址
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->listen("ipv4://127.0.0.1:16396"));
+
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_upstream->start());
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, node_downstream->start());
+
+    // 手动连接上游节点，进入握手状态（此时已发出 register 请求）
+    atbus::connection::ptr_t ctrl_conn =
+        atbus::connection::create(node_downstream.get(), "ipv4://127.0.0.1:16396", false);
+    CASE_EXPECT_TRUE(!!ctrl_conn);
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, ctrl_conn->connect());
+
+    UNITTEST_WAIT_UNTIL(conf.ev_loop, atbus::connection::state_t::kHandshaking == ctrl_conn->get_status(), 8000, 0) {}
+
+    // 在真实的 register 回包到达前注入伪造回包：对端上报的监听地址为不可达的通配地址
+    {
+      ::ATBUS_MACRO_PROTOBUF_NAMESPACE_ID::ArenaOptions arena_options;
+      arena_options.initial_block_size = ATBUS_MACRO_RESERVED_SIZE;
+      atbus::message register_rsp{arena_options};
+
+      auto &head = register_rsp.mutable_head();
+      head.set_version(atbus::protocol::ATBUS_PROTOCOL_VERSION);
+      head.set_type(0);
+      head.set_result_code(EN_ATBUS_ERR_SUCCESS);
+      head.set_sequence(node_downstream->allocate_message_sequence());
+      head.set_source_bus_id(0x12345678);
+
+      auto *body = register_rsp.mutable_body().mutable_node_register_rsp();
+      body->set_bus_id(0x12345678);
+      // 与真实上游节点上报的身份保持一致（同进程但不同主机名，模拟不同物理机），
+      // 否则真实的 register 回包到达时会因身份不一致判定 ID 冲突
+      body->set_pid(atbus::node::get_pid());
+      body->set_hostname("test-host-a");
+      body->add_channels()->set_address("ipv4://0.0.0.0:16398");  // 不可达的通配地址
+
+      node_downstream->on_receive_message(ctrl_conn.get(), std::move(register_rsp), 0, EN_ATBUS_ERR_SUCCESS);
+    }
+
+    time_t proc_sec = time(nullptr) + 1;
+    time_t proc_usec = 0;
+
+    // 注册被接受后，下游会使用注册连接的已知可达地址异步建立数据通道，等待其完成
+    UNITTEST_WAIT_UNTIL(conf.ev_loop, node_downstream->is_endpoint_available(0x12345678), 8000, 4) {
+      node_upstream->poll();
+      node_upstream->proc(unit_test_make_timepoint(proc_sec, proc_usec));
+      node_downstream->poll();
+      node_downstream->proc(unit_test_make_timepoint(proc_sec, proc_usec));
+      proc_usec += 100000;
+      if (proc_usec >= 1000000) {
+        proc_usec -= 1000000;
+        ++proc_sec;
+      }
+    }
+
+    // 数据通道建立完成后上游端点应该可用
+    CASE_EXPECT_NE(nullptr, node_downstream->get_endpoint(0x12345678));
+    CASE_EXPECT_TRUE(node_downstream->is_endpoint_available(0x12345678));
+
+    // 再推进若干次 ping 周期的虚拟时间后，上游端点应该保持存活且可用
+    // ping_interval 单位为微秒，每次循环推进 100ms
+    time_t wait_tick_count = 2 * static_cast<time_t>(conf.ping_interval.count() / 100000) + 20;
+    time_t waited_tick_count = 0;
+    UNITTEST_WAIT_UNTIL(conf.ev_loop, waited_tick_count >= wait_tick_count, 30000, 4) {
+      proc_usec += 100000;
+      if (proc_usec >= 1000000) {
+        proc_usec -= 1000000;
+        ++proc_sec;
+      }
+      ++waited_tick_count;
+      node_upstream->poll();
+      node_upstream->proc(unit_test_make_timepoint(proc_sec, proc_usec));
+      node_downstream->poll();
+      node_downstream->proc(unit_test_make_timepoint(proc_sec, proc_usec));
+    }
+
+    CASE_EXPECT_NE(nullptr, node_downstream->get_endpoint(0x12345678));
+    CASE_EXPECT_TRUE(node_downstream->is_endpoint_available(0x12345678));
+  }
+
+  unit_test_setup_exit(&ev_loop);
+}
+
 // API: hostname
 CASE_TEST(atbus_node_reg, set_hostname) {
   std::string old_hostname = ::atbus::node::get_hostname();
@@ -1769,14 +1971,10 @@ CASE_TEST(atbus_node_reg, shm_and_send) {
 // ============ close_connection callback tests ============
 static int g_close_connection_callback_count_node1 = 0;
 static int g_close_connection_callback_count_node2 = 0;
-static const atbus::endpoint *g_close_connection_last_endpoint = nullptr;
-static const atbus::connection *g_close_connection_last_connection = nullptr;
 
 static int node_reg_test_close_connection_fn_node1(const atbus::node &, const atbus::endpoint *ep,
                                                    const atbus::connection *conn) {
   ++g_close_connection_callback_count_node1;
-  g_close_connection_last_endpoint = ep;
-  g_close_connection_last_connection = conn;
 
   CASE_MSG_INFO() << "close_connection callback (node1): endpoint=" << (ep ? ep->get_id() : 0)
                   << ", connection=" << (conn ? conn->get_address().address.c_str() : "null") << '\n';
@@ -1786,8 +1984,6 @@ static int node_reg_test_close_connection_fn_node1(const atbus::node &, const at
 static int node_reg_test_close_connection_fn_node2(const atbus::node &, const atbus::endpoint *ep,
                                                    const atbus::connection *conn) {
   ++g_close_connection_callback_count_node2;
-  g_close_connection_last_endpoint = ep;
-  g_close_connection_last_connection = conn;
 
   CASE_MSG_INFO() << "close_connection callback (node2): endpoint=" << (ep ? ep->get_id() : 0)
                   << ", connection=" << (conn ? conn->get_address().address.c_str() : "null") << '\n';
@@ -1823,8 +2019,6 @@ CASE_TEST(atbus_node_reg, on_close_connection_normal) {
     // Set close_connection callback with separate counters for each node
     g_close_connection_callback_count_node1 = 0;
     g_close_connection_callback_count_node2 = 0;
-    g_close_connection_last_endpoint = nullptr;
-    g_close_connection_last_connection = nullptr;
     node1->set_on_close_connection_handle(node_reg_test_close_connection_fn_node1);
     node2->set_on_close_connection_handle(node_reg_test_close_connection_fn_node2);
 

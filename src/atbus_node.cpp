@@ -194,6 +194,7 @@ ATBUS_MACRO_API node::flag_guard_t::~flag_guard_t() {
 
 node::node()
     : state_(state_t::kCreated),
+      self_pid_(0),
       crypto_key_exchange_type_(protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE),
       ev_loop_(nullptr),
       static_buffer_(nullptr),
@@ -350,8 +351,8 @@ ATBUS_MACRO_API int node::init(bus_id_t id, const conf_t *conf) {
 
   // 初始化拓扑配置
   topology_data::ptr_t topology_d = ::atfw::util::memory::make_strong_rc<topology_data>();
-  topology_d->pid = get_pid();
-  topology_d->hostname = get_hostname();
+  topology_d->pid = get_self_pid();
+  topology_d->hostname = get_self_hostname();
   topology_d->labels = conf_.topology_labels;
   topology_registry_ = topology_registry::create();
   if (id != 0) {
@@ -375,7 +376,7 @@ ATBUS_MACRO_API int node::init(bus_id_t id, const conf_t *conf) {
   conf_.protocol_minimal_version = atbus::protocol::ATBUS_PROTOCOL_MINIMAL_VERSION;
 
   ev_loop_ = conf_.ev_loop;
-  self_ = endpoint::create(this, id, get_pid(), get_hostname());
+  self_ = endpoint::create(this, id, get_self_pid(), get_self_hostname());
   if (!self_) {
     return EN_ATBUS_ERR_MALLOC;
   }
@@ -1772,6 +1773,28 @@ ATBUS_MACRO_API bool node::set_hostname(gsl::string_view hn, bool force) {
   return false;
 }
 
+ATBUS_MACRO_API const std::string &node::get_self_hostname() const {
+  if (!self_hostname_.empty()) {
+    return self_hostname_;
+  }
+
+  return get_hostname();
+}
+
+ATBUS_MACRO_API void node::set_self_hostname(gsl::string_view hostname) {
+  self_hostname_.assign(hostname.data(), hostname.size());
+}
+
+ATBUS_MACRO_API int32_t node::get_self_pid() const {
+  if (0 != self_pid_) {
+    return self_pid_;
+  }
+
+  return get_pid();
+}
+
+ATBUS_MACRO_API void node::set_self_pid(int32_t pid) noexcept { self_pid_ = pid; }
+
 ATBUS_MACRO_API int32_t node::get_protocol_version() const { return conf_.protocol_version; }
 
 ATBUS_MACRO_API int32_t node::get_protocol_minimal_version() const { return conf_.protocol_minimal_version; }
@@ -2615,13 +2638,13 @@ void node::init_hash_code() {
 
   // hash hostname
   {
-    gsl::string_view hostname = get_hostname();
+    gsl::string_view hostname = get_self_hostname();
     sha256.update(reinterpret_cast<const unsigned char *>(hostname.data()), hostname.size());
   }
 
   // hash pid
   {
-    int pid = get_pid();
+    int32_t pid = get_self_pid();
     sha256.update(reinterpret_cast<const unsigned char *>(&pid), sizeof(pid));
   }
 

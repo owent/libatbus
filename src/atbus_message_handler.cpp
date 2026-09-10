@@ -473,8 +473,8 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::send_register(int32_t msg_id, 
   }
 
   body->set_bus_id(n.get_id());
-  body->set_pid(node::get_pid());
-  body->set_hostname(node::get_hostname());
+  body->set_pid(n.get_self_pid());
+  body->set_hostname(n.get_self_hostname());
 
   const endpoint *self_ep = n.get_self_endpoint();
   if (nullptr == self_ep) {
@@ -1050,12 +1050,26 @@ static void accept_node_registration_step_update_endpoint(
 }
 
 static ATBUS_ERROR_TYPE accept_node_registration_step_data_channel(
-    node &n, connection &conn, endpoint &ep, const ::atframework::atbus::protocol::register_data &reg_data) {
+    node &n, connection &conn, endpoint &ep, const ::atframework::atbus::protocol::register_data &reg_data,
+    bool is_upstream) {
   // 如果双方一边有IOS通道，另一边没有，则没有的连接有的
   // 如果双方都有IOS通道，则CLIENT端连接SERVER端
-  bool is_same_host = ep.get_hostname() == node::get_hostname();
-  bool is_same_process = is_same_host && ep.get_pid() == node::get_pid();
+  bool is_same_host = ep.get_hostname() == n.get_self_hostname();
+  bool is_same_process = is_same_host && ep.get_pid() == n.get_self_pid();
   bool has_data_connection_success = false;
+
+  // 注册回包只会出现在本端主动发起的连接上（只有客户端连接才会发出注册请求），
+  // 其地址是发起连接时使用的对端地址（或上游配置地址），是已知可达的；accept 的连接地址是对端的临时端口，不可用于回连。
+  // 此时仅接受对端上报的本机地址，其余地址统一改用已知可达地址。
+  // 有些环境经过代理，对端上报的直连地址会不通，必须走注册时使用的入口
+  gsl::string_view known_reachable_address;
+  if (conn.check_flag(connection::flag_t::kClientMode)) {
+    if (is_upstream && !n.get_conf().upstream_address.empty()) {
+      known_reachable_address = n.get_conf().upstream_address;
+    } else {
+      known_reachable_address = conn.get_address().address;
+    }
+  }
 
   // 如果SERVER端判定出对方可能会通过双工通道再连接自己一次，就不用反向发起数据连接。
   if (conn.check_flag(connection::flag_t::kServerMode)) {
@@ -1079,6 +1093,11 @@ static ATBUS_ERROR_TYPE accept_node_registration_step_data_channel(
     if (!endpoint_select_address.empty() && atbus::channel::is_duplex_address(endpoint_select_address)) {
       return EN_ATBUS_ERR_SUCCESS;
     }
+
+    // 如果可用的地址为空，下游会再使用代理地址连接，一定是通的。所以也不用主动发起连接
+    if (endpoint_select_address.empty()) {
+      return EN_ATBUS_ERR_SUCCESS;
+    }
   }
 
   // io_stream channel only need one connection
@@ -1091,11 +1110,18 @@ static ATBUS_ERROR_TYPE accept_node_registration_step_data_channel(
       continue;
     }
 
-    if (atbus::channel::is_local_process_address(chan.address()) && !is_same_process) {
+    bool is_peer_local_process_address = atbus::channel::is_local_process_address(chan.address());
+    if (is_peer_local_process_address && !is_same_process) {
       continue;
     }
 
-    if (atbus::channel::is_local_host_address(chan.address()) && !is_same_host) {
+    bool is_peer_local_host_address = atbus::channel::is_local_host_address(chan.address());
+    if (is_peer_local_host_address && !is_same_host) {
+      continue;
+    }
+
+    // 如果存在已知可达的地址（上游配置或当前注册连接的地址），则仅接受更高优先级的本机地址
+    if (!is_peer_local_host_address && !known_reachable_address.empty()) {
       continue;
     }
 
@@ -1107,6 +1133,12 @@ static ATBUS_ERROR_TYPE accept_node_registration_step_data_channel(
 
     int priority = calculate_channel_address_priority(chan.address(), is_same_host, is_same_process);
     address_priority_list.emplace_back(priority, gsl::string_view(chan.address()));
+  }
+
+  // 如果没有可用的更高优先级的地址，则使用已知可达的地址（上游配置或当前注册连接的地址）
+  if (address_priority_list.empty() && !known_reachable_address.empty()) {
+    int priority = calculate_channel_address_priority(known_reachable_address, is_same_host, is_same_process);
+    address_priority_list.emplace_back(priority, known_reachable_address);
   }
 
   std::sort(address_priority_list.begin(), address_priority_list.end(),
@@ -1143,7 +1175,8 @@ static ATBUS_ERROR_TYPE accept_node_registration_step_data_channel(
 }
 
 static ATBUS_ERROR_TYPE accept_node_registration(node &n, connection &conn, endpoint *&ep, const message &m,
-                                                 const ::atframework::atbus::protocol::register_data &reg_data) {
+                                                 const ::atframework::atbus::protocol::register_data &reg_data,
+                                                 bool is_upstream) {
   ATBUS_ERROR_TYPE ret = accept_node_registration_step_make_endpoint(n, conn, ep, m, reg_data);
   // 临时连接不需要创建数据通道
   if (ret != EN_ATBUS_ERR_SUCCESS || conn.check_flag(connection::flag_t::kTemporary) || ep == nullptr) {
@@ -1161,7 +1194,7 @@ static ATBUS_ERROR_TYPE accept_node_registration(node &n, connection &conn, endp
     return ret;
   }
 
-  ret = accept_node_registration_step_data_channel(n, conn, *ep, reg_data);
+  ret = accept_node_registration_step_data_channel(n, conn, *ep, reg_data, is_upstream);
   return ret;
 }
 }  // namespace
@@ -1253,7 +1286,7 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_register_req(node
       break;
     }
 
-    response_code = accept_node_registration(n, *conn, ep, m, *reg_data);
+    response_code = accept_node_registration(n, *conn, ep, m, *reg_data, false);
   } while (false);
 
   if (response_code != EN_ATBUS_ERR_SUCCESS) {
@@ -1362,13 +1395,15 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_register_rsp(node
     }
 
     // 先刷新拓扑关系
+    bool is_upstream = false;
     if (n.get_id() != 0 && reg_data->bus_id() != 0 &&
         (conn->get_address().address == n.get_conf().upstream_address ||
          conn->get_origin_address() == n.get_conf().upstream_address)) {
       n.set_topology_upstream(reg_data->bus_id());
+      is_upstream = true;
     }
 
-    result_code = accept_node_registration(n, *conn, ep, m, *reg_data);
+    result_code = accept_node_registration(n, *conn, ep, m, *reg_data, is_upstream);
   } while (false);
 
   if (result_code != EN_ATBUS_ERR_SUCCESS) {
