@@ -104,7 +104,9 @@ ATBUS_MACRO_API void endpoint::reload(gsl::string_view scope, gsl::string_view n
   scope_ = std::string(scope);
   namespace_name_ = std::string(ns);
   labels_ = labels;
-  if (gateways.data() != gateways_.data()) {
+  if (gateways.data() == gateways_.data()) {
+    gateways_.resize(gateways.size());
+  } else {
     gateways_.assign(gateways.begin(), gateways.end());
   }
 }

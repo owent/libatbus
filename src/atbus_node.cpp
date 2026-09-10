@@ -2575,11 +2575,11 @@ ATBUS_MACRO_API node::gateway_t node::build_gateway_from_channel_data(const prot
 
   gw.address = chan.address();
   gw.match_scope = chan.match_scope();
-  gw.match_namespaces.reserve(static_cast<int>(chan.match_namespaces_size()));
+  gw.match_namespaces.reserve(static_cast<size_t>(chan.match_namespaces_size()));
   for (const auto &ns : chan.match_namespaces()) {
     gw.match_namespaces.insert(ns);
   }
-  gw.match_hosts.reserve(static_cast<int>(chan.match_hosts_size()));
+  gw.match_hosts.reserve(static_cast<size_t>(chan.match_hosts_size()));
   for (const auto &host : chan.match_hosts()) {
     gw.match_hosts.insert(host);
   }
@@ -2619,6 +2619,8 @@ ATBUS_MACRO_API void node::dump_listen_to_channel_data(gsl::string_view listen_a
   chan.set_match_scope(conf_.scope);
   if (!conf_.namespace_name.empty()) {
     chan.add_match_namespaces(conf_.namespace_name);
+  } else {
+    chan.clear_match_namespaces();
   }
 }
 
