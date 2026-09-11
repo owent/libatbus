@@ -2481,11 +2481,15 @@ CASE_TEST(atbus_node_reg, reconnect_upstream_retry_backoff) {
     };
 
     // 关闭上游节点，等待下游感知断线并发起第一次即时重连，返回发起重连的逻辑时刻
+    // 注意：重连发起前可能仍有握手未完成的连接占用连接定时器（例如刚建立的下游数据连接，
+    // 其握手完成依赖真实IO，时序因平台而异），所以不能只凭定时器非空判断重连已发起；
+    // 只有进入 kConnectingUpstream 状态，才能确定这一次的连接定时器来自真正的上游重连
     auto wait_first_attempt = [&node_downstream, &ev_loop](time_t &tp) -> time_t {
       for (int i = 0; i < 256; ++i) {
         ++tp;
         node_downstream->proc(unit_test_make_timepoint(tp, 0));
-        if (node_downstream->get_connection_timer_size() > 0) {
+        if (atbus::node::state_t::kConnectingUpstream == node_downstream->get_state() &&
+            node_downstream->get_connection_timer_size() > 0) {
           return tp;
         }
         CASE_THREAD_SLEEP_MS(4);

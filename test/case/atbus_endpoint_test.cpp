@@ -203,7 +203,10 @@ CASE_TEST(atbus_endpoint, reload_scope_labels_and_gateway) {
     }
     CASE_EXPECT_EQ(static_cast<size_t>(1), ep->get_gateway().size());
     if (!ep->get_gateway().empty()) {
-      const auto &wire_gw = ep->get_gateway()[0];
+      // get_gateway() 返回的 gsl::span 是按值返回的临时对象，直接对临时 span 取下标再绑定引用
+      // 会触发 GCC 13+ 的 -Wdangling-reference（-Werror 下报错），先把 span 实体化
+      const auto all_gateways = ep->get_gateway();
+      const auto &wire_gw = all_gateways[0];
       CASE_EXPECT_EQ(std::string("ipv4://127.0.0.1:16451"), wire_gw.address);
       CASE_EXPECT_EQ(std::string("dev"), wire_gw.match_scope);
       CASE_EXPECT_TRUE(wire_gw.match_hosts.end() != wire_gw.match_hosts.find("host-a"));
