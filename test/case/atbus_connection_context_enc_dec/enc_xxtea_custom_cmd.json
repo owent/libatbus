@@ -1,7 +1,7 @@
 {
   "name": "enc_xxtea_custom_cmd",
   "description": "Custom command request with xxtea encryption",
-  "protocol_version": 3,
+  "protocol_version": 5,
   "body_type": "custom_command_req",
   "body_type_case": 11,
   "crypto_algorithm": "xxtea",
@@ -9,7 +9,7 @@
   "key_hex": "000102030405060708090a0b0c0d0e0f",
   "key_size": 16,
   "packed_size": 49,
-  "packed_hex": "080803320208014825280d9d845d337c16ea7a44b4a5cb42e24d18b666344ad8ef7f9ac29452ae8dfca8946bb6c7028b48",
+  "packed_hex": "080805320208014825280d9d845d337c16ea7a44b4a5cb42e24d18b666344ad8ef7f9ac29452ae8dfca8946bb6c7028b48",
   "expected": {
     "from": 12379813738877118345,
     "commands": ["cmd1", "arg1", "arg2"]

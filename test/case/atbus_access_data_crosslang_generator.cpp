@@ -10,6 +10,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <iomanip>
@@ -41,7 +42,13 @@ static std::string get_source_dir() {
 }
 
 // 获取输出目录路径
-static std::string get_output_dir() { return get_source_dir() + "/" + kTestOutputSubDir; }
+static std::string get_output_dir() {
+  const char* output_root = std::getenv("ATBUS_TEST_VECTOR_OUTPUT_DIR");
+  if (output_root != nullptr && output_root[0] != '\0') {
+    return std::string(output_root) + "/" + kTestOutputSubDir;
+  }
+  return get_source_dir() + "/" + kTestOutputSubDir;
+}
 
 // 确保输出目录存在
 static bool ensure_output_dir() {

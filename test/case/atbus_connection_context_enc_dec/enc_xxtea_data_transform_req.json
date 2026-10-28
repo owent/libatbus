@@ -1,15 +1,15 @@
 {
   "name": "enc_xxtea_data_transform_req",
   "description": "Data transform request with xxtea encryption",
-  "protocol_version": 3,
+  "protocol_version": 5,
   "body_type": "data_transform_req",
   "body_type_case": 13,
   "crypto_algorithm": "xxtea",
   "crypto_algorithm_type": 1,
   "key_hex": "000102030405060708090a0b0c0d0e0f",
   "key_size": 16,
-  "packed_size": 61,
-  "packed_hex": "08080332020801483116cd77e9bb117c2962e15dcc6fcded5f0e43e3e4f10ba1cec1a9ba68155d9de3e46482daad7d01ddb03c0a6efe0098765c29e86b",
+  "packed_size": 65,
+  "packed_hex": "0808053202080148310f083464a0dab7dee59354776a67eb0f00a99f0f5ac455fe65a4393ac6cac6a50a38740a09b1bba9fd9114ea42747fd0cfc6e7e0b8c54804",
   "expected": {
     "from": 1311768467463790320,
     "to": 1147797409030816545,

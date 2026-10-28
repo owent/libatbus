@@ -11,6 +11,8 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <string>
 #include <vector>
 
 #include "frame/test_macros.h"
@@ -49,6 +51,37 @@ static bool is_cipher_algorithm_available(const std::string& algo_name) {
     }
   }
   return false;
+}
+
+static bool create_xxtea_context_pair(atfw::atbus::connection_context::ptr_t& client,
+                                      atfw::atbus::connection_context::ptr_t& server) {
+  auto shared_context = create_test_dh_context("ecdh:X25519");
+  if (!shared_context) {
+    return false;
+  }
+  client =
+      atfw::atbus::connection_context::create(atfw::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_X25519, shared_context);
+  server =
+      atfw::atbus::connection_context::create(atfw::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_X25519, shared_context);
+  if (!client || !server) {
+    return false;
+  }
+  const std::vector<atfw::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> algorithms = {
+      atfw::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_XXTEA,
+  };
+  atfw::atbus::protocol::crypto_handshake_data client_key;
+  atfw::atbus::protocol::crypto_handshake_data server_key;
+  if (client->handshake_generate_self_key(0) != EN_ATBUS_ERR_SUCCESS ||
+      client->handshake_write_self_public_key(client_key, algorithms) != EN_ATBUS_ERR_SUCCESS ||
+      server->handshake_generate_self_key(client_key.sequence()) != EN_ATBUS_ERR_SUCCESS ||
+      server->handshake_read_peer_key(client_key, algorithms, true) != EN_ATBUS_ERR_SUCCESS ||
+      server->handshake_write_self_public_key(server_key, algorithms) != EN_ATBUS_ERR_SUCCESS ||
+      client->handshake_read_peer_key(server_key, algorithms, false) != EN_ATBUS_ERR_SUCCESS) {
+    return false;
+  }
+  server->confirm_handshake(server_key.sequence());
+  return client->get_crypto_select_algorithm() == algorithms.front() &&
+         server->get_crypto_select_algorithm() == algorithms.front();
 }
 
 // Helper function to verify cipher can encrypt/decrypt
@@ -1008,6 +1041,94 @@ CASE_TEST(atbus_connection_context, pack_unpack_message_with_compression) {
 }
 
 // Test pack and unpack message with encryption
+CASE_TEST(atbus_connection_context, xxtea_short_command_responses_roundtrip) {
+  ensure_openssl_initialized();
+  atfw::atbus::connection_context::ptr_t client;
+  atfw::atbus::connection_context::ptr_t server;
+  const bool ready = create_xxtea_context_pair(client, server);
+  CASE_EXPECT_TRUE(ready);
+  if (!ready) {
+    return;
+  }
+  atfw::atbus::random_engine_t random_engine;
+  random_engine.init_seed(0x4137);
+  ::google::protobuf::ArenaOptions arena_options;
+  const uint64_t bus_ids[] = {0x41, 0x80, 0x4000, 0x200000, 0x10000000, 0x800000000ULL};
+  for (bool from_client : {true, false}) {
+    auto& sender = from_client ? client : server;
+    auto& receiver = from_client ? server : client;
+    for (uint64_t bus_id : bus_ids) {
+      atfw::atbus::message outgoing(arena_options);
+      outgoing.mutable_head().set_source_bus_id(bus_id);
+      outgoing.mutable_body().mutable_custom_command_rsp()->set_from(bus_id);
+      const std::string expected = outgoing.get_body()->SerializeAsString();
+      auto packed = sender->pack_message(outgoing, atfw::atbus::protocol::ATBUS_PROTOCOL_VERSION, random_engine, 1024);
+      CASE_EXPECT_TRUE(packed.is_success());
+      if (!packed.is_success() || packed.get_success() == nullptr) {
+        return;
+      }
+      auto* buffer = packed.get_success();
+      uint64_t header_size = 0;
+      size_t prefix_size = atfw::atbus::detail::fn::read_vint(header_size, buffer->data(), buffer->used());
+      CASE_EXPECT_GT(prefix_size, size_t{0});
+      if (prefix_size == 0 || prefix_size + header_size > buffer->used()) {
+        return;
+      }
+      CASE_EXPECT_EQ(((expected.size() + 7) / 8) * 8, buffer->used() - prefix_size - header_size);
+      CASE_EXPECT_EQ(atfw::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_XXTEA, outgoing.get_head()->crypto().algorithm());
+      atfw::atbus::message incoming(arena_options);
+      int result = receiver->unpack_message(incoming, {buffer->data(), buffer->used()}, 1024);
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
+      CASE_EXPECT_NE(nullptr, incoming.get_body());
+      if (result == EN_ATBUS_ERR_SUCCESS && incoming.get_body() != nullptr) {
+        CASE_EXPECT_EQ(expected, incoming.get_body()->SerializeAsString());
+      }
+    }
+  }
+}
+
+CASE_TEST(atbus_connection_context, xxtea_rejects_invalid_ciphertext_lengths) {
+  ensure_openssl_initialized();
+  atfw::atbus::connection_context::ptr_t client;
+  atfw::atbus::connection_context::ptr_t server;
+  const bool ready = create_xxtea_context_pair(client, server);
+  CASE_EXPECT_TRUE(ready);
+  if (!ready) {
+    return;
+  }
+  atfw::atbus::random_engine_t random_engine;
+  random_engine.init_seed(0x4137);
+  ::google::protobuf::ArenaOptions arena_options;
+  atfw::atbus::message outgoing(arena_options);
+  outgoing.mutable_body().mutable_custom_command_rsp()->set_from(0x800000000ULL);
+  auto packed = client->pack_message(outgoing, atfw::atbus::protocol::ATBUS_PROTOCOL_VERSION, random_engine, 1024);
+  CASE_EXPECT_TRUE(packed.is_success());
+  if (!packed.is_success() || packed.get_success() == nullptr) {
+    return;
+  }
+  auto* buffer = packed.get_success();
+  atfw::atbus::message baseline(arena_options);
+  int result = server->unpack_message(baseline, {buffer->data(), buffer->used()}, 1024);
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
+  if (result != EN_ATBUS_ERR_SUCCESS) {
+    return;
+  }
+  uint64_t header_size = 0;
+  size_t prefix_size = atfw::atbus::detail::fn::read_vint(header_size, buffer->data(), buffer->used());
+  CASE_EXPECT_GT(prefix_size, size_t{0});
+  if (prefix_size == 0 || prefix_size + header_size > buffer->used()) {
+    return;
+  }
+  for (size_t ciphertext_size : {size_t{4}, size_t{7}, size_t{9}, size_t{12}}) {
+    std::vector<unsigned char> malformed(buffer->data(), buffer->data() + buffer->used());
+    malformed.resize(prefix_size + static_cast<size_t>(header_size) + ciphertext_size, 0x5a);
+    atfw::atbus::message incoming(arena_options);
+    result = server->unpack_message(incoming, malformed, 1024);
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_CRYPTO_DECRYPT, result);
+    CASE_EXPECT_EQ(nullptr, incoming.get_body());
+  }
+}
+
 CASE_TEST(atbus_connection_context, pack_unpack_message_with_encryption) {
   ensure_openssl_initialized();
 
