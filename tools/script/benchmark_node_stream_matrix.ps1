@@ -16,7 +16,10 @@ param(
   [Parameter(Mandatory = $true)][string]$BinDir,
   [Parameter(Mandatory = $true)][string]$ResultDir,
   [double]$DurationSec = 15,
-  [string]$Address = "ipv4://127.0.0.1:16500"
+  [string]$Address = "ipv4://127.0.0.1:16500",
+  # Optional shm://key: receiver also listens on it so the peer's connect-back
+  # upgrades the data channel to shared memory
+  [string]$ShmAddress = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -73,7 +76,11 @@ foreach ($Size in $Sizes) {
 
     $RecvArgs = @($Address, "200000001",
       "--crypto=$($Combo.crypto)", "--compression=$($Combo.comp)", "--level=$($Combo.level)",
-      "--payload-size=$Size", "--json=$(Join-Path $OutDir 'recv.json')")
+      "--payload-size=$Size")
+    if ($ShmAddress -ne "") {
+      $RecvArgs += "--extra-listen=$ShmAddress"
+    }
+    $RecvArgs += "--json=$(Join-Path $OutDir 'recv.json')"
     $RecvProc = Start-Process -FilePath $RecvBin -ArgumentList $RecvArgs `
       -RedirectStandardError (Join-Path $OutDir "recv.stderr.log") -PassThru -NoNewWindow
 

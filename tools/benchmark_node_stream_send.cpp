@@ -380,6 +380,10 @@ int main(int argc, char* argv[]) {
 
   atbus::node::ptr_t node = atbus::node::create();
   node->init(conf.bus_id, &node_conf);
+  // Warm up the event tick before creating any connection timers: their deadlines
+  // are computed from the tick, which starts at epoch 0 and would instantly expire
+  // once the first proc() jumps it to the current time.
+  node->proc(std::chrono::system_clock::now());
   // keep the data path quiet unless --verbose is given
   node->get_logger()->set_level(conf.verbose ? atfw::util::log::log_level::kDebug : atfw::util::log::log_level::kError);
   if (conf.verbose) {
@@ -418,6 +422,8 @@ int main(int argc, char* argv[]) {
 
   while (!bench_stat.done) {
     node->poll();
+    // mem:// / shm:// channel read endpoints are driven by proc(), not poll()
+    node->proc(std::chrono::system_clock::now());
     if (!bench_stat.ready) {
       if (std::chrono::steady_clock::now() > connect_deadline) {
         fprintf(stderr, "connect timeout, peer not registered in 30s\n");

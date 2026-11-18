@@ -15,6 +15,10 @@ Benchmark - Node层完整协议栈 TCP (Run On 2026-11-18)
 - **压缩+加密组合**（12 组）：上述 4 种压缩 × `aes-128-gcm` / `aes-256-gcm` / `chacha20-poly1305-ietf`
 - **包长**（5 档）：200B、1KB、8KB、64KB、300KB
 
+以上组合在 **TCP 通道**与**共享内存（shm://）通道**上各跑一轮（shm 拓扑：收端 `listen(shm://key)`，
+发端 TCP 控制连接握手后数据通道自动升级为单工 shm 写端），TCP 结果见各平台小节，shm 见结论第 6 节及
+"共享内存通道（shm://）补充测试"章节。
+
 环境
 ------
 
@@ -555,6 +559,427 @@ QPS 曲线 - 加密算法（无压缩）：
 
 ![Windows 组合 zstd high-ratio](benchmark/2026-11/line-throughput-combined-zstd-high-ratio-windows.svg)
 
+### 共享内存通道（shm://）补充测试
+
+共享内存通道为**单工总线**：收端 `listen(shm://key)` 创建段并作为读端，发端经 TCP 控制连接完成握手后，
+connect-back 依据对端广播的 shm 地址自动建立**写端**数据连接（数据通道优先级 mem > shm > fd），与真实部署
+拓扑一致。协议栈的加密/压缩在 shm 数据连接上照常协商生效；shm 段大小为默认配置（256MB）。
+
+三平台均以与 TCP 相同的 22 组合 × 5 包长矩阵运行（Linux 为 mimalloc PRELOAD；**Windows 下发现并修复了
+shm 段使用 `Global\` 命名空间导致普通权限进程创建失败的问题**，见 CHANGELOG 3.0.1），全部 0 失败。
+
+#### 共享内存 vs TCP 吞吐曲线（无加密无压缩）
+
+Linux（mimalloc）：
+
+![Linux shm vs tcp](benchmark/2026-11/line-shm-vs-tcp-linux.svg)
+
+WSL2（glibc）：
+
+![WSL shm vs tcp](benchmark/2026-11/line-shm-vs-tcp-wsl.svg)
+
+Windows：
+
+![Windows shm vs tcp](benchmark/2026-11/line-shm-vs-tcp-windows.svg)
+
+三平台汇总（shm=虚线）：
+
+![shm platforms](benchmark/2026-11/line-throughput-shm-platforms.svg)
+
+#### 真实 Linux (mimalloc) - shm 通道加密对比（无压缩）
+
+| 加密 | 压缩 | 包长 | QPS | 吞吐量(payload) | CPU 收/发 | 峰值内存 收/发 | 实测压缩率 |
+|---|---|---:|---:|---:|---|---|---:|
+| none | none@default | 200B | 3.44M | 656.3MB/s | 100%/100% | 15.1/27.2MB | - |
+| aes-128-gcm | none@default | 200B | 1.50M | 286.6MB/s | 100%/100% | 15.1/31.3MB | - |
+| aes-192-gcm | none@default | 200B | 1.52M | 290.6MB/s | 100%/100% | 15.3/31.2MB | - |
+| aes-256-gcm | none@default | 200B | 1.44M | 275.1MB/s | 100%/101% | 15.3/31.3MB | - |
+| chacha20 | none@default | 200B | 330.5K | 63.0MB/s | 100%/100% | 15.0/29.3MB | - |
+| chacha20-poly1305-ietf | none@default | 200B | 851.0K | 162.3MB/s | 100%/101% | 14.9/31.2MB | - |
+| none | none@default | 1KB | 1.54M | 1.47GB/s | 100%/100% | 15.1/25.4MB | - |
+| aes-128-gcm | none@default | 1KB | 891.1K | 870.2MB/s | 100%/100% | 15.5/29.3MB | - |
+| aes-192-gcm | none@default | 1KB | 897.2K | 876.2MB/s | 100%/100% | 15.3/29.6MB | - |
+| aes-256-gcm | none@default | 1KB | 899.7K | 878.6MB/s | 100%/100% | 15.3/29.3MB | - |
+| chacha20 | none@default | 1KB | 84.6K | 82.6MB/s | 100%/100% | 15.1/31.1MB | - |
+| chacha20-poly1305-ietf | none@default | 1KB | 626.3K | 611.6MB/s | 100%/100% | 15.2/29.3MB | - |
+| none | none@default | 8KB | 212.5K | 1.62GB/s | 100%/100% | 15.3/25.3MB | - |
+| aes-128-gcm | none@default | 8KB | 231.1K | 1.76GB/s | 100%/100% | 15.1/31.3MB | - |
+| aes-192-gcm | none@default | 8KB | 200.7K | 1.53GB/s | 100%/100% | 15.2/31.3MB | - |
+| aes-256-gcm | none@default | 8KB | 228.5K | 1.74GB/s | 100%/100% | 15.3/39.3MB | - |
+| chacha20 | none@default | 8KB | 11.5K | 89.9MB/s | 100%/101% | 15.3/33.3MB | - |
+| chacha20-poly1305-ietf | none@default | 8KB | 162.7K | 1.24GB/s | 100%/100% | 15.3/35.0MB | - |
+| none | none@default | 64KB | 39.8K | 2.43GB/s | 100%/100% | 14.8/33.2MB | - |
+| aes-128-gcm | none@default | 64KB | 35.5K | 2.17GB/s | 100%/100% | 15.5/33.4MB | - |
+| aes-192-gcm | none@default | 64KB | 35.2K | 2.15GB/s | 100%/100% | 15.2/39.5MB | - |
+| aes-256-gcm | none@default | 64KB | 35.0K | 2.14GB/s | 100%/100% | 15.3/39.4MB | - |
+| chacha20 | none@default | 64KB | 1.5K | 96.5MB/s | 100%/101% | 15.3/34.9MB | - |
+| chacha20-poly1305-ietf | none@default | 64KB | 25.8K | 1.57GB/s | 100%/100% | 15.1/39.3MB | - |
+| none | none@default | 300KB | 9.0K | 2.59GB/s | 100%/100% | 15.0/27.0MB | - |
+| aes-128-gcm | none@default | 300KB | 7.9K | 2.25GB/s | 100%/100% | 15.3/27.5MB | - |
+| aes-192-gcm | none@default | 300KB | 7.9K | 2.26GB/s | 100%/100% | 15.5/25.5MB | - |
+| aes-256-gcm | none@default | 300KB | 7.7K | 2.22GB/s | 100%/100% | 15.3/27.4MB | - |
+| chacha20 | none@default | 300KB | 335 | 98.2MB/s | 101%/102% | 15.1/29.1MB | - |
+| chacha20-poly1305-ietf | none@default | 300KB | 5.6K | 1.59GB/s | 100%/100% | 15.3/29.4MB | - |
+
+#### 真实 Linux (mimalloc) - shm 通道压缩对比（无加密）
+
+| 加密 | 压缩 | 包长 | QPS | 吞吐量(payload) | CPU 收/发 | 峰值内存 收/发 | 实测压缩率 |
+|---|---|---:|---:|---:|---|---|---:|
+| none | none@default | 200B | 3.44M | 656.3MB/s | 100%/100% | 15.1/27.2MB | - |
+| none | lz4@fast | 200B | 3.44M | 656.0MB/s | 100%/100% | 15.0/27.2MB | 76.6% |
+| none | lz4@default | 200B | 3.43M | 654.6MB/s | 100%/100% | 15.0/27.1MB | 76.6% |
+| none | zstd@default | 200B | 3.42M | 651.9MB/s | 100%/100% | 15.2/25.1MB | 66.1% |
+| none | zstd@high-ratio | 200B | 3.46M | 660.8MB/s | 100%/100% | 15.0/27.1MB | 65.6% |
+| none | none@default | 1KB | 1.54M | 1.47GB/s | 100%/100% | 15.1/25.4MB | - |
+| none | lz4@fast | 1KB | 783.6K | 765.2MB/s | 100%/100% | 15.1/23.0MB | 55.5% |
+| none | lz4@default | 1KB | 778.7K | 760.5MB/s | 100%/100% | 15.2/25.3MB | 55.5% |
+| none | zstd@default | 1KB | 173.7K | 169.6MB/s | 100%/102% | 15.3/25.3MB | 35.2% |
+| none | zstd@high-ratio | 1KB | 174.8K | 170.7MB/s | 100%/101% | 14.9/31.5MB | 33.3% |
+| none | none@default | 8KB | 212.5K | 1.62GB/s | 100%/100% | 15.3/25.3MB | - |
+| none | lz4@fast | 8KB | 122.0K | 953.3MB/s | 100%/101% | 15.3/25.3MB | 45.9% |
+| none | lz4@default | 8KB | 121.6K | 950.1MB/s | 100%/100% | 15.3/31.3MB | 45.9% |
+| none | zstd@default | 8KB | 46.0K | 359.7MB/s | 100%/105% | 15.3/31.2MB | 24.2% |
+| none | zstd@high-ratio | 8KB | 46.4K | 362.5MB/s | 100%/102% | 15.1/31.2MB | 21.9% |
+| none | none@default | 64KB | 39.8K | 2.43GB/s | 100%/100% | 14.8/33.2MB | - |
+| none | lz4@fast | 64KB | 18.6K | 1.14GB/s | 100%/101% | 15.0/31.3MB | 43.6% |
+| none | lz4@default | 64KB | 18.6K | 1.13GB/s | 100%/101% | 15.2/29.1MB | 43.6% |
+| none | zstd@default | 64KB | 8.0K | 500.5MB/s | 100%/103% | 15.3/23.3MB | 23.8% |
+| none | zstd@high-ratio | 64KB | 7.8K | 484.8MB/s | 100%/102% | 15.2/29.4MB | 21.0% |
+| none | none@default | 300KB | 9.0K | 2.59GB/s | 100%/100% | 15.0/27.0MB | - |
+| none | lz4@fast | 300KB | 2.9K | 853.5MB/s | 100%/101% | 15.2/35.1MB | 38.3% |
+| none | lz4@default | 300KB | 2.9K | 840.2MB/s | 100%/101% | 15.1/27.3MB | 38.3% |
+| none | zstd@default | 300KB | 1.5K | 425.2MB/s | 100%/103% | 15.1/33.3MB | 23.4% |
+| none | zstd@high-ratio | 300KB | 1.6K | 462.7MB/s | 100%/102% | 15.0/27.2MB | 20.6% |
+
+#### 真实 Linux (mimalloc) - shm 通道压缩+加密组合
+
+| 加密 | 压缩 | 包长 | QPS | 吞吐量(payload) | CPU 收/发 | 峰值内存 收/发 | 实测压缩率 |
+|---|---|---:|---:|---:|---|---|---:|
+| aes-128-gcm | lz4@fast | 200B | 1.52M | 289.5MB/s | 100%/100% | 15.4/31.2MB | 76.6% |
+| aes-256-gcm | lz4@fast | 200B | 1.45M | 276.7MB/s | 100%/101% | 15.1/31.5MB | 76.6% |
+| chacha20-poly1305-ietf | lz4@fast | 200B | 850.7K | 162.2MB/s | 100%/101% | 15.2/31.3MB | 76.6% |
+| aes-128-gcm | lz4@default | 200B | 1.52M | 289.3MB/s | 100%/100% | 15.3/31.3MB | 76.6% |
+| aes-256-gcm | lz4@default | 200B | 1.47M | 279.6MB/s | 100%/101% | 15.2/31.3MB | 76.6% |
+| chacha20-poly1305-ietf | lz4@default | 200B | 848.7K | 161.9MB/s | 100%/101% | 15.0/31.3MB | 76.6% |
+| aes-128-gcm | zstd@default | 200B | 1.52M | 290.8MB/s | 100%/101% | 15.2/31.5MB | 66.1% |
+| aes-256-gcm | zstd@default | 200B | 1.47M | 280.6MB/s | 100%/100% | 15.2/31.2MB | 66.1% |
+| chacha20-poly1305-ietf | zstd@default | 200B | 856.1K | 163.3MB/s | 100%/100% | 15.1/31.1MB | 66.1% |
+| aes-128-gcm | zstd@high-ratio | 200B | 1.51M | 288.2MB/s | 100%/101% | 15.1/31.2MB | 65.6% |
+| aes-256-gcm | zstd@high-ratio | 200B | 1.46M | 279.3MB/s | 100%/100% | 15.2/31.3MB | 65.6% |
+| chacha20-poly1305-ietf | zstd@high-ratio | 200B | 850.3K | 162.2MB/s | 100%/101% | 15.3/39.1MB | 65.6% |
+| aes-128-gcm | lz4@fast | 1KB | 568.1K | 554.7MB/s | 100%/101% | 15.2/29.6MB | 55.5% |
+| aes-256-gcm | lz4@fast | 1KB | 557.8K | 544.8MB/s | 100%/101% | 14.9/29.3MB | 55.5% |
+| chacha20-poly1305-ietf | lz4@fast | 1KB | 439.6K | 429.3MB/s | 100%/101% | 15.3/29.0MB | 55.5% |
+| aes-128-gcm | lz4@default | 1KB | 567.3K | 554.0MB/s | 100%/101% | 15.3/29.5MB | 55.5% |
+| aes-256-gcm | lz4@default | 1KB | 565.5K | 552.2MB/s | 100%/101% | 15.1/29.2MB | 55.5% |
+| chacha20-poly1305-ietf | lz4@default | 1KB | 446.0K | 435.5MB/s | 100%/101% | 15.3/29.1MB | 55.5% |
+| aes-128-gcm | zstd@default | 1KB | 164.1K | 160.2MB/s | 100%/105% | 15.6/31.6MB | 35.2% |
+| aes-256-gcm | zstd@default | 1KB | 163.5K | 159.7MB/s | 100%/103% | 15.3/31.5MB | 35.2% |
+| chacha20-poly1305-ietf | zstd@default | 1KB | 148.1K | 144.7MB/s | 100%/101% | 15.1/31.4MB | 35.2% |
+| aes-128-gcm | zstd@high-ratio | 1KB | 164.3K | 160.4MB/s | 100%/105% | 15.6/31.6MB | 33.3% |
+| aes-256-gcm | zstd@high-ratio | 1KB | 163.1K | 159.3MB/s | 100%/102% | 15.3/31.3MB | 33.3% |
+| chacha20-poly1305-ietf | zstd@high-ratio | 1KB | 148.5K | 145.1MB/s | 100%/102% | 15.2/31.5MB | 33.3% |
+| aes-128-gcm | lz4@fast | 8KB | 114.1K | 891.7MB/s | 100%/101% | 15.4/31.5MB | 45.9% |
+| aes-256-gcm | lz4@fast | 8KB | 113.2K | 884.3MB/s | 100%/101% | 15.5/31.4MB | 45.9% |
+| chacha20-poly1305-ietf | lz4@fast | 8KB | 102.6K | 801.4MB/s | 100%/101% | 15.3/31.3MB | 45.9% |
+| aes-128-gcm | lz4@default | 8KB | 113.4K | 885.9MB/s | 100%/101% | 15.5/31.5MB | 45.9% |
+| aes-256-gcm | lz4@default | 8KB | 112.3K | 877.7MB/s | 100%/100% | 15.3/31.5MB | 45.9% |
+| chacha20-poly1305-ietf | lz4@default | 8KB | 103.3K | 807.2MB/s | 100%/100% | 15.3/31.3MB | 45.9% |
+| aes-128-gcm | zstd@default | 8KB | 45.2K | 353.5MB/s | 100%/103% | 15.5/31.3MB | 24.2% |
+| aes-256-gcm | zstd@default | 8KB | 45.0K | 351.5MB/s | 100%/103% | 15.4/31.6MB | 24.2% |
+| chacha20-poly1305-ietf | zstd@default | 8KB | 43.2K | 337.5MB/s | 100%/104% | 15.2/31.4MB | 24.2% |
+| aes-128-gcm | zstd@high-ratio | 8KB | 44.9K | 350.5MB/s | 100%/102% | 15.6/31.6MB | 21.9% |
+| aes-256-gcm | zstd@high-ratio | 8KB | 45.3K | 354.0MB/s | 100%/101% | 15.3/31.6MB | 21.9% |
+| chacha20-poly1305-ietf | zstd@high-ratio | 8KB | 43.6K | 340.5MB/s | 100%/103% | 15.4/31.3MB | 21.9% |
+| aes-128-gcm | lz4@fast | 64KB | 18.2K | 1.11GB/s | 100%/100% | 15.4/29.2MB | 43.6% |
+| aes-256-gcm | lz4@fast | 64KB | 18.3K | 1.12GB/s | 100%/101% | 15.2/29.2MB | 43.6% |
+| chacha20-poly1305-ietf | lz4@fast | 64KB | 17.0K | 1.04GB/s | 100%/100% | 15.0/29.4MB | 43.6% |
+| aes-128-gcm | lz4@default | 64KB | 18.3K | 1.11GB/s | 100%/101% | 15.3/31.3MB | 43.6% |
+| aes-256-gcm | lz4@default | 64KB | 18.2K | 1.11GB/s | 100%/100% | 15.2/29.3MB | 43.6% |
+| chacha20-poly1305-ietf | lz4@default | 64KB | 16.8K | 1.02GB/s | 100%/101% | 14.9/29.0MB | 43.6% |
+| aes-128-gcm | zstd@default | 64KB | 7.8K | 486.4MB/s | 100%/102% | 15.5/29.6MB | 23.8% |
+| aes-256-gcm | zstd@default | 64KB | 7.9K | 494.6MB/s | 100%/103% | 15.5/29.5MB | 23.8% |
+| chacha20-poly1305-ietf | zstd@default | 64KB | 7.8K | 487.3MB/s | 100%/101% | 15.1/29.3MB | 23.8% |
+| aes-128-gcm | zstd@high-ratio | 64KB | 7.9K | 492.6MB/s | 100%/102% | 15.4/29.5MB | 21.0% |
+| aes-256-gcm | zstd@high-ratio | 64KB | 8.0K | 503.0MB/s | 100%/104% | 15.3/29.5MB | 21.0% |
+| chacha20-poly1305-ietf | zstd@high-ratio | 64KB | 7.8K | 489.2MB/s | 100%/101% | 15.1/29.5MB | 21.0% |
+| aes-128-gcm | lz4@fast | 300KB | 2.9K | 839.5MB/s | 100%/101% | 15.0/35.4MB | 38.3% |
+| aes-256-gcm | lz4@fast | 300KB | 2.9K | 850.4MB/s | 100%/101% | 15.3/39.4MB | 38.3% |
+| chacha20-poly1305-ietf | lz4@fast | 300KB | 2.9K | 860.9MB/s | 100%/101% | 15.2/31.1MB | 38.3% |
+| aes-128-gcm | lz4@default | 300KB | 2.9K | 847.4MB/s | 100%/101% | 15.3/39.5MB | 38.3% |
+| aes-256-gcm | lz4@default | 300KB | 2.9K | 843.1MB/s | 100%/101% | 15.2/35.2MB | 38.3% |
+| chacha20-poly1305-ietf | lz4@default | 300KB | 2.6K | 773.0MB/s | 100%/101% | 15.1/31.2MB | 38.3% |
+| aes-128-gcm | zstd@default | 300KB | 1.5K | 450.8MB/s | 100%/104% | 15.2/35.6MB | 23.4% |
+| aes-256-gcm | zstd@default | 300KB | 1.5K | 450.4MB/s | 100%/104% | 15.3/33.6MB | 23.4% |
+| chacha20-poly1305-ietf | zstd@default | 300KB | 1.4K | 410.1MB/s | 100%/102% | 15.4/35.4MB | 23.4% |
+| aes-128-gcm | zstd@high-ratio | 300KB | 1.4K | 421.0MB/s | 100%/104% | 15.3/35.5MB | 20.6% |
+| aes-256-gcm | zstd@high-ratio | 300KB | 1.5K | 451.1MB/s | 100%/104% | 15.4/35.3MB | 20.6% |
+| chacha20-poly1305-ietf | zstd@high-ratio | 300KB | 1.4K | 407.2MB/s | 100%/101% | 15.2/33.4MB | 20.6% |
+
+#### WSL2 (glibc) - shm 通道加密对比（无压缩）
+
+| 加密 | 压缩 | 包长 | QPS | 吞吐量(payload) | CPU 收/发 | 峰值内存 收/发 | 实测压缩率 |
+|---|---|---:|---:|---:|---|---|---:|
+| none | none@default | 200B | 2.10M | 400.7MB/s | 100%/100% | 267.7/268.0MB | - |
+| aes-128-gcm | none@default | 200B | 2.10M | 401.1MB/s | 100%/100% | 268.3/268.3MB | - |
+| aes-192-gcm | none@default | 200B | 2.09M | 399.5MB/s | 100%/100% | 268.0/268.2MB | - |
+| aes-256-gcm | none@default | 200B | 2.10M | 399.9MB/s | 100%/100% | 268.1/268.3MB | - |
+| chacha20 | none@default | 200B | 2.12M | 404.7MB/s | 100%/100% | 268.2/268.1MB | - |
+| chacha20-poly1305-ietf | none@default | 200B | 2.11M | 402.0MB/s | 100%/100% | 268.2/268.3MB | - |
+| none | none@default | 1KB | 1.44M | 1.37GB/s | 100%/100% | 267.9/268.0MB | - |
+| aes-128-gcm | none@default | 1KB | 1.39M | 1.33GB/s | 100%/100% | 268.0/268.4MB | - |
+| aes-192-gcm | none@default | 1KB | 1.43M | 1.36GB/s | 100%/100% | 268.2/268.4MB | - |
+| aes-256-gcm | none@default | 1KB | 1.41M | 1.34GB/s | 100%/100% | 268.2/268.3MB | - |
+| chacha20 | none@default | 1KB | 1.38M | 1.32GB/s | 100%/100% | 268.3/268.2MB | - |
+| chacha20-poly1305-ietf | none@default | 1KB | 1.40M | 1.34GB/s | 100%/100% | 268.0/268.2MB | - |
+| none | none@default | 8KB | 360.8K | 2.75GB/s | 100%/100% | 268.0/267.9MB | - |
+| aes-128-gcm | none@default | 8KB | 360.7K | 2.75GB/s | 100%/100% | 268.0/268.4MB | - |
+| aes-192-gcm | none@default | 8KB | 363.4K | 2.77GB/s | 100%/100% | 268.3/268.4MB | - |
+| aes-256-gcm | none@default | 8KB | 354.8K | 2.71GB/s | 100%/100% | 268.0/268.6MB | - |
+| chacha20 | none@default | 8KB | 362.2K | 2.76GB/s | 100%/100% | 267.9/268.0MB | - |
+| chacha20-poly1305-ietf | none@default | 8KB | 365.7K | 2.79GB/s | 100%/100% | 268.2/268.4MB | - |
+| none | none@default | 64KB | 30.7K | 1.87GB/s | 100%/0% | 268.0/268.0MB | - |
+| aes-128-gcm | none@default | 64KB | 34.6K | 2.11GB/s | 100%/0% | 268.5/268.5MB | - |
+| aes-192-gcm | none@default | 64KB | 34.6K | 2.11GB/s | 100%/0% | 268.3/268.5MB | - |
+| aes-256-gcm | none@default | 64KB | 34.3K | 2.09GB/s | 100%/0% | 268.3/268.4MB | - |
+| chacha20 | none@default | 64KB | 34.7K | 2.12GB/s | 100%/0% | 268.3/268.4MB | - |
+| chacha20-poly1305-ietf | none@default | 64KB | 34.3K | 2.10GB/s | 100%/0% | 268.2/268.6MB | - |
+| none | none@default | 300KB | 3.9K | 1.12GB/s | 100%/0% | 268.5/268.7MB | - |
+| aes-128-gcm | none@default | 300KB | 4.0K | 1.14GB/s | 100%/0% | 268.7/269.1MB | - |
+| aes-192-gcm | none@default | 300KB | 3.9K | 1.12GB/s | 100%/0% | 268.9/269.3MB | - |
+| aes-256-gcm | none@default | 300KB | 3.9K | 1.12GB/s | 100%/0% | 268.8/269.3MB | - |
+| chacha20 | none@default | 300KB | 3.9K | 1.13GB/s | 100%/0% | 268.7/269.1MB | - |
+| chacha20-poly1305-ietf | none@default | 300KB | 3.9K | 1.12GB/s | 100%/0% | 268.6/269.1MB | - |
+
+#### WSL2 (glibc) - shm 通道压缩对比（无加密）
+
+| 加密 | 压缩 | 包长 | QPS | 吞吐量(payload) | CPU 收/发 | 峰值内存 收/发 | 实测压缩率 |
+|---|---|---:|---:|---:|---|---|---:|
+| none | none@default | 200B | 2.10M | 400.7MB/s | 100%/100% | 267.7/268.0MB | - |
+| none | lz4@fast | 200B | 2.07M | 394.3MB/s | 100%/100% | 268.0/268.0MB | 76.6% |
+| none | lz4@default | 200B | 2.05M | 391.4MB/s | 100%/100% | 267.9/267.9MB | 76.6% |
+| none | zstd@default | 200B | 2.10M | 399.7MB/s | 100%/100% | 268.0/267.8MB | 66.1% |
+| none | zstd@high-ratio | 200B | 2.09M | 397.8MB/s | 100%/100% | 267.6/267.8MB | 65.6% |
+| none | none@default | 1KB | 1.44M | 1.37GB/s | 100%/100% | 267.9/268.0MB | - |
+| none | lz4@fast | 1KB | 1.39M | 1.33GB/s | 100%/100% | 267.9/267.8MB | 55.5% |
+| none | lz4@default | 1KB | 1.40M | 1.34GB/s | 100%/100% | 267.8/267.9MB | 55.5% |
+| none | zstd@default | 1KB | 1.40M | 1.33GB/s | 100%/100% | 268.0/268.0MB | 35.2% |
+| none | zstd@high-ratio | 1KB | 1.42M | 1.35GB/s | 100%/100% | 267.6/268.0MB | 33.3% |
+| none | none@default | 8KB | 360.8K | 2.75GB/s | 100%/100% | 268.0/267.9MB | - |
+| none | lz4@fast | 8KB | 358.8K | 2.74GB/s | 100%/100% | 268.0/268.0MB | 45.9% |
+| none | lz4@default | 8KB | 364.5K | 2.78GB/s | 100%/100% | 267.7/267.8MB | 45.9% |
+| none | zstd@default | 8KB | 361.3K | 2.76GB/s | 100%/100% | 267.5/267.9MB | 24.2% |
+| none | zstd@high-ratio | 8KB | 361.7K | 2.76GB/s | 100%/100% | 267.9/267.7MB | 21.9% |
+| none | none@default | 64KB | 30.7K | 1.87GB/s | 100%/0% | 268.0/268.0MB | - |
+| none | lz4@fast | 64KB | 34.5K | 2.11GB/s | 100%/0% | 268.1/268.0MB | 43.6% |
+| none | lz4@default | 64KB | 31.7K | 1.93GB/s | 100%/0% | 268.2/268.2MB | 43.6% |
+| none | zstd@default | 64KB | 34.1K | 2.08GB/s | 100%/0% | 267.8/268.1MB | 23.8% |
+| none | zstd@high-ratio | 64KB | 34.3K | 2.10GB/s | 100%/0% | 267.7/267.8MB | 21.0% |
+| none | none@default | 300KB | 3.9K | 1.12GB/s | 100%/0% | 268.5/268.7MB | - |
+| none | lz4@fast | 300KB | 3.8K | 1.07GB/s | 100%/0% | 268.5/268.7MB | 38.3% |
+| none | lz4@default | 300KB | 4.0K | 1.13GB/s | 100%/0% | 268.5/268.8MB | 38.3% |
+| none | zstd@default | 300KB | 3.9K | 1.13GB/s | 100%/0% | 268.6/268.9MB | 23.4% |
+| none | zstd@high-ratio | 300KB | 4.0K | 1.13GB/s | 100%/0% | 268.2/268.8MB | 20.6% |
+
+#### WSL2 (glibc) - shm 通道压缩+加密组合
+
+| 加密 | 压缩 | 包长 | QPS | 吞吐量(payload) | CPU 收/发 | 峰值内存 收/发 | 实测压缩率 |
+|---|---|---:|---:|---:|---|---|---:|
+| aes-128-gcm | lz4@fast | 200B | 2.05M | 391.4MB/s | 100%/100% | 268.3/268.3MB | 76.6% |
+| aes-256-gcm | lz4@fast | 200B | 2.07M | 394.6MB/s | 100%/100% | 268.2/268.1MB | 76.6% |
+| chacha20-poly1305-ietf | lz4@fast | 200B | 2.05M | 391.6MB/s | 100%/100% | 268.2/268.1MB | 76.6% |
+| aes-128-gcm | lz4@default | 200B | 2.07M | 394.2MB/s | 100%/100% | 268.4/268.4MB | 76.6% |
+| aes-256-gcm | lz4@default | 200B | 2.05M | 391.7MB/s | 100%/100% | 268.1/268.2MB | 76.6% |
+| chacha20-poly1305-ietf | lz4@default | 200B | 2.07M | 395.7MB/s | 100%/100% | 268.1/268.1MB | 76.6% |
+| aes-128-gcm | zstd@default | 200B | 2.16M | 411.6MB/s | 100%/100% | 268.2/268.2MB | 66.1% |
+| aes-256-gcm | zstd@default | 200B | 2.03M | 387.6MB/s | 100%/100% | 268.2/268.3MB | 66.1% |
+| chacha20-poly1305-ietf | zstd@default | 200B | 2.10M | 400.2MB/s | 100%/100% | 268.2/268.3MB | 66.1% |
+| aes-128-gcm | zstd@high-ratio | 200B | 2.04M | 388.7MB/s | 100%/100% | 268.4/268.1MB | 65.6% |
+| aes-256-gcm | zstd@high-ratio | 200B | 2.06M | 392.3MB/s | 100%/100% | 268.2/268.2MB | 65.6% |
+| chacha20-poly1305-ietf | zstd@high-ratio | 200B | 2.13M | 405.8MB/s | 100%/100% | 268.2/268.1MB | 65.6% |
+| aes-128-gcm | lz4@fast | 1KB | 1.43M | 1.36GB/s | 100%/100% | 268.3/268.3MB | 55.5% |
+| aes-256-gcm | lz4@fast | 1KB | 1.43M | 1.36GB/s | 100%/100% | 268.2/268.2MB | 55.5% |
+| chacha20-poly1305-ietf | lz4@fast | 1KB | 1.42M | 1.35GB/s | 100%/100% | 268.2/268.2MB | 55.5% |
+| aes-128-gcm | lz4@default | 1KB | 1.41M | 1.35GB/s | 100%/100% | 268.3/268.2MB | 55.5% |
+| aes-256-gcm | lz4@default | 1KB | 1.39M | 1.32GB/s | 100%/100% | 268.2/268.4MB | 55.5% |
+| chacha20-poly1305-ietf | lz4@default | 1KB | 1.42M | 1.36GB/s | 100%/100% | 268.0/268.3MB | 55.5% |
+| aes-128-gcm | zstd@default | 1KB | 1.43M | 1.36GB/s | 100%/100% | 268.2/268.3MB | 35.2% |
+| aes-256-gcm | zstd@default | 1KB | 1.40M | 1.33GB/s | 100%/100% | 268.2/268.1MB | 35.2% |
+| chacha20-poly1305-ietf | zstd@default | 1KB | 1.43M | 1.36GB/s | 100%/100% | 268.2/268.2MB | 35.2% |
+| aes-128-gcm | zstd@high-ratio | 1KB | 1.42M | 1.35GB/s | 100%/100% | 268.1/268.1MB | 33.3% |
+| aes-256-gcm | zstd@high-ratio | 1KB | 1.42M | 1.35GB/s | 100%/100% | 268.2/268.4MB | 33.3% |
+| chacha20-poly1305-ietf | zstd@high-ratio | 1KB | 1.39M | 1.33GB/s | 100%/100% | 268.3/268.1MB | 33.3% |
+| aes-128-gcm | lz4@fast | 8KB | 365.3K | 2.79GB/s | 100%/100% | 268.0/268.4MB | 45.9% |
+| aes-256-gcm | lz4@fast | 8KB | 359.0K | 2.74GB/s | 100%/100% | 268.3/268.4MB | 45.9% |
+| chacha20-poly1305-ietf | lz4@fast | 8KB | 363.4K | 2.77GB/s | 100%/100% | 268.0/268.2MB | 45.9% |
+| aes-128-gcm | lz4@default | 8KB | 365.1K | 2.79GB/s | 100%/100% | 268.2/268.2MB | 45.9% |
+| aes-256-gcm | lz4@default | 8KB | 364.1K | 2.78GB/s | 100%/100% | 268.3/268.4MB | 45.9% |
+| chacha20-poly1305-ietf | lz4@default | 8KB | 361.1K | 2.75GB/s | 100%/100% | 268.0/268.4MB | 45.9% |
+| aes-128-gcm | zstd@default | 8KB | 363.9K | 2.78GB/s | 100%/100% | 268.0/268.6MB | 24.2% |
+| aes-256-gcm | zstd@default | 8KB | 365.1K | 2.79GB/s | 100%/100% | 268.2/268.3MB | 24.2% |
+| chacha20-poly1305-ietf | zstd@default | 8KB | 368.9K | 2.81GB/s | 100%/100% | 268.3/268.3MB | 24.2% |
+| aes-128-gcm | zstd@high-ratio | 8KB | 366.8K | 2.80GB/s | 100%/100% | 268.3/268.2MB | 21.9% |
+| aes-256-gcm | zstd@high-ratio | 8KB | 364.0K | 2.78GB/s | 100%/100% | 268.3/268.3MB | 21.9% |
+| chacha20-poly1305-ietf | zstd@high-ratio | 8KB | 361.3K | 2.76GB/s | 100%/100% | 268.2/268.4MB | 21.9% |
+| aes-128-gcm | lz4@fast | 64KB | 34.3K | 2.09GB/s | 100%/0% | 268.5/268.5MB | 43.6% |
+| aes-256-gcm | lz4@fast | 64KB | 34.1K | 2.08GB/s | 100%/0% | 268.4/268.6MB | 43.6% |
+| chacha20-poly1305-ietf | lz4@fast | 64KB | 34.5K | 2.11GB/s | 100%/0% | 268.3/268.6MB | 43.6% |
+| aes-128-gcm | lz4@default | 64KB | 34.9K | 2.13GB/s | 100%/0% | 268.5/268.3MB | 43.6% |
+| aes-256-gcm | lz4@default | 64KB | 31.0K | 1.89GB/s | 100%/0% | 268.5/268.5MB | 43.6% |
+| chacha20-poly1305-ietf | lz4@default | 64KB | 34.4K | 2.10GB/s | 100%/0% | 268.4/268.4MB | 43.6% |
+| aes-128-gcm | zstd@default | 64KB | 31.3K | 1.91GB/s | 100%/0% | 268.2/268.7MB | 23.8% |
+| aes-256-gcm | zstd@default | 64KB | 31.3K | 1.91GB/s | 100%/0% | 268.3/268.6MB | 23.8% |
+| chacha20-poly1305-ietf | zstd@default | 64KB | 31.4K | 1.91GB/s | 100%/0% | 268.4/268.2MB | 23.8% |
+| aes-128-gcm | zstd@high-ratio | 64KB | 31.0K | 1.89GB/s | 100%/0% | 268.1/268.5MB | 21.0% |
+| aes-256-gcm | zstd@high-ratio | 64KB | 31.6K | 1.93GB/s | 100%/0% | 268.4/268.6MB | 21.0% |
+| chacha20-poly1305-ietf | zstd@high-ratio | 64KB | 31.3K | 1.91GB/s | 100%/0% | 268.3/268.5MB | 21.0% |
+| aes-128-gcm | lz4@fast | 300KB | 3.9K | 1.12GB/s | 100%/0% | 268.8/269.3MB | 38.3% |
+| aes-256-gcm | lz4@fast | 300KB | 3.9K | 1.11GB/s | 100%/0% | 269.0/269.3MB | 38.3% |
+| chacha20-poly1305-ietf | lz4@fast | 300KB | 4.0K | 1.14GB/s | 100%/0% | 268.9/268.9MB | 38.3% |
+| aes-128-gcm | lz4@default | 300KB | 3.9K | 1.12GB/s | 100%/0% | 268.9/269.3MB | 38.3% |
+| aes-256-gcm | lz4@default | 300KB | 3.9K | 1.12GB/s | 100%/0% | 268.8/269.1MB | 38.3% |
+| chacha20-poly1305-ietf | lz4@default | 300KB | 3.9K | 1.12GB/s | 100%/0% | 268.9/269.1MB | 38.3% |
+| aes-128-gcm | zstd@default | 300KB | 4.0K | 1.13GB/s | 100%/0% | 268.9/269.0MB | 23.4% |
+| aes-256-gcm | zstd@default | 300KB | 4.0K | 1.14GB/s | 100%/0% | 268.8/269.3MB | 23.4% |
+| chacha20-poly1305-ietf | zstd@default | 300KB | 4.0K | 1.13GB/s | 100%/0% | 268.8/269.0MB | 23.4% |
+| aes-128-gcm | zstd@high-ratio | 300KB | 3.9K | 1.11GB/s | 100%/0% | 268.9/269.4MB | 20.6% |
+| aes-256-gcm | zstd@high-ratio | 300KB | 4.0K | 1.13GB/s | 100%/0% | 268.8/269.3MB | 20.6% |
+| chacha20-poly1305-ietf | zstd@high-ratio | 300KB | 3.9K | 1.12GB/s | 100%/0% | 268.8/269.2MB | 20.6% |
+
+#### Windows - shm 通道加密对比（无压缩）
+
+| 加密 | 压缩 | 包长 | QPS | 吞吐量(payload) | CPU 收/发 | 峰值内存 收/发 | 实测压缩率 |
+|---|---|---:|---:|---:|---|---|---:|
+| none | none@default | 200B | 1.09M | 207.6MB/s | 100%/99% | 267.2/267.3MB | - |
+| aes-128-gcm | none@default | 200B | 1.13M | 215.0MB/s | 100%/100% | 267.4/267.4MB | - |
+| aes-192-gcm | none@default | 200B | 1.20M | 227.9MB/s | 99%/99% | 267.4/267.4MB | - |
+| aes-256-gcm | none@default | 200B | 1.19M | 227.7MB/s | 100%/99% | 267.4/267.5MB | - |
+| chacha20 | none@default | 200B | 1.21M | 229.8MB/s | 100%/100% | 267.4/267.5MB | - |
+| chacha20-poly1305-ietf | none@default | 200B | 1.20M | 228.6MB/s | 99%/99% | 267.4/267.4MB | - |
+| none | none@default | 1KB | 866.3K | 846.0MB/s | 100%/100% | 267.3/267.3MB | - |
+| aes-128-gcm | none@default | 1KB | 906.8K | 885.5MB/s | 100%/100% | 267.4/267.5MB | - |
+| aes-192-gcm | none@default | 1KB | 920.3K | 898.7MB/s | 100%/99% | 267.4/267.4MB | - |
+| aes-256-gcm | none@default | 1KB | 922.9K | 901.3MB/s | 100%/100% | 267.4/267.5MB | - |
+| chacha20 | none@default | 1KB | 883.2K | 862.5MB/s | 100%/99% | 267.3/267.4MB | - |
+| chacha20-poly1305-ietf | none@default | 1KB | 900.3K | 879.2MB/s | 99%/99% | 267.4/267.4MB | - |
+| none | none@default | 8KB | 282.6K | 2.16GB/s | 99%/99% | 267.4/267.5MB | - |
+| aes-128-gcm | none@default | 8KB | 306.1K | 2.34GB/s | 100%/99% | 267.5/267.6MB | - |
+| aes-192-gcm | none@default | 8KB | 293.5K | 2.24GB/s | 100%/100% | 267.5/267.6MB | - |
+| aes-256-gcm | none@default | 8KB | 292.1K | 2.23GB/s | 99%/99% | 267.5/267.6MB | - |
+| chacha20 | none@default | 8KB | 294.1K | 2.24GB/s | 100%/99% | 267.5/267.6MB | - |
+| chacha20-poly1305-ietf | none@default | 8KB | 292.9K | 2.23GB/s | 99%/100% | 267.5/267.6MB | - |
+| none | none@default | 64KB | 34.2K | 2.09GB/s | 99%/648% | 267.4/267.5MB | - |
+| aes-128-gcm | none@default | 64KB | 32.8K | 2.00GB/s | 99%/0% | 267.5/267.6MB | - |
+| aes-192-gcm | none@default | 64KB | 40.8K | 2.49GB/s | 100%/129% | 267.5/267.7MB | - |
+| aes-256-gcm | none@default | 64KB | 30.9K | 1.88GB/s | 94%/0% | 267.5/267.6MB | - |
+| chacha20 | none@default | 64KB | 32.6K | 1.99GB/s | 99%/0% | 267.5/267.6MB | - |
+| chacha20-poly1305-ietf | none@default | 64KB | 42.9K | 2.62GB/s | 100%/137% | 267.5/267.6MB | - |
+| none | none@default | 300KB | 7.9K | 2.26GB/s | 99%/0% | 267.9/268.1MB | - |
+| aes-128-gcm | none@default | 300KB | 7.8K | 2.23GB/s | 99%/0% | 268.0/268.3MB | - |
+| aes-192-gcm | none@default | 300KB | 7.7K | 2.20GB/s | 100%/0% | 268.0/268.3MB | - |
+| aes-256-gcm | none@default | 300KB | 7.8K | 2.23GB/s | 100%/0% | 268.0/268.2MB | - |
+| chacha20 | none@default | 300KB | 7.8K | 2.23GB/s | 99%/0% | 268.0/268.2MB | - |
+| chacha20-poly1305-ietf | none@default | 300KB | 7.5K | 2.14GB/s | 99%/0% | 267.9/268.2MB | - |
+
+#### Windows - shm 通道压缩对比（无加密）
+
+| 加密 | 压缩 | 包长 | QPS | 吞吐量(payload) | CPU 收/发 | 峰值内存 收/发 | 实测压缩率 |
+|---|---|---:|---:|---:|---|---|---:|
+| none | none@default | 200B | 1.09M | 207.6MB/s | 100%/99% | 267.2/267.3MB | - |
+| none | lz4@fast | 200B | 1.22M | 233.6MB/s | 99%/99% | 267.2/267.3MB | 76.6% |
+| none | lz4@default | 200B | 1.15M | 219.4MB/s | 100%/100% | 267.2/267.3MB | 76.6% |
+| none | zstd@default | 200B | 1.08M | 206.0MB/s | 99%/99% | 267.2/267.3MB | 66.1% |
+| none | zstd@high-ratio | 200B | 1.11M | 210.8MB/s | 99%/100% | 267.2/267.3MB | 65.6% |
+| none | none@default | 1KB | 866.3K | 846.0MB/s | 100%/100% | 267.3/267.3MB | - |
+| none | lz4@fast | 1KB | 885.6K | 864.9MB/s | 99%/99% | 267.2/267.3MB | 55.5% |
+| none | lz4@default | 1KB | 895.5K | 874.5MB/s | 99%/100% | 267.2/267.3MB | 55.5% |
+| none | zstd@default | 1KB | 953.1K | 930.8MB/s | 99%/99% | 267.3/267.3MB | 35.2% |
+| none | zstd@high-ratio | 1KB | 910.7K | 889.4MB/s | 100%/99% | 267.2/267.3MB | 33.3% |
+| none | none@default | 8KB | 282.6K | 2.16GB/s | 99%/99% | 267.4/267.5MB | - |
+| none | lz4@fast | 8KB | 295.8K | 2.26GB/s | 100%/100% | 267.3/267.5MB | 45.9% |
+| none | lz4@default | 8KB | 295.3K | 2.25GB/s | 99%/99% | 267.3/267.5MB | 45.9% |
+| none | zstd@default | 8KB | 293.3K | 2.24GB/s | 100%/100% | 267.3/267.5MB | 24.2% |
+| none | zstd@high-ratio | 8KB | 305.1K | 2.33GB/s | 99%/100% | 267.3/267.4MB | 21.9% |
+| none | none@default | 64KB | 34.2K | 2.09GB/s | 99%/648% | 267.4/267.5MB | - |
+| none | lz4@fast | 64KB | 37.7K | 2.30GB/s | 100%/0% | 267.4/267.4MB | 43.6% |
+| none | lz4@default | 64KB | 32.2K | 1.97GB/s | 99%/0% | 267.3/267.5MB | 43.6% |
+| none | zstd@default | 64KB | 32.7K | 2.00GB/s | 100%/0% | 267.4/267.5MB | 23.8% |
+| none | zstd@high-ratio | 64KB | 31.6K | 1.93GB/s | 99%/0% | 267.4/267.5MB | 21.0% |
+| none | none@default | 300KB | 7.9K | 2.26GB/s | 99%/0% | 267.9/268.1MB | - |
+| none | lz4@fast | 300KB | 7.3K | 2.08GB/s | 97%/0% | 267.8/268.1MB | 38.3% |
+| none | lz4@default | 300KB | 7.7K | 2.21GB/s | 98%/0% | 267.8/268.2MB | 38.3% |
+| none | zstd@default | 300KB | 7.5K | 2.13GB/s | 99%/0% | 267.9/268.1MB | 23.4% |
+| none | zstd@high-ratio | 300KB | 7.6K | 2.18GB/s | 99%/0% | 267.9/268.1MB | 20.6% |
+
+#### Windows - shm 通道压缩+加密组合
+
+| 加密 | 压缩 | 包长 | QPS | 吞吐量(payload) | CPU 收/发 | 峰值内存 收/发 | 实测压缩率 |
+|---|---|---:|---:|---:|---|---|---:|
+| aes-128-gcm | lz4@fast | 200B | 1.17M | 222.9MB/s | 100%/100% | 267.4/267.5MB | 76.6% |
+| aes-256-gcm | lz4@fast | 200B | 1.13M | 215.9MB/s | 100%/99% | 267.4/267.4MB | 76.6% |
+| chacha20-poly1305-ietf | lz4@fast | 200B | 1.18M | 225.0MB/s | 100%/100% | 267.4/267.4MB | 76.6% |
+| aes-128-gcm | lz4@default | 200B | 1.23M | 233.8MB/s | 100%/99% | 267.4/267.5MB | 76.6% |
+| aes-256-gcm | lz4@default | 200B | 1.13M | 214.6MB/s | 100%/100% | 267.4/267.4MB | 76.6% |
+| chacha20-poly1305-ietf | lz4@default | 200B | 1.12M | 213.0MB/s | 100%/100% | 267.4/267.4MB | 76.6% |
+| aes-128-gcm | zstd@default | 200B | 1.14M | 217.7MB/s | 98%/99% | 267.4/267.4MB | 66.1% |
+| aes-256-gcm | zstd@default | 200B | 1.17M | 223.7MB/s | 100%/99% | 267.4/267.4MB | 66.1% |
+| chacha20-poly1305-ietf | zstd@default | 200B | 1.15M | 219.7MB/s | 99%/100% | 267.4/267.4MB | 66.1% |
+| aes-128-gcm | zstd@high-ratio | 200B | 1.21M | 230.7MB/s | 99%/100% | 267.4/267.4MB | 65.6% |
+| aes-256-gcm | zstd@high-ratio | 200B | 1.08M | 206.3MB/s | 99%/100% | 267.4/267.4MB | 65.6% |
+| chacha20-poly1305-ietf | zstd@high-ratio | 200B | 1.10M | 210.5MB/s | 99%/99% | 267.4/267.4MB | 65.6% |
+| aes-128-gcm | lz4@fast | 1KB | 911.5K | 890.1MB/s | 100%/99% | 267.4/267.5MB | 55.5% |
+| aes-256-gcm | lz4@fast | 1KB | 919.5K | 897.9MB/s | 100%/99% | 267.4/267.5MB | 55.5% |
+| chacha20-poly1305-ietf | lz4@fast | 1KB | 953.8K | 931.4MB/s | 99%/99% | 267.4/267.4MB | 55.5% |
+| aes-128-gcm | lz4@default | 1KB | 850.8K | 830.9MB/s | 98%/98% | 267.4/267.5MB | 55.5% |
+| aes-256-gcm | lz4@default | 1KB | 872.5K | 852.1MB/s | 99%/100% | 267.4/267.5MB | 55.5% |
+| chacha20-poly1305-ietf | lz4@default | 1KB | 913.1K | 891.7MB/s | 99%/99% | 267.4/267.4MB | 55.5% |
+| aes-128-gcm | zstd@default | 1KB | 861.2K | 841.0MB/s | 99%/100% | 267.4/267.5MB | 35.2% |
+| aes-256-gcm | zstd@default | 1KB | 851.8K | 831.8MB/s | 99%/99% | 267.4/267.5MB | 35.2% |
+| chacha20-poly1305-ietf | zstd@default | 1KB | 850.1K | 830.2MB/s | 99%/100% | 267.3/267.5MB | 35.2% |
+| aes-128-gcm | zstd@high-ratio | 1KB | 847.1K | 827.2MB/s | 100%/100% | 267.4/267.5MB | 33.3% |
+| aes-256-gcm | zstd@high-ratio | 1KB | 845.2K | 825.4MB/s | 100%/99% | 267.4/267.5MB | 33.3% |
+| chacha20-poly1305-ietf | zstd@high-ratio | 1KB | 866.4K | 846.1MB/s | 100%/100% | 267.4/267.4MB | 33.3% |
+| aes-128-gcm | lz4@fast | 8KB | 295.5K | 2.25GB/s | 100%/100% | 267.5/267.6MB | 45.9% |
+| aes-256-gcm | lz4@fast | 8KB | 289.9K | 2.21GB/s | 99%/99% | 267.5/267.6MB | 45.9% |
+| chacha20-poly1305-ietf | lz4@fast | 8KB | 276.1K | 2.11GB/s | 97%/98% | 267.4/267.6MB | 45.9% |
+| aes-128-gcm | lz4@default | 8KB | 298.5K | 2.28GB/s | 99%/100% | 267.5/267.6MB | 45.9% |
+| aes-256-gcm | lz4@default | 8KB | 294.3K | 2.25GB/s | 100%/100% | 267.5/267.6MB | 45.9% |
+| chacha20-poly1305-ietf | lz4@default | 8KB | 299.5K | 2.28GB/s | 99%/99% | 267.5/267.6MB | 45.9% |
+| aes-128-gcm | zstd@default | 8KB | 292.7K | 2.23GB/s | 99%/99% | 267.5/267.6MB | 24.2% |
+| aes-256-gcm | zstd@default | 8KB | 296.5K | 2.26GB/s | 99%/100% | 267.5/267.6MB | 24.2% |
+| chacha20-poly1305-ietf | zstd@default | 8KB | 297.5K | 2.27GB/s | 99%/99% | 267.5/267.6MB | 24.2% |
+| aes-128-gcm | zstd@high-ratio | 8KB | 298.5K | 2.28GB/s | 100%/100% | 267.5/267.6MB | 21.9% |
+| aes-256-gcm | zstd@high-ratio | 8KB | 298.7K | 2.28GB/s | 99%/100% | 267.5/267.6MB | 21.9% |
+| chacha20-poly1305-ietf | zstd@high-ratio | 8KB | 290.9K | 2.22GB/s | 99%/99% | 267.5/267.6MB | 21.9% |
+| aes-128-gcm | lz4@fast | 64KB | 32.2K | 1.97GB/s | 98%/0% | 267.5/267.6MB | 43.6% |
+| aes-256-gcm | lz4@fast | 64KB | 30.5K | 1.86GB/s | 99%/0% | 267.5/267.5MB | 43.6% |
+| chacha20-poly1305-ietf | lz4@fast | 64KB | 31.6K | 1.93GB/s | 100%/0% | 267.5/267.6MB | 43.6% |
+| aes-128-gcm | lz4@default | 64KB | 32.6K | 1.99GB/s | 100%/0% | 267.5/267.6MB | 43.6% |
+| aes-256-gcm | lz4@default | 64KB | 32.8K | 2.00GB/s | 100%/0% | 267.6/267.6MB | 43.6% |
+| chacha20-poly1305-ietf | lz4@default | 64KB | 31.6K | 1.93GB/s | 99%/0% | 267.5/267.6MB | 43.6% |
+| aes-128-gcm | zstd@default | 64KB | 32.6K | 1.99GB/s | 99%/0% | 267.6/267.6MB | 23.8% |
+| aes-256-gcm | zstd@default | 64KB | 32.4K | 1.98GB/s | 99%/0% | 267.5/267.6MB | 23.8% |
+| chacha20-poly1305-ietf | zstd@default | 64KB | 41.9K | 2.56GB/s | 99%/136% | 267.5/267.6MB | 23.8% |
+| aes-128-gcm | zstd@high-ratio | 64KB | 32.4K | 1.98GB/s | 100%/0% | 267.5/267.6MB | 21.0% |
+| aes-256-gcm | zstd@high-ratio | 64KB | 41.2K | 2.51GB/s | 100%/0% | 267.5/267.6MB | 21.0% |
+| chacha20-poly1305-ietf | zstd@high-ratio | 64KB | 32.9K | 2.01GB/s | 98%/100% | 267.6/267.6MB | 21.0% |
+| aes-128-gcm | lz4@fast | 300KB | 7.7K | 2.20GB/s | 99%/0% | 268.0/268.3MB | 38.3% |
+| aes-256-gcm | lz4@fast | 300KB | 7.8K | 2.24GB/s | 99%/0% | 268.0/268.3MB | 38.3% |
+| chacha20-poly1305-ietf | lz4@fast | 300KB | 7.8K | 2.22GB/s | 100%/0% | 268.0/268.2MB | 38.3% |
+| aes-128-gcm | lz4@default | 300KB | 7.7K | 2.20GB/s | 99%/0% | 268.0/268.3MB | 38.3% |
+| aes-256-gcm | lz4@default | 300KB | 7.9K | 2.25GB/s | 98%/0% | 268.0/268.3MB | 38.3% |
+| chacha20-poly1305-ietf | lz4@default | 300KB | 7.2K | 2.06GB/s | 97%/0% | 268.0/268.3MB | 38.3% |
+| aes-128-gcm | zstd@default | 300KB | 7.7K | 2.21GB/s | 100%/0% | 268.0/268.3MB | 23.4% |
+| aes-256-gcm | zstd@default | 300KB | 7.7K | 2.20GB/s | 100%/99% | 268.0/268.3MB | 23.4% |
+| chacha20-poly1305-ietf | zstd@default | 300KB | 7.8K | 2.22GB/s | 100%/0% | 268.0/268.2MB | 23.4% |
+| aes-128-gcm | zstd@high-ratio | 300KB | 8.2K | 2.34GB/s | 99%/0% | 268.1/268.2MB | 20.6% |
+| aes-256-gcm | zstd@high-ratio | 300KB | 8.1K | 2.32GB/s | 99%/0% | 268.0/268.3MB | 20.6% |
+| chacha20-poly1305-ietf | zstd@high-ratio | 300KB | 8.0K | 2.29GB/s | 100%/0% | 268.0/268.2MB | 20.6% |
+
+完整 shm 原始数据：[summary.linux_shm.csv](benchmark/2026-11/summary.linux_shm.csv)、
+[summary.wsl_shm.csv](benchmark/2026-11/summary.wsl_shm.csv)、
+[summary.windows_shm.csv](benchmark/2026-11/summary.windows_shm.csv)。
+
 ### 柱状图（同口径的另一视角）
 
 QPS - 加密算法对比（无压缩，对数轴）：
@@ -640,7 +1065,34 @@ Windows 原生即使满 CPU（96-99%）也只有 Linux 的 15%-50%（64KB：367 
 TCP loopback / libuv IOCP 路径的每次收发系统调用开销上，而非 CPU。加密/压缩的相对排序在三平台一致，
 绝对值按平台比例缩放。
 
-### 6. 测量方差、批次双稳态与拓扑修复
+### 6. 共享内存通道（shm://）
+
+无加密无压缩基线对比（TCP 数据来自同批次 TCP 矩阵）：
+
+| 包长 | Linux shm | Linux TCP | WSL shm | WSL TCP | Windows shm | Windows TCP |
+|---:|---:|---:|---:|---:|---:|---:|
+| 200B | 656 | 663 | 401 | 615 | 208 | 148 |
+| 1KB | 1502 | 1428 | 1403 | 1267 | 846 | 252 |
+| 8KB | 1661 | 2148 | 2819 | 1007 | 2208 | 495 |
+| 64KB | 2485 | 2490 | 1917 | 1344 | 2137 | 367 |
+| 300KB | 2649 | 2651 | 1143 | 1109 | 2312 | 552 |
+
+- **Linux 真机：shm 与 TCP 大包吞吐持平**（64KB/300KB 均为 ~2.5GB/s）。单流 TCP 在 Linux 上已接近该
+  拓扑的极限，shm 的收益体现在小包（200B 持平、1KB +5%）与更低的内核栈占用（相同吞吐下 syscall 更少）。
+  历史版本中 shm 相对 TCP 的巨大优势（1.56GB/s vs 601MB/s，2016）在如今的 Linux 内核上 TCP 单流已基本追平大包场景。
+- **Windows：shm 收益巨大**——64KB/8KB 达 2.1-2.2GB/s，是 TCP（367-495MB/s）的 **4.2-5.8 倍**。Windows 的
+  TCP loopback 是系统级瓶颈，shm 完全绕开它。**Windows 上对吞吐敏感的服务间通信强烈建议使用 shm 通道**
+  （本次还修复了普通权限进程无法创建 shm 段的 `Global\` 命名空间 bug，修复前 shm 在非提权进程上完全不可用）。
+- **WSL2：shm 数据受批次双稳态影响最大**（8KB 2819MB/s 高于 TCP 1007，但 300KB 1143 与 TCP 1109 持平），
+  且 WSL2 的 `/proc/sys/kernel/shmmax` 默认允许 256MB 段。与 TCP 结论一致：WSL 无系统性损耗。
+- **加密/压缩在 shm 通道上同样成立**：Linux shm 64KB 档 none 2485 → AES-GCM 2180-2222（-11%）→
+  chacha20-poly1305-ietf 1664（-33%）→ chacha20 103（-96%），与 TCP 通道的相对损耗排序一致；压缩在
+  shm 上同样普遍降低吞吐（通道本身已无带宽瓶颈，压缩只剩 CPU 成本）。组合（如 lz4@default+aes-128-gcm
+  64KB 1141MB/s）损耗近似可加。
+- 内存代价：shm 模式下收发两端各多附着 256MB 段（默认 `ATBUS_MACRO_SHM_MEM_CHANNEL_LENGTH`），
+  收端峰值 RSS 从 ~12MB 增至 ~274MB。
+
+### 7. 测量方差、批次双稳态与拓扑修复
 
 本测试过程中定位并修正了两个影响数据可信度的问题，保留排查过程作为方法论参考：
 
@@ -660,7 +1112,7 @@ TCP loopback / libuv IOCP 路径的每次收发系统调用开销上，而非 CP
    数据即清零），见 CHANGELOG 3.0.1。修复后全矩阵 0 失败，收发两端消息数完全一致，序号校验
    （除 warmup 窗口外）0 回退 0 跳变。
 
-### 7. 其他说明
+### 8. 其他说明
 
 - 加密协商为 X25519 密钥交换，握手（含 ECDH）仅发生在连接建立阶段，其开销摊薄在 warmup 窗口内，不计入统计。
 - 协议栈的 small-message 合并（≤64KB 合并为大帧）在 200B/1KB 档位生效，因此小包 QPS 反映的是合并后的
@@ -684,6 +1136,11 @@ bash tools/script/benchmark_node_stream_matrix.sh \
   build_jobs_linux/tools build_jobs_linux/_agent_tmp/bench_results/<平台名> 15 ipv4://127.0.0.1:16500
 # Windows: powershell tools/script/benchmark_node_stream_matrix.ps1 -BinDir <...> -ResultDir <...> -DurationSec 15
 
+# 3b. 共享内存通道版本（收端额外 listen shm://key，数据通道自动升级为 shm）
+bash tools/script/benchmark_node_stream_matrix.sh \
+  build_jobs_linux/tools build_jobs_linux/_agent_tmp/bench_results/<平台名>_shm 15 ipv4://127.0.0.1:16500 shm://0x5A5A1001
+# Windows: ... -ShmAddress 'shm://0x5A5A3000'
+
 # 3b. mimalloc 对照（Linux/WSL）:构建 mimalloc 后以 LD_PRELOAD 注入收发进程
 #     远程机器:在 WSL 编译后直接 scp 二进制 + libmimalloc.so.2.1 + runner（glibc 兼容即可运行）
 PRELOAD_LIB=<mimalloc-build>/libmimalloc.so.2.1 bash tools/script/benchmark_node_stream_matrix.sh ...
@@ -694,3 +1151,60 @@ node tools/script/benchmark_node_stream_report.mjs <结果目录1> <结果目录
 
 工具实现：[tools/benchmark_node_stream_send.cpp](../tools/benchmark_node_stream_send.cpp)、
 [tools/benchmark_node_stream_recv.cpp](../tools/benchmark_node_stream_recv.cpp)。
+
+历史版本: 裸通道层 Benchmark - Run On 2016-07-07
+======
+
+以下数据基于旧的 io_stream 通道层裸压测工具（不含加密/压缩/协议栈开销），仅作历史对比参考。
+
+环境
+------
++ 环境: CentOS 7.1, GCC 4.8.5
++ CPU: Xeon E3-1230 v2 3.30GHz*8 (sender和receiver都只用一个核心)
++ 内存: 24GB (这是总内存，具体使用数根据配置不同而不同)
++ 网络: 千兆网卡 * 1
++ 编译选项: -O2 -g -DNDEBUG -ggdb -Wall -Werror -Wno-unused-local-typedefs -std=gnu++11 -D_POSIX_MT_
++ 配置选项: -DATBUS_MACRO_BUSID_TYPE=uint64_t -DATBUS_MACRO_CONNECTION_BACKLOG=128 -DATBUS_MACRO_CONNECTION_CONFIRM_TIMEOUT=30 -DATBUS_MACRO_DATA_ALIGN_TYPE=uint64_t -DATBUS_MACRO_DATA_NODE_SIZE=128 -DATBUS_MACRO_DATA_SMALL_SIZE=3072 -DATBUS_MACRO_HUGETLB_SIZE=4194304 -DATBUS_MACRO_MSG_LIMIT=65536
+
+
+测试项                                   |      连接数     |        包长度        |      CPU消耗     |    内存消耗   |    吞吐量     |      QPS
+----------------------------------------|----------------|---------------------|-----------------|--------------|--------------|---------------
+Linux+本地回环+ipv6+静态缓冲区             |         1      |      8-16384字节     |     90%/100%    |   5.8MB/24MB |    601MB/s   |      95K/s
+Linux+本地回环+ipv6+静态缓冲区             |         1      | 8-128字节(模拟ping包) |     48%/100%    |   5.8MB/27MB |    163MB/s   |    2822K/s
+Linux+本地回环+ipv6+动态缓冲区(ptmalloc)   |         1      |      8-16384字节     |     90%/100%    |   5.8MB/24MB |    607MB/s   |      96K/s
+Linux+本地回环+ipv6+动态缓冲区(ptmalloc)   |         1      | 8-128字节(模拟ping包) |     48%/100%    |   5.8MB/27MB |    165MB/s   |    2857K/s
+Linux+共享内存                           |         1      |      8-16384字节     |      98%/98%    |   74MB/74MB  |    1.56GB/s  |     199K/s
+Linux+共享内存                           |         1      | 8-128字节(模拟ping包) |      100%/83%    |   74MB/74MB  |    303MB/s   |    5253K/s
+
+
+压力测试说明
+------
+
+1. 动态缓冲区指发送者发送缓冲区使用malloc和free来保存发送中的数据,静态缓冲区指使用内置的内存池来缓存。
+2. 由于发送者的CPU消耗会高于接收者（接收者没有任何逻辑，发送者会有一次随机数操作），所以动态缓冲区时其实内存会持续增加。（内存碎片原因，实际测试过程中3分钟由20MB涨到28MB）
+3. Windows下除了不支持Unix Socket外，共享内存和ipv4/ipv6连接都是支持的，但是没有跑压力测试。
+
+*PS: 目前没写多连接测试工具，后面有空再写吧*
+
+测试命令如下（需要把tools/script里的脚本拷贝到[构建目录]/tools内）
+------
+
+```bash
+# Linux+本地回环+ipv6+静态缓冲区:8-16384字节 测试命令
+./startup_benchmark_io_stream.sh ipv6://::1:16389 2048 4194304 8096
+
+# Linux+本地回环+ipv6+静态缓冲区:8-128字节(模拟ping包) 测试命令
+./startup_benchmark_io_stream.sh ipv6://::1:16389 16 4194304 8096
+
+# Linux+本地回环+动态缓冲区(ptmalloc):8-16384字节 测试命令
+./startup_benchmark_io_stream.sh ipv6://::1:16389 2048 4194304 0
+
+# Linux+本地回环+动态缓冲区(ptmalloc):8-128字节(模拟ping包) 测试命令
+./startup_benchmark_io_stream.sh ipv6://::1:16389 16 4194304 0
+
+# Linux+共享内存:8-16384字节 测试命令
+./startup_benchmark_shm.sh 12345679 2048
+
+# Linux+共享内存:8-128字节(模拟ping包) 测试命令
+./startup_benchmark_shm.sh 12345679 16
+```

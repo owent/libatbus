@@ -30,6 +30,7 @@
 namespace {
 struct run_config {
   std::string listen_addr;
+  std::vector<std::string> extra_listen_addrs;
   uint64_t bus_id = 0;
   std::string crypto = "none";
   std::string compression = "none";
@@ -389,6 +390,8 @@ int main(int argc, char* argv[]) {
       conf.json_output = value;
     } else if (key == "--verbose") {
       conf.verbose = true;
+    } else if (key == "--extra-listen") {
+      conf.extra_listen_addrs.push_back(value);
     }
   }
 
@@ -411,6 +414,10 @@ int main(int argc, char* argv[]) {
 
   atbus::node::ptr_t node = atbus::node::create();
   node->init(conf.bus_id, &node_conf);
+  // Warm up the event tick before creating any connection timers: their deadlines
+  // are computed from the tick, which starts at epoch 0 and would instantly expire
+  // once the first proc() jumps it to the current time.
+  node->proc(std::chrono::system_clock::now());
   // keep the data path quiet unless --verbose is given
   node->get_logger()->set_level(conf.verbose ? atfw::util::log::log_level::kDebug : atfw::util::log::log_level::kError);
   if (conf.verbose) {
@@ -424,6 +431,17 @@ int main(int argc, char* argv[]) {
     fprintf(stderr, "listen %s failed, ret=%d\n", conf.listen_addr.c_str(), ret);
     uv_loop_close(&loop);
     return -1;
+  }
+
+  // Extra listen endpoints (e.g. shm://key so the peer's connect-back upgrades the
+  // data channel to shared memory)
+  for (const auto& addr : conf.extra_listen_addrs) {
+    int extra_ret = node->listen(addr);
+    if (extra_ret < 0) {
+      fprintf(stderr, "extra listen %s failed, ret=%d\n", addr.c_str(), extra_ret);
+      uv_loop_close(&loop);
+      return -1;
+    }
   }
 
   node->set_on_forward_request_handle(on_forward_request);
@@ -440,6 +458,8 @@ int main(int argc, char* argv[]) {
 
   while (!bench_stat.done) {
     node->poll();
+    // mem:// / shm:// channel read endpoints are driven by proc(), not poll()
+    node->proc(std::chrono::system_clock::now());
   }
 
   double elapsed_sec = std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::steady_clock::now() -

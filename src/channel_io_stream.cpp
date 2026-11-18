@@ -894,13 +894,25 @@ static int io_stream_shutdown_connection(io_stream_connection *conn) {
   assert(conn->channel);
 
   // move to gc pool
-  if (conn != nullptr && conn->channel != nullptr) {
+  do {
+    if (conn == nullptr || conn->channel == nullptr) {
+      break;
+    }
+
     io_stream_channel::conn_pool_t::iterator iter = conn->channel->conn_pool.find(conn->fd);
-    assert(iter != conn->channel->conn_pool.end());
+    if (iter == conn->channel->conn_pool.end()) {
+      break;
+    }
+
+    // 底层复用fd可能会处使我们提前执行shutdown，会导致fd并不指向当前conn。此时不能删除conn_pool索引。
+    // conn_gc_pool在前一个handle的shutdown流程中已经被续期生命周期。
+    if (iter->second.get() != conn) {
+      break;
+    }
 
     conn->channel->conn_gc_pool[reinterpret_cast<uintptr_t>(conn)] = iter->second;
     conn->channel->conn_pool.erase(iter);
-  }
+  } while (false);
 
   // ATBUS_CHANNEL_REQ_START(conn->channel);
   // 被动断开也会触发回调，这里的流程不计数active的req
@@ -908,6 +920,12 @@ static int io_stream_shutdown_connection(io_stream_connection *conn) {
     if (0 == uv_is_writable(conn->handle.get())) {
       break;
     }
+
+    // 如果已经关闭过，或者正在关闭。不需要重复操作
+    if (0 != uv_is_closing(reinterpret_cast<adapter::handle_t *>(conn->handle.get()))) {
+      break;
+    }
+
     adapter::shutdown_t *shutdown_request = new (std::nothrow) adapter::shutdown_t();
     if (nullptr == shutdown_request) {
       break;
@@ -1023,6 +1041,15 @@ static ::atfw::util::memory::strong_rc_ptr<io_stream_connection> io_stream_make_
     ret->write_buffer_manager.set_mode(channel->conf.send_buffer_max_size, channel->conf.send_buffer_static);
   }
 
+  // 操作系统的fd复用可能先于libuv层的事件派发。此时需要先把老连接shutdown一下。防止conn_pool中的key冲突
+  {
+    auto iter = channel->conn_pool.find(ret->fd);
+    if (iter != channel->conn_pool.end() && iter->second && iter->second->handle &&
+        0 == uv_is_closing(reinterpret_cast<adapter::handle_t *>(iter->second->handle.get()))) {
+      io_stream_shutdown_connection(iter->second.get());
+    }
+  }
+
   channel->conn_pool[ret->fd] = ret;
   ret->channel = channel;
 
@@ -1041,7 +1068,7 @@ static void io_stream_delete_stream_fn(adapter::stream_t *handle) {
   T *real_conn = reinterpret_cast<T *>(handle);
 
   // 到这里必须已经释放handle了，否则删除hanlde会导致数据异常。
-  assert(uv_is_closing(reinterpret_cast<adapter::handle_t *>(handle)));
+  assert(0 != uv_is_closing(reinterpret_cast<adapter::handle_t *>(handle)));
 
   // 保底再检查一次数据清理
   io_stream_handle_remove_private_data(reinterpret_cast<adapter::handle_t *>(handle));
@@ -1809,7 +1836,8 @@ static int io_stream_disconnect_internal(io_stream_channel *channel, io_stream_c
 
   connection->proactively_disconnect_callback = callback;
 
-  if (io_stream_connection::status_t::kConnected != connection->status) {
+  if (io_stream_connection::status_t::kConnected != connection->status &&
+      io_stream_connection::status_t::kCreated != connection->status) {
     return EN_ATBUS_ERR_SUCCESS;
   }
 

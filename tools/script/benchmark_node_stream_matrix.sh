@@ -27,6 +27,9 @@ BIN_DIR="${1:-.}"
 RESULT_DIR="${2:-./benchmark_results}"
 DURATION="${3:-15}"
 ADDR="${4:-ipv4://127.0.0.1:16500}"
+# Optional 5th arg: shm://key. When set, the receiver also listens on it so the
+# peer's connect-back upgrades the data channel to shared memory.
+SHM_ADDR="${5:-}"
 
 SEND_BIN="${BIN_DIR}/benchmark_node_stream_send"
 RECV_BIN="${BIN_DIR}/benchmark_node_stream_recv"
@@ -84,8 +87,14 @@ run_pair() {
     PRELOAD_PREFIX=(env "LD_PRELOAD=${PRELOAD_LIB}")
   fi
 
+  local EXTRA_LISTEN_ARGS=()
+  if [[ -n "${SHM_ADDR}" ]]; then
+    EXTRA_LISTEN_ARGS=(--extra-listen="${SHM_ADDR}")
+  fi
+
   "${PRELOAD_PREFIX[@]}" "${RECV_BIN}" "${ADDR}" 200000001 \
     --crypto="${CRYPTO}" --compression="${COMP}" --level="${LEVEL}" --payload-size="${SIZE}" \
+    "${EXTRA_LISTEN_ARGS[@]}" \
     --json="${OUT_DIR}/recv.json" >"${OUT_DIR}/recv.stderr.log" 2>&1 &
   local RECV_PID=$!
 

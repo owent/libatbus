@@ -261,8 +261,9 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
   // size_t page_size = static_cast<std::size_t>(si.dwPageSize);
 
   char shm_file_name[256] = {0};
-  // Use Global\\ prefix requires the SeCreateGlobalPrivilege privilege, so we do not use it
-  UTIL_STRFUNC_SNPRINTF(shm_file_name, sizeof(shm_file_name), "Global\\%s",
+  // The "Local\" namespace is session-local and needs no SeCreateGlobalPrivilege.
+  // ("Global\" requires that privilege, which regular processes do not have.)
+  UTIL_STRFUNC_SNPRINTF(shm_file_name, sizeof(shm_file_name), "Local\\%s",
                         '/' == shm_path.first[0] ? &shm_path.first[1] : shm_path.first.data());
 
   // 首先尝试直接打开
