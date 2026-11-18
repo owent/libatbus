@@ -1,0 +1,118 @@
+<svg width="960" height="540" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" baseProfile="full" viewBox="0 0 960 540">
+<rect width="960" height="540" x="0" y="0" fill="#ffffff"></rect>
+<path d="M44.2 506.5L932 506.5" fill="none" pointer-events="visible" stroke="#E0E6F1" class="zr7-cls-53"></path>
+<path d="M44.2 445.5L932 445.5" fill="none" pointer-events="visible" stroke="#E0E6F1" class="zr7-cls-53"></path>
+<path d="M44.2 383.5L932 383.5" fill="none" pointer-events="visible" stroke="#E0E6F1" class="zr7-cls-53"></path>
+<path d="M44.2 322.5L932 322.5" fill="none" pointer-events="visible" stroke="#E0E6F1" class="zr7-cls-53"></path>
+<path d="M44.2 261.5L932 261.5" fill="none" pointer-events="visible" stroke="#E0E6F1" class="zr7-cls-53"></path>
+<path d="M44.2 200.5L932 200.5" fill="none" pointer-events="visible" stroke="#E0E6F1" class="zr7-cls-53"></path>
+<path d="M44.2 139.5L932 139.5" fill="none" pointer-events="visible" stroke="#E0E6F1" class="zr7-cls-53"></path>
+<path d="M44.2 78.5L932 78.5" fill="none" pointer-events="visible" stroke="#E0E6F1" class="zr7-cls-53"></path>
+<path d="M44.2 506.5L932 506.5" fill="none" pointer-events="visible" stroke="#6E7079" stroke-linecap="round" class="zr7-cls-53"></path>
+<path d="M44.5 506L44.5 511" fill="none" pointer-events="visible" stroke="#6E7079" class="zr7-cls-53"></path>
+<path d="M221.5 506L221.5 511" fill="none" pointer-events="visible" stroke="#6E7079" class="zr7-cls-53"></path>
+<path d="M399.5 506L399.5 511" fill="none" pointer-events="visible" stroke="#6E7079" class="zr7-cls-53"></path>
+<path d="M577.5 506L577.5 511" fill="none" pointer-events="visible" stroke="#6E7079" class="zr7-cls-53"></path>
+<path d="M754.5 506L754.5 511" fill="none" pointer-events="visible" stroke="#6E7079" class="zr7-cls-53"></path>
+<path d="M932.5 506L932.5 511" fill="none" pointer-events="visible" stroke="#6E7079" class="zr7-cls-53"></path>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:Microsoft YaHei;" transform="translate(36.16 506)" fill="#6E7079">0</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:Microsoft YaHei;" transform="translate(36.16 444.8571)" fill="#6E7079">100</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:Microsoft YaHei;" transform="translate(36.16 383.7143)" fill="#6E7079">200</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:Microsoft YaHei;" transform="translate(36.16 322.5714)" fill="#6E7079">300</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:Microsoft YaHei;" transform="translate(36.16 261.4286)" fill="#6E7079">400</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:Microsoft YaHei;" transform="translate(36.16 200.2857)" fill="#6E7079">500</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:Microsoft YaHei;" transform="translate(36.16 139.1429)" fill="#6E7079">600</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:Microsoft YaHei;" transform="translate(36.16 78)" fill="#6E7079">700</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:Microsoft YaHei;" y="6" transform="translate(132.944 514)" fill="#6E7079">200B</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:Microsoft YaHei;" y="6" transform="translate(310.512 514)" fill="#6E7079">1KB</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:Microsoft YaHei;" y="6" transform="translate(488.08 514)" fill="#6E7079">8KB</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:Microsoft YaHei;" y="6" transform="translate(665.648 514)" fill="#6E7079">64KB</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:Microsoft YaHei;" y="6" transform="translate(843.216 514)" fill="#6E7079">300KB</text>
+<path d="M57.5 506l21.6 0l0 -187.9l-21.6 0Z" fill="#5470c6" ecmeta_series_index="0" ecmeta_data_index="0" ecmeta_ssr_type="chart" class="zr7-cls-54"></path>
+<path d="M235 506l21.6 0l0 -387.3l-21.6 0Z" fill="#5470c6" ecmeta_series_index="0" ecmeta_data_index="1" ecmeta_ssr_type="chart" class="zr7-cls-54"></path>
+<path d="M412.6 506l21.6 0l0 -308l-21.6 0Z" fill="#5470c6" ecmeta_series_index="0" ecmeta_data_index="2" ecmeta_ssr_type="chart" class="zr7-cls-54"></path>
+<path d="M590.2 506l21.6 0l0 -410.7l-21.6 0Z" fill="#5470c6" ecmeta_series_index="0" ecmeta_data_index="3" ecmeta_ssr_type="chart" class="zr7-cls-54"></path>
+<path d="M767.7 506l21.6 0l0 -339.4l-21.6 0Z" fill="#5470c6" ecmeta_series_index="0" ecmeta_data_index="4" ecmeta_ssr_type="chart" class="zr7-cls-54"></path>
+<path d="M83.4 506l21.6 0l0 -80.3l-21.6 0Z" fill="#91cc75" ecmeta_series_index="1" ecmeta_data_index="0" ecmeta_ssr_type="chart" class="zr7-cls-55"></path>
+<path d="M260.9 506l21.6 0l0 -244.8l-21.6 0Z" fill="#91cc75" ecmeta_series_index="1" ecmeta_data_index="1" ecmeta_ssr_type="chart" class="zr7-cls-55"></path>
+<path d="M438.5 506l21.6 0l0 -264.9l-21.6 0Z" fill="#91cc75" ecmeta_series_index="1" ecmeta_data_index="2" ecmeta_ssr_type="chart" class="zr7-cls-55"></path>
+<path d="M616.1 506l21.6 0l0 -291l-21.6 0Z" fill="#91cc75" ecmeta_series_index="1" ecmeta_data_index="3" ecmeta_ssr_type="chart" class="zr7-cls-55"></path>
+<path d="M793.6 506l21.6 0l0 -318.7l-21.6 0Z" fill="#91cc75" ecmeta_series_index="1" ecmeta_data_index="4" ecmeta_ssr_type="chart" class="zr7-cls-55"></path>
+<path d="M109.2 506l21.6 0l0 -90.6l-21.6 0Z" fill="#fac858" ecmeta_series_index="2" ecmeta_data_index="0" ecmeta_ssr_type="chart" class="zr7-cls-56"></path>
+<path d="M286.8 506l21.6 0l0 -239.2l-21.6 0Z" fill="#fac858" ecmeta_series_index="2" ecmeta_data_index="1" ecmeta_ssr_type="chart" class="zr7-cls-56"></path>
+<path d="M464.4 506l21.6 0l0 -187.6l-21.6 0Z" fill="#fac858" ecmeta_series_index="2" ecmeta_data_index="2" ecmeta_ssr_type="chart" class="zr7-cls-56"></path>
+<path d="M641.9 506l21.6 0l0 -379.2l-21.6 0Z" fill="#fac858" ecmeta_series_index="2" ecmeta_data_index="3" ecmeta_ssr_type="chart" class="zr7-cls-56"></path>
+<path d="M819.5 506l21.6 0l0 -331.5l-21.6 0Z" fill="#fac858" ecmeta_series_index="2" ecmeta_data_index="4" ecmeta_ssr_type="chart" class="zr7-cls-56"></path>
+<path d="M135.1 506l21.6 0l0 -89.5l-21.6 0Z" fill="#ee6666" ecmeta_series_index="3" ecmeta_data_index="0" ecmeta_ssr_type="chart" class="zr7-cls-57"></path>
+<path d="M312.7 506l21.6 0l0 -238.8l-21.6 0Z" fill="#ee6666" ecmeta_series_index="3" ecmeta_data_index="1" ecmeta_ssr_type="chart" class="zr7-cls-57"></path>
+<path d="M490.2 506l21.6 0l0 -225.4l-21.6 0Z" fill="#ee6666" ecmeta_series_index="3" ecmeta_data_index="2" ecmeta_ssr_type="chart" class="zr7-cls-57"></path>
+<path d="M667.8 506l21.6 0l0 -362.5l-21.6 0Z" fill="#ee6666" ecmeta_series_index="3" ecmeta_data_index="3" ecmeta_ssr_type="chart" class="zr7-cls-57"></path>
+<path d="M845.4 506l21.6 0l0 -307l-21.6 0Z" fill="#ee6666" ecmeta_series_index="3" ecmeta_data_index="4" ecmeta_ssr_type="chart" class="zr7-cls-57"></path>
+<path d="M161 506l21.6 0l0 -22.7l-21.6 0Z" fill="#73c0de" ecmeta_series_index="4" ecmeta_data_index="0" ecmeta_ssr_type="chart" class="zr7-cls-58"></path>
+<path d="M338.5 506l21.6 0l0 -30.8l-21.6 0Z" fill="#73c0de" ecmeta_series_index="4" ecmeta_data_index="1" ecmeta_ssr_type="chart" class="zr7-cls-58"></path>
+<path d="M516.1 506l21.6 0l0 -29.8l-21.6 0Z" fill="#73c0de" ecmeta_series_index="4" ecmeta_data_index="2" ecmeta_ssr_type="chart" class="zr7-cls-58"></path>
+<path d="M693.7 506l21.6 0l0 -34.1l-21.6 0Z" fill="#73c0de" ecmeta_series_index="4" ecmeta_data_index="3" ecmeta_ssr_type="chart" class="zr7-cls-58"></path>
+<path d="M871.2 506l21.6 0l0 -32.3l-21.6 0Z" fill="#73c0de" ecmeta_series_index="4" ecmeta_data_index="4" ecmeta_ssr_type="chart" class="zr7-cls-58"></path>
+<path d="M186.8 506l21.6 0l0 -53.2l-21.6 0Z" fill="#3ba272" ecmeta_series_index="5" ecmeta_data_index="0" ecmeta_ssr_type="chart" class="zr7-cls-59"></path>
+<path d="M364.4 506l21.6 0l0 -178.4l-21.6 0Z" fill="#3ba272" ecmeta_series_index="5" ecmeta_data_index="1" ecmeta_ssr_type="chart" class="zr7-cls-59"></path>
+<path d="M542 506l21.6 0l0 -270.2l-21.6 0Z" fill="#3ba272" ecmeta_series_index="5" ecmeta_data_index="2" ecmeta_ssr_type="chart" class="zr7-cls-59"></path>
+<path d="M719.6 506l21.6 0l0 -250.5l-21.6 0Z" fill="#3ba272" ecmeta_series_index="5" ecmeta_data_index="3" ecmeta_ssr_type="chart" class="zr7-cls-59"></path>
+<path d="M897.1 506l21.6 0l0 -244.8l-21.6 0Z" fill="#3ba272" ecmeta_series_index="5" ecmeta_data_index="4" ecmeta_ssr_type="chart" class="zr7-cls-59"></path>
+<path d="M-5 -5l655.1 0l0 24l-655.1 0Z" transform="translate(157.46 41)" fill="rgb(0,0,0)" fill-opacity="0" stroke="#ccc" stroke-width="0" class="zr7-cls-53"></path>
+<path d="M3.5 0L21.5 0A3.5 3.5 0 0 1 25 3.5L25 10.5A3.5 3.5 0 0 1 21.5 14L3.5 14A3.5 3.5 0 0 1 0 10.5L0 3.5A3.5 3.5 0 0 1 3.5 0" transform="translate(157.46 41)" fill="#5470c6" ecmeta_series_index="0" ecmeta_data_index="0" ecmeta_ssr_type="legend" ecmeta_silent="true" class="zr7-cls-53"></path>
+<text dominant-baseline="central" text-anchor="start" style="font-size:12px;font-family:Microsoft YaHei;" x="30" y="7" transform="translate(157.46 41)" fill="#333">none</text>
+<path d="M0 0l56.9 0l0 14l-56.9 0Z" transform="translate(157.46 41)" fill="none" pointer-events="visible" ecmeta_series_index="0" ecmeta_data_index="0" ecmeta_ssr_type="legend" class="zr7-cls-60"></path>
+<path d="M3.5 0L21.5 0A3.5 3.5 0 0 1 25 3.5L25 10.5A3.5 3.5 0 0 1 21.5 14L3.5 14A3.5 3.5 0 0 1 0 10.5L0 3.5A3.5 3.5 0 0 1 3.5 0" transform="translate(224.34 41)" fill="#91cc75" ecmeta_series_index="1" ecmeta_data_index="1" ecmeta_ssr_type="legend" ecmeta_silent="true" class="zr7-cls-53"></path>
+<text dominant-baseline="central" text-anchor="start" style="font-size:12px;font-family:Microsoft YaHei;" x="30" y="7" transform="translate(224.34 41)" fill="#333">aes-128-gcm</text>
+<path d="M0 0l100.2 0l0 14l-100.2 0Z" transform="translate(224.34 41)" fill="none" pointer-events="visible" ecmeta_series_index="1" ecmeta_data_index="1" ecmeta_ssr_type="legend" class="zr7-cls-60"></path>
+<path d="M3.5 0L21.5 0A3.5 3.5 0 0 1 25 3.5L25 10.5A3.5 3.5 0 0 1 21.5 14L3.5 14A3.5 3.5 0 0 1 0 10.5L0 3.5A3.5 3.5 0 0 1 3.5 0" transform="translate(334.54 41)" fill="#fac858" ecmeta_series_index="2" ecmeta_data_index="2" ecmeta_ssr_type="legend" ecmeta_silent="true" class="zr7-cls-53"></path>
+<text dominant-baseline="central" text-anchor="start" style="font-size:12px;font-family:Microsoft YaHei;" x="30" y="7" transform="translate(334.54 41)" fill="#333">aes-192-gcm</text>
+<path d="M0 0l100.2 0l0 14l-100.2 0Z" transform="translate(334.54 41)" fill="none" pointer-events="visible" ecmeta_series_index="2" ecmeta_data_index="2" ecmeta_ssr_type="legend" class="zr7-cls-60"></path>
+<path d="M3.5 0L21.5 0A3.5 3.5 0 0 1 25 3.5L25 10.5A3.5 3.5 0 0 1 21.5 14L3.5 14A3.5 3.5 0 0 1 0 10.5L0 3.5A3.5 3.5 0 0 1 3.5 0" transform="translate(444.74 41)" fill="#ee6666" ecmeta_series_index="3" ecmeta_data_index="3" ecmeta_ssr_type="legend" ecmeta_silent="true" class="zr7-cls-53"></path>
+<text dominant-baseline="central" text-anchor="start" style="font-size:12px;font-family:Microsoft YaHei;" x="30" y="7" transform="translate(444.74 41)" fill="#333">aes-256-gcm</text>
+<path d="M0 0l100.2 0l0 14l-100.2 0Z" transform="translate(444.74 41)" fill="none" pointer-events="visible" ecmeta_series_index="3" ecmeta_data_index="3" ecmeta_ssr_type="legend" class="zr7-cls-60"></path>
+<path d="M3.5 0L21.5 0A3.5 3.5 0 0 1 25 3.5L25 10.5A3.5 3.5 0 0 1 21.5 14L3.5 14A3.5 3.5 0 0 1 0 10.5L0 3.5A3.5 3.5 0 0 1 3.5 0" transform="translate(554.94 41)" fill="#73c0de" ecmeta_series_index="4" ecmeta_data_index="4" ecmeta_ssr_type="legend" ecmeta_silent="true" class="zr7-cls-53"></path>
+<text dominant-baseline="central" text-anchor="start" style="font-size:12px;font-family:Microsoft YaHei;" x="30" y="7" transform="translate(554.94 41)" fill="#333">chacha20</text>
+<path d="M0 0l82.3 0l0 14l-82.3 0Z" transform="translate(554.94 41)" fill="none" pointer-events="visible" ecmeta_series_index="4" ecmeta_data_index="4" ecmeta_ssr_type="legend" class="zr7-cls-60"></path>
+<path d="M3.5 0L21.5 0A3.5 3.5 0 0 1 25 3.5L25 10.5A3.5 3.5 0 0 1 21.5 14L3.5 14A3.5 3.5 0 0 1 0 10.5L0 3.5A3.5 3.5 0 0 1 3.5 0" transform="translate(647.26 41)" fill="#3ba272" ecmeta_series_index="5" ecmeta_data_index="5" ecmeta_ssr_type="legend" ecmeta_silent="true" class="zr7-cls-53"></path>
+<text dominant-baseline="central" text-anchor="start" style="font-size:12px;font-family:Microsoft YaHei;" x="30" y="7" transform="translate(647.26 41)" fill="#333">chacha20-poly1305-ietf</text>
+<path d="M0 0l155.3 0l0 14l-155.3 0Z" transform="translate(647.26 41)" fill="none" pointer-events="visible" ecmeta_series_index="5" ecmeta_data_index="5" ecmeta_ssr_type="legend" class="zr7-cls-60"></path>
+<path d="M-210.6 -5l421.3 0l0 25l-421.3 0Z" transform="translate(480 15)" fill="rgb(0,0,0)" fill-opacity="0" stroke="#ccc" stroke-width="0" class="zr7-cls-53"></path>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:15px;font-family:Microsoft YaHei;font-weight:bold;" xml:space="preserve" y="7.5" transform="translate(480 15)" fill="#464646">每核效率 payload MB/s / 总CPU% - 加密对比（无压缩） - wsl</text>
+<style ><![CDATA[
+.zr7-cls-53:hover {
+pointer-events:none;
+}
+.zr7-cls-54:hover {
+cursor:pointer;
+fill:rgba(92,123,217,1);
+}
+.zr7-cls-55:hover {
+cursor:pointer;
+fill:rgba(159,224,128,1);
+}
+.zr7-cls-56:hover {
+cursor:pointer;
+fill:rgba(255,220,96,1);
+}
+.zr7-cls-57:hover {
+cursor:pointer;
+fill:rgba(255,112,112,1);
+}
+.zr7-cls-58:hover {
+cursor:pointer;
+fill:rgba(126,211,244,1);
+}
+.zr7-cls-59:hover {
+cursor:pointer;
+fill:rgba(64,178,125,1);
+}
+.zr7-cls-60:hover {
+cursor:pointer;
+fill:rgba(0,0,0,0);
+}
+
+]]>
+
+</style>
+</svg>

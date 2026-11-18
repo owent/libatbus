@@ -630,6 +630,11 @@ static void io_stream_on_recv_read_fn(uv_stream_t *stream, ssize_t nread, const 
     return;
   }
 
+  // 成功读到数据时清零eagain计数，仅统计连续空读。
+  // 计数器是channel级的且从不随成功读取重置的话，高吞吐+高频轮询场景下偶发的EAGAIN竞态
+  // 会持续累积并最终触发误断连
+  channel->read_net_eagain_count = 0;
+
   // 网络错误
   if (nread < 0) {
     io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t::kReceived, channel, conn_raw_ptr,
