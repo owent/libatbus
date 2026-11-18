@@ -260,17 +260,25 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
   ::GetSystemInfo(&si);
   // size_t page_size = static_cast<std::size_t>(si.dwPageSize);
 
-  char shm_file_name[256] = {0};
+  const char *shm_mapping_name = '/' == shm_path.first[0] ? &shm_path.first[1] : shm_path.first.data();
+  char shm_local_file_name[256] = {0};
+  char shm_global_file_name[256] = {0};
   // The "Local\" namespace is session-local and needs no SeCreateGlobalPrivilege.
-  // ("Global\" requires that privilege, which regular processes do not have.)
-  UTIL_STRFUNC_SNPRINTF(shm_file_name, sizeof(shm_file_name), "Local\\%s",
-                        '/' == shm_path.first[0] ? &shm_path.first[1] : shm_path.first.data());
+  // Keep "Global\" as a fallback for mappings created by older versions.
+  ATFW_UTIL_STRFUNC_SNPRINTF(shm_local_file_name, sizeof(shm_local_file_name), "Local\\%s", shm_mapping_name);
+  ATFW_UTIL_STRFUNC_SNPRINTF(shm_global_file_name, sizeof(shm_global_file_name), "Global\\%s", shm_mapping_name);
 
   // 首先尝试直接打开
-  shm_record->handle.handle = OpenFileMapping(FILE_MAP_ALL_ACCESS,          // read/write access
-                                              FALSE,                        // do not inherit the name
-                                              ATBUS_VC_TEXT(shm_file_name)  // name of mapping object
+  shm_record->handle.handle = OpenFileMapping(FILE_MAP_ALL_ACCESS,                // read/write access
+                                              FALSE,                              // do not inherit the name
+                                              ATBUS_VC_TEXT(shm_local_file_name)  // name of mapping object
   );
+  if (nullptr == shm_record->handle.handle) {
+    shm_record->handle.handle = OpenFileMapping(FILE_MAP_ALL_ACCESS,                 // read/write access
+                                                FALSE,                               // do not inherit the name
+                                                ATBUS_VC_TEXT(shm_global_file_name)  // name of mapping object
+    );
+  }
   if (nullptr != shm_record->handle.handle) {
     shm_record->handle.buffer = static_cast<LPTSTR>(MapViewOfFile(shm_record->handle.handle,  // handle to map object
                                                                   FILE_MAP_ALL_ACCESS,        // read/write permission
@@ -299,13 +307,29 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
     return EN_ATBUS_ERR_SHM_GET_FAILED;
   }
 
-  shm_record->handle.handle = CreateFileMapping(INVALID_HANDLE_VALUE,         // use paging file
-                                                nullptr,                      // default security
-                                                PAGE_READWRITE,               // read/write access
-                                                0,                            // maximum object size (high-order DWORD)
-                                                static_cast<DWORD>(len),      // maximum object size (low-order DWORD)
-                                                ATBUS_VC_TEXT(shm_file_name)  // name of mapping object
+  // Prefer the legacy namespace when permitted so older peers can also attach.
+  shm_record->handle.handle = CreateFileMapping(INVALID_HANDLE_VALUE,     // use paging file
+                                                nullptr,                  // default security
+                                                PAGE_READWRITE,           // read/write access
+                                                0,                        // maximum object size (high-order DWORD)
+                                                static_cast<DWORD>(len),  // maximum object size (low-order DWORD)
+                                                ATBUS_VC_TEXT(shm_global_file_name)  // name of mapping object
   );
+
+  if (nullptr == shm_record->handle.handle) {
+    DWORD create_error = GetLastError();
+    if (ERROR_ACCESS_DENIED != create_error && ERROR_PRIVILEGE_NOT_HELD != create_error) {
+      return EN_ATBUS_ERR_SHM_GET_FAILED;
+    }
+
+    shm_record->handle.handle = CreateFileMapping(INVALID_HANDLE_VALUE,     // use paging file
+                                                  nullptr,                  // default security
+                                                  PAGE_READWRITE,           // read/write access
+                                                  0,                        // maximum object size (high-order DWORD)
+                                                  static_cast<DWORD>(len),  // maximum object size (low-order DWORD)
+                                                  ATBUS_VC_TEXT(shm_local_file_name)  // name of mapping object
+    );
+  }
 
   if (nullptr == shm_record->handle.handle) {
     return EN_ATBUS_ERR_SHM_GET_FAILED;
@@ -316,6 +340,7 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
                                                                 0, 0, len));
 
   if (nullptr == shm_record->handle.buffer) {
+    CloseHandle(shm_record->handle.handle);
     return EN_ATBUS_ERR_SHM_GET_FAILED;
   }
 

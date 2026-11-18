@@ -255,6 +255,7 @@ struct UTIL_SYMBOL_LOCAL io_stream_flag_guard {
 
 static int io_stream_disconnect_internal(io_stream_channel *channel, io_stream_connection *connection,
                                          io_stream_callback_t callback, bool force);
+static int io_stream_disconnect_run(io_stream_connection *connection);
 
 static inline void io_stream_channel_callback(io_stream_callback_event_t::ios_fn_t fn, io_stream_channel *channel,
                                               io_stream_callback_t async_callback, io_stream_connection *connection,
@@ -914,15 +915,15 @@ static int io_stream_shutdown_connection(io_stream_connection *conn) {
     conn->channel->conn_pool.erase(iter);
   } while (false);
 
+  // 如果已经关闭过，或者正在关闭。不需要重复操作
+  if (0 != uv_is_closing(reinterpret_cast<adapter::handle_t *>(conn->handle.get()))) {
+    return 0;
+  }
+
   // ATBUS_CHANNEL_REQ_START(conn->channel);
   // 被动断开也会触发回调，这里的流程不计数active的req
   do {
     if (0 == uv_is_writable(conn->handle.get())) {
-      break;
-    }
-
-    // 如果已经关闭过，或者正在关闭。不需要重复操作
-    if (0 != uv_is_closing(reinterpret_cast<adapter::handle_t *>(conn->handle.get()))) {
       break;
     }
 
@@ -1046,7 +1047,8 @@ static ::atfw::util::memory::strong_rc_ptr<io_stream_connection> io_stream_make_
     auto iter = channel->conn_pool.find(ret->fd);
     if (iter != channel->conn_pool.end() && iter->second && iter->second->handle &&
         0 == uv_is_closing(reinterpret_cast<adapter::handle_t *>(iter->second->handle.get()))) {
-      io_stream_shutdown_connection(iter->second.get());
+      iter->second->status = io_stream_connection::status_t::kDisconnecting;
+      io_stream_disconnect_run(iter->second.get());
     }
   }
 

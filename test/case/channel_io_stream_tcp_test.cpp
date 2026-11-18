@@ -546,6 +546,67 @@ CASE_TEST(channel, io_stream_tcp_connect_failed) {
   atbus::channel::io_stream_close(&cli);
 }
 
+CASE_TEST(channel, io_stream_tcp_disconnect_after_handle_close) {
+  atbus::adapter::loop_t loop;
+  uv_loop_init(&loop);
+
+  atbus::channel::io_stream_channel svr, cli;
+  atbus::channel::io_stream_init(&svr, &loop, nullptr);
+  atbus::channel::io_stream_init(&cli, &loop, nullptr);
+  cli.evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::kDisconnected)] =
+      disconnected_callback_test_fn;
+
+  g_check_flag = 0;
+  int inited_fds = setup_channel(svr, "ipv4://127.0.0.1:16391", nullptr);
+  inited_fds += setup_channel(cli, nullptr, "ipv4://127.0.0.1:16391");
+  CASE_EXPECT_EQ(2, inited_fds);
+  if (2 != inited_fds) {
+    atbus::channel::io_stream_close(&svr);
+    atbus::channel::io_stream_close(&cli);
+    uv_loop_close(&loop);
+    return;
+  }
+
+  UNITTEST_WAIT_UNTIL(&loop, g_check_flag >= 3, 30000, 0) {}
+  CASE_EXPECT_EQ(3, g_check_flag);
+  CASE_EXPECT_EQ(1, cli.conn_pool.size());
+  if (3 != g_check_flag || 1 != cli.conn_pool.size()) {
+    atbus::channel::io_stream_close(&svr);
+    atbus::channel::io_stream_close(&cli);
+    uv_loop_close(&loop);
+    return;
+  }
+
+  auto connection = cli.conn_pool.begin()->second;
+  uv_close_cb close_callback = connection->handle->close_cb;
+  CASE_EXPECT_NE(nullptr, close_callback);
+  if (nullptr == close_callback) {
+    atbus::channel::io_stream_close(&svr);
+    atbus::channel::io_stream_close(&cli);
+    uv_loop_close(&loop);
+    return;
+  }
+
+  // Simulate a transport close already queued before the delayed disconnect event.
+  int check_flag = g_check_flag;
+  uv_close(reinterpret_cast<uv_handle_t *>(connection->handle.get()), close_callback);
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, atbus::channel::io_stream_disconnect(&cli, connection.get(), nullptr));
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, atbus::channel::io_stream_disconnect(&cli, connection.get(), nullptr));
+  CASE_EXPECT_EQ(1, cli.conn_gc_pool.size());
+  CASE_EXPECT_TRUE(cli.conn_pool.empty());
+
+  UNITTEST_WAIT_UNTIL(&loop, cli.conn_gc_pool.empty(), 30000, 0) {}
+  CASE_EXPECT_TRUE(cli.conn_gc_pool.empty());
+  CASE_EXPECT_EQ(check_flag + 1, g_check_flag);
+
+  atbus::channel::io_stream_close(&svr);
+  atbus::channel::io_stream_close(&cli);
+  CASE_EXPECT_EQ(0, svr.conn_pool.size());
+  CASE_EXPECT_EQ(0, cli.conn_pool.size());
+
+  uv_loop_close(&loop);
+}
+
 // written callback test
 static int g_written_callback_count = 0;
 static size_t g_written_callback_total_size = 0;

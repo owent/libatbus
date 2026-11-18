@@ -17,7 +17,8 @@
 //   benchmark_charts.html        interactive self-contained charts (when --html and echarts.min.js is bundled)
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const argv = process.argv.slice(2);
 const outIndex = argv.indexOf('--out');
@@ -542,11 +543,13 @@ if (wantHtml) {
     echartsJs = readFileSync(bundleFile, 'utf8');
   } else {
     try {
+      // fileURLToPath keeps this working on Windows where URL.pathname yields "/C:/..."
       echartsJs = readFileSync(
-        join(new URL(import.meta.url).pathname, '../../node_modules/echarts/dist/echarts.min.js'),
+        join(dirname(fileURLToPath(import.meta.url)), '../../node_modules/echarts/dist/echarts.min.js'),
         'utf8'
       );
     } catch {
+      console.warn('local echarts bundle not found; falling back to the jsdelivr CDN in the generated HTML');
       // fall back to CDN
       echartsJs = '';
     }
@@ -622,7 +625,11 @@ function render() {
     tooltip: { trigger: 'axis' },
     legend: {},
     xAxis: { type: 'category', data: size.map((s) => s >= 1024 ? s / 1024 + 'KB' : s + 'B') },
-    yAxis: { type: metrics[metricSel.value] === 'qps' ? 'log' : 'value', name: metrics[metricSel.value].name, min: 1 },
+    yAxis: {
+      type: metrics[metricSel.value].key === 'qps' ? 'log' : 'value',
+      name: metrics[metricSel.value].name,
+      min: 1,
+    },
     series,
   }, true);
 }

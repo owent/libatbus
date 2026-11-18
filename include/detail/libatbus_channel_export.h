@@ -91,9 +91,10 @@ ATBUS_MACRO_API uint16_t shm_info_get_host_size(shm_channel *channel);
 /**
  * @brief shm_attach/shm_init/shm_close with shm_path
  * @param shm_path shm_path can be a number(means shared memory key) or a path begin with '/'
- * @note shm_path can only contains one '/' and the length shoud not extend 255 according to POSIX
- *       On Windows, we will add prefix of "Global\\" for shm_path, so the length of shm_path can
- *         not be grater than 248
+ * @note shm_path can only contain one '/' and the length should not exceed 255 according to POSIX
+ *       On Windows, we try both session-local "Local\\" and legacy "Global\\" prefixes. Creating a
+ *         global mapping requires SeCreateGlobalPrivilege; without it, we fall back to the local namespace.
+ *         The length of shm_path cannot be greater than 248 to fit the longer global prefix
  * @see http://man7.org/linux/man-pages/man3/shm_open.3.html
  * @see https://linux.die.net/man/3/shm_open
  * @see https://man.openbsd.org/shm_open.3

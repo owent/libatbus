@@ -98,7 +98,11 @@ function render() {
     tooltip: { trigger: 'axis' },
     legend: {},
     xAxis: { type: 'category', data: size.map((s) => s >= 1024 ? s / 1024 + 'KB' : s + 'B') },
-    yAxis: { type: metrics[metricSel.value] === 'qps' ? 'log' : 'value', name: metrics[metricSel.value].name, min: 1 },
+    yAxis: {
+      type: metrics[metricSel.value].key === 'qps' ? 'log' : 'value',
+      name: metrics[metricSel.value].name,
+      min: 1,
+    },
     series,
   }, true);
 }

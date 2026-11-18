@@ -19,7 +19,69 @@
 
 #include "frame/test_macros.h"
 
+#if defined(_WIN32)
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
+#  ifndef NOMINMAX
+#    define NOMINMAX
+#  endif
+#  include <Windows.h>
+#endif
+
 #if defined(ATBUS_CHANNEL_SHM)
+
+#  ifdef _WIN32
+CASE_TEST(channel, shm_attach_legacy_global_mapping) {
+  using namespace atbus::channel;
+  const char *shm_path = "/atbus-channel-legacy-global-test";
+  const char *mapping_name = "Global\\atbus-channel-legacy-global-test";
+  const size_t buffer_len = 2 * 1024 * 1024;  // 2MB
+
+  HANDLE legacy_mapping = CreateFileMappingA(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0,
+                                             static_cast<DWORD>(buffer_len), mapping_name);
+  if (nullptr == legacy_mapping) {
+    DWORD error = GetLastError();
+    if (ERROR_ACCESS_DENIED == error || ERROR_PRIVILEGE_NOT_HELD == error) {
+      CASE_MSG_INFO() << "SeCreateGlobalPrivilege is unavailable, skip the legacy Global\\ mapping case" << std::endl;
+    } else {
+      CASE_EXPECT_NE(nullptr, legacy_mapping);
+      CASE_MSG_INFO() << "CreateFileMappingA failed with Win32 error " << error << std::endl;
+    }
+    return;
+  }
+
+  void *legacy_buffer = MapViewOfFile(legacy_mapping, FILE_MAP_ALL_ACCESS, 0, 0, buffer_len);
+  CASE_EXPECT_NE(nullptr, legacy_buffer);
+  if (nullptr == legacy_buffer) {
+    CloseHandle(legacy_mapping);
+    return;
+  }
+
+  mem_channel *legacy_channel = nullptr;
+  int init_result = mem_init(legacy_buffer, buffer_len, &legacy_channel, nullptr);
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, init_result);
+  if (EN_ATBUS_ERR_SUCCESS == init_result) {
+    shm_channel *channel = nullptr;
+    int attach_result = shm_attach(shm_path, buffer_len, &channel, nullptr);
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, attach_result);
+    CASE_EXPECT_NE(nullptr, channel);
+    if (EN_ATBUS_ERR_SUCCESS == attach_result && nullptr != channel) {
+      const char payload[] = "legacy-global-mapping";
+      char received[sizeof(payload)] = {0};
+      size_t received_size = 0;
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, shm_send(channel, payload, sizeof(payload)));
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, mem_recv(legacy_channel, received, sizeof(received), &received_size));
+      CASE_EXPECT_EQ(sizeof(payload), received_size);
+      CASE_EXPECT_EQ(0, memcmp(payload, received, sizeof(payload)));
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, shm_close(shm_path));
+    }
+  }
+
+  UnmapViewOfFile(legacy_buffer);
+  CloseHandle(legacy_mapping);
+}
+#  endif
 
 CASE_TEST(channel, shm_attach_with_invalid_magic) {
   using namespace atbus::channel;
@@ -257,4 +319,3 @@ CASE_TEST(channel, shm_siso) {
 }
 
 #endif
-

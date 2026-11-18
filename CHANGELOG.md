@@ -5,8 +5,8 @@ CHANGELOG
 ------------
 
 1. 修复 io_stream 通道空读(EAGAIN)计数不随成功读取重置的问题。该计数用于防呆(连续空读过多次则断开连接)，但原先一旦累积超过阈值，后续任何一次偶发空读都会误断连接；高吞吐且高频轮询驱动的场景下会稳定触发。现在仅统计连续空读。
-2. 修复 Windows 下共享内存通道使用 `Global\` 命名空间的问题。该命名空间创建命名映射对象需要 `SeCreateGlobalPrivilege` 特权，普通权限进程会创建失败(`EN_ATBUS_ERR_SHM_GET_FAILED`)，与代码注释意图相悖。现改用会话本地的 `Local\` 命名空间(同会话内跨进程共享不受影响)。
-3. 修复一处Windows下 fd 操作系统复用和libuv事件派发时序不一致导致的连接管理问题。
+2. 修复 Windows 下共享内存通道只使用 `Global\` 命名空间时，普通权限进程因缺少 `SeCreateGlobalPrivilege` 而创建失败(`EN_ATBUS_ERR_SHM_GET_FAILED`)的问题。现在打开映射时同时兼容 `Local\` 和旧版本使用的 `Global\`；创建映射时优先使用 `Global\` 以保持滚动升级兼容，权限不足时回退到会话本地的 `Local\`。
+3. 修复一处 Windows 下 fd 操作系统复用和 libuv 事件派发时序不一致导致的连接管理问题。fd 复用时通过正常断连状态机清理旧连接，并跳过已处于 closing 状态的 libuv 句柄，避免重复 `uv_close` 导致断言失败或释放后使用。
 
 2.1.0
 ------------
