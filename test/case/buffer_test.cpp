@@ -59,7 +59,7 @@ CASE_TEST(buffer, varint) {
   CASE_EXPECT_EQ(128, j);
 
   // failed
-  i = 2080160;  // ‭BIN: 111111011110110100000‬
+  i = 2080160;  // [U+202D]BIN: 111111011110110100000[U+202C]
   res = atbus::detail::fn::write_vint(i, buf, 2);
   CASE_EXPECT_EQ(0, res);
 
@@ -1132,4 +1132,3 @@ CASE_TEST(buffer, static_buffer_manager_merge_front) {
     CHECK_BUFFER(mgr.front()->raw_data(), sr, 0xea);
   }
 }
-
