@@ -33,7 +33,11 @@
 
 #  ifndef _WIN32
 #    include <fcntl.h>
+#    ifdef __linux__
+#      include <sys/file.h>
+#    endif
 #    include <sys/mman.h>
+#    include <sys/stat.h>
 #    include <unistd.h>
 
 CASE_TEST(channel, shm_close_preserves_external_owner) {
@@ -50,13 +54,61 @@ CASE_TEST(channel, shm_close_preserves_external_owner) {
   CASE_EXPECT_EQ(0, shm_close(path.c_str()));
   CASE_EXPECT_EQ(0, shm_attach(path.c_str(), size, &channel, nullptr));
   CASE_EXPECT_EQ(0, shm_close(path.c_str()));
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_SHM_NOT_FOUND, shm_close(path.c_str()));
   CASE_EXPECT_EQ(0, shm_unlink(path.c_str()));
 
   CASE_EXPECT_EQ(0, shm_init(path.c_str(), size, &channel, nullptr));
+  CASE_EXPECT_EQ(0, shm_attach(path.c_str(), size, &channel, nullptr));
+  CASE_EXPECT_EQ(0, shm_close(path.c_str()));
+  fd = shm_open(path.c_str(), O_RDWR, 0);
+  CASE_EXPECT_GE(fd, 0);
+  if (fd >= 0) close(fd);
   CASE_EXPECT_EQ(0, shm_close(path.c_str()));
   fd = shm_open(path.c_str(), O_RDWR, 0);
   CASE_EXPECT_LT(fd, 0);
   if (fd >= 0) close(fd);
+}
+
+CASE_TEST(channel, shm_init_recovers_empty_object) {
+  using namespace atbus::channel;
+  const size_t size = 2 * 1024 * 1024;
+  const std::string path = "/atbus-shm-empty-" + std::to_string(getpid());
+  int fd = shm_open(path.c_str(), O_RDWR | O_CREAT | O_EXCL, 0600);
+  CASE_EXPECT_GE(fd, 0);
+  if (fd < 0) return;
+
+  shm_channel *channel = nullptr;
+  struct stat info = {};
+  CASE_EXPECT_LT(shm_attach(path.c_str(), size, &channel, nullptr), 0);
+  CASE_EXPECT_EQ(0, fstat(fd, &info));
+  CASE_EXPECT_EQ(0, info.st_size);
+#    ifdef __linux__
+  CASE_EXPECT_EQ(0, flock(fd, LOCK_EX | LOCK_NB));
+  CASE_EXPECT_EQ(EN_ATBUS_ERR_SHM_GET_FAILED, shm_init(path.c_str(), size, &channel, nullptr));
+  CASE_EXPECT_EQ(0, fstat(fd, &info));
+  CASE_EXPECT_EQ(0, info.st_size);
+  CASE_EXPECT_EQ(0, flock(fd, LOCK_UN));
+#    endif
+  int result = shm_init(path.c_str(), size, &channel, nullptr);
+  CASE_EXPECT_EQ(0, result);
+  if (result == 0) {
+#    ifdef __linux__
+    // The sizing lock must be available while the initialized channel is still mapped.
+    CASE_EXPECT_EQ(0, flock(fd, LOCK_EX | LOCK_NB));
+    CASE_EXPECT_EQ(0, flock(fd, LOCK_UN));
+#    endif
+    CASE_EXPECT_EQ(0, fstat(fd, &info));
+    CASE_EXPECT_EQ(static_cast<off_t>(size), info.st_size);
+    CASE_EXPECT_EQ(0, shm_close(path.c_str()));
+    CASE_EXPECT_EQ(0, shm_attach(path.c_str(), size / 2, &channel, nullptr));
+    CASE_EXPECT_EQ(0, shm_close(path.c_str()));
+    CASE_EXPECT_EQ(0, shm_init(path.c_str(), size / 2, &channel, nullptr));
+    CASE_EXPECT_EQ(0, fstat(fd, &info));
+    CASE_EXPECT_EQ(static_cast<off_t>(size), info.st_size);
+    CASE_EXPECT_EQ(0, shm_close(path.c_str()));
+  }
+  close(fd);
+  CASE_EXPECT_EQ(0, shm_unlink(path.c_str()));
 }
 #  endif
 

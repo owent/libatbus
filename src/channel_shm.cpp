@@ -70,6 +70,9 @@
 #  endif
 
 #  include <fcntl.h> /* For O_* constants */
+#  ifdef __linux__
+#    include <sys/file.h>
+#  endif
 #  include <sys/mman.h>
 #  include <sys/stat.h> /* For mode constants */
 #  include <sys/types.h>
@@ -405,18 +408,39 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
       if (fd < 0) return EN_ATBUS_ERR_SHM_GET_FAILED;
     }
     auto close_fd = gsl::finally([fd]() { close(fd); });
-    bool mapped = false;
+    bool keep_name = false;
     auto rollback_name = gsl::finally([&]() {
-      // fork/exec之后pid可能变化，此时该共享内存通道已经不受新进程管控，不能移除shm路径
-      if (!mapped && shm_record->handle.creator_pid == getpid()) {
+      if (!keep_name && shm_record->handle.creator_pid == getpid()) {
         shm_unlink(shm_path.first.c_str());
       }
     });
-    if (shm_record->handle.creator_pid != 0 && ftruncate(fd, static_cast<off_t>(len)) != 0) {
+    struct stat statbuf;
+    if (fstat(fd, &statbuf) != 0) {
       return EN_ATBUS_ERR_SHM_GET_FAILED;
     }
-    struct stat statbuf;
-    if (fstat(fd, &statbuf) != 0 || statbuf.st_size <= 0) {
+    if (create && statbuf.st_size == 0) {
+#    ifdef __linux__
+      // Another initializer may have sized the object since fstat. Never shrink its mapping.
+      if (flock(fd, LOCK_EX | LOCK_NB) != 0) {
+        if (errno == EWOULDBLOCK) {
+          keep_name = true;
+        }
+        return EN_ATBUS_ERR_SHM_GET_FAILED;
+      }
+      // Release before mmap: a live mapping can keep the flock after close(fd).
+      auto unlock_size = gsl::finally([fd]() { flock(fd, LOCK_UN); });
+      if (fstat(fd, &statbuf) != 0) {
+        return EN_ATBUS_ERR_SHM_GET_FAILED;
+      }
+#    endif
+      if (statbuf.st_size == 0 && ftruncate(fd, static_cast<off_t>(len)) != 0) {
+        return EN_ATBUS_ERR_SHM_GET_FAILED;
+      }
+      if (fstat(fd, &statbuf) != 0) {
+        return EN_ATBUS_ERR_SHM_GET_FAILED;
+      }
+    }
+    if (statbuf.st_size <= 0) {
       return EN_ATBUS_ERR_SHM_GET_FAILED;
     }
     shm_record->handle.size = static_cast<size_t>(statbuf.st_size);
@@ -429,7 +453,7 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
     if (MAP_FAILED == shm_record->handle.buffer) {
       return EN_ATBUS_ERR_SHM_MAP_FAILED;
     }
-    mapped = true;
+    keep_name = true;
   } else {
     shm_record->handle.shm_id = shmget(static_cast<key_t>(shm_path.second), len, shmflag);
     shm_record->handle.shm_path.clear();
@@ -445,9 +469,9 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
 
     // 获取地址
     shm_record->handle.buffer = shmat(shm_record->handle.shm_id, nullptr, 0);
-    shm_record->reference_count.store(1);
   }
 
+  shm_record->reference_count.store(1);
   shm_mapped_by_key_records[shm_path.first] = shm_record;
 
   if (data) *data = shm_record->handle.buffer;
