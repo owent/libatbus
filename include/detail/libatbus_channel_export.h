@@ -92,6 +92,8 @@ ATBUS_MACRO_API uint16_t shm_info_get_host_size(shm_channel *channel);
  * @brief shm_attach/shm_init/shm_close with shm_path
  * @param shm_path shm_path can be a number(means shared memory key) or a path begin with '/'
  * @note shm_path can only contain one '/' and the length should not exceed 255 according to POSIX
+ *       POSIX names persist across shm_close() so peers can reconnect to the same object. Call shm_unlink()
+ *       explicitly when all endpoints have stopped using the name.
  *       On Windows, we try both session-local "Local\\" and legacy "Global\\" prefixes. Creating a
  *         global mapping requires SeCreateGlobalPrivilege; without it, we fall back to the local namespace.
  *         The length of shm_path cannot be greater than 248 to fit the longer global prefix

@@ -14,6 +14,7 @@
 #include "config/compiler_features.h"
 
 #include <detail/libatbus_error.h>
+#include <gsl/select-gsl.h>
 #include "detail/libatbus_channel_export.h"
 #include "lock/atomic_int_type.h"
 
@@ -56,17 +57,49 @@ CASE_TEST(channel, shm_close_preserves_external_owner) {
   CASE_EXPECT_EQ(0, shm_close(path.c_str()));
   CASE_EXPECT_EQ(EN_ATBUS_ERR_SHM_NOT_FOUND, shm_close(path.c_str()));
   CASE_EXPECT_EQ(0, shm_unlink(path.c_str()));
+}
 
-  CASE_EXPECT_EQ(0, shm_init(path.c_str(), size, &channel, nullptr));
+CASE_TEST(channel, shm_reopen_preserves_live_peer) {
+  using namespace atbus::channel;
+  const size_t size = 2 * 1024 * 1024;
+  const std::string path = "/atbus-shm-reopen-" + std::to_string(getpid());
+  shm_channel *channel = nullptr;
+  int result = shm_init(path.c_str(), size, &channel, nullptr);
+  CASE_EXPECT_EQ(0, result);
+  if (result != 0) return;
+  auto cleanup_name = gsl::finally([&]() { shm_unlink(path.c_str()); });
   CASE_EXPECT_EQ(0, shm_attach(path.c_str(), size, &channel, nullptr));
   CASE_EXPECT_EQ(0, shm_close(path.c_str()));
-  fd = shm_open(path.c_str(), O_RDWR, 0);
+
+  // A peer's mapping is independent of the local mapping cache and survives its last close.
+  int fd = shm_open(path.c_str(), O_RDWR, 0);
   CASE_EXPECT_GE(fd, 0);
+  void *mapping = fd < 0 ? MAP_FAILED : mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
   if (fd >= 0) close(fd);
   CASE_EXPECT_EQ(0, shm_close(path.c_str()));
-  fd = shm_open(path.c_str(), O_RDWR, 0);
-  CASE_EXPECT_LT(fd, 0);
-  if (fd >= 0) close(fd);
+  CASE_EXPECT_NE(MAP_FAILED, mapping);
+  if (mapping == MAP_FAILED) return;
+  auto unmap = gsl::finally([&]() { munmap(mapping, size); });
+  mem_channel *peer = nullptr;
+  result = mem_attach(mapping, size, &peer, nullptr);
+  CASE_EXPECT_EQ(0, result);
+  if (result != 0) return;
+
+  result = shm_attach(path.c_str(), size, &channel, nullptr);
+  CASE_EXPECT_EQ(0, result);
+  if (result != 0) return;
+  int sent = 42, received = 0;
+  size_t bytes = 0;
+  CASE_EXPECT_EQ(0, shm_send(channel, &sent, sizeof(sent)));
+  CASE_EXPECT_EQ(0, mem_recv(peer, &received, sizeof(received), &bytes));
+  CASE_EXPECT_EQ(sizeof(sent), bytes);
+  CASE_EXPECT_EQ(sent, received);
+  ++sent;
+  CASE_EXPECT_EQ(0, mem_send(peer, &sent, sizeof(sent)));
+  CASE_EXPECT_EQ(0, shm_recv(channel, &received, sizeof(received), &bytes));
+  CASE_EXPECT_EQ(sizeof(sent), bytes);
+  CASE_EXPECT_EQ(sent, received);
+  CASE_EXPECT_EQ(0, shm_close(path.c_str()));
 }
 
 CASE_TEST(channel, shm_init_recovers_empty_object) {

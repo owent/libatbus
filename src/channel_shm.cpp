@@ -8,7 +8,6 @@
 
 #include <algorithm>
 #include <cassert>
-#include <cerrno>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -107,9 +106,6 @@ struct ATFW_UTIL_SYMBOL_LOCAL shm_mapped_handle_info {
 };
 #  else
 struct ATFW_UTIL_SYMBOL_LOCAL shm_mapped_handle_info {
-  int shm_id;
-  pid_t creator_pid;
-  std::string shm_path;
   void *buffer;
   size_t size;
 };
@@ -206,21 +202,14 @@ static int shm_close_buffer(const char *input_path) {
   UnmapViewOfFile(handle.buffer);
   CloseHandle(handle.handle);
 #  else
-  if (handle.shm_path.empty()) {
+  if (shm_path.second != 0) {
     // record with shmget/shmat/shmdt mode
     int res = shmdt(handle.buffer);
     if (-1 == res) {
       return EN_ATBUS_ERR_SHM_CLOSE_FAILED;
     }
-  } else {
-    int res = munmap(handle.buffer, handle.size);
-    // fork/exec之后pid可能变化，此时该共享内存通道已经不受新进程管控，不能移除shm路径
-    if (handle.creator_pid == getpid()) {
-      shm_unlink(handle.shm_path.c_str());
-    }
-    if (res != 0) {
-      return EN_ATBUS_ERR_SHM_CLOSE_FAILED;
-    }
+  } else if (munmap(handle.buffer, handle.size) != 0) {
+    return EN_ATBUS_ERR_SHM_CLOSE_FAILED;
   }
 #  endif
 
@@ -369,7 +358,9 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
   len = (len + page_size - 1) & (~(page_size - 1));
 
   int shmflag = 0666;
-  if (create) shmflag |= IPC_CREAT;
+  if (create) {
+    shmflag |= IPC_CREAT;
+  }
 
 #    ifdef __linux__
   // linux下阻止从交换分区分配物理页
@@ -389,31 +380,14 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
   // #endif
 
 #    endif
-  // create record with shmget/shmat/shmdt mode
   if (0 == shm_path.second) {
-    shm_record->handle.shm_id = 0;
-    shm_record->handle.shm_path = shm_path.first;
-
-    int fd = -1;
-    if (create) {
-      fd = shm_open(shm_path.first.c_str(), O_RDWR | O_CREAT | O_EXCL, S_IRWXU | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-      if (fd >= 0) {
-        shm_record->handle.creator_pid = getpid();
-      } else if (errno != EEXIST) {
-        return EN_ATBUS_ERR_SHM_GET_FAILED;
-      }
-    }
+    // Peers reconnect by name. Only the deployment can determine when it is safe to unlink it.
+    int fd = shm_open(shm_path.first.c_str(), create ? O_RDWR | O_CREAT : O_RDWR,
+                      S_IRWXU | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
     if (fd < 0) {
-      fd = shm_open(shm_path.first.c_str(), O_RDWR, 0);
-      if (fd < 0) return EN_ATBUS_ERR_SHM_GET_FAILED;
+      return EN_ATBUS_ERR_SHM_GET_FAILED;
     }
     auto close_fd = gsl::finally([fd]() { close(fd); });
-    bool keep_name = false;
-    auto rollback_name = gsl::finally([&]() {
-      if (!keep_name && shm_record->handle.creator_pid == getpid()) {
-        shm_unlink(shm_path.first.c_str());
-      }
-    });
     struct stat statbuf;
     if (fstat(fd, &statbuf) != 0) {
       return EN_ATBUS_ERR_SHM_GET_FAILED;
@@ -422,9 +396,6 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
 #    ifdef __linux__
       // Another initializer may have sized the object since fstat. Never shrink its mapping.
       if (flock(fd, LOCK_EX | LOCK_NB) != 0) {
-        if (errno == EWOULDBLOCK) {
-          keep_name = true;
-        }
         return EN_ATBUS_ERR_SHM_GET_FAILED;
       }
       // Release before mmap: a live mapping can keep the flock after close(fd).
@@ -453,22 +424,24 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
     if (MAP_FAILED == shm_record->handle.buffer) {
       return EN_ATBUS_ERR_SHM_MAP_FAILED;
     }
-    keep_name = true;
   } else {
-    shm_record->handle.shm_id = shmget(static_cast<key_t>(shm_path.second), len, shmflag);
-    shm_record->handle.shm_path.clear();
-    if (-1 == shm_record->handle.shm_id) return EN_ATBUS_ERR_SHM_GET_FAILED;
+    int shm_id = shmget(static_cast<key_t>(shm_path.second), len, shmflag);
+    if (-1 == shm_id) {
+      return EN_ATBUS_ERR_SHM_GET_FAILED;
+    }
 
     // 获取实际长度
     {
       struct shmid_ds shm_info;
-      if (shmctl(shm_record->handle.shm_id, IPC_STAT, &shm_info)) return EN_ATBUS_ERR_SHM_GET_FAILED;
+      if (shmctl(shm_id, IPC_STAT, &shm_info)) {
+        return EN_ATBUS_ERR_SHM_GET_FAILED;
+      }
 
       shm_record->handle.size = shm_info.shm_segsz;
     }
 
     // 获取地址
-    shm_record->handle.buffer = shmat(shm_record->handle.shm_id, nullptr, 0);
+    shm_record->handle.buffer = shmat(shm_id, nullptr, 0);
   }
 
   shm_record->reference_count.store(1);
