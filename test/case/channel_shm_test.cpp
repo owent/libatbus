@@ -31,6 +31,35 @@
 
 #if defined(ATBUS_CHANNEL_SHM)
 
+#  ifndef _WIN32
+#    include <fcntl.h>
+#    include <sys/mman.h>
+#    include <unistd.h>
+
+CASE_TEST(channel, shm_close_preserves_external_owner) {
+  using namespace atbus::channel;
+  const size_t size = 2 * 1024 * 1024;
+  const std::string path = "/atbus-shm-owner-" + std::to_string(getpid());
+  int fd = shm_open(path.c_str(), O_RDWR | O_CREAT | O_EXCL, 0600);
+  CASE_EXPECT_GE(fd, 0);
+  if (fd < 0) return;
+  CASE_EXPECT_EQ(0, ftruncate(fd, static_cast<off_t>(size)));
+  close(fd);
+  shm_channel *channel = nullptr;
+  CASE_EXPECT_EQ(0, shm_init(path.c_str(), size, &channel, nullptr));
+  CASE_EXPECT_EQ(0, shm_close(path.c_str()));
+  CASE_EXPECT_EQ(0, shm_attach(path.c_str(), size, &channel, nullptr));
+  CASE_EXPECT_EQ(0, shm_close(path.c_str()));
+  CASE_EXPECT_EQ(0, shm_unlink(path.c_str()));
+
+  CASE_EXPECT_EQ(0, shm_init(path.c_str(), size, &channel, nullptr));
+  CASE_EXPECT_EQ(0, shm_close(path.c_str()));
+  fd = shm_open(path.c_str(), O_RDWR, 0);
+  CASE_EXPECT_LT(fd, 0);
+  if (fd >= 0) close(fd);
+}
+#  endif
+
 #  ifdef _WIN32
 CASE_TEST(channel, shm_attach_legacy_global_mapping) {
   using namespace atbus::channel;

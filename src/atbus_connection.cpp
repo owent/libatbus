@@ -40,7 +40,7 @@ static int try_flock_file(const std::string &lock_path) {
     }
   }
 
-  int lock_fd = open(lock_path.c_str(), O_RDONLY | O_CREAT, 0600);
+  int lock_fd = open(lock_path.c_str(), O_RDONLY | O_CREAT | O_CLOEXEC, 0600);
   if (lock_fd < 0) {
     return lock_fd;
   }
@@ -144,7 +144,7 @@ connection::connection(ctor_guard_t &guard)
       address_(make_connection_address(guard.addr, guard.listen_mode)),
       origin_address_(guard.addr),
 #if !defined(_WIN32)
-      address_lock_(0),
+      address_lock_(-1),
 #endif
       owner_(guard.owner),
       binding_(nullptr),
@@ -622,13 +622,13 @@ ATBUS_MACRO_API void connection::set_status(state_t v) {
 
 #if !defined(_WIN32)
 ATBUS_MACRO_API void connection::unlock_address() noexcept {
-  if (0 == address_lock_) {
+  if (address_lock_ < 0) {
     return;
   }
 
   flock(address_lock_, LOCK_UN);
   close(address_lock_);
-  address_lock_ = 0;
+  address_lock_ = -1;
 
   // Remove lock file
   unlink(address_lock_path_.c_str());

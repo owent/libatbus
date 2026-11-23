@@ -35,6 +35,7 @@
 #include <functional>
 #include <list>
 #include <memory>
+#include <random>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -228,7 +229,9 @@ node::node()
   event_timer_.tick = std::chrono::system_clock::from_time_t(0);
   event_timer_.upstream_op_timepoint = std::chrono::system_clock::from_time_t(0);
   event_timer_.upstream_op_retry_interval = std::chrono::microseconds{0};
-  random_engine_.init_seed(static_cast<uint64_t>(time(nullptr)));
+  std::random_device entropy;
+  const uint64_t seed = (static_cast<uint64_t>(entropy()) << 32) | entropy();
+  random_engine_.init_seed(seed ^ static_cast<uint64_t>(get_pid()));
 
   message_sequence_allocator_.set(static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
                                                             std::chrono::system_clock::now().time_since_epoch())

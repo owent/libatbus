@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cerrno>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -26,6 +27,7 @@
 
 // spin_lock and lock_holder will include Windows.h, which should be included after Winsock2.h
 #include "common/string_oprs.h"
+#include "gsl/select-gsl.h"
 #include "lock/lock_holder.h"
 
 #ifdef WIN32
@@ -103,7 +105,7 @@ struct ATFW_UTIL_SYMBOL_LOCAL shm_mapped_handle_info {
 #  else
 struct ATFW_UTIL_SYMBOL_LOCAL shm_mapped_handle_info {
   int shm_id;
-  int shm_fd;
+  pid_t creator_pid;
   std::string shm_path;
   void *buffer;
   size_t size;
@@ -208,11 +210,14 @@ static int shm_close_buffer(const char *input_path) {
       return EN_ATBUS_ERR_SHM_CLOSE_FAILED;
     }
   } else {
-    if (0 != munmap(handle.buffer, handle.size)) {
+    int res = munmap(handle.buffer, handle.size);
+    // fork/exec之后pid可能变化，此时该共享内存通道已经不受新进程管控，不能移除shm路径
+    if (handle.creator_pid == getpid()) {
       shm_unlink(handle.shm_path.c_str());
+    }
+    if (res != 0) {
       return EN_ATBUS_ERR_SHM_CLOSE_FAILED;
     }
-    shm_unlink(handle.shm_path.c_str());
   }
 #  endif
 
@@ -386,48 +391,47 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
     shm_record->handle.shm_id = 0;
     shm_record->handle.shm_path = shm_path.first;
 
-    int open_flag = O_RDWR;
+    int fd = -1;
     if (create) {
-      open_flag |= O_CREAT;
+      fd = shm_open(shm_path.first.c_str(), O_RDWR | O_CREAT | O_EXCL, S_IRWXU | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+      if (fd >= 0) {
+        shm_record->handle.creator_pid = getpid();
+      } else if (errno != EEXIST) {
+        return EN_ATBUS_ERR_SHM_GET_FAILED;
+      }
     }
-    shm_record->handle.shm_fd =
-        shm_open(shm_path.first.c_str(), open_flag, S_IRWXU | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-    if (-1 == shm_record->handle.shm_fd) return EN_ATBUS_ERR_SHM_GET_FAILED;
-    struct stat statbuf;
-    if (0 != fstat(shm_record->handle.shm_fd, &statbuf)) {
-      shm_unlink(shm_path.first.c_str());
+    if (fd < 0) {
+      fd = shm_open(shm_path.first.c_str(), O_RDWR, 0);
+      if (fd < 0) return EN_ATBUS_ERR_SHM_GET_FAILED;
+    }
+    auto close_fd = gsl::finally([fd]() { close(fd); });
+    bool mapped = false;
+    auto rollback_name = gsl::finally([&]() {
+      // fork/exec之后pid可能变化，此时该共享内存通道已经不受新进程管控，不能移除shm路径
+      if (!mapped && shm_record->handle.creator_pid == getpid()) {
+        shm_unlink(shm_path.first.c_str());
+      }
+    });
+    if (shm_record->handle.creator_pid != 0 && ftruncate(fd, static_cast<off_t>(len)) != 0) {
       return EN_ATBUS_ERR_SHM_GET_FAILED;
     }
-
-    if (statbuf.st_size <= 0) {
-      if (0 != ftruncate(shm_record->handle.shm_fd, (off_t)len)) {
-        shm_unlink(shm_path.first.c_str());
-        return EN_ATBUS_ERR_SHM_GET_FAILED;
-      }
-
-      if (0 != fstat(shm_record->handle.shm_fd, &statbuf)) {
-        shm_unlink(shm_path.first.c_str());
-        return EN_ATBUS_ERR_SHM_GET_FAILED;
-      }
-
-      shm_record->handle.size = static_cast<size_t>(statbuf.st_size);
-    } else {
-      shm_record->handle.size = static_cast<size_t>(statbuf.st_size);
+    struct stat statbuf;
+    if (fstat(fd, &statbuf) != 0 || statbuf.st_size <= 0) {
+      return EN_ATBUS_ERR_SHM_GET_FAILED;
     }
+    shm_record->handle.size = static_cast<size_t>(statbuf.st_size);
 
     int shm_map_flag = MAP_SHARED;
 #    ifdef __linux__
     shm_map_flag |= MAP_NORESERVE;
 #    endif
-    shm_record->handle.buffer =
-        mmap(nullptr, shm_record->handle.size, PROT_READ | PROT_WRITE, shm_map_flag, shm_record->handle.shm_fd, 0);
+    shm_record->handle.buffer = mmap(nullptr, shm_record->handle.size, PROT_READ | PROT_WRITE, shm_map_flag, fd, 0);
     if (MAP_FAILED == shm_record->handle.buffer) {
-      shm_unlink(shm_path.first.c_str());
       return EN_ATBUS_ERR_SHM_MAP_FAILED;
     }
+    mapped = true;
   } else {
     shm_record->handle.shm_id = shmget(static_cast<key_t>(shm_path.second), len, shmflag);
-    shm_record->handle.shm_fd = 0;
     shm_record->handle.shm_path.clear();
     if (-1 == shm_record->handle.shm_id) return EN_ATBUS_ERR_SHM_GET_FAILED;
 
