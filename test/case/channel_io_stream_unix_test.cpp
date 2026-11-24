@@ -31,6 +31,16 @@
 
 #include <common/file_system.h>
 
+#if defined(__unix__) || defined(__APPLE__)
+ATBUS_MACRO_NAMESPACE_BEGIN
+class connection_address_lock_test_helper {
+ public:
+  // Exercise the address lock without driving the inherited libuv loop.
+  static void unlock(connection &listener) noexcept { listener.unlock_address(); }
+};
+ATBUS_MACRO_NAMESPACE_END
+#endif
+
 struct channel_ios_unix_addr_holder {
   std::string file_path;
   channel_ios_unix_addr_holder() {
@@ -282,19 +292,42 @@ CASE_TEST(channel, io_stream_unix_address_lock_close_on_exec) {
   if (fd_flags < 0) return;
   CASE_EXPECT_TRUE((fd_flags & FD_CLOEXEC) != 0);
 
-  pid_t child = fork();
-  if (child == 0) {
-    execl("/bin/sh", "sh", "-c", "exit 0", static_cast<char *>(nullptr));
-    _exit(127);
+  auto *owner = node.get();
+  auto *inherited_listener = listener.get();
+  auto *channel = owner->get_iostream_channel();
+  const auto &address = inherited_listener->get_address();
+  for (bool exec_child : {false, true}) {
+    pid_t child = fork();
+    if (child == 0) {
+      if (exec_child) {
+        execl("/bin/sh", "sh", "-c", "exit 0", static_cast<char *>(nullptr));
+        _exit(127);
+      }
+
+      alarm(10);
+      if (atbus::node::get_pid() != getpid()) _exit(1);
+      if (owner->init(1, &conf) != EN_ATBUS_ERR_ACCESS_DENY) _exit(2);
+      if (owner->start() != EN_ATBUS_ERR_ACCESS_DENY) _exit(3);
+      if (inherited_listener->listen() != EN_ATBUS_ERR_ACCESS_DENY) _exit(4);
+      if (inherited_listener->connect() != EN_ATBUS_ERR_ACCESS_DENY) _exit(5);
+      if (atbus::channel::io_stream_init(channel, channel->ev_loop, &channel->conf) != EN_ATBUS_ERR_ACCESS_DENY)
+        _exit(6);
+      if (atbus::channel::io_stream_listen(channel, address, nullptr, nullptr, 0) != EN_ATBUS_ERR_ACCESS_DENY) _exit(7);
+      if (atbus::channel::io_stream_connect(channel, address, nullptr, nullptr, 0) != EN_ATBUS_ERR_ACCESS_DENY)
+        _exit(8);
+      atbus::connection_address_lock_test_helper::unlock(*inherited_listener);
+      _exit(fcntl(lock_fd, F_GETFD) == -1 && errno == EBADF ? 0 : 9);
+    }
+    CASE_EXPECT_GT(child, 0);
+    if (child < 0) return;
+    int status = 0;
+    CASE_EXPECT_EQ(child, waitpid(child, &status, 0));
+    CASE_EXPECT_TRUE(WIFEXITED(status));
+    if (WIFEXITED(status)) {
+      CASE_EXPECT_EQ(0, WEXITSTATUS(status));
+    }
   }
-  CASE_EXPECT_GT(child, 0);
-  if (child < 0) return;
-  int status = 0;
-  CASE_EXPECT_EQ(child, waitpid(child, &status, 0));
-  CASE_EXPECT_TRUE(WIFEXITED(status));
-  if (WIFEXITED(status)) {
-    CASE_EXPECT_EQ(0, WEXITSTATUS(status));
-  }
+  CASE_EXPECT_EQ(getpid(), atbus::node::get_pid());
 
   int probe = open(path.c_str(), O_RDONLY);
   CASE_EXPECT_GE(probe, 0);
@@ -330,6 +363,23 @@ CASE_TEST(channel, io_stream_unix_basic) {
   int check_flag = g_check_flag;
   UNITTEST_WAIT_UNTIL(&loop, g_check_flag - check_flag >= 6, 30000, 0) {}
   CASE_EXPECT_GE(g_check_flag - check_flag, 6);
+
+#  if defined(__unix__) || defined(__APPLE__)
+  if (!cli.conn_pool.empty()) {
+    auto *connected = cli.conn_pool.begin()->second.get();
+    pid_t child = fork();
+    if (child == 0) {
+      alarm(10);
+      _exit(atbus::channel::io_stream_send(connected, "x", 1) == EN_ATBUS_ERR_ACCESS_DENY ? 0 : 1);
+    }
+    CASE_EXPECT_GT(child, 0);
+    if (child > 0) {
+      int status = 0;
+      CASE_EXPECT_EQ(child, waitpid(child, &status, 0));
+      CASE_EXPECT_TRUE(WIFEXITED(status) && WEXITSTATUS(status) == 0);
+    }
+  }
+#  endif
 
   svr.evt.callbacks[static_cast<size_t>(atbus::channel::io_stream_callback_event_t::ios_fn_t::kReceived)] =
       recv_callback_check_fn;

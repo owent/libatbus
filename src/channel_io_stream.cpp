@@ -461,7 +461,6 @@ static adapter::loop_t *io_stream_get_loop(io_stream_channel *channel) {
 
   return channel->ev_loop;
 }
-}  // namespace
 
 static bool io_stream_is_fork_child(ATFW_EXPLICIT_UNUSED_ATTR const io_stream_channel &channel) noexcept {
 #if defined(__unix__) || defined(__APPLE__)
@@ -471,6 +470,7 @@ static bool io_stream_is_fork_child(ATFW_EXPLICIT_UNUSED_ATTR const io_stream_ch
   return false;
 #endif
 }
+}  // namespace
 
 int io_stream_init(io_stream_channel *channel, adapter::loop_t *ev_loop, const io_stream_conf *conf) {
   if (nullptr == channel) {

@@ -197,6 +197,7 @@ class connection final : public atfw::util::design_pattern::noncopyable {
  private:
   ATBUS_MACRO_API void set_status(state_t v);
 #if !defined(_WIN32)
+  friend class connection_address_lock_test_helper;
   ATBUS_MACRO_API void unlock_address() noexcept;
 #endif
 
