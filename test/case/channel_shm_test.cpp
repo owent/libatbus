@@ -35,7 +35,11 @@
 #  ifndef _WIN32
 #    include <fcntl.h>
 #    ifdef __linux__
+#      include <poll.h>
 #      include <sys/file.h>
+#      include <sys/inotify.h>
+#      include "atbus_connection.h"
+#      include "atbus_node.h"
 #    endif
 #    include <sys/mman.h>
 #    include <sys/stat.h>
@@ -132,10 +136,17 @@ CASE_TEST(channel, shm_init_recovers_empty_object) {
 #    endif
     CASE_EXPECT_EQ(0, fstat(fd, &info));
     CASE_EXPECT_EQ(static_cast<off_t>(size), info.st_size);
+    int message = 42;
+    CASE_EXPECT_EQ(0, shm_send(channel, &message, sizeof(message)));
     CASE_EXPECT_EQ(0, shm_close(path.c_str()));
     CASE_EXPECT_EQ(0, shm_attach(path.c_str(), size / 2, &channel, nullptr));
     CASE_EXPECT_EQ(0, shm_close(path.c_str()));
-    CASE_EXPECT_EQ(0, shm_init(path.c_str(), size / 2, &channel, nullptr));
+    result = shm_init(path.c_str(), size / 2, &channel, nullptr);
+    CASE_EXPECT_EQ(0, result);
+    if (result == 0) {
+      size_t bytes = 0;
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_NO_DATA, shm_recv(channel, &message, sizeof(message), &bytes));
+    }
     CASE_EXPECT_EQ(0, fstat(fd, &info));
     CASE_EXPECT_EQ(static_cast<off_t>(size), info.st_size);
     CASE_EXPECT_EQ(0, shm_close(path.c_str()));
@@ -143,6 +154,82 @@ CASE_TEST(channel, shm_init_recovers_empty_object) {
   close(fd);
   CASE_EXPECT_EQ(0, shm_unlink(path.c_str()));
 }
+
+#    ifdef __linux__
+CASE_TEST(channel, shm_connection_waits_for_initializer) {
+  using namespace atbus::channel;
+  const size_t size = 2 * 1024 * 1024;
+  auto owner = atbus::node::create();
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+  conf.receive_buffer_size = size / 2;
+  int result = owner->init(37, &conf);
+  CASE_EXPECT_EQ(0, result);
+  if (result != 0) return;
+  result = owner->start();
+  CASE_EXPECT_EQ(0, result);
+  if (result != 0) return;
+
+  for (bool listen : {true, false}) {
+    const std::string name = "/atbus-shm-init-" + std::to_string(getpid()) + (listen ? "-listen" : "-connect");
+    int fd = shm_open(name.c_str(), O_RDWR | O_CREAT | O_EXCL, 0600);
+    CASE_EXPECT_GE(fd, 0);
+    if (fd < 0) return;
+    auto cleanup = gsl::finally([&]() {
+      close(fd);
+      shm_unlink(name.c_str());
+    });
+    int notify_fd = inotify_init1(IN_CLOEXEC);
+    CASE_EXPECT_GE(notify_fd, 0);
+    if (notify_fd < 0) return;
+    auto close_notify = gsl::finally([&]() { close(notify_fd); });
+    auto fd_path = "/proc/self/fd/" + std::to_string(fd);
+    result = inotify_add_watch(notify_fd, fd_path.c_str(), IN_OPEN);
+    CASE_EXPECT_GE(result, 0);
+    if (result < 0) return;
+    auto conn = atbus::connection::create(owner.get(), "shm://" + name, listen);
+    CASE_EXPECT_TRUE(!!conn);
+    if (!conn) return;
+    result = flock(fd, LOCK_EX | LOCK_NB);
+    CASE_EXPECT_EQ(0, result);
+    if (result != 0) return;
+    int sent = 44;
+    int peer_result = -1;
+    std::thread peer([&]() {
+      auto unlock = gsl::finally([&]() { flock(fd, LOCK_UN); });
+      // Publish the size, header and first message only after the connection has opened this inode.
+      pollfd watch{notify_fd, POLLIN, 0};
+      if (poll(&watch, 1, 2000) != 1 || ftruncate(fd, static_cast<off_t>(size)) != 0) return;
+      void *mapping = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+      if (mapping == MAP_FAILED) return;
+      auto unmap = gsl::finally([&]() { munmap(mapping, size); });
+      mem_channel *peer_channel = nullptr;
+      peer_result = mem_init(mapping, size, &peer_channel, nullptr);
+      if (peer_result == 0) peer_result = mem_send(peer_channel, &sent, sizeof(sent));
+    });
+    result = listen ? conn->listen() : conn->connect();
+    peer.join();
+    CASE_EXPECT_EQ(0, peer_result);
+    CASE_EXPECT_EQ(0, result);
+    if (peer_result != 0 || result != 0) return;
+
+    shm_channel *channel = nullptr;
+    result = shm_attach(name.c_str(), size, &channel, nullptr);
+    CASE_EXPECT_EQ(0, result);
+    if (result != 0) return;
+    int received = 0;
+    size_t bytes = 0;
+    CASE_EXPECT_EQ(0, shm_recv(channel, &received, sizeof(received), &bytes));
+    CASE_EXPECT_EQ(sizeof(sent), bytes);
+    CASE_EXPECT_EQ(sent, received);
+    struct stat info = {};
+    CASE_EXPECT_EQ(0, fstat(fd, &info));
+    CASE_EXPECT_EQ(static_cast<off_t>(size), info.st_size);
+    CASE_EXPECT_EQ(0, shm_close(name.c_str()));
+    CASE_EXPECT_EQ(0, conn->disconnect());
+  }
+}
+#    endif
 #  endif
 
 #  ifdef _WIN32

@@ -28,6 +28,8 @@ XXTEA 报文使用 `atframe_utils::crypto::cipher` 的 8 字节块约束。序�
 发送端和接收端都可以先创建通道。`shm_close()` 在最后一个本地引用关闭时解除本进程的映射，名字在所有进程退出后仍会保留。
 任一端重启时，`listen()` 和 `connect()` 会先按原名附加到同一对象，仍在线的对端可以继续收发。
 通道头有效时，进程会沿用原容量和队列中尚未消费的消息。调大 `receive_buffer_size` 需要重新创建对象。
+Linux 上的 `listen()` 和 `connect()` 可以同时首次打开同一个 POSIX 名字。它们使用同一把文件锁检查和初始化通道头；
+先完成的一方确定容量，另一方保留已有队列。竞争初始化锁时最多等待约 100 ms，超时返回 `EN_ATBUS_ERR_SHM_GET_FAILED`。
 
 永久下线或变更容量时，由部署方清理该名字。以 `shm:///atbus-recv` 为例。
 
@@ -36,7 +38,7 @@ XXTEA 报文使用 `atframe_utils::crypto::cipher` 的 8 字节块约束。序�
 3. 如需重建，先按新的 `receive_buffer_size` 启动接收端，待其建好通道后再启动发送端。
 
 初始化中断也可能留下名字。若对象长度仍为零，`shm_init` 可以按请求大小重新初始化。
-`shm_init` 会重置通道内容，应由一个初始化方执行，其余进程在初始化完成后调用 `shm_attach`。
+直接调用 `shm_init` 会重置通道内容，应由一个初始化方执行，其余进程在初始化完成后调用 `shm_attach`。
 
 Unix socket 地址锁在 exec 时自动关闭。fork 后启动独立实例应直接 exec，并使用自己的监听地址；
 继承的 node 或 connection 的正常关闭路径可能关闭父连接的写方向或删除父监听路径。

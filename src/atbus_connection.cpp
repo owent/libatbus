@@ -23,6 +23,7 @@
 
 #include "atbus_node.h"  // NOLINT: build/include_subdir
 #include "detail/buffer.h"
+#include "detail/channel_shm.h"
 
 #include "atbus_message_handler.h"  // NOLINT: build/include_subdir
 #include "libatbus_protocol.h"      // NOLINT: build/include_subdir
@@ -300,10 +301,7 @@ ATBUS_MACRO_API int connection::listen() {
   if (0 == UTIL_STRFUNC_STRNCASE_CMP("shm", address_.scheme.c_str(), 3)) {
 #ifdef ATBUS_CHANNEL_SHM
     channel::shm_channel *shm_chann = nullptr;
-    int res = channel::shm_attach(address_.host.c_str(), conf.receive_buffer_size, &shm_chann, nullptr);
-    if (res < 0) {
-      res = channel::shm_init(address_.host.c_str(), conf.receive_buffer_size, &shm_chann, nullptr);
-    }
+    int res = channel::shm_attach_or_init(address_.host.c_str(), conf.receive_buffer_size, &shm_chann, nullptr);
 
     if (res < 0) {
       ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, 0, static_cast<ATBUS_ERROR_TYPE>(res),
@@ -445,10 +443,7 @@ ATBUS_MACRO_API int connection::connect() {
   if (0 == UTIL_STRFUNC_STRNCASE_CMP("shm", address_.scheme.c_str(), 3)) {
 #ifdef ATBUS_CHANNEL_SHM
     channel::shm_channel *shm_chann = nullptr;
-    int res = channel::shm_attach(address_.host.c_str(), conf.receive_buffer_size, &shm_chann, nullptr);
-    if (res < 0) {
-      res = channel::shm_init(address_.host.c_str(), conf.receive_buffer_size, &shm_chann, nullptr);
-    }
+    int res = channel::shm_attach_or_init(address_.host.c_str(), conf.receive_buffer_size, &shm_chann, nullptr);
 
     if (res < 0) {
       ATBUS_FUNC_NODE_ERROR(*owner_, get_binding(), this, 0, static_cast<ATBUS_ERROR_TYPE>(res),

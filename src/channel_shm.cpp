@@ -18,15 +18,16 @@
 #include <unordered_map>
 
 #include "config/compile_optimize.h"
+#include "gsl/select-gsl.h"  // IWYU pragma: keep
 #include "lock/atomic_int_type.h"
 #include "lock/spin_lock.h"
+#include "std/explicit_declare.h"
 
-#include "detail/libatbus_channel_export.h"
+#include "detail/channel_shm.h"
 #include "detail/libatbus_error.h"
 
 // spin_lock and lock_holder will include Windows.h, which should be included after Winsock2.h
 #include "common/string_oprs.h"
-#include "gsl/select-gsl.h"
 #include "lock/lock_holder.h"
 
 #ifdef WIN32
@@ -71,6 +72,9 @@
 #  include <fcntl.h> /* For O_* constants */
 #  ifdef __linux__
 #    include <sys/file.h>
+#    include <cerrno>
+#    include <chrono>
+#    include <thread>
 #  endif
 #  include <sys/mman.h>
 #  include <sys/stat.h> /* For mode constants */
@@ -216,13 +220,14 @@ static int shm_close_buffer(const char *input_path) {
   return EN_ATBUS_ERR_SUCCESS;
 }
 
-static int shm_open_buffer(const char *input_path, size_t len, void **data, size_t *real_size, bool create) {
-  std::pair<std::string, int64_t> shm_path = shm_normalize_path(input_path);
-  // check path
-  if (!shm_verify_path(shm_path.first)) {
-    return EN_ATBUS_ERR_SHM_PATH_INVALID;
-  }
+#  ifndef _WIN32
+static int shm_open_posix_fd(const std::string &name, bool create) {
+  return shm_open(name.c_str(), create ? O_RDWR | O_CREAT : O_RDWR, S_IRWXU | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+}
+#  endif
 
+static int shm_open_buffer(const std::pair<std::string, int64_t> &shm_path, size_t len, void **data, size_t *real_size,
+                           bool create, ATFW_EXPLICIT_UNUSED_ATTR int &fd) {
   ::atfw::util::lock::lock_holder<::atfw::util::lock::spin_lock> lock_guard(shm_mapped_records_lock);
 
   ::atfw::util::memory::strong_rc_ptr<shm_mapped_record_type> shm_record =
@@ -381,30 +386,18 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
 
 #    endif
   if (0 == shm_path.second) {
-    // Peers reconnect by name. Only the deployment can determine when it is safe to unlink it.
-    int fd = shm_open(shm_path.first.c_str(), create ? O_RDWR | O_CREAT : O_RDWR,
-                      S_IRWXU | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
     if (fd < 0) {
-      return EN_ATBUS_ERR_SHM_GET_FAILED;
+      fd = shm_open_posix_fd(shm_path.first, create);
+      if (fd < 0) {
+        return EN_ATBUS_ERR_SHM_GET_FAILED;
+      }
     }
-    auto close_fd = gsl::finally([fd]() { close(fd); });
     struct stat statbuf;
     if (fstat(fd, &statbuf) != 0) {
       return EN_ATBUS_ERR_SHM_GET_FAILED;
     }
     if (create && statbuf.st_size == 0) {
-#    ifdef __linux__
-      // Another initializer may have sized the object since fstat. Never shrink its mapping.
-      if (flock(fd, LOCK_EX | LOCK_NB) != 0) {
-        return EN_ATBUS_ERR_SHM_GET_FAILED;
-      }
-      // Release before mmap: a live mapping can keep the flock after close(fd).
-      auto unlock_size = gsl::finally([fd]() { flock(fd, LOCK_UN); });
-      if (fstat(fd, &statbuf) != 0) {
-        return EN_ATBUS_ERR_SHM_GET_FAILED;
-      }
-#    endif
-      if (statbuf.st_size == 0 && ftruncate(fd, static_cast<off_t>(len)) != 0) {
+      if (ftruncate(fd, static_cast<off_t>(len)) != 0) {
         return EN_ATBUS_ERR_SHM_GET_FAILED;
       }
       if (fstat(fd, &statbuf) != 0) {
@@ -457,6 +450,74 @@ static int shm_open_buffer(const char *input_path, size_t len, void **data, size
   return EN_ATBUS_ERR_SUCCESS;
 }
 
+enum class shm_open_mode { attach, init, attach_or_init };
+
+#  ifdef __linux__
+static bool shm_lock_initializer(int fd) {
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds{100};
+  while (flock(fd, LOCK_EX | LOCK_NB) != 0) {
+    if ((errno != EWOULDBLOCK && errno != EINTR) || std::chrono::steady_clock::now() >= deadline) {
+      return false;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds{1});
+  }
+  return true;
+}
+#  endif
+
+static int shm_open_channel(const char *path, size_t len, shm_channel **channel, const shm_conf *conf,
+                            shm_open_mode mode) {
+  auto shm_path = shm_normalize_path(path);
+  if (!shm_verify_path(shm_path.first)) {
+    return EN_ATBUS_ERR_SHM_PATH_INVALID;
+  }
+  const bool create = mode != shm_open_mode::attach;
+  int fd = -1;
+#  ifndef _WIN32
+  auto close_fd = gsl::finally([&fd]() {
+    if (fd >= 0) close(fd);
+  });
+#    ifdef __linux__
+  if (create && shm_path.second == 0) {
+    fd = shm_open_posix_fd(shm_path.first, true);
+    // Wait outside the mapping-cache lock. Size alone does not publish a usable channel header.
+    if (fd < 0 || !shm_lock_initializer(fd)) {
+      return EN_ATBUS_ERR_SHM_GET_FAILED;
+    }
+  }
+  // Only the initializer has an fd here. Release its flock before close even if the mapping outlives it.
+  auto unlock_initializer = gsl::finally([fd]() {
+    if (fd >= 0) {
+      flock(fd, LOCK_UN);
+    }
+  });
+#    endif
+#  endif
+
+  size_t real_size = 0;
+  void *buffer = nullptr;
+  int ret = shm_open_buffer(shm_path, len, &buffer, &real_size, create, fd);
+  if (ret < 0) {
+    return ret;
+  }
+
+  shm_channel_switcher channel_s = {};
+  shm_conf_cswitcher conf_s = {};
+  conf_s.shm = conf;
+  if (mode != shm_open_mode::init) {
+    ret = mem_attach(buffer, real_size, &channel_s.mem, conf_s.mem);
+  }
+  if (mode == shm_open_mode::init || (mode == shm_open_mode::attach_or_init && ret < 0)) {
+    ret = mem_init(buffer, real_size, &channel_s.mem, conf_s.mem);
+  }
+  if (ret < 0) {
+    shm_close_buffer(path);
+  } else if (channel != nullptr) {
+    *channel = channel_s.shm;
+  }
+  return ret;
+}
+
 }  // namespace
 
 ATBUS_MACRO_API int shm_configure_set_write_timeout(shm_channel *channel, uint64_t ms) {
@@ -502,53 +563,15 @@ ATBUS_MACRO_API uint16_t shm_info_get_host_size(shm_channel *channel) {
 }
 
 ATBUS_MACRO_API int shm_attach(const char *shm_path, size_t len, shm_channel **channel, const shm_conf *conf) {
-  shm_channel_switcher channel_s = {};
-  shm_conf_cswitcher conf_s = {};
-  conf_s.shm = conf;
-
-  size_t real_size = 0;
-  void *buffer = nullptr;
-  int ret = shm_open_buffer(shm_path, len, &buffer, &real_size, false);
-  if (ret < 0) {
-    return ret;
-  }
-
-  ret = mem_attach(buffer, real_size, &channel_s.mem, conf_s.mem);
-  if (ret < 0) {
-    shm_close_buffer(shm_path);
-    return ret;
-  }
-
-  if (channel != nullptr) {
-    *channel = channel_s.shm;
-  }
-
-  return ret;
+  return shm_open_channel(shm_path, len, channel, conf, shm_open_mode::attach);
 }
 
 ATBUS_MACRO_API int shm_init(const char *shm_path, size_t len, shm_channel **channel, const shm_conf *conf) {
-  shm_channel_switcher channel_s = {};
-  shm_conf_cswitcher conf_s = {};
-  conf_s.shm = conf;
+  return shm_open_channel(shm_path, len, channel, conf, shm_open_mode::init);
+}
 
-  size_t real_size = 0;
-  void *buffer = nullptr;
-  int ret = shm_open_buffer(shm_path, len, &buffer, &real_size, true);
-  if (ret < 0) {
-    return ret;
-  }
-
-  ret = mem_init(buffer, real_size, &channel_s.mem, conf_s.mem);
-  if (ret < 0) {
-    shm_close_buffer(shm_path);
-    return ret;
-  }
-
-  if (channel != nullptr) {
-    *channel = channel_s.shm;
-  }
-
-  return ret;
+int shm_attach_or_init(const char *shm_path, size_t len, shm_channel **channel, const shm_conf *conf) {
+  return shm_open_channel(shm_path, len, channel, conf, shm_open_mode::attach_or_init);
 }
 
 ATBUS_MACRO_API int shm_close(const char *shm_path) { return shm_close_buffer(shm_path); }
