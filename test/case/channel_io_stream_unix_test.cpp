@@ -284,14 +284,17 @@ CASE_TEST(channel, io_stream_unix_address_lock_close_on_exec) {
 
   pid_t child = fork();
   if (child == 0) {
-    execl("/bin/true", "true", static_cast<char *>(nullptr));
+    execl("/bin/sh", "sh", "-c", "exit 0", static_cast<char *>(nullptr));
     _exit(127);
   }
   CASE_EXPECT_GT(child, 0);
   if (child < 0) return;
   int status = 0;
   CASE_EXPECT_EQ(child, waitpid(child, &status, 0));
-  CASE_EXPECT_TRUE(WIFEXITED(status) && WEXITSTATUS(status) == 0);
+  CASE_EXPECT_TRUE(WIFEXITED(status));
+  if (WIFEXITED(status)) {
+    CASE_EXPECT_EQ(0, WEXITSTATUS(status));
+  }
 
   int probe = open(path.c_str(), O_RDONLY);
   CASE_EXPECT_GE(probe, 0);
