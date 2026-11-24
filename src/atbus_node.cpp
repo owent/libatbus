@@ -10,6 +10,7 @@
 
 #include <algorithm/crypto_cipher.h>
 #include <algorithm/sha.h>
+#include <common/platform_compat.h>
 #include <common/string_oprs.h>
 #include <string/string_format.h>
 #include <time/time_utility.h>
@@ -220,6 +221,7 @@ ATBUS_MACRO_API node::flag_guard_t::~flag_guard_t() {
 node::node()
     : state_(state_t::kCreated),
       self_pid_(0),
+      owner_pid_(get_pid()),
       crypto_key_exchange_type_(protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE),
       ev_loop_(nullptr),
       static_buffer_(nullptr),
@@ -362,6 +364,14 @@ ATBUS_MACRO_API node::ptr_t node::create() {
   return ret;
 }
 
+bool node::is_fork_child() const noexcept {
+#if defined(__unix__) || defined(__APPLE__)
+  return owner_pid_ != get_pid();
+#else
+  return false;
+#endif
+}
+
 // NOLINTNEXTLINE(bugprone-exception-escape)
 ATBUS_MACRO_API node::~node() {
   if (state_t::kCreated != state_) {
@@ -373,6 +383,9 @@ ATBUS_MACRO_API node::~node() {
 }
 
 ATBUS_MACRO_API int node::init(bus_id_t id, const conf_t *conf) {
+  if (is_fork_child()) {
+    return EN_ATBUS_ERR_ACCESS_DENY;
+  }
   if (state_t::kCreated != state_) {
     reset();
   }
@@ -555,6 +568,9 @@ ATBUS_MACRO_API void node::reload_self_endpoint(gsl::string_view scope, gsl::str
 }
 
 ATBUS_MACRO_API int node::start(const start_conf_t &start_conf) {
+  if (is_fork_child()) {
+    return EN_ATBUS_ERR_ACCESS_DENY;
+  }
   if (state_t::kCreated == state_) {
     return EN_ATBUS_ERR_NOT_INITED;
   }
@@ -1737,13 +1753,36 @@ ATBUS_MACRO_API topology_relation_type node::get_topology_relation(bus_id_t id,
   return ret;
 }
 
-ATBUS_MACRO_API int node::get_pid() {
+namespace {
+struct ATFW_UTIL_SYMBOL_LOCAL pid_updater;
+static pid_updater &get_shared_current_pid();
+
+struct ATFW_UTIL_SYMBOL_LOCAL pid_updater {
+  pid_updater() {
 #ifdef _MSC_VER
-  return _getpid();
+    pid = _getpid();
 #else
-  return getpid();
+    pid = getpid();
 #endif
+    atfw::util::platform::atfork(nullptr, nullptr, []() {
+#ifdef _MSC_VER
+      get_shared_current_pid().pid = _getpid();
+#else
+    get_shared_current_pid().pid = getpid();
+#endif
+    });
+  }
+  ~pid_updater() {}
+
+  int pid;
+};
+static pid_updater &get_shared_current_pid() {
+  static pid_updater ret;
+  return ret;
 }
+}  // namespace
+
+ATBUS_MACRO_API int node::get_pid() { return get_shared_current_pid().pid; }
 
 namespace {
 static std::string &host_name_buffer() {

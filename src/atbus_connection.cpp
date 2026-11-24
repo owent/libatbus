@@ -249,6 +249,9 @@ ATBUS_MACRO_API int connection::proc(node &n, std::chrono::system_clock::time_po
 }
 
 ATBUS_MACRO_API int connection::listen() {
+  if (owner_ && owner_->is_fork_child()) {
+    return EN_ATBUS_ERR_ACCESS_DENY;
+  }
   if (state_t::kDisconnected != state_) {
     return EN_ATBUS_ERR_ALREADY_INITED;
   }
@@ -383,6 +386,9 @@ ATBUS_MACRO_API int connection::listen() {
 }
 
 ATBUS_MACRO_API int connection::connect() {
+  if (owner_ && owner_->is_fork_child()) {
+    return EN_ATBUS_ERR_ACCESS_DENY;
+  }
   if (state_t::kDisconnected != state_) {
     return EN_ATBUS_ERR_ALREADY_INITED;
   }
@@ -618,6 +624,12 @@ ATBUS_MACRO_API void connection::set_status(state_t v) {
 #if !defined(_WIN32)
 ATBUS_MACRO_API void connection::unlock_address() noexcept {
   if (address_lock_ < 0) {
+    return;
+  }
+  if (owner_ && owner_->is_fork_child()) {
+    // fork shares the open file description. LOCK_UN would release the parent's lock too.
+    close(address_lock_);
+    address_lock_ = -1;
     return;
   }
 

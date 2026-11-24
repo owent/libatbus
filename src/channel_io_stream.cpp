@@ -31,13 +31,14 @@
 
 #include "common/file_system.h"
 #include "common/string_oprs.h"
-#include "config/atframe_utils_build_feature.h"
 #include "config/compile_optimize.h"
 #include "config/compiler_features.h"
 #include "memory/rc_ptr.h"
+#include "std/explicit_declare.h"
 
 #include "algorithm/murmur_hash.h"
 
+#include "atbus_node.h"
 #include "detail/buffer.h"
 #include "detail/libatbus_channel_export.h"
 #include "detail/libatbus_error.h"
@@ -462,6 +463,15 @@ static adapter::loop_t *io_stream_get_loop(io_stream_channel *channel) {
 }
 }  // namespace
 
+static bool io_stream_is_fork_child(ATFW_EXPLICIT_UNUSED_ATTR const io_stream_channel &channel) noexcept {
+#if defined(__unix__) || defined(__APPLE__)
+  return channel.owner_pid != 0 && channel.owner_pid != atfw::atbus::node::get_pid();
+#else
+  (void)channel;
+  return false;
+#endif
+}
+
 int io_stream_init(io_stream_channel *channel, adapter::loop_t *ev_loop, const io_stream_conf *conf) {
   if (nullptr == channel) {
     return EN_ATBUS_ERR_PARAMS;
@@ -474,6 +484,12 @@ int io_stream_init(io_stream_channel *channel, adapter::loop_t *ev_loop, const i
     return io_stream_init(channel, ev_loop, &default_conf);
   }
 
+  if (io_stream_is_fork_child(*channel)) {
+    return EN_ATBUS_ERR_ACCESS_DENY;
+  }
+#if defined(__unix__) || defined(__APPLE__)
+  channel->owner_pid = atfw::atbus::node::get_pid();
+#endif
   channel->conf = *conf;
   channel->ev_loop = ev_loop;
   ATBUS_CHANNEL_IOS_CLEAR_FLAG(channel->flags);
@@ -1351,6 +1367,9 @@ int io_stream_listen(io_stream_channel *channel, const channel_address_t &addr, 
   if (nullptr == channel) {
     return EN_ATBUS_ERR_PARAMS;
   }
+  if (io_stream_is_fork_child(*channel)) {
+    return EN_ATBUS_ERR_ACCESS_DENY;
+  }
 
   // 正在关闭，不允许启用新的监听
   if (ATBUS_CHANNEL_IOS_CHECK_FLAG(channel->flags, io_stream_channel::flag_t::kClosing)) {
@@ -1672,6 +1691,9 @@ int io_stream_connect(io_stream_channel *channel, const channel_address_t &addr,
                       void *priv_data, size_t priv_size) {
   if (nullptr == channel) {
     return EN_ATBUS_ERR_PARAMS;
+  }
+  if (io_stream_is_fork_child(*channel)) {
+    return EN_ATBUS_ERR_ACCESS_DENY;
   }
 
   // 正在关闭，不允许启动新连接
@@ -2097,6 +2119,9 @@ int io_stream_try_write(io_stream_connection *connection) {
 int io_stream_send(io_stream_connection *connection, const void *buf, size_t len) {
   if (nullptr == connection) {
     return EN_ATBUS_ERR_PARAMS;
+  }
+  if (io_stream_is_fork_child(*connection->channel)) {
+    return EN_ATBUS_ERR_ACCESS_DENY;
   }
 
   if (connection->channel->conf.send_buffer_limit_size > 0 && len > connection->channel->conf.send_buffer_limit_size) {

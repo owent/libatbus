@@ -10,8 +10,19 @@
 #include <iostream>
 #include <memory>
 
+#if defined(__unix__) || defined(__APPLE__)
+#  include <errno.h>
+#  include <fcntl.h>
+#  include <sys/file.h>
+#  include <sys/stat.h>
+#  include <sys/wait.h>
+#  include <unistd.h>
+#endif
+
 #include <config/atframe_utils_build_feature.h>
 
+#include <atbus_connection.h>
+#include <atbus_node.h>
 #include <detail/libatbus_error.h>
 #include "detail/libatbus_channel_export.h"
 
@@ -233,6 +244,65 @@ static void recv_callback_check_fn(atbus::channel::io_stream_channel *channel,  
 
   ++g_check_flag;
 }
+
+#  if defined(__unix__) || defined(__APPLE__)
+CASE_TEST(channel, io_stream_unix_address_lock_close_on_exec) {
+  auto node = atbus::node::create();
+  atbus::node::conf_t conf;
+  atbus::node::default_conf(&conf);
+  conf.overwrite_listen_path = false;
+  int result = node->init(1, &conf);
+  CASE_EXPECT_EQ(0, result);
+  if (result != 0) return;
+
+  auto listener = atbus::connection::create(node.get(), g_channel_ios_unix_test_path.file_path, true);
+  CASE_EXPECT_TRUE(!!listener);
+  if (!listener) return;
+  result = listener->listen();
+  CASE_EXPECT_EQ(0, result);
+  if (result != 0) return;
+  auto reset = gsl::finally([&]() { listener->reset(); });
+  std::string path = listener->get_address().host + ".lock";
+  struct stat lock_file = {};
+  result = stat(path.c_str(), &lock_file);
+  CASE_EXPECT_EQ(0, result);
+  if (result != 0) return;
+
+  const long limit = sysconf(_SC_OPEN_MAX);
+  int lock_fd = 0;
+  for (; lock_fd < limit; ++lock_fd) {
+    struct stat file = {};
+    if (fstat(lock_fd, &file) == 0 && file.st_dev == lock_file.st_dev && file.st_ino == lock_file.st_ino) break;
+  }
+  CASE_EXPECT_LT(lock_fd, limit);
+  if (lock_fd >= limit) return;
+
+  const int fd_flags = fcntl(lock_fd, F_GETFD);
+  CASE_EXPECT_GE(fd_flags, 0);
+  if (fd_flags < 0) return;
+  CASE_EXPECT_TRUE((fd_flags & FD_CLOEXEC) != 0);
+
+  pid_t child = fork();
+  if (child == 0) {
+    execl("/bin/true", "true", static_cast<char *>(nullptr));
+    _exit(127);
+  }
+  CASE_EXPECT_GT(child, 0);
+  if (child < 0) return;
+  int status = 0;
+  CASE_EXPECT_EQ(child, waitpid(child, &status, 0));
+  CASE_EXPECT_TRUE(WIFEXITED(status) && WEXITSTATUS(status) == 0);
+
+  int probe = open(path.c_str(), O_RDONLY);
+  CASE_EXPECT_GE(probe, 0);
+  if (probe < 0) return;
+  result = flock(probe, LOCK_EX | LOCK_NB);
+  const int lock_errno = errno;
+  close(probe);
+  CASE_EXPECT_EQ(-1, result);
+  CASE_EXPECT_TRUE(lock_errno == EWOULDBLOCK || lock_errno == EAGAIN);
+}
+#  endif
 
 CASE_TEST(channel, io_stream_unix_basic) {
   atbus::adapter::loop_t loop;

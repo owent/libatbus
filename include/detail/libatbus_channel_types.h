@@ -192,6 +192,9 @@ struct ATBUS_MACRO_API_HEAD_ONLY io_stream_channel {
 
   // 自定义数据区域
   void *data = nullptr;
+#if defined(__unix__) || defined(__APPLE__)
+  int owner_pid = 0;
+#endif
 };
 
 struct ATBUS_MACRO_API_HEAD_ONLY gateway_t {

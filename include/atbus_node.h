@@ -884,6 +884,9 @@ class node final : public atfw::util::design_pattern::noncopyable {
   // 主要供单元测试在同一进程内模拟不同物理机/进程，或容器环境显式指定节点身份
   std::string self_hostname_;
   int32_t self_pid_;
+  friend class connection;
+  const int32_t owner_pid_;
+  bool is_fork_child() const noexcept;
   ::atfw::util::memory::weak_rc_ptr<node> watcher_;  // just like std::shared_from_this<T>
   atfw::util::lock::seq_alloc_u64 message_sequence_allocator_;
 

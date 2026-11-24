@@ -40,8 +40,9 @@ Linux 上的 `listen()` 和 `connect()` 可以同时首次打开同一个 POSIX 
 初始化中断也可能留下名字。若对象长度仍为零，`shm_init` 可以按请求大小重新初始化。
 直接调用 `shm_init` 会重置通道内容，应由一个初始化方执行，其余进程在初始化完成后调用 `shm_attach`。
 
-Unix socket 地址锁在 exec 时自动关闭。fork 后启动独立实例应直接 exec，并使用自己的监听地址；
-继承的 node 或 connection 的正常关闭路径可能关闭父连接的写方向或删除父监听路径。
+Unix socket 地址锁在 exec 时自动关闭。父子进程的 fd 引用同一把锁，只有创建监听的进程可以执行
+`LOCK_UN` 和删除锁文件。fork 后子分支直接 exec，失败时用 `_exit()`。继承的 node、connection 和
+stream channel 只在父进程继续使用和停机。exec 后的新实例使用自己的监听地址，并走正常的事件处理和回收流程。
 
 最简单的完整代码流程如下：
 ```cpp
