@@ -948,6 +948,11 @@ static int io_stream_shutdown_connection(io_stream_connection *conn) {
       break;
     }
     shutdown_request->data = nullptr;
+
+    // fork后的子进程直接关闭，不能shutdown，否则会导致父进程里的socket被关闭
+    if (io_stream_is_fork_child(*conn->channel)) {
+      break;
+    }
     if (0 != uv_shutdown(shutdown_request, conn->handle.get(), io_stream_handle_on_shutdown)) {
       break;
     }
@@ -981,6 +986,11 @@ static int io_stream_shutdown_async_data(io_stream_connect_async_data *async_dat
       break;
     }
     shutdown_request->data = nullptr;
+    // fork后的子进程直接关闭，不能shutdown，否则会导致父进程里的socket被关闭
+    if (async_data->channel != nullptr && io_stream_is_fork_child(*async_data->channel)) {
+      delete shutdown_request;
+      break;
+    }
     if (0 != uv_shutdown(shutdown_request, async_data->stream.get(), io_stream_handle_on_shutdown)) {
       delete shutdown_request;
       break;
@@ -1008,6 +1018,19 @@ static int io_stream_shutdown_ev_handle(::atfw::util::memory::strong_rc_ptr<adap
       break;
     }
     shutdown_request->data = nullptr;
+
+    // fork后的子进程直接关闭，不能shutdown，否则会导致父进程里的socket被关闭
+    if (private_data->connection != nullptr && private_data->connection->channel != nullptr &&
+        io_stream_is_fork_child(*private_data->connection->channel)) {
+      delete shutdown_request;
+      break;
+    }
+    if (private_data->connect_async_lifetime != nullptr && private_data->connect_async_lifetime->channel != nullptr &&
+        io_stream_is_fork_child(*private_data->connect_async_lifetime->channel)) {
+      delete shutdown_request;
+      break;
+    }
+
     if (0 != uv_shutdown(shutdown_request, stream.get(), io_stream_handle_on_shutdown)) {
       delete shutdown_request;
       break;
