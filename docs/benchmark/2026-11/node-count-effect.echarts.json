@@ -1,0 +1,3374 @@
+{
+  "backgroundColor": "#fff",
+  "title": {
+    "text": "聚合 QPS 相对 2 节点的比值 vs 互联节点数（接收端；吞吐量的比值相同）",
+    "left": "center",
+    "top": 10,
+    "textStyle": {
+      "fontSize": 15
+    }
+  },
+  "legend": [
+    {
+      "left": 140,
+      "top": 40,
+      "itemWidth": 38,
+      "itemHeight": 14,
+      "itemGap": 18,
+      "textStyle": {
+        "fontSize": 12,
+        "color": "#333"
+      },
+      "data": [
+        "200B",
+        "256B",
+        "1KB",
+        "8KB",
+        "32KB",
+        "300KB"
+      ]
+    },
+    {
+      "left": 140,
+      "top": 62,
+      "itemWidth": 38,
+      "itemHeight": 14,
+      "itemGap": 18,
+      "textStyle": {
+        "fontSize": 12,
+        "color": "#333"
+      },
+      "data": [
+        "无压缩",
+        "lz4@fast",
+        "lz4@default",
+        "zstd@default",
+        "zstd@high-ratio"
+      ]
+    },
+    {
+      "left": 140,
+      "top": 84,
+      "itemWidth": 38,
+      "itemHeight": 14,
+      "itemGap": 18,
+      "textStyle": {
+        "fontSize": 12,
+        "color": "#333"
+      },
+      "data": [
+        "无加密",
+        "aes-128-gcm",
+        "aes-256-gcm",
+        "chacha20-poly1305-ietf"
+      ]
+    }
+  ],
+  "graphic": [
+    {
+      "type": "text",
+      "left": 24,
+      "top": 41,
+      "style": {
+        "text": "包长（颜色）",
+        "fill": "#333",
+        "font": "bold 13px sans-serif"
+      }
+    },
+    {
+      "type": "text",
+      "left": 24,
+      "top": 63,
+      "style": {
+        "text": "压缩（标记）",
+        "fill": "#333",
+        "font": "bold 13px sans-serif"
+      }
+    },
+    {
+      "type": "text",
+      "left": 24,
+      "top": 85,
+      "style": {
+        "text": "加密（线型）",
+        "fill": "#333",
+        "font": "bold 13px sans-serif"
+      }
+    }
+  ],
+  "grid": {
+    "left": 16,
+    "right": 28,
+    "top": 130,
+    "bottom": 14,
+    "containLabel": true
+  },
+  "xAxis": {
+    "type": "category",
+    "data": [
+      "2",
+      "10",
+      "100",
+      "1000"
+    ],
+    "axisLabel": {
+      "fontSize": 12,
+      "interval": 0,
+      "margin": 10
+    },
+    "axisTick": {
+      "alignWithLabel": true
+    }
+  },
+  "yAxis": {
+    "type": "log",
+    "percent": true,
+    "name": "相对 2 节点",
+    "min": 80,
+    "max": 400,
+    "axisLabel": {
+      "fontSize": 12,
+      "customValues": [
+        80,
+        90,
+        100,
+        120,
+        150,
+        200,
+        300,
+        400
+      ]
+    },
+    "splitLine": {
+      "lineStyle": {
+        "color": "#e6e6e6"
+      }
+    }
+  },
+  "series": [
+    {
+      "name": "lz4@fast · 200B",
+      "type": "line",
+      "symbol": "triangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#4e79a7",
+        "type": "solid",
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#4e79a7",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        101.8,
+        100,
+        98.8
+      ]
+    },
+    {
+      "name": "lz4@fast · 256B",
+      "type": "line",
+      "symbol": "triangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#59a14f",
+        "type": "solid",
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#59a14f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        100.4,
+        97.7,
+        97.1
+      ]
+    },
+    {
+      "name": "lz4@fast · 1KB",
+      "type": "line",
+      "symbol": "triangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#f28e2b",
+        "type": "solid",
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#f28e2b",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        164.2,
+        161.4,
+        158.5
+      ]
+    },
+    {
+      "name": "lz4@fast · 8KB",
+      "type": "line",
+      "symbol": "triangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#e15759",
+        "type": "solid",
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#e15759",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        199.4,
+        197.2,
+        188.7
+      ]
+    },
+    {
+      "name": "lz4@fast · 32KB",
+      "type": "line",
+      "symbol": "triangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#b07aa1",
+        "type": "solid",
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#b07aa1",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        225.4,
+        220.5,
+        216.3
+      ]
+    },
+    {
+      "name": "lz4@fast · 300KB",
+      "type": "line",
+      "symbol": "triangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#2a9d8f",
+        "type": "solid",
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#2a9d8f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        315.2,
+        298.7,
+        298.1
+      ]
+    },
+    {
+      "name": "lz4@default · 200B",
+      "type": "line",
+      "symbol": "emptyTriangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#4e79a7",
+        "type": "solid",
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#4e79a7",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        101.7,
+        99.7,
+        99.7
+      ]
+    },
+    {
+      "name": "lz4@default · 256B",
+      "type": "line",
+      "symbol": "emptyTriangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#59a14f",
+        "type": "solid",
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#59a14f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        100.4,
+        97.3,
+        96.9
+      ]
+    },
+    {
+      "name": "lz4@default · 1KB",
+      "type": "line",
+      "symbol": "emptyTriangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#f28e2b",
+        "type": "solid",
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#f28e2b",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        163.6,
+        157.7,
+        157.7
+      ]
+    },
+    {
+      "name": "lz4@default · 8KB",
+      "type": "line",
+      "symbol": "emptyTriangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#e15759",
+        "type": "solid",
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#e15759",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        202.1,
+        200.5,
+        191.5
+      ]
+    },
+    {
+      "name": "lz4@default · 32KB",
+      "type": "line",
+      "symbol": "emptyTriangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#b07aa1",
+        "type": "solid",
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#b07aa1",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        224.6,
+        221.1,
+        215.3
+      ]
+    },
+    {
+      "name": "lz4@default · 300KB",
+      "type": "line",
+      "symbol": "emptyTriangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#2a9d8f",
+        "type": "solid",
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#2a9d8f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        326.1,
+        310.9,
+        307.7
+      ]
+    },
+    {
+      "name": "zstd@default · 200B",
+      "type": "line",
+      "symbol": "rect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#4e79a7",
+        "type": "solid",
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#4e79a7",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        101.7,
+        97.3,
+        99
+      ]
+    },
+    {
+      "name": "zstd@default · 256B",
+      "type": "line",
+      "symbol": "rect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#59a14f",
+        "type": "solid",
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#59a14f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        98.5,
+        97.3,
+        95.2
+      ]
+    },
+    {
+      "name": "zstd@default · 1KB",
+      "type": "line",
+      "symbol": "rect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#f28e2b",
+        "type": "solid",
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#f28e2b",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        175.4,
+        174.7,
+        170.9
+      ]
+    },
+    {
+      "name": "zstd@default · 8KB",
+      "type": "line",
+      "symbol": "rect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#e15759",
+        "type": "solid",
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#e15759",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        260.3,
+        253,
+        250.2
+      ]
+    },
+    {
+      "name": "zstd@default · 32KB",
+      "type": "line",
+      "symbol": "rect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#b07aa1",
+        "type": "solid",
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#b07aa1",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        255.2,
+        248.1,
+        241.7
+      ]
+    },
+    {
+      "name": "zstd@default · 300KB",
+      "type": "line",
+      "symbol": "rect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#2a9d8f",
+        "type": "solid",
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#2a9d8f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        304.1,
+        296.6,
+        295.9
+      ]
+    },
+    {
+      "name": "zstd@high-ratio · 200B",
+      "type": "line",
+      "symbol": "emptyRect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#4e79a7",
+        "type": "solid",
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#4e79a7",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        103,
+        101.7,
+        100.4
+      ]
+    },
+    {
+      "name": "zstd@high-ratio · 256B",
+      "type": "line",
+      "symbol": "emptyRect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#59a14f",
+        "type": "solid",
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#59a14f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        98,
+        97.5,
+        95.4
+      ]
+    },
+    {
+      "name": "zstd@high-ratio · 1KB",
+      "type": "line",
+      "symbol": "emptyRect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#f28e2b",
+        "type": "solid",
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#f28e2b",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        173.5,
+        172.8,
+        168.5
+      ]
+    },
+    {
+      "name": "zstd@high-ratio · 8KB",
+      "type": "line",
+      "symbol": "emptyRect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#e15759",
+        "type": "solid",
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#e15759",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        258.2,
+        254.3,
+        245.6
+      ]
+    },
+    {
+      "name": "zstd@high-ratio · 32KB",
+      "type": "line",
+      "symbol": "emptyRect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#b07aa1",
+        "type": "solid",
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#b07aa1",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        254.5,
+        249.5,
+        237.3
+      ]
+    },
+    {
+      "name": "zstd@high-ratio · 300KB",
+      "type": "line",
+      "symbol": "emptyRect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#2a9d8f",
+        "type": "solid",
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#2a9d8f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        299,
+        288.3,
+        294
+      ]
+    },
+    {
+      "name": "aes-128-gcm · 200B",
+      "type": "line",
+      "symbol": "circle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#4e79a7",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#4e79a7",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        107.6,
+        106.8,
+        102.3
+      ]
+    },
+    {
+      "name": "aes-128-gcm · 256B",
+      "type": "line",
+      "symbol": "circle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#59a14f",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#59a14f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        106.4,
+        100.9,
+        101.8
+      ]
+    },
+    {
+      "name": "aes-128-gcm · 1KB",
+      "type": "line",
+      "symbol": "circle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#f28e2b",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#f28e2b",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        96,
+        93.4,
+        90.4
+      ]
+    },
+    {
+      "name": "aes-128-gcm · 8KB",
+      "type": "line",
+      "symbol": "circle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#e15759",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#e15759",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        91,
+        88.4,
+        83.5
+      ]
+    },
+    {
+      "name": "aes-128-gcm · 32KB",
+      "type": "line",
+      "symbol": "circle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#b07aa1",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#b07aa1",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        101.5,
+        95.3,
+        88
+      ]
+    },
+    {
+      "name": "aes-128-gcm · 300KB",
+      "type": "line",
+      "symbol": "circle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#2a9d8f",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#2a9d8f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        95.5,
+        87.9,
+        93.2
+      ]
+    },
+    {
+      "name": "aes-256-gcm · 200B",
+      "type": "line",
+      "symbol": "circle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#4e79a7",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#4e79a7",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        108.8,
+        107.5,
+        103.5
+      ]
+    },
+    {
+      "name": "aes-256-gcm · 256B",
+      "type": "line",
+      "symbol": "circle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#59a14f",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#59a14f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        106.8,
+        106.4,
+        103.5
+      ]
+    },
+    {
+      "name": "aes-256-gcm · 1KB",
+      "type": "line",
+      "symbol": "circle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#f28e2b",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#f28e2b",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        99,
+        98.4,
+        95.1
+      ]
+    },
+    {
+      "name": "aes-256-gcm · 8KB",
+      "type": "line",
+      "symbol": "circle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#e15759",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#e15759",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        91,
+        88.7,
+        84
+      ]
+    },
+    {
+      "name": "aes-256-gcm · 32KB",
+      "type": "line",
+      "symbol": "circle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#b07aa1",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#b07aa1",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        102.1,
+        95.2,
+        90
+      ]
+    },
+    {
+      "name": "aes-256-gcm · 300KB",
+      "type": "line",
+      "symbol": "circle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#2a9d8f",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#2a9d8f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        95.9,
+        88.1,
+        92
+      ]
+    },
+    {
+      "name": "chacha20-poly1305-ietf · 200B",
+      "type": "line",
+      "symbol": "circle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#4e79a7",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#4e79a7",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        102.5,
+        100.9,
+        99.1
+      ]
+    },
+    {
+      "name": "chacha20-poly1305-ietf · 256B",
+      "type": "line",
+      "symbol": "circle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#59a14f",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#59a14f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        100.1,
+        99.4,
+        98.4
+      ]
+    },
+    {
+      "name": "chacha20-poly1305-ietf · 1KB",
+      "type": "line",
+      "symbol": "circle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#f28e2b",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#f28e2b",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        98.4,
+        96,
+        94.7
+      ]
+    },
+    {
+      "name": "chacha20-poly1305-ietf · 8KB",
+      "type": "line",
+      "symbol": "circle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#e15759",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#e15759",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        110,
+        107.8,
+        102.6
+      ]
+    },
+    {
+      "name": "chacha20-poly1305-ietf · 32KB",
+      "type": "line",
+      "symbol": "circle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#b07aa1",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#b07aa1",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        102,
+        95.7,
+        93.1
+      ]
+    },
+    {
+      "name": "chacha20-poly1305-ietf · 300KB",
+      "type": "line",
+      "symbol": "circle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#2a9d8f",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#2a9d8f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        99.6,
+        93.4,
+        96
+      ]
+    },
+    {
+      "name": "lz4@fast + aes-128-gcm · 200B",
+      "type": "line",
+      "symbol": "triangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#4e79a7",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#4e79a7",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        108.5,
+        107.1,
+        103.1
+      ]
+    },
+    {
+      "name": "lz4@fast + aes-128-gcm · 256B",
+      "type": "line",
+      "symbol": "triangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#59a14f",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#59a14f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        106.4,
+        105.4,
+        102.1
+      ]
+    },
+    {
+      "name": "lz4@fast + aes-128-gcm · 1KB",
+      "type": "line",
+      "symbol": "triangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#f28e2b",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#f28e2b",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        141.7,
+        139.6,
+        136
+      ]
+    },
+    {
+      "name": "lz4@fast + aes-128-gcm · 8KB",
+      "type": "line",
+      "symbol": "triangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#e15759",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#e15759",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        185.2,
+        180.4,
+        171.9
+      ]
+    },
+    {
+      "name": "lz4@fast + aes-128-gcm · 32KB",
+      "type": "line",
+      "symbol": "triangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#b07aa1",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#b07aa1",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        215.5,
+        208.9,
+        206.2
+      ]
+    },
+    {
+      "name": "lz4@fast + aes-128-gcm · 300KB",
+      "type": "line",
+      "symbol": "triangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#2a9d8f",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#2a9d8f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        299.1,
+        289.3,
+        286.2
+      ]
+    },
+    {
+      "name": "lz4@fast + aes-256-gcm · 200B",
+      "type": "line",
+      "symbol": "triangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#4e79a7",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#4e79a7",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        109.9,
+        108.1,
+        104
+      ]
+    },
+    {
+      "name": "lz4@fast + aes-256-gcm · 256B",
+      "type": "line",
+      "symbol": "triangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#59a14f",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#59a14f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        108,
+        105.5,
+        102.7
+      ]
+    },
+    {
+      "name": "lz4@fast + aes-256-gcm · 1KB",
+      "type": "line",
+      "symbol": "triangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#f28e2b",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#f28e2b",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        142.9,
+        135.1,
+        132.7
+      ]
+    },
+    {
+      "name": "lz4@fast + aes-256-gcm · 8KB",
+      "type": "line",
+      "symbol": "triangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#e15759",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#e15759",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        186,
+        182.2,
+        175.4
+      ]
+    },
+    {
+      "name": "lz4@fast + aes-256-gcm · 32KB",
+      "type": "line",
+      "symbol": "triangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#b07aa1",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#b07aa1",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        216.2,
+        211,
+        205.1
+      ]
+    },
+    {
+      "name": "lz4@fast + aes-256-gcm · 300KB",
+      "type": "line",
+      "symbol": "triangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#2a9d8f",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#2a9d8f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        295,
+        286.1,
+        285.3
+      ]
+    },
+    {
+      "name": "lz4@fast + chacha20-poly1305-ietf · 200B",
+      "type": "line",
+      "symbol": "triangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#4e79a7",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#4e79a7",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        102.8,
+        100.9,
+        99
+      ]
+    },
+    {
+      "name": "lz4@fast + chacha20-poly1305-ietf · 256B",
+      "type": "line",
+      "symbol": "triangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#59a14f",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#59a14f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        100.6,
+        99.3,
+        97
+      ]
+    },
+    {
+      "name": "lz4@fast + chacha20-poly1305-ietf · 1KB",
+      "type": "line",
+      "symbol": "triangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#f28e2b",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#f28e2b",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        127.5,
+        124,
+        122.3
+      ]
+    },
+    {
+      "name": "lz4@fast + chacha20-poly1305-ietf · 8KB",
+      "type": "line",
+      "symbol": "triangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#e15759",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#e15759",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        169.6,
+        168.6,
+        161.1
+      ]
+    },
+    {
+      "name": "lz4@fast + chacha20-poly1305-ietf · 32KB",
+      "type": "line",
+      "symbol": "triangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#b07aa1",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#b07aa1",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        197.3,
+        194.3,
+        189.4
+      ]
+    },
+    {
+      "name": "lz4@fast + chacha20-poly1305-ietf · 300KB",
+      "type": "line",
+      "symbol": "triangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#2a9d8f",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#2a9d8f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        265.1,
+        260.4,
+        258
+      ]
+    },
+    {
+      "name": "lz4@default + aes-128-gcm · 200B",
+      "type": "line",
+      "symbol": "emptyTriangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#4e79a7",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#4e79a7",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        109.5,
+        108.2,
+        104
+      ]
+    },
+    {
+      "name": "lz4@default + aes-128-gcm · 256B",
+      "type": "line",
+      "symbol": "emptyTriangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#59a14f",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#59a14f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        107.9,
+        106.9,
+        102.8
+      ]
+    },
+    {
+      "name": "lz4@default + aes-128-gcm · 1KB",
+      "type": "line",
+      "symbol": "emptyTriangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#f28e2b",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#f28e2b",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        142.5,
+        140.2,
+        137
+      ]
+    },
+    {
+      "name": "lz4@default + aes-128-gcm · 8KB",
+      "type": "line",
+      "symbol": "emptyTriangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#e15759",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#e15759",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        185.8,
+        183.1,
+        174.5
+      ]
+    },
+    {
+      "name": "lz4@default + aes-128-gcm · 32KB",
+      "type": "line",
+      "symbol": "emptyTriangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#b07aa1",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#b07aa1",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        213.6,
+        209.5,
+        203.9
+      ]
+    },
+    {
+      "name": "lz4@default + aes-128-gcm · 300KB",
+      "type": "line",
+      "symbol": "emptyTriangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#2a9d8f",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#2a9d8f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        304.7,
+        290.7,
+        288.6
+      ]
+    },
+    {
+      "name": "lz4@default + aes-256-gcm · 200B",
+      "type": "line",
+      "symbol": "emptyTriangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#4e79a7",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#4e79a7",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        110.4,
+        107.1,
+        103.9
+      ]
+    },
+    {
+      "name": "lz4@default + aes-256-gcm · 256B",
+      "type": "line",
+      "symbol": "emptyTriangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#59a14f",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#59a14f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        108.2,
+        107.4,
+        103
+      ]
+    },
+    {
+      "name": "lz4@default + aes-256-gcm · 1KB",
+      "type": "line",
+      "symbol": "emptyTriangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#f28e2b",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#f28e2b",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        141.2,
+        140,
+        134.7
+      ]
+    },
+    {
+      "name": "lz4@default + aes-256-gcm · 8KB",
+      "type": "line",
+      "symbol": "emptyTriangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#e15759",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#e15759",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        185.3,
+        184.5,
+        175.4
+      ]
+    },
+    {
+      "name": "lz4@default + aes-256-gcm · 32KB",
+      "type": "line",
+      "symbol": "emptyTriangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#b07aa1",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#b07aa1",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        215.7,
+        210.7,
+        204.8
+      ]
+    },
+    {
+      "name": "lz4@default + aes-256-gcm · 300KB",
+      "type": "line",
+      "symbol": "emptyTriangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#2a9d8f",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#2a9d8f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        301.4,
+        285.4,
+        284.4
+      ]
+    },
+    {
+      "name": "lz4@default + chacha20-poly1305-ietf · 200B",
+      "type": "line",
+      "symbol": "emptyTriangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#4e79a7",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#4e79a7",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        103.3,
+        101.8,
+        98.7
+      ]
+    },
+    {
+      "name": "lz4@default + chacha20-poly1305-ietf · 256B",
+      "type": "line",
+      "symbol": "emptyTriangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#59a14f",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#59a14f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        101.3,
+        100.3,
+        98.2
+      ]
+    },
+    {
+      "name": "lz4@default + chacha20-poly1305-ietf · 1KB",
+      "type": "line",
+      "symbol": "emptyTriangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#f28e2b",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#f28e2b",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        128.7,
+        126.7,
+        123.8
+      ]
+    },
+    {
+      "name": "lz4@default + chacha20-poly1305-ietf · 8KB",
+      "type": "line",
+      "symbol": "emptyTriangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#e15759",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#e15759",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        168.7,
+        167.3,
+        160.1
+      ]
+    },
+    {
+      "name": "lz4@default + chacha20-poly1305-ietf · 32KB",
+      "type": "line",
+      "symbol": "emptyTriangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#b07aa1",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#b07aa1",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        197.4,
+        192.7,
+        187.6
+      ]
+    },
+    {
+      "name": "lz4@default + chacha20-poly1305-ietf · 300KB",
+      "type": "line",
+      "symbol": "emptyTriangle",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#2a9d8f",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#2a9d8f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        273.1,
+        264.8,
+        264.2
+      ]
+    },
+    {
+      "name": "zstd@default + aes-128-gcm · 200B",
+      "type": "line",
+      "symbol": "rect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#4e79a7",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#4e79a7",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        109.2,
+        107.9,
+        103.5
+      ]
+    },
+    {
+      "name": "zstd@default + aes-128-gcm · 256B",
+      "type": "line",
+      "symbol": "rect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#59a14f",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#59a14f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        106.7,
+        104.2,
+        102.3
+      ]
+    },
+    {
+      "name": "zstd@default + aes-128-gcm · 1KB",
+      "type": "line",
+      "symbol": "rect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#f28e2b",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#f28e2b",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        167.6,
+        165.9,
+        158.8
+      ]
+    },
+    {
+      "name": "zstd@default + aes-128-gcm · 8KB",
+      "type": "line",
+      "symbol": "rect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#e15759",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#e15759",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        251,
+        249.3,
+        242.6
+      ]
+    },
+    {
+      "name": "zstd@default + aes-128-gcm · 32KB",
+      "type": "line",
+      "symbol": "rect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#b07aa1",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#b07aa1",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        243.8,
+        240,
+        233.3
+      ]
+    },
+    {
+      "name": "zstd@default + aes-128-gcm · 300KB",
+      "type": "line",
+      "symbol": "rect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#2a9d8f",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#2a9d8f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        296.7,
+        283,
+        272.3
+      ]
+    },
+    {
+      "name": "zstd@default + aes-256-gcm · 200B",
+      "type": "line",
+      "symbol": "rect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#4e79a7",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#4e79a7",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        108.1,
+        108.1,
+        103
+      ]
+    },
+    {
+      "name": "zstd@default + aes-256-gcm · 256B",
+      "type": "line",
+      "symbol": "rect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#59a14f",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#59a14f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        107.7,
+        107.2,
+        101.5
+      ]
+    },
+    {
+      "name": "zstd@default + aes-256-gcm · 1KB",
+      "type": "line",
+      "symbol": "rect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#f28e2b",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#f28e2b",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        169.5,
+        165.2,
+        163.1
+      ]
+    },
+    {
+      "name": "zstd@default + aes-256-gcm · 8KB",
+      "type": "line",
+      "symbol": "rect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#e15759",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#e15759",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        245.3,
+        242.4,
+        240
+      ]
+    },
+    {
+      "name": "zstd@default + aes-256-gcm · 32KB",
+      "type": "line",
+      "symbol": "rect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#b07aa1",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#b07aa1",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        245.5,
+        238.7,
+        234.3
+      ]
+    },
+    {
+      "name": "zstd@default + aes-256-gcm · 300KB",
+      "type": "line",
+      "symbol": "rect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#2a9d8f",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#2a9d8f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        303.3,
+        286.7,
+        287.3
+      ]
+    },
+    {
+      "name": "zstd@default + chacha20-poly1305-ietf · 200B",
+      "type": "line",
+      "symbol": "rect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#4e79a7",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#4e79a7",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        103.4,
+        101.4,
+        99.4
+      ]
+    },
+    {
+      "name": "zstd@default + chacha20-poly1305-ietf · 256B",
+      "type": "line",
+      "symbol": "rect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#59a14f",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#59a14f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        101.4,
+        99.9,
+        97.8
+      ]
+    },
+    {
+      "name": "zstd@default + chacha20-poly1305-ietf · 1KB",
+      "type": "line",
+      "symbol": "rect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#f28e2b",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#f28e2b",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        159.1,
+        157.9,
+        155.1
+      ]
+    },
+    {
+      "name": "zstd@default + chacha20-poly1305-ietf · 8KB",
+      "type": "line",
+      "symbol": "rect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#e15759",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#e15759",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        240.4,
+        233.2,
+        230
+      ]
+    },
+    {
+      "name": "zstd@default + chacha20-poly1305-ietf · 32KB",
+      "type": "line",
+      "symbol": "rect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#b07aa1",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#b07aa1",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        235.6,
+        230.5,
+        225.7
+      ]
+    },
+    {
+      "name": "zstd@default + chacha20-poly1305-ietf · 300KB",
+      "type": "line",
+      "symbol": "rect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#2a9d8f",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#2a9d8f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        287.1,
+        273.6,
+        270.3
+      ]
+    },
+    {
+      "name": "zstd@high-ratio + aes-128-gcm · 200B",
+      "type": "line",
+      "symbol": "emptyRect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#4e79a7",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#4e79a7",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        109.8,
+        107.7,
+        102.3
+      ]
+    },
+    {
+      "name": "zstd@high-ratio + aes-128-gcm · 256B",
+      "type": "line",
+      "symbol": "emptyRect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#59a14f",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#59a14f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        107,
+        106.3,
+        103.7
+      ]
+    },
+    {
+      "name": "zstd@high-ratio + aes-128-gcm · 1KB",
+      "type": "line",
+      "symbol": "emptyRect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#f28e2b",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#f28e2b",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        167.3,
+        164.6,
+        161.5
+      ]
+    },
+    {
+      "name": "zstd@high-ratio + aes-128-gcm · 8KB",
+      "type": "line",
+      "symbol": "emptyRect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#e15759",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#e15759",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        250.4,
+        245.8,
+        245.2
+      ]
+    },
+    {
+      "name": "zstd@high-ratio + aes-128-gcm · 32KB",
+      "type": "line",
+      "symbol": "emptyRect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#b07aa1",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#b07aa1",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        245.5,
+        236.5,
+        233.4
+      ]
+    },
+    {
+      "name": "zstd@high-ratio + aes-128-gcm · 300KB",
+      "type": "line",
+      "symbol": "emptyRect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#2a9d8f",
+        "type": [
+          7,
+          4
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#2a9d8f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        300.1,
+        294,
+        284.3
+      ]
+    },
+    {
+      "name": "zstd@high-ratio + aes-256-gcm · 200B",
+      "type": "line",
+      "symbol": "emptyRect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#4e79a7",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#4e79a7",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        109.1,
+        107.5,
+        103.3
+      ]
+    },
+    {
+      "name": "zstd@high-ratio + aes-256-gcm · 256B",
+      "type": "line",
+      "symbol": "emptyRect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#59a14f",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#59a14f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        108.5,
+        107.2,
+        103.6
+      ]
+    },
+    {
+      "name": "zstd@high-ratio + aes-256-gcm · 1KB",
+      "type": "line",
+      "symbol": "emptyRect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#f28e2b",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#f28e2b",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        162.8,
+        162.4,
+        158.6
+      ]
+    },
+    {
+      "name": "zstd@high-ratio + aes-256-gcm · 8KB",
+      "type": "line",
+      "symbol": "emptyRect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#e15759",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#e15759",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        249,
+        245.8,
+        239.6
+      ]
+    },
+    {
+      "name": "zstd@high-ratio + aes-256-gcm · 32KB",
+      "type": "line",
+      "symbol": "emptyRect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#b07aa1",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#b07aa1",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        250.7,
+        244.1,
+        238.2
+      ]
+    },
+    {
+      "name": "zstd@high-ratio + aes-256-gcm · 300KB",
+      "type": "line",
+      "symbol": "emptyRect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#2a9d8f",
+        "type": [
+          1.5,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#2a9d8f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        296.4,
+        288.4,
+        282.9
+      ]
+    },
+    {
+      "name": "zstd@high-ratio + chacha20-poly1305-ietf · 200B",
+      "type": "line",
+      "symbol": "emptyRect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#4e79a7",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#4e79a7",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        102.9,
+        100.3,
+        99.7
+      ]
+    },
+    {
+      "name": "zstd@high-ratio + chacha20-poly1305-ietf · 256B",
+      "type": "line",
+      "symbol": "emptyRect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#59a14f",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#59a14f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        99.6,
+        100.3,
+        95.9
+      ]
+    },
+    {
+      "name": "zstd@high-ratio + chacha20-poly1305-ietf · 1KB",
+      "type": "line",
+      "symbol": "emptyRect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#f28e2b",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#f28e2b",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        156.1,
+        152.2,
+        151.2
+      ]
+    },
+    {
+      "name": "zstd@high-ratio + chacha20-poly1305-ietf · 8KB",
+      "type": "line",
+      "symbol": "emptyRect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#e15759",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#e15759",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        240.1,
+        237,
+        235.6
+      ]
+    },
+    {
+      "name": "zstd@high-ratio + chacha20-poly1305-ietf · 32KB",
+      "type": "line",
+      "symbol": "emptyRect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#b07aa1",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#b07aa1",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        245.7,
+        239.6,
+        232.2
+      ]
+    },
+    {
+      "name": "zstd@high-ratio + chacha20-poly1305-ietf · 300KB",
+      "type": "line",
+      "symbol": "emptyRect",
+      "symbolSize": 5,
+      "lineStyle": {
+        "width": 1.6,
+        "color": "#2a9d8f",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ],
+        "opacity": 0.75
+      },
+      "itemStyle": {
+        "color": "#2a9d8f",
+        "opacity": 0.85
+      },
+      "data": [
+        100,
+        283.6,
+        275.3,
+        268.1
+      ]
+    },
+    {
+      "name": "无加密无压缩 · 200B",
+      "type": "line",
+      "symbol": "circle",
+      "symbolSize": 7,
+      "lineStyle": {
+        "width": 2.6,
+        "color": "#4e79a7",
+        "type": "solid",
+        "opacity": 1
+      },
+      "itemStyle": {
+        "color": "#4e79a7",
+        "opacity": 1
+      },
+      "data": [
+        100,
+        101.4,
+        98.9,
+        99.4
+      ],
+      "markLine": {
+        "silent": true,
+        "symbol": "none",
+        "lineStyle": {
+          "color": "#999999",
+          "type": "dashed"
+        },
+        "label": {
+          "formatter": "2 节点 = 100%",
+          "position": "insideEndTop",
+          "color": "#666666"
+        },
+        "data": [
+          {
+            "yAxis": 100
+          }
+        ]
+      }
+    },
+    {
+      "name": "无加密无压缩 · 256B",
+      "type": "line",
+      "symbol": "circle",
+      "symbolSize": 7,
+      "lineStyle": {
+        "width": 2.6,
+        "color": "#59a14f",
+        "type": "solid",
+        "opacity": 1
+      },
+      "itemStyle": {
+        "color": "#59a14f",
+        "opacity": 1
+      },
+      "data": [
+        100,
+        99.4,
+        96.9,
+        97
+      ]
+    },
+    {
+      "name": "无加密无压缩 · 1KB",
+      "type": "line",
+      "symbol": "circle",
+      "symbolSize": 7,
+      "lineStyle": {
+        "width": 2.6,
+        "color": "#f28e2b",
+        "type": "solid",
+        "opacity": 1
+      },
+      "itemStyle": {
+        "color": "#f28e2b",
+        "opacity": 1
+      },
+      "data": [
+        100,
+        90.5,
+        87.9,
+        83.3
+      ]
+    },
+    {
+      "name": "无加密无压缩 · 8KB",
+      "type": "line",
+      "symbol": "circle",
+      "symbolSize": 7,
+      "lineStyle": {
+        "width": 2.6,
+        "color": "#e15759",
+        "type": "solid",
+        "opacity": 1
+      },
+      "itemStyle": {
+        "color": "#e15759",
+        "opacity": 1
+      },
+      "data": [
+        100,
+        115.9,
+        113.9,
+        107
+      ]
+    },
+    {
+      "name": "无加密无压缩 · 32KB",
+      "type": "line",
+      "symbol": "circle",
+      "symbolSize": 7,
+      "lineStyle": {
+        "width": 2.6,
+        "color": "#b07aa1",
+        "type": "solid",
+        "opacity": 1
+      },
+      "itemStyle": {
+        "color": "#b07aa1",
+        "opacity": 1
+      },
+      "data": [
+        100,
+        103,
+        95.7,
+        89.3
+      ]
+    },
+    {
+      "name": "无加密无压缩 · 300KB",
+      "type": "line",
+      "symbol": "circle",
+      "symbolSize": 7,
+      "lineStyle": {
+        "width": 2.6,
+        "color": "#2a9d8f",
+        "type": "solid",
+        "opacity": 1
+      },
+      "itemStyle": {
+        "color": "#2a9d8f",
+        "opacity": 1
+      },
+      "data": [
+        100,
+        98.1,
+        89.9,
+        94.8
+      ]
+    },
+    {
+      "name": "200B",
+      "type": "line",
+      "data": [],
+      "symbol": "circle",
+      "symbolSize": 8,
+      "lineStyle": {
+        "width": 2.4,
+        "color": "#4e79a7",
+        "type": "solid"
+      },
+      "itemStyle": {
+        "color": "#4e79a7"
+      }
+    },
+    {
+      "name": "256B",
+      "type": "line",
+      "data": [],
+      "symbol": "circle",
+      "symbolSize": 8,
+      "lineStyle": {
+        "width": 2.4,
+        "color": "#59a14f",
+        "type": "solid"
+      },
+      "itemStyle": {
+        "color": "#59a14f"
+      }
+    },
+    {
+      "name": "1KB",
+      "type": "line",
+      "data": [],
+      "symbol": "circle",
+      "symbolSize": 8,
+      "lineStyle": {
+        "width": 2.4,
+        "color": "#f28e2b",
+        "type": "solid"
+      },
+      "itemStyle": {
+        "color": "#f28e2b"
+      }
+    },
+    {
+      "name": "8KB",
+      "type": "line",
+      "data": [],
+      "symbol": "circle",
+      "symbolSize": 8,
+      "lineStyle": {
+        "width": 2.4,
+        "color": "#e15759",
+        "type": "solid"
+      },
+      "itemStyle": {
+        "color": "#e15759"
+      }
+    },
+    {
+      "name": "32KB",
+      "type": "line",
+      "data": [],
+      "symbol": "circle",
+      "symbolSize": 8,
+      "lineStyle": {
+        "width": 2.4,
+        "color": "#b07aa1",
+        "type": "solid"
+      },
+      "itemStyle": {
+        "color": "#b07aa1"
+      }
+    },
+    {
+      "name": "300KB",
+      "type": "line",
+      "data": [],
+      "symbol": "circle",
+      "symbolSize": 8,
+      "lineStyle": {
+        "width": 2.4,
+        "color": "#2a9d8f",
+        "type": "solid"
+      },
+      "itemStyle": {
+        "color": "#2a9d8f"
+      }
+    },
+    {
+      "name": "无压缩",
+      "type": "line",
+      "data": [],
+      "symbol": "circle",
+      "symbolSize": 8,
+      "lineStyle": {
+        "width": 2.4,
+        "color": "#555555",
+        "type": "solid"
+      },
+      "itemStyle": {
+        "color": "#555555"
+      }
+    },
+    {
+      "name": "lz4@fast",
+      "type": "line",
+      "data": [],
+      "symbol": "triangle",
+      "symbolSize": 8,
+      "lineStyle": {
+        "width": 2.4,
+        "color": "#555555",
+        "type": "solid"
+      },
+      "itemStyle": {
+        "color": "#555555"
+      }
+    },
+    {
+      "name": "lz4@default",
+      "type": "line",
+      "data": [],
+      "symbol": "emptyTriangle",
+      "symbolSize": 8,
+      "lineStyle": {
+        "width": 2.4,
+        "color": "#555555",
+        "type": "solid"
+      },
+      "itemStyle": {
+        "color": "#555555"
+      }
+    },
+    {
+      "name": "zstd@default",
+      "type": "line",
+      "data": [],
+      "symbol": "rect",
+      "symbolSize": 8,
+      "lineStyle": {
+        "width": 2.4,
+        "color": "#555555",
+        "type": "solid"
+      },
+      "itemStyle": {
+        "color": "#555555"
+      }
+    },
+    {
+      "name": "zstd@high-ratio",
+      "type": "line",
+      "data": [],
+      "symbol": "emptyRect",
+      "symbolSize": 8,
+      "lineStyle": {
+        "width": 2.4,
+        "color": "#555555",
+        "type": "solid"
+      },
+      "itemStyle": {
+        "color": "#555555"
+      }
+    },
+    {
+      "name": "无加密",
+      "type": "line",
+      "data": [],
+      "symbol": "circle",
+      "symbolSize": 8,
+      "lineStyle": {
+        "width": 2.4,
+        "color": "#555555",
+        "type": "solid"
+      },
+      "itemStyle": {
+        "color": "#555555"
+      }
+    },
+    {
+      "name": "aes-128-gcm",
+      "type": "line",
+      "data": [],
+      "symbol": "circle",
+      "symbolSize": 8,
+      "lineStyle": {
+        "width": 2.4,
+        "color": "#555555",
+        "type": [
+          7,
+          4
+        ]
+      },
+      "itemStyle": {
+        "color": "#555555"
+      }
+    },
+    {
+      "name": "aes-256-gcm",
+      "type": "line",
+      "data": [],
+      "symbol": "circle",
+      "symbolSize": 8,
+      "lineStyle": {
+        "width": 2.4,
+        "color": "#555555",
+        "type": [
+          1.5,
+          3
+        ]
+      },
+      "itemStyle": {
+        "color": "#555555"
+      }
+    },
+    {
+      "name": "chacha20-poly1305-ietf",
+      "type": "line",
+      "data": [],
+      "symbol": "circle",
+      "symbolSize": 8,
+      "lineStyle": {
+        "width": 2.4,
+        "color": "#555555",
+        "type": [
+          9,
+          3,
+          2,
+          3
+        ]
+      },
+      "itemStyle": {
+        "color": "#555555"
+      }
+    }
+  ]
+}

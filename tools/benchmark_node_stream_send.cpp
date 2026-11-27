@@ -3,13 +3,24 @@
 //
 // Connects to a benchmark_node_stream_recv node and floods data-transform
 // messages of a fixed payload size until the duration elapses, then drains and
-// writes per-second samples and final statistics as JSON.
+// writes periodic samples and final statistics as JSON. Each sample carries the
+// real time it covers ("interval"); see benchmark_node_stream_recv.
 //
 // usage: benchmark_node_stream_send <connect_addr> <bus_id> <target_id> <payload_size> <duration_sec> [options]
 //   --crypto=<none|aes-128-gcm|aes-192-gcm|aes-256-gcm|chacha20|chacha20-poly1305-ietf>
 //   --compression=<none|lz4|zstd>
 //   --level=<fast|low-cpu|balanced|high-ratio|max-ratio>  (unified compression level, default balanced)
 //   --json=<output file>                                  (default: stdout)
+//   --listen=<addr>                                       (listen here as well, so the peer's connect-back
+//                                                          builds the ctrl/data connection pair)
+//   --send-buffer=<bytes>                                 (io_stream send buffer limit of this node;
+//                                                          0 keeps the libatbus default, 8MB)
+//   --gate=<path>                                         (after registering with the peer, publish
+//                                                          <path>.ready.<bus_id> and wait until
+//                                                          <path> exists before flooding; lets a
+//                                                          runner start many senders that all
+//                                                          flood from the same instant)
+//   --verbose                                              (libatbus debug log)
 
 #include <chrono>
 #include <cinttypes>
@@ -32,6 +43,8 @@ constexpr int32_t kBenchmarkMessageType = 10001;
 struct run_config {
   std::string connect_addr;
   std::string listen_addr;
+  size_t send_buffer_size = 0;  // 0 = keep node default
+  std::string gate_path;        // when set: after registering, wait for this file before flooding
   bool verbose = false;
   uint64_t bus_id = 0;
   uint64_t target_id = 0;
@@ -47,14 +60,18 @@ struct sample_t {
   int sec;
   uint64_t msgs_delta;
   uint64_t bytes_delta;
-  double cpu_percent;
+  double cpu_percent;   // total (user+system) of the whole process, per real second of this sample
   long rss_kb;
+  double interval_sec;  // real time covered by this sample
 };
 
 struct stats_t {
   bool ready = false;
   bool done = false;
   bool peer_lost = false;
+  bool gate_armed = false;  // registered, waiting for the gate file
+  bool gate_open = false;
+  std::chrono::steady_clock::time_point gate_deadline;
   uint64_t msgs = 0;
   uint64_t bytes = 0;
   uint64_t backpressure = 0;  // BUFF_LIMIT retries
@@ -68,6 +85,7 @@ struct stats_t {
 run_config conf;
 stats_t bench_stat;
 uv_loop_t* main_loop = nullptr;
+uv_timer_t gate_timer;
 std::vector<unsigned char> payload;
 
 double get_cpu_time() {
@@ -229,27 +247,55 @@ int on_close_connection(const atbus::node&, const atbus::endpoint*, const atbus:
   return 0;
 }
 
+// Start of the interval that the next stat sample covers. It is a function-level
+// static so that it is initialized once, before the timer is started.
+std::chrono::steady_clock::time_point& stat_interval_start() {
+  static std::chrono::steady_clock::time_point value = std::chrono::steady_clock::now();
+  return value;
+}
+
 void on_stat_timer(uv_timer_t* /*handle*/) {
   static uint64_t last_msgs = 0;
   static uint64_t last_bytes = 0;
   static double last_cpu = 0;
   static int secs = 0;
 
+  // The timer only fires from poll(); a flood burst between two polls can last longer
+  // than a second, so the sample records the real time it covers.
+  const std::chrono::steady_clock::time_point now_time = std::chrono::steady_clock::now();
   ++secs;
   double now_cpu = get_cpu_time();
   sample_t s;
   s.sec = secs;
+  s.interval_sec = std::chrono::duration_cast<std::chrono::duration<double>>(now_time - stat_interval_start()).count();
   s.msgs_delta = bench_stat.msgs - last_msgs;
   s.bytes_delta = bench_stat.bytes - last_bytes;
-  s.cpu_percent = (now_cpu - last_cpu) * 100.0;
+  s.cpu_percent = s.interval_sec > 0 ? (now_cpu - last_cpu) * 100.0 / s.interval_sec : 0;  // percent of one core
   s.rss_kb = get_peak_rss_kb();
   last_msgs = bench_stat.msgs;
   last_bytes = bench_stat.bytes;
   last_cpu = now_cpu;
+  stat_interval_start() = now_time;
   bench_stat.samples.push_back(s);
 
-  fprintf(stderr, "[sec %3d] sent=%" PRIu64 " msgs, %" PRIu64 " bytes, bp=%" PRIu64 ", cpu=%.1f%%, peak_rss=%ldKB\n",
-          s.sec, s.msgs_delta, s.bytes_delta, bench_stat.backpressure, s.cpu_percent, s.rss_kb);
+  fprintf(stderr,
+          "[sec %3d] sent=%" PRIu64 " msgs, %" PRIu64 " bytes, bp=%" PRIu64 ", cpu=%.1f%%, peak_rss=%ldKB, interval=%.2fs\n",
+          s.sec, s.msgs_delta, s.bytes_delta, bench_stat.backpressure, s.cpu_percent, s.rss_kb, s.interval_sec);
+}
+
+// Runs every 2 ms while this sender waits at the gate; the measurement window starts
+// when the gate file appears.
+void on_gate_timer(uv_timer_t* handle) {
+  FILE* gate = fopen(conf.gate_path.c_str(), "r");
+  if (nullptr == gate) {
+    return;
+  }
+  fclose(gate);
+  uv_timer_stop(handle);
+  bench_stat.gate_open = true;
+  bench_stat.start_time = std::chrono::steady_clock::now();
+  stat_interval_start() = bench_stat.start_time;
+  fprintf(stderr, "[gate] opened, start flooding\n");
 }
 
 void write_json(double elapsed_sec) {
@@ -298,9 +344,10 @@ void write_json(double elapsed_sec) {
   for (size_t i = 0; i < bench_stat.samples.size(); ++i) {
     const sample_t& s = bench_stat.samples[i];
     fprintf(out,
-            "    {\"sec\": %d, \"msgs\": %" PRIu64 ", \"bytes\": %" PRIu64
-            ", \"cpu_percent\": %.2f, \"rss_kb\": %ld}%s\n",
-            s.sec, s.msgs_delta, s.bytes_delta, s.cpu_percent, s.rss_kb, i + 1 < bench_stat.samples.size() ? "," : "");
+            "    {\"sec\": %d, \"msgs\": %" PRIu64 ", \"bytes\": %" PRIu64 ", \"cpu_percent\": %.2f, \"rss_kb\": %ld"
+            ", \"interval\": %.3f}%s\n",
+            s.sec, s.msgs_delta, s.bytes_delta, s.cpu_percent, s.rss_kb, s.interval_sec,
+            i + 1 < bench_stat.samples.size() ? "," : "");
   }
   fprintf(out, "  ]\n}\n");
 
@@ -348,8 +395,15 @@ int main(int argc, char* argv[]) {
       conf.json_output = value;
     } else if (key == "--listen") {
       conf.listen_addr = value;
+    } else if (key == "--send-buffer") {
+      // Limit of this node's io_stream send buffer (messages not yet written to the
+      // socket). The libatbus default is 8MB; with hundreds of sender processes that
+      // much per sender exhausts the machine's memory.
+      conf.send_buffer_size = static_cast<size_t>(strtoul(value.c_str(), nullptr, 10));
     } else if (key == "--verbose") {
       conf.verbose = true;
+    } else if (key == "--gate") {
+      conf.gate_path = value;
     }
   }
 
@@ -371,6 +425,9 @@ int main(int argc, char* argv[]) {
 
   atbus::node::conf_t node_conf;
   node_conf.ev_loop = &loop;
+  if (conf.send_buffer_size > 0) {
+    node_conf.send_buffer_size = conf.send_buffer_size;
+  }
   setup_crypto(node_conf);
   if (!setup_compression(node_conf)) {
     fprintf(stderr, "invalid compression config: %s / %s\n", conf.compression.c_str(), conf.level.c_str());
@@ -415,6 +472,7 @@ int main(int argc, char* argv[]) {
 
   uv_timer_t stat_timer;
   uv_timer_init(&loop, &stat_timer);
+  stat_interval_start() = std::chrono::steady_clock::now();
   uv_timer_start(&stat_timer, on_stat_timer, 1000, 1000);
 
   bench_stat.start_time = std::chrono::steady_clock::now();
@@ -427,6 +485,35 @@ int main(int argc, char* argv[]) {
     if (!bench_stat.ready) {
       if (std::chrono::steady_clock::now() > connect_deadline) {
         fprintf(stderr, "connect timeout, peer not registered in 30s\n");
+        bench_stat.errors += 1;
+        break;
+      }
+      continue;
+    }
+
+    if (!conf.gate_path.empty() && !bench_stat.gate_open) {
+      // Rendezvous for multi-process runs, entered once the peer is registered. The
+      // runner opens the gate after every sender has registered, so all of them start
+      // flooding in the same instant and share one measurement window. Waiting before
+      // connecting is not enough: a receiver that already digests a flood serves the
+      // remaining handshakes slowly, and with a thousand senders the last one would
+      // start tens of seconds after the first, or time out.
+      if (!bench_stat.gate_armed) {
+        const std::string ready_file = conf.gate_path + ".ready." + std::to_string(conf.bus_id);
+        FILE* ready = fopen(ready_file.c_str(), "w");
+        if (nullptr == ready) {
+          fprintf(stderr, "create gate ready file %s failed\n", ready_file.c_str());
+          bench_stat.errors += 1;
+          break;
+        }
+        fclose(ready);
+        // poll() blocks until an event or a timer expires; this timer wakes it up
+        uv_timer_init(&loop, &gate_timer);
+        uv_timer_start(&gate_timer, on_gate_timer, 0, 2);
+        bench_stat.gate_armed = true;
+        bench_stat.gate_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(300);
+      } else if (std::chrono::steady_clock::now() > bench_stat.gate_deadline) {
+        fprintf(stderr, "gate %s was not opened in 300s\n", conf.gate_path.c_str());
         bench_stat.errors += 1;
         break;
       }
@@ -487,6 +574,10 @@ int main(int argc, char* argv[]) {
 
   uv_timer_stop(&stat_timer);
   uv_close(reinterpret_cast<uv_handle_t*>(&stat_timer), nullptr);
+  if (bench_stat.gate_armed) {
+    uv_timer_stop(&gate_timer);
+    uv_close(reinterpret_cast<uv_handle_t*>(&gate_timer), nullptr);
+  }
   uv_run(&loop, UV_RUN_NOWAIT);
   uv_loop_close(&loop);
 

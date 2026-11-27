@@ -1,0 +1,152 @@
+<svg width="960" height="540" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" baseProfile="full" viewBox="0 0 960 540">
+<rect width="960" height="540" x="0" y="0" fill="#fff"></rect>
+<path d="M52.2 504.5L932 504.5" fill="none" pointer-events="visible" stroke="#e6e6e6" class="zr2-cls-21"></path>
+<path d="M52.2 504.5L932 504.5" fill="none" pointer-events="visible" stroke="#e6e6e6" class="zr2-cls-21"></path>
+<path d="M52.2 398.5L932 398.5" fill="none" pointer-events="visible" stroke="#e6e6e6" class="zr2-cls-21"></path>
+<path d="M52.2 293.5L932 293.5" fill="none" pointer-events="visible" stroke="#e6e6e6" class="zr2-cls-21"></path>
+<path d="M52.2 187.5L932 187.5" fill="none" pointer-events="visible" stroke="#e6e6e6" class="zr2-cls-21"></path>
+<path d="M52.2 82.5L932 82.5" fill="none" pointer-events="visible" stroke="#e6e6e6" class="zr2-cls-21"></path>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:Microsoft YaHei;" y="-6" transform="translate(52.2 67)" fill="#54555a">msg/s</text>
+<path d="M52.2 504.5L932 504.5" fill="none" pointer-events="visible" stroke="#54555a" stroke-linecap="round" class="zr2-cls-21"></path>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:Microsoft YaHei;" transform="translate(44.2 504)" fill="#54555a">1K</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:Microsoft YaHei;" transform="translate(44.2 398.5)" fill="#54555a">10K</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:Microsoft YaHei;" transform="translate(44.2 293)" fill="#54555a">100K</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:Microsoft YaHei;" transform="translate(44.2 187.5)" fill="#54555a">1M</text>
+<text dominant-baseline="central" text-anchor="end" style="font-size:12px;font-family:Microsoft YaHei;" transform="translate(44.2 82)" fill="#54555a">10M</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:Microsoft YaHei;" xml:space="preserve" y="6" transform="translate(162.175 514)" fill="#54555a">2 节点</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:Microsoft YaHei;" xml:space="preserve" y="6" transform="translate(382.125 514)" fill="#54555a">10 节点</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:Microsoft YaHei;" xml:space="preserve" y="6" transform="translate(602.075 514)" fill="#54555a">100 节点</text>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:12px;font-family:Microsoft YaHei;" xml:space="preserve" y="6" transform="translate(822.025 514)" fill="#54555a">1000 节点</text>
+<g clip-path="url(#zr2-c0)">
+<path d="M162.2 127.2L382.1 126.6L602.1 127.7L822 127.5" fill="none" pointer-events="visible" stroke="#4e79a7" stroke-width="3" stroke-linejoin="bevel" class="zr2-cls-23"></path>
+</g>
+<g clip-path="url(#zr2-c1)">
+<path d="M162.2 130.5L382.1 130.8L602.1 132L822 131.9" fill="none" pointer-events="visible" stroke="#59a14f" stroke-width="3" stroke-linejoin="bevel" class="zr2-cls-23"></path>
+</g>
+<g clip-path="url(#zr2-c2)">
+<path d="M162.2 163.9L382.1 168.5L602.1 169.8L822 172.3" fill="none" pointer-events="visible" stroke="#f28e2b" stroke-width="3" stroke-linejoin="bevel" class="zr2-cls-23"></path>
+</g>
+<g clip-path="url(#zr2-c3)">
+<path d="M162.2 255.3L382.1 248.5L602.1 249.3L822 252.2" fill="none" pointer-events="visible" stroke="#e15759" stroke-width="3" stroke-linejoin="bevel" class="zr2-cls-23"></path>
+</g>
+<g clip-path="url(#zr2-c4)">
+<path d="M162.2 302.1L382.1 300.8L602.1 304.1L822 307.3" fill="none" pointer-events="visible" stroke="#b07aa1" stroke-width="3" stroke-linejoin="bevel" class="zr2-cls-23"></path>
+</g>
+<g clip-path="url(#zr2-c5)">
+<path d="M162.2 398.7L382.1 399.6L602.1 403.6L822 401.2" fill="none" pointer-events="visible" stroke="#2a9d8f" stroke-width="3" stroke-linejoin="bevel" class="zr2-cls-23"></path>
+</g>
+<path d="M1 0A1 1 0 1 1 1 -0.1A1 1 0 0 1 1 0" transform="matrix(4,0,0,4,162.175,127.2348)" fill="#4e79a7" ecmeta_series_index="0" ecmeta_data_index="0" ecmeta_ssr_type="chart" class="zr2-cls-24"></path>
+<path d="M1 0A1 1 0 1 1 1 -0.1A1 1 0 0 1 1 0" transform="matrix(4,0,0,4,382.125,126.5833)" fill="#4e79a7" ecmeta_series_index="0" ecmeta_data_index="1" ecmeta_ssr_type="chart" class="zr2-cls-24"></path>
+<path d="M1 0A1 1 0 1 1 1 -0.1A1 1 0 0 1 1 0" transform="matrix(4,0,0,4,602.075,127.7371)" fill="#4e79a7" ecmeta_series_index="0" ecmeta_data_index="2" ecmeta_ssr_type="chart" class="zr2-cls-24"></path>
+<path d="M1 0A1 1 0 1 1 1 -0.1A1 1 0 0 1 1 0" transform="matrix(4,0,0,4,822.025,127.4986)" fill="#4e79a7" ecmeta_series_index="0" ecmeta_data_index="3" ecmeta_ssr_type="chart" class="zr2-cls-24"></path>
+<path d="M1 0A1 1 0 1 1 1 -0.1A1 1 0 0 1 1 0" transform="matrix(4,0,0,4,162.175,130.5355)" fill="#59a14f" ecmeta_series_index="1" ecmeta_data_index="0" ecmeta_ssr_type="chart" class="zr2-cls-25"></path>
+<path d="M1 0A1 1 0 1 1 1 -0.1A1 1 0 0 1 1 0" transform="matrix(4,0,0,4,382.125,130.8183)" fill="#59a14f" ecmeta_series_index="1" ecmeta_data_index="1" ecmeta_ssr_type="chart" class="zr2-cls-25"></path>
+<path d="M1 0A1 1 0 1 1 1 -0.1A1 1 0 0 1 1 0" transform="matrix(4,0,0,4,602.075,131.9988)" fill="#59a14f" ecmeta_series_index="1" ecmeta_data_index="2" ecmeta_ssr_type="chart" class="zr2-cls-25"></path>
+<path d="M1 0A1 1 0 1 1 1 -0.1A1 1 0 0 1 1 0" transform="matrix(4,0,0,4,822.025,131.9368)" fill="#59a14f" ecmeta_series_index="1" ecmeta_data_index="3" ecmeta_ssr_type="chart" class="zr2-cls-25"></path>
+<path d="M1 0A1 1 0 1 1 1 -0.1A1 1 0 0 1 1 0" transform="matrix(4,0,0,4,162.175,163.9043)" fill="#f28e2b" ecmeta_series_index="2" ecmeta_data_index="0" ecmeta_ssr_type="chart" class="zr2-cls-26"></path>
+<path d="M1 0A1 1 0 1 1 1 -0.1A1 1 0 0 1 1 0" transform="matrix(4,0,0,4,382.125,168.461)" fill="#f28e2b" ecmeta_series_index="2" ecmeta_data_index="1" ecmeta_ssr_type="chart" class="zr2-cls-26"></path>
+<path d="M1 0A1 1 0 1 1 1 -0.1A1 1 0 0 1 1 0" transform="matrix(4,0,0,4,602.075,169.8014)" fill="#f28e2b" ecmeta_series_index="2" ecmeta_data_index="2" ecmeta_ssr_type="chart" class="zr2-cls-26"></path>
+<path d="M1 0A1 1 0 1 1 1 -0.1A1 1 0 0 1 1 0" transform="matrix(4,0,0,4,822.025,172.2596)" fill="#f28e2b" ecmeta_series_index="2" ecmeta_data_index="3" ecmeta_ssr_type="chart" class="zr2-cls-26"></path>
+<path d="M1 0A1 1 0 1 1 1 -0.1A1 1 0 0 1 1 0" transform="matrix(4,0,0,4,162.175,255.3131)" fill="#e15759" ecmeta_series_index="3" ecmeta_data_index="0" ecmeta_ssr_type="chart" class="zr2-cls-27"></path>
+<path d="M1 0A1 1 0 1 1 1 -0.1A1 1 0 0 1 1 0" transform="matrix(4,0,0,4,382.125,248.538)" fill="#e15759" ecmeta_series_index="3" ecmeta_data_index="1" ecmeta_ssr_type="chart" class="zr2-cls-27"></path>
+<path d="M1 0A1 1 0 1 1 1 -0.1A1 1 0 0 1 1 0" transform="matrix(4,0,0,4,602.075,249.3444)" fill="#e15759" ecmeta_series_index="3" ecmeta_data_index="2" ecmeta_ssr_type="chart" class="zr2-cls-27"></path>
+<path d="M1 0A1 1 0 1 1 1 -0.1A1 1 0 0 1 1 0" transform="matrix(4,0,0,4,822.025,252.208)" fill="#e15759" ecmeta_series_index="3" ecmeta_data_index="3" ecmeta_ssr_type="chart" class="zr2-cls-27"></path>
+<path d="M1 0A1 1 0 1 1 1 -0.1A1 1 0 0 1 1 0" transform="matrix(4,0,0,4,162.175,302.1128)" fill="#b07aa1" ecmeta_series_index="4" ecmeta_data_index="0" ecmeta_ssr_type="chart" class="zr2-cls-28"></path>
+<path d="M1 0A1 1 0 1 1 1 -0.1A1 1 0 0 1 1 0" transform="matrix(4,0,0,4,382.125,300.7567)" fill="#b07aa1" ecmeta_series_index="4" ecmeta_data_index="1" ecmeta_ssr_type="chart" class="zr2-cls-28"></path>
+<path d="M1 0A1 1 0 1 1 1 -0.1A1 1 0 0 1 1 0" transform="matrix(4,0,0,4,602.075,304.1327)" fill="#b07aa1" ecmeta_series_index="4" ecmeta_data_index="2" ecmeta_ssr_type="chart" class="zr2-cls-28"></path>
+<path d="M1 0A1 1 0 1 1 1 -0.1A1 1 0 0 1 1 0" transform="matrix(4,0,0,4,822.025,307.2866)" fill="#b07aa1" ecmeta_series_index="4" ecmeta_data_index="3" ecmeta_ssr_type="chart" class="zr2-cls-28"></path>
+<path d="M1 0A1 1 0 1 1 1 -0.1A1 1 0 0 1 1 0" transform="matrix(4,0,0,4,162.175,398.7435)" fill="#2a9d8f" ecmeta_series_index="5" ecmeta_data_index="0" ecmeta_ssr_type="chart" class="zr2-cls-29"></path>
+<path d="M1 0A1 1 0 1 1 1 -0.1A1 1 0 0 1 1 0" transform="matrix(4,0,0,4,382.125,399.6177)" fill="#2a9d8f" ecmeta_series_index="5" ecmeta_data_index="1" ecmeta_ssr_type="chart" class="zr2-cls-29"></path>
+<path d="M1 0A1 1 0 1 1 1 -0.1A1 1 0 0 1 1 0" transform="matrix(4,0,0,4,602.075,403.639)" fill="#2a9d8f" ecmeta_series_index="5" ecmeta_data_index="2" ecmeta_ssr_type="chart" class="zr2-cls-29"></path>
+<path d="M1 0A1 1 0 1 1 1 -0.1A1 1 0 0 1 1 0" transform="matrix(4,0,0,4,822.025,401.2133)" fill="#2a9d8f" ecmeta_series_index="5" ecmeta_data_index="3" ecmeta_ssr_type="chart" class="zr2-cls-29"></path>
+<path d="M-5 -5l403.8 0l0 22l-403.8 0Z" transform="translate(283.12 43)" fill="rgb(0,0,0)" fill-opacity="0" stroke="#b7b9be" stroke-width="0" class="zr2-cls-21"></path>
+<path d="M0 7L25 7" transform="translate(284.12 42)" fill="#000" stroke="#4e79a7" stroke-width="2" stroke-linecap="butt" stroke-miterlimit="10" class="zr2-cls-21"></path>
+<path d="M18.1 7A5.6 5.6 0 1 1 18.1 6.4A5.6 5.6 0 0 1 18.1 7" transform="translate(284.12 42)" fill="#4e79a7" class="zr2-cls-21"></path>
+<text dominant-baseline="central" text-anchor="start" style="font-size:12px;font-family:Microsoft YaHei;" x="30" y="7" transform="translate(284.12 42)" fill="#54555a">200B</text>
+<path d="M-1 1l59.2 0l0 12l-59.2 0Z" transform="translate(284.12 42)" fill="none" pointer-events="visible" ecmeta_series_index="0" ecmeta_data_index="0" ecmeta_ssr_type="legend" class="zr2-cls-30"></path>
+<path d="M0 7L25 7" transform="translate(351.32 42)" fill="#000" stroke="#59a14f" stroke-width="2" stroke-linecap="butt" stroke-miterlimit="10" class="zr2-cls-21"></path>
+<path d="M18.1 7A5.6 5.6 0 1 1 18.1 6.4A5.6 5.6 0 0 1 18.1 7" transform="translate(351.32 42)" fill="#59a14f" class="zr2-cls-21"></path>
+<text dominant-baseline="central" text-anchor="start" style="font-size:12px;font-family:Microsoft YaHei;" x="30" y="7" transform="translate(351.32 42)" fill="#54555a">256B</text>
+<path d="M-1 1l59.2 0l0 12l-59.2 0Z" transform="translate(351.32 42)" fill="none" pointer-events="visible" ecmeta_series_index="1" ecmeta_data_index="1" ecmeta_ssr_type="legend" class="zr2-cls-30"></path>
+<path d="M0 7L25 7" transform="translate(418.52 42)" fill="#000" stroke="#f28e2b" stroke-width="2" stroke-linecap="butt" stroke-miterlimit="10" class="zr2-cls-21"></path>
+<path d="M18.1 7A5.6 5.6 0 1 1 18.1 6.4A5.6 5.6 0 0 1 18.1 7" transform="translate(418.52 42)" fill="#f28e2b" class="zr2-cls-21"></path>
+<text dominant-baseline="central" text-anchor="start" style="font-size:12px;font-family:Microsoft YaHei;" x="30" y="7" transform="translate(418.52 42)" fill="#54555a">1KB</text>
+<path d="M-1 1l53.8 0l0 12l-53.8 0Z" transform="translate(418.52 42)" fill="none" pointer-events="visible" ecmeta_series_index="2" ecmeta_data_index="2" ecmeta_ssr_type="legend" class="zr2-cls-30"></path>
+<path d="M0 7L25 7" transform="translate(480.32 42)" fill="#000" stroke="#e15759" stroke-width="2" stroke-linecap="butt" stroke-miterlimit="10" class="zr2-cls-21"></path>
+<path d="M18.1 7A5.6 5.6 0 1 1 18.1 6.4A5.6 5.6 0 0 1 18.1 7" transform="translate(480.32 42)" fill="#e15759" class="zr2-cls-21"></path>
+<text dominant-baseline="central" text-anchor="start" style="font-size:12px;font-family:Microsoft YaHei;" x="30" y="7" transform="translate(480.32 42)" fill="#54555a">8KB</text>
+<path d="M-1 1l53.8 0l0 12l-53.8 0Z" transform="translate(480.32 42)" fill="none" pointer-events="visible" ecmeta_series_index="3" ecmeta_data_index="3" ecmeta_ssr_type="legend" class="zr2-cls-30"></path>
+<path d="M0 7L25 7" transform="translate(542.12 42)" fill="#000" stroke="#b07aa1" stroke-width="2" stroke-linecap="butt" stroke-miterlimit="10" class="zr2-cls-21"></path>
+<path d="M18.1 7A5.6 5.6 0 1 1 18.1 6.4A5.6 5.6 0 0 1 18.1 7" transform="translate(542.12 42)" fill="#b07aa1" class="zr2-cls-21"></path>
+<text dominant-baseline="central" text-anchor="start" style="font-size:12px;font-family:Microsoft YaHei;" x="30" y="7" transform="translate(542.12 42)" fill="#54555a">32KB</text>
+<path d="M-1 1l60.5 0l0 12l-60.5 0Z" transform="translate(542.12 42)" fill="none" pointer-events="visible" ecmeta_series_index="4" ecmeta_data_index="4" ecmeta_ssr_type="legend" class="zr2-cls-30"></path>
+<path d="M0 7L25 7" transform="translate(610.64 42)" fill="#000" stroke="#2a9d8f" stroke-width="2" stroke-linecap="butt" stroke-miterlimit="10" class="zr2-cls-21"></path>
+<path d="M18.1 7A5.6 5.6 0 1 1 18.1 6.4A5.6 5.6 0 0 1 18.1 7" transform="translate(610.64 42)" fill="#2a9d8f" class="zr2-cls-21"></path>
+<text dominant-baseline="central" text-anchor="start" style="font-size:12px;font-family:Microsoft YaHei;" x="30" y="7" transform="translate(610.64 42)" fill="#54555a">300KB</text>
+<path d="M-1 1l67.2 0l0 12l-67.2 0Z" transform="translate(610.64 42)" fill="none" pointer-events="visible" ecmeta_series_index="5" ecmeta_data_index="5" ecmeta_ssr_type="legend" class="zr2-cls-30"></path>
+<path d="M-236.8 -5l473.7 0l0 25l-473.6 0Z" transform="translate(480 15)" fill="rgb(0,0,0)" fill-opacity="0" stroke="#3c3c41" stroke-width="0" class="zr2-cls-21"></path>
+<text dominant-baseline="central" text-anchor="middle" style="font-size:15px;font-family:Microsoft YaHei;font-weight:bold;" xml:space="preserve" y="7.5" transform="translate(480 15)" fill="#3c3c41">聚合 QPS msg/s（对数轴） vs 互联节点数（接收端，无加密无压缩）</text>
+<defs >
+<clipPath id="zr2-c0">
+<path d="M50 80.5l884 0l0 425l-884 0Z" fill="#000" class="zr2-cls-22"></path>
+</clipPath>
+<clipPath id="zr2-c1">
+<path d="M50 80.5l884 0l0 425l-884 0Z" fill="#000" class="zr2-cls-22"></path>
+</clipPath>
+<clipPath id="zr2-c2">
+<path d="M50 80.5l884 0l0 425l-884 0Z" fill="#000" class="zr2-cls-22"></path>
+</clipPath>
+<clipPath id="zr2-c3">
+<path d="M50 80.5l884 0l0 425l-884 0Z" fill="#000" class="zr2-cls-22"></path>
+</clipPath>
+<clipPath id="zr2-c4">
+<path d="M50 80.5l884 0l0 425l-884 0Z" fill="#000" class="zr2-cls-22"></path>
+</clipPath>
+<clipPath id="zr2-c5">
+<path d="M50 80.5l884 0l0 425l-884 0Z" fill="#000" class="zr2-cls-22"></path>
+</clipPath>
+</defs>
+<style ><![CDATA[
+.zr2-cls-21:hover {
+pointer-events:none;
+}
+.zr2-cls-22:hover {
+cursor:pointer;
+fill:rgba(0,0,0,1);
+}
+.zr2-cls-23:hover {
+cursor:pointer;
+}
+.zr2-cls-24:hover {
+cursor:pointer;
+fill:rgba(85,133,183,1);
+}
+.zr2-cls-25:hover {
+cursor:pointer;
+fill:rgba(97,177,86,1);
+}
+.zr2-cls-26:hover {
+cursor:pointer;
+fill:rgba(255,156,47,1);
+}
+.zr2-cls-27:hover {
+cursor:pointer;
+fill:rgba(247,95,97,1);
+}
+.zr2-cls-28:hover {
+cursor:pointer;
+fill:rgba(193,134,177,1);
+}
+.zr2-cls-29:hover {
+cursor:pointer;
+fill:rgba(46,172,157,1);
+}
+.zr2-cls-30:hover {
+cursor:pointer;
+fill:rgba(0,0,0,0);
+}
+
+]]>
+
+</style>
+</svg>

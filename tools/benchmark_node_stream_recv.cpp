@@ -2,14 +2,21 @@
 // Node-level TCP stream benchmark receiver.
 //
 // Listens on an atbus node endpoint and counts data-transform messages sent by
-// benchmark_node_stream_send. Writes per-second samples and final statistics as
+// benchmark_node_stream_send. Writes periodic samples and final statistics as
 // JSON so a runner script can collect QPS, throughput, CPU time and peak RSS.
+// A sample is normally one second; each one also carries the real time it covers
+// ("interval"), because the stat timer can only fire when the event loop gets to
+// run and a busy loop delays it.
 //
 // usage: benchmark_node_stream_recv <listen_addr> <bus_id> [options]
 //   --crypto=<none|aes-128-gcm|aes-192-gcm|aes-256-gcm|chacha20|chacha20-poly1305-ietf>
 //   --compression=<none|lz4|zstd>
 //   --level=<fast|low-cpu|balanced|high-ratio|max-ratio>  (unified compression level, default balanced)
 //   --payload-size=<bytes>                                (expected message size, integrity check only)
+//   --backlog=<n>                                         (listen backlog; must cover the number of clients
+//                                                          that connect at the same time)
+//   --per-conn                                             (count messages per connection, to tell whether the
+//                                                          payload is split across ctrl/data; off by default)
 //   --json=<output file>                                  (default: stdout)
 
 #include <chrono>
@@ -36,7 +43,9 @@ struct run_config {
   std::string compression = "none";
   std::string level = "balanced";
   size_t payload_size = 0;
+  int listen_backlog = 0;  // 0 = libatbus default (ATBUS_MACRO_CONNECTION_BACKLOG)
   std::string json_output;
+  bool per_conn = false;  // --per-conn: count messages per connection (a diagnostic that costs receiver CPU)
   bool verbose = false;
 };
 
@@ -44,8 +53,9 @@ struct sample_t {
   int sec;
   uint64_t msgs_delta;
   uint64_t bytes_delta;
-  double cpu_percent;  // total (user+system) of the whole process in this interval
-  long rss_kb;         // peak RSS of the whole process at sample time
+  double cpu_percent;   // total (user+system) of the whole process, per real second of this sample
+  long rss_kb;          // peak RSS of the whole process at sample time
+  double interval_sec;  // real time covered by this sample
 };
 
 struct stats_t {
@@ -197,26 +207,35 @@ int on_forward_request(const atbus::node&, const atbus::endpoint*, const atbus::
     bench_stat.negotiated_compression = compression_algorithm_name(conn_context.get_compression_select_algorithm());
   }
 
-  // Attribute every message to its connection so a runner can tell whether the
-  // payload is split across the ctrl/data connections.
-  if (nullptr != conn) {
+  // --per-conn: attribute every message to its connection, to tell whether the payload
+  // is split across the ctrl/data connections. Off by default: two map lookups per message
+  // are negligible with two connections, but the connections of a thousand senders do not
+  // stay in cache, and that cost would land on the receiver being measured.
+  if (conf.per_conn && nullptr != conn) {
     ++bench_stat.conn_msg_count[conn];
     bench_stat.conn_bytes_count[conn] += static_cast<uint64_t>(data.size());
   }
 
-  // Light integrity check: the first 8 bytes carry a monotonically increasing sequence
+  // Light integrity check: the first 8 bytes carry a monotonically increasing sequence.
+  // With several senders every connection has its own sequence, so the counters are only
+  // meaningful for a single sender. The per-anomaly print is verbose-only: on the data
+  // path an unbuffered stderr write per message distorts the measurement itself.
   if (data.size() >= sizeof(uint64_t)) {
     uint64_t seq = 0;
     memcpy(&seq, data.data(), sizeof(uint64_t));
     if (bench_stat.has_seq) {
       if (seq <= bench_stat.last_seq) {
         ++bench_stat.errors;  // duplicated or out-of-order message
-        fprintf(stderr, "[anomaly] sample=%zu dup/regress last_seq=%" PRIu64 " seq=%" PRIu64 "\n",
-                bench_stat.samples.size(), bench_stat.last_seq, seq);
+        if (conf.verbose) {
+          fprintf(stderr, "[anomaly] sample=%zu dup/regress last_seq=%" PRIu64 " seq=%" PRIu64 "\n",
+                  bench_stat.samples.size(), bench_stat.last_seq, seq);
+        }
       } else if (seq != bench_stat.last_seq + 1) {
         ++bench_stat.seq_gaps;
-        fprintf(stderr, "[anomaly] sample=%zu gap last_seq=%" PRIu64 " seq=%" PRIu64 "\n", bench_stat.samples.size(),
-                bench_stat.last_seq, seq);
+        if (conf.verbose) {
+          fprintf(stderr, "[anomaly] sample=%zu gap last_seq=%" PRIu64 " seq=%" PRIu64 "\n", bench_stat.samples.size(),
+                  bench_stat.last_seq, seq);
+        }
       }
     }
     bench_stat.last_seq = seq;
@@ -254,29 +273,43 @@ int on_close_connection(const atbus::node&, const atbus::endpoint*, const atbus:
   return 0;
 }
 
+// Start of the interval that the next stat sample covers. It is a function-level
+// static so that it is initialized once, before the timer is started.
+std::chrono::steady_clock::time_point& stat_interval_start() {
+  static std::chrono::steady_clock::time_point value = std::chrono::steady_clock::now();
+  return value;
+}
+
 void on_stat_timer(uv_timer_t* /*handle*/) {
   static uint64_t last_msgs = 0;
   static uint64_t last_bytes = 0;
   static double last_cpu = 0;
-  static int idle_secs = 0;
+  static double idle_sec = 0;
   static int secs = 0;
 
+  // The timer only fires when the event loop gets to run. One poll() that serves many
+  // connections at once can keep the loop busy for seconds, so the sample records the
+  // real time it covers; a plain "per second" sample would show a spike of that length.
+  const std::chrono::steady_clock::time_point now_time = std::chrono::steady_clock::now();
   ++secs;
   double now_cpu = get_cpu_time();
   sample_t s;
   s.sec = secs;
+  s.interval_sec = std::chrono::duration_cast<std::chrono::duration<double>>(now_time - stat_interval_start()).count();
   s.msgs_delta = bench_stat.msgs - last_msgs;
   s.bytes_delta = bench_stat.bytes - last_bytes;
-  s.cpu_percent = (now_cpu - last_cpu) * 100.0;  // interval is 1 second, so cpu seconds == percent of one core
+  s.cpu_percent = s.interval_sec > 0 ? (now_cpu - last_cpu) * 100.0 / s.interval_sec : 0;  // percent of one core
   s.rss_kb = get_peak_rss_kb();
   last_msgs = bench_stat.msgs;
   last_bytes = bench_stat.bytes;
   last_cpu = now_cpu;
+  stat_interval_start() = now_time;
   bench_stat.samples.push_back(s);
 
-  fprintf(stderr, "[sec %3d] recv=%" PRIu64 " msgs, %" PRIu64 " bytes, cpu=%.1f%%, peak_rss=%ldKB\n", s.sec,
-          s.msgs_delta, s.bytes_delta, s.cpu_percent, s.rss_kb);
-  if (!bench_stat.conn_bytes_count.empty()) {
+  fprintf(stderr,
+          "[sec %3d] recv=%" PRIu64 " msgs, %" PRIu64 " bytes, cpu=%.1f%%, peak_rss=%ldKB, interval=%.2fs\n", s.sec,
+          s.msgs_delta, s.bytes_delta, s.cpu_percent, s.rss_kb, s.interval_sec);
+  if (conf.per_conn && !bench_stat.conn_bytes_count.empty()) {
     fprintf(stderr, "         per-conn bytes:");
     for (const auto& kv : bench_stat.conn_bytes_count) {
       fprintf(stderr, " %p=%.1fMB", reinterpret_cast<const void*>(kv.first),
@@ -289,10 +322,10 @@ void on_stat_timer(uv_timer_t* /*handle*/) {
   // lost sender cannot keep the receiver running forever.
   if (bench_stat.msgs > 0) {
     if (s.msgs_delta > 0) {
-      idle_secs = 0;
+      idle_sec = 0;
     } else {
-      ++idle_secs;
-      if (idle_secs >= 10 && !bench_stat.done) {
+      idle_sec += s.interval_sec;
+      if (idle_sec >= 10.0 && !bench_stat.done) {
         bench_stat.done = true;
         if (nullptr != main_loop) {
           uv_stop(main_loop);
@@ -341,9 +374,10 @@ void write_json(double elapsed_sec) {
   for (size_t i = 0; i < bench_stat.samples.size(); ++i) {
     const sample_t& s = bench_stat.samples[i];
     fprintf(out,
-            "    {\"sec\": %d, \"msgs\": %" PRIu64 ", \"bytes\": %" PRIu64
-            ", \"cpu_percent\": %.2f, \"rss_kb\": %ld}%s\n",
-            s.sec, s.msgs_delta, s.bytes_delta, s.cpu_percent, s.rss_kb, i + 1 < bench_stat.samples.size() ? "," : "");
+            "    {\"sec\": %d, \"msgs\": %" PRIu64 ", \"bytes\": %" PRIu64 ", \"cpu_percent\": %.2f, \"rss_kb\": %ld"
+            ", \"interval\": %.3f}%s\n",
+            s.sec, s.msgs_delta, s.bytes_delta, s.cpu_percent, s.rss_kb, s.interval_sec,
+            i + 1 < bench_stat.samples.size() ? "," : "");
   }
   fprintf(out, "  ]\n}\n");
 
@@ -363,7 +397,7 @@ int main(int argc, char* argv[]) {
   if (argc < 3) {
     printf(
         "usage: %s <listen_addr> <bus_id> [--crypto=...] [--compression=...] [--level=...] [--payload-size=N] "
-        "[--json=file]\n",
+        "[--per-conn] [--json=file]\n",
         argv[0]);
     return 0;
   }
@@ -388,10 +422,14 @@ int main(int argc, char* argv[]) {
       conf.payload_size = static_cast<size_t>(strtoul(value.c_str(), nullptr, 10));
     } else if (key == "--json") {
       conf.json_output = value;
+    } else if (key == "--per-conn") {
+      conf.per_conn = true;
     } else if (key == "--verbose") {
       conf.verbose = true;
     } else if (key == "--extra-listen") {
       conf.extra_listen_addrs.push_back(value);
+    } else if (key == "--backlog") {
+      conf.listen_backlog = atoi(value.c_str());
     }
   }
 
@@ -405,6 +443,11 @@ int main(int argc, char* argv[]) {
 
   atbus::node::conf_t node_conf;
   node_conf.ev_loop = &loop;
+  if (conf.listen_backlog > 0) {
+    // The listen backlog must cover the number of clients connecting at the same time;
+    // otherwise the kernel drops their SYNs and they back off exponentially.
+    node_conf.backlog = conf.listen_backlog;
+  }
   setup_crypto(node_conf);
   if (!setup_compression(node_conf)) {
     fprintf(stderr, "invalid compression config: %s / %s\n", conf.compression.c_str(), conf.level.c_str());
@@ -451,6 +494,7 @@ int main(int argc, char* argv[]) {
 
   uv_timer_t stat_timer;
   uv_timer_init(&loop, &stat_timer);
+  stat_interval_start() = std::chrono::steady_clock::now();
   uv_timer_start(&stat_timer, on_stat_timer, 1000, 1000);
 
   bench_stat.start_time = std::chrono::steady_clock::now();

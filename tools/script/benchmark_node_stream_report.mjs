@@ -3,28 +3,34 @@
 //
 // Summarize benchmark_node_stream_matrix results and render charts.
 //
-// usage: node benchmark_node_stream_report.mjs <result_dir> [<result_dir2> ...] --out <report_dir> [--html]
+// usage: node benchmark_node_stream_report.mjs <result_dir|summary.csv>... --out <report_dir>
+//        [--html] [--bundle <echarts.min.js>] [--charts-only] [--label <platform>=<text>]
 //
 // Each <result_dir> contains one sub-directory per combo, named
 //   <crypto>__<compression>-<level>__<size>
 // with recv.json / send.json produced by benchmark_node_stream_send/recv.
-// The directory name is used as the platform label (e.g. wsl / windows).
+// Alternatively, archived summary.<platform>.csv files can be passed directly to
+// regenerate SVG charts without raw JSON runs.
+// The directory name (or <platform> in summary.<platform>.csv) is used as the platform label.
+//
+// QPS, throughput and CPU of a combo are taken over the steady samples of the run: the
+// samples after the warm-up that are neither idle nor partial, see steady().
 //
 // Outputs (into --out):
 //   summary.<platform>.csv       per-combo metrics (receiver-side QPS/throughput, CPU, RSS)
 //   summary.<platform>.md        the same data as a markdown table
-//   charts/*.svg                 static SVG charts rendered by echarts SSR
+//   charts/*.svg                 static SVG charts rendered by echarts SSR (throughput + QPS pairs)
 //   benchmark_charts.html        interactive self-contained charts (when --html and echarts.min.js is bundled)
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
-import { join, resolve, dirname } from 'node:path';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from 'node:fs';
+import { join, resolve, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const argv = process.argv.slice(2);
 const outIndex = argv.indexOf('--out');
 if (argv.length < 2 || outIndex < 0) {
   console.error(
-    'usage: node benchmark_node_stream_report.mjs <result_dir>... --out <report_dir> [--html] [--bundle <echarts.min.js>]'
+    'usage: node benchmark_node_stream_report.mjs <result_dir|summary.csv>... --out <report_dir> [--html] [--bundle <echarts.min.js>] [--charts-only] [--label <platform>=<text>]'
   );
   process.exit(1);
 }
@@ -32,25 +38,90 @@ const outDir = resolve(argv[outIndex + 1]);
 const bundleIndex = argv.indexOf('--bundle');
 const bundleFile = bundleIndex >= 0 ? argv[bundleIndex + 1] : null;
 const wantHtml = argv.includes('--html');
-const resultDirs = [];
+const chartsOnly = argv.includes('--charts-only');
+const customLabels = new Map();
+const resultInputs = [];
 for (let i = 0; i < argv.length; ++i) {
   if (i === outIndex || i === outIndex + 1) continue;
   if (bundleIndex >= 0 && (i === bundleIndex || i === bundleIndex + 1)) continue;
+  if (argv[i] === '--label') {
+    const spec = argv[++i] ?? '';
+    const eq = spec.indexOf('=');
+    if (eq > 0) customLabels.set(spec.slice(0, eq), spec.slice(eq + 1));
+    continue;
+  }
   if (argv[i].startsWith('--')) continue;
-  resultDirs.push(resolve(argv[i]));
+  resultInputs.push(resolve(argv[i]));
 }
-if (resultDirs.length === 0) {
-  console.error('no result directory given');
+if (resultInputs.length === 0) {
+  console.error('no result directory or summary CSV given');
   process.exit(1);
 }
+const labelOf = (platform) => customLabels.get(platform) ?? platform;
 
 // ---------------------------------------------------------------------------
 // Parsing
 
-// Steady-window trimming: drop the first 2 samples (handshake + warmup) and the
-// last 1 sample (drain tail) before averaging.
-const TRIM_HEAD = 2;
-const TRIM_TAIL = 1;
+// Steady-state statistics of a run.
+// A sample covers "interval" seconds (1 s in reports of older builds). Samples that end
+// within the warm-up window are dropped, and so are idle and partial ones (far below the
+// peak rate, e.g. the fraction of a second before the receiver exits). QPS and throughput
+// are the medians over the remaining samples, weighted by sample length; CPU is their
+// weighted mean. A plain mean over a fixed window comes out about 7% low (it contains that
+// partial last sample), and a mean reports a value from neither regime when a 15-second
+// run switches between the two loopback throughput states.
+// benchmark_multinode_report.mjs keeps only the samples that reached 80% of the peak rate:
+// its windows also cover the wait before the senders start, and its runs stayed in one
+// state (the plateau filled nearly the whole window).
+const WARMUP_SEC = 2;
+const MIN_RATE_FRACTION = 0.2;
+
+function weightedMedian(values) {
+  const sorted = [...values].sort((a, b) => a.value - b.value);
+  const total = sorted.reduce((a, v) => a + v.weight, 0);
+  if (total <= 0) return 0;
+  let acc = 0;
+  for (let i = 0; i < sorted.length; i++) {
+    acc += sorted[i].weight;
+    if (2 * acc >= total) {
+      if (2 * acc === total && i + 1 < sorted.length) return (sorted[i].value + sorted[i + 1].value) / 2;
+      return sorted[i].value;
+    }
+  }
+  return sorted[sorted.length - 1].value;
+}
+
+// -> { samples, seconds, qps, bytesPerSec, cpuPercent } of the steady samples, or null
+function steady(samples) {
+  let end = 0;
+  const full = [];
+  for (const s of samples) {
+    const interval = Number(s.interval) > 0 ? Number(s.interval) : 1;
+    end += interval;
+    if (end <= WARMUP_SEC + 0.1 || interval < 0.2) continue;
+    full.push({ rate: (Number(s.msgs) || 0) / interval, bytesPerSec: (Number(s.bytes) || 0) / interval, cpu: Number(s.cpu_percent) || 0, interval });
+  }
+  if (full.length === 0) return null;
+  const peak = Math.max(0, ...full.map((s) => s.rate));
+  const kept = peak > 0 ? full.filter((s) => s.rate >= MIN_RATE_FRACTION * peak) : [];
+  if (kept.length === 0) return null;
+  const seconds = kept.reduce((a, s) => a + s.interval, 0);
+  return {
+    samples: kept,
+    seconds,
+    qps: weightedMedian(kept.map((s) => ({ value: s.rate, weight: s.interval }))),
+    bytesPerSec: weightedMedian(kept.map((s) => ({ value: s.bytesPerSec, weight: s.interval }))),
+    cpuPercent: kept.reduce((a, s) => a + s.cpu * s.interval, 0) / seconds,
+  };
+}
+
+// CPU of the whole run. The sender's per-second samples are unusable when its event loop
+// is blocked for most of the run (large messages on the shm channel).
+function wholeRunCpuPercent(report) {
+  const elapsed = Number(report?.totals?.elapsed_sec) || 0;
+  const cpu = Number(report?.cpu?.total_sec) || 0;
+  return elapsed > 0 ? (cpu / elapsed) * 100 : 0;
+}
 
 const PAYLOAD_SIZES = [200, 1024, 8192, 65536, 307200];
 const CRYPTO_ORDER = ['none', 'aes-128-gcm', 'aes-192-gcm', 'aes-256-gcm', 'chacha20', 'chacha20-poly1305-ietf'];
@@ -58,19 +129,13 @@ const CRYPTO_ORDER = ['none', 'aes-128-gcm', 'aes-192-gcm', 'aes-256-gcm', 'chac
 // note: zstd level "balanced" maps to the zstd default level (3), reported as "zstd default"
 const COMPRESS_SETS = [
   { key: 'none-default', algo: 'none', level: 'default', label: '无压缩' },
-  { key: 'lz4-fast', algo: 'lz4', level: 'fast', label: 'lz4 fast' },
-  { key: 'lz4-default', algo: 'lz4', level: 'default', label: 'lz4 default' },
-  { key: 'zstd-default', algo: 'zstd', level: 'default', label: 'zstd default' },
-  { key: 'zstd-high-ratio', algo: 'zstd', level: 'high-ratio', label: 'zstd high-ratio' },
+  { key: 'lz4-fast', algo: 'lz4', level: 'fast', label: 'lz4@fast' },
+  { key: 'lz4-default', algo: 'lz4', level: 'default', label: 'lz4@default' },
+  { key: 'zstd-default', algo: 'zstd', level: 'default', label: 'zstd@default' },
+  { key: 'zstd-high-ratio', algo: 'zstd', level: 'high-ratio', label: 'zstd@high-ratio' },
 ];
 // combined crypto+compression groups (AEAD-safe cryptos only)
 const COMBINED_CRYPTOS = ['aes-128-gcm', 'aes-256-gcm', 'chacha20-poly1305-ietf'];
-const COMBINED_SETS = [];
-for (const comp of COMPRESS_SETS.filter((c) => c.algo !== 'none')) {
-  for (const crypto of COMBINED_CRYPTOS) {
-    COMBINED_SETS.push({ crypto, compKey: comp.key, label: `${crypto} + ${comp.label}` });
-  }
-}
 
 function readJson(path) {
   try {
@@ -78,11 +143,6 @@ function readJson(path) {
   } catch (e) {
     return null;
   }
-}
-
-function average(list) {
-  if (list.length === 0) return 0;
-  return list.reduce((a, b) => a + b, 0) / list.length;
 }
 
 function parseComboDir(name) {
@@ -105,15 +165,12 @@ function summarizePlatform(dir) {
       console.warn(`[skip] ${platform}/${entry.name}: missing recv.json/send.json`);
       continue;
     }
-    const window = recv.samples.slice(TRIM_HEAD, recv.samples.length - TRIM_TAIL);
-    const sendWindow = send.samples.slice(TRIM_HEAD, send.samples.length - TRIM_TAIL);
-    if (window.length === 0) {
-      console.warn(`[skip] ${platform}/${entry.name}: empty steady window`);
+    const recvSteady = steady(recv.samples ?? []);
+    if (!recvSteady) {
+      console.warn(`[skip] ${platform}/${entry.name}: no steady samples in recv.json`);
       continue;
     }
-    const payloadBytes = window.reduce((a, s) => a + s.bytes, 0);
-    const payloadMsgs = window.reduce((a, s) => a + s.msgs, 0);
-    const wallSec = window.length; // 1-second samples
+    const sendSteady = steady(send.samples ?? []);
     const dashIdx = parsed.compression.indexOf('-');
     const combo = {
       platform,
@@ -122,10 +179,11 @@ function summarizePlatform(dir) {
       level: dashIdx >= 0 ? parsed.compression.slice(dashIdx + 1) : 'default',
       compressionAlgo: dashIdx >= 0 ? parsed.compression.slice(0, dashIdx) : parsed.compression,
       size: parsed.size,
-      qps: payloadMsgs / wallSec,
-      throughputBytesPerSec: payloadBytes / wallSec,
-      recvCpuPercent: average(window.map((s) => s.cpu_percent)),
-      sendCpuPercent: average(sendWindow.map((s) => s.cpu_percent)),
+      qps: recvSteady.qps,
+      throughputBytesPerSec: recvSteady.bytesPerSec,
+      recvCpuPercent: recvSteady.cpuPercent,
+      sendCpuPercent: sendSteady ? sendSteady.cpuPercent : wholeRunCpuPercent(send),
+      steadySec: recvSteady.seconds,
       recvPeakRssKb: Math.max(...recv.samples.map((s) => s.rss_kb)),
       sendPeakRssKb: Math.max(...send.samples.map((s) => s.rss_kb)),
       seqGaps: recv.totals?.seq_gaps ?? 0,
@@ -133,16 +191,62 @@ function summarizePlatform(dir) {
       negotiatedCrypto: recv.negotiated?.crypto ?? 'unknown',
       negotiatedCompression: recv.negotiated?.compression ?? 'unknown',
       compressionRatio: send.compression?.ratio ?? null,
-      // per-second raw samples (for interactive charts)
-      recvQpsSeries: window.map((s) => s.msgs),
-      sendQpsSeries: sendWindow.map((s) => s.msgs),
+      // per-second rates of the steady samples (for interactive charts)
+      recvQpsSeries: recvSteady.samples.map((s) => Math.round(s.rate)),
+      sendQpsSeries: sendSteady ? sendSteady.samples.map((s) => Math.round(s.rate)) : [],
     };
     combos.set(entry.name, combo);
   }
   return { platform, dir, combos: [...combos.values()] };
 }
 
-const platforms = resultDirs.map(summarizePlatform).filter((p) => p.combos.length > 0);
+function summarizeCsv(csvPath) {
+  const base = basename(csvPath);
+  const m = /^summary\.(.+)\.csv$/i.exec(base);
+  const platform = m ? m[1] : base.replace(/\.csv$/i, '');
+  const lines = readFileSync(csvPath, 'utf8').trim().split(/\r?\n/);
+  if (lines.length < 2) return { platform, dir: csvPath, combos: [] };
+  const headers = lines[0].split(',');
+  const combos = lines.slice(1).map((line) => {
+    const parts = line.split(',');
+    const row = {};
+    headers.forEach((h, i) => (row[h] = parts[i] ?? ''));
+    const level = row.level || 'default';
+    const compressionAlgo = row.compression || 'none';
+    return {
+      platform,
+      crypto: row.crypto,
+      compression: `${compressionAlgo}-${level}`,
+      level,
+      compressionAlgo,
+      size: Number(row.payload_size),
+      qps: Number(row.qps),
+      throughputBytesPerSec: Number(row.throughput_Bps),
+      recvCpuPercent: Number(row.recv_cpu_percent),
+      sendCpuPercent: Number(row.send_cpu_percent),
+      steadySec: Number(row.steady_sec),
+      recvPeakRssKb: Number(row.recv_peak_rss_kb),
+      sendPeakRssKb: Number(row.send_peak_rss_kb),
+      seqGaps: Number(row.seq_gaps || 0),
+      errors: Number(row.errors || 0),
+      negotiatedCrypto: row.negotiated_crypto || 'unknown',
+      negotiatedCompression: row.negotiated_compression || 'unknown',
+      compressionRatio: row.compression_ratio === '' ? null : Number(row.compression_ratio),
+      recvQpsSeries: [],
+      sendQpsSeries: [],
+    };
+  });
+  return { platform, dir: csvPath, combos };
+}
+
+function summarizeInput(inputPath) {
+  if (statSync(inputPath).isFile() && inputPath.toLowerCase().endsWith('.csv')) {
+    return summarizeCsv(inputPath);
+  }
+  return summarizePlatform(inputPath);
+}
+
+const platforms = resultInputs.map(summarizeInput).filter((p) => p.combos.length > 0);
 if (platforms.length === 0) {
   console.error('no usable results found');
   process.exit(1);
@@ -174,12 +278,13 @@ function comboOf(platformData, crypto, compressionAlgo, level, size) {
 }
 
 mkdirSync(outDir, { recursive: true });
-const chartsDir = join(outDir, 'charts');
+const chartsDir = chartsOnly ? outDir : join(outDir, 'charts');
 mkdirSync(chartsDir, { recursive: true });
 
+if (!chartsOnly) {
 for (const p of platforms) {
   const csvLines = [
-    'crypto,compression,level,payload_size,qps,throughput_Bps,recv_cpu_percent,send_cpu_percent,recv_peak_rss_kb,send_peak_rss_kb,compression_ratio,seq_gaps,errors,negotiated_crypto,negotiated_compression',
+    'crypto,compression,level,payload_size,qps,throughput_Bps,recv_cpu_percent,send_cpu_percent,recv_peak_rss_kb,send_peak_rss_kb,compression_ratio,seq_gaps,errors,negotiated_crypto,negotiated_compression,steady_sec',
   ];
   const mdLines = [
     `### ${p.platform}`,
@@ -205,6 +310,7 @@ for (const p of platforms) {
         c.errors,
         c.negotiatedCrypto,
         c.negotiatedCompression,
+        c.steadySec.toFixed(1),
       ].join(',')
     );
     mdLines.push(
@@ -222,6 +328,7 @@ for (const p of platforms) {
   }
   writeFileSync(join(outDir, `summary.${p.platform}.csv`), csvLines.join('\n') + '\n');
   writeFileSync(join(outDir, `summary.${p.platform}.md`), mdLines.join('\n') + '\n');
+}
 }
 
 // ---------------------------------------------------------------------------
@@ -244,18 +351,33 @@ try {
 }
 
 const PALETTE = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272'];
-const LINE_PALETTE = [
-  '#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272',
-  '#fc8452', '#9a60b4', '#ea7ccc', '#5ab1ef', '#c6e910', '#d48265',
-];
-const CRYPTO_COLORS = Object.fromEntries(CRYPTO_ORDER.map((name, i) => [name, PALETTE[i % PALETTE.length]]));
+
+// All crypto x compression combinations of one platform share a single figure, throughput
+// and QPS apart. Three cues tell the 22 lines apart:
+//   colour = compression (the lines stratify by compression first)
+//   stroke = crypto family (solid none, dashed AES-GCM, dotted chacha20, dash-dot chacha20-poly1305-ietf)
+//   marker = the single algorithm (the three AES key lengths share one stroke)
 const COMP_COLORS = {
   'none-default': '#5470c6',
   'lz4-fast': '#91cc75',
-  'lz4-default': '#8fd9a8',
-  'zstd-default': '#fac858',
+  'lz4-default': '#3ba272',
+  'zstd-default': '#fc8452',
   'zstd-high-ratio': '#ee6666',
 };
+const CRYPTO_STYLE = {
+  none: { stroke: 'solid', marker: 'circle' },
+  'aes-128-gcm': { stroke: [7, 4], marker: 'triangle' },
+  'aes-192-gcm': { stroke: [7, 4], marker: 'rect' },
+  'aes-256-gcm': { stroke: [7, 4], marker: 'diamond' },
+  chacha20: { stroke: [1.5, 3], marker: 'emptyCircle' },
+  'chacha20-poly1305-ietf': { stroke: [9, 3, 2, 3], marker: 'emptyTriangle' },
+};
+// crypto without compression only exists for the six crypto presets
+const COMBO_ROWS = COMPRESS_SETS.map((comp) => ({
+  comp,
+  cryptos: comp.algo === 'none' ? CRYPTO_ORDER : ['none', ...COMBINED_CRYPTOS],
+}));
+const comboName = (comp, crypto) => `${comp.label} · ${crypto}`;
 
 function baseOption(title) {
   return {
@@ -277,9 +399,9 @@ function lineBaseOption(title, seriesCount) {
   return opt;
 }
 
-function renderSvg(option) {
+function renderSvg(option, height = 540) {
   if (!echarts) return null;
-  const chart = echarts.init(null, null, { renderer: 'svg', ssr: true, width: 960, height: 540 });
+  const chart = echarts.init(null, null, { renderer: 'svg', ssr: true, width: 960, height });
   // animation:false is required for SSR: echarts emits enter-animation keyframes
   // (a clip-path rect expanding from 0 width) into the SVG <style>; GitHub renders
   // SVGs via <img> where animations never play, leaving lines clipped to zero width.
@@ -289,252 +411,272 @@ function renderSvg(option) {
   return svg;
 }
 
-function saveChart(name, option) {
-  const svg = renderSvg(option);
+function saveChart(name, option, height) {
+  const svg = renderSvg(option, height);
   if (!svg) return;
   writeFileSync(join(chartsDir, `${name}.svg`), svg);
   console.log(`chart: charts/${name}.svg`);
 }
 
-function sizeAxis() {
-  return {
-    type: 'category',
-    data: PAYLOAD_SIZES.map((s) => fmtSize(s)),
-    axisLabel: { interval: 0 },
-  };
-}
-
-function valueLogAxis() {
-  return {
-    type: 'log',
-    min: 1,
-    axisLabel: {
-      formatter: (v) => {
-        if (v >= 1e9) return `${v / 1e9}G`;
-        if (v >= 1e6) return `${v / 1e6}M`;
-        if (v >= 1e3) return `${v / 1e3}K`;
-        return `${v}`;
-      },
-    },
-  };
-}
-
-// Chart 1: QPS by payload size, one series per crypto algorithm (compression = none)
-for (const p of platforms) {
-  saveChart(`qps-crypto-${p.platform}`, {
-    ...baseOption(`QPS (msg/s, 对数轴) - 加密算法对比（无压缩） - ${p.platform}`),
-    xAxis: sizeAxis(),
-    yAxis: valueLogAxis(),
-    series: CRYPTO_ORDER.map((crypto) => ({
-      name: crypto,
-      type: 'bar',
-      barGap: '10%',
-      itemStyle: { color: CRYPTO_COLORS[crypto] },
-      data: PAYLOAD_SIZES.map((size) => {
-        const c = comboOf(p, crypto, 'none', null, size);
-        return c ? Math.round(c.qps) : '-';
-      }),
-    })),
-  });
-}
-
-// Chart 2: throughput by payload size, one series per compression (crypto = none)
-for (const p of platforms) {
-  saveChart(`throughput-compression-${p.platform}`, {
-    ...baseOption(`吞吐量 payload MB/s - 压缩算法对比（无加密） - ${p.platform}`),
-    xAxis: sizeAxis(),
-    yAxis: {
-      type: 'value',
-      axisLabel: { formatter: (v) => `${(v / 1024 ** 2).toFixed(0)}` },
-    },
-    series: COMPRESS_SETS.map((comp) => ({
-      name: comp.label,
-      type: 'bar',
-      itemStyle: { color: COMP_COLORS[comp.key] },
-      data: PAYLOAD_SIZES.map((size) => {
-        const c = comboOf(p, 'none', comp.algo, comp.level, size);
-        return c ? Math.round(c.throughputBytesPerSec) : '-';
-      }),
-    })),
-  });
-}
-
-// Chart 3: CPU efficiency (payload MB/s per total CPU percent, crypto dimension, compression none)
-for (const p of platforms) {
-  saveChart(`cpu-efficiency-${p.platform}`, {
-    ...baseOption(`每核效率 payload MB/s / 总CPU% - 加密对比（无压缩） - ${p.platform}`),
-    xAxis: sizeAxis(),
-    yAxis: { type: 'value' },
-    series: CRYPTO_ORDER.map((crypto) => ({
-      name: crypto,
-      type: 'bar',
-      itemStyle: { color: CRYPTO_COLORS[crypto] },
-      data: PAYLOAD_SIZES.map((size) => {
-        const c = comboOf(p, crypto, 'none', null, size);
-        if (!c) return '-';
-        const totalCpu = c.recvCpuPercent + c.sendCpuPercent;
-        return totalCpu > 0 ? Number(((c.throughputBytesPerSec / 1024 ** 2 / totalCpu) * 100).toFixed(2)) : '-';
-      }),
-    })),
-  });
-}
-
-// Chart 4: platform throughput comparison (no crypto, no compression)
-if (platforms.length >= 2) {
-  const [a, b] = platforms;
-  saveChart('wsl-vs-windows', {
-    ...baseOption(`平台吞吐量对比 payload MB/s（无加密无压缩）: ${platforms.map((p) => p.platform).join(' / ')}`),
-    xAxis: sizeAxis(),
-    yAxis: { type: 'value' },
-    series: platforms.map((p, i) => ({
-      name: p.platform,
-      type: 'bar',
-      itemStyle: { color: PALETTE[i] },
-      data: PAYLOAD_SIZES.map((size) => {
-        const c = comboOf(p, 'none', 'none', 'default', size);
-        return c ? Math.round(c.throughputBytesPerSec) : '-';
-      }),
-    })),
-  });
-  // and the crypto QPS ratio
-  saveChart('wsl-vs-windows-qps-ratio', {
-    ...baseOption(`QPS 比值 ${b.platform}=100%（无压缩）: ${a.platform} / ${b.platform}`),
-    xAxis: sizeAxis(),
-    yAxis: { type: 'value' },
-    series: CRYPTO_ORDER.map((crypto, i) => ({
-      name: crypto,
-      type: 'bar',
-      itemStyle: { color: PALETTE[i % PALETTE.length] },
-      data: PAYLOAD_SIZES.map((size) => {
-        const wa = comboOf(a, crypto, 'none', 'default', size);
-        const wb = comboOf(b, crypto, 'none', 'default', size);
-        return wa && wb && wb.qps > 0 ? Number(((wa.qps / wb.qps) * 100).toFixed(1)) : '-';
-      }),
-    })),
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Line charts: per-config performance across payload sizes
-
-function throughputLineSeries(p, combos) {
-  return combos.map((spec, i) => {
-    const color = spec.color ?? LINE_PALETTE[i % LINE_PALETTE.length];
-    return {
-      name: spec.label,
-      type: 'line',
-      symbol: 'circle',
-      symbolSize: 7,
-      lineStyle: { width: 2.5, color },
-      itemStyle: { color },
-      data: PAYLOAD_SIZES.map((size) => {
-        const c = comboOf(p, spec.crypto ?? 'none', spec.algo ?? 'none', spec.level ?? 'default', size);
-        return c ? Number((c.throughputBytesPerSec / 1024 ** 2).toFixed(1)) : '-';
-      }),
-    };
-  });
-}
-
-function qpsLineSeries(p, combos) {
-  return combos.map((spec, i) => {
-    const color = spec.color ?? LINE_PALETTE[i % LINE_PALETTE.length];
-    return {
-      name: spec.label,
-      type: 'line',
-      symbol: 'circle',
-      symbolSize: 7,
-      lineStyle: { width: 2.5, color },
-      itemStyle: { color },
-      data: PAYLOAD_SIZES.map((size) => {
-        const c = comboOf(p, spec.crypto ?? 'none', spec.algo ?? 'none', spec.level ?? 'default', size);
-        return c ? Math.round(c.qps) : '-';
-      }),
-    };
-  });
-}
-
 const SIZE_TICKS = PAYLOAD_SIZES.map((s) => fmtSize(s));
 
-for (const p of platforms) {
-  // Line chart 1: throughput lines, compression presets (crypto = none)
-  saveChart(`line-throughput-compression-${p.platform}`, {
-    ...lineBaseOption(`吞吐量曲线 payload MB/s - 压缩配置对比（无加密） - ${p.platform}`, COMPRESS_SETS.length),
-    xAxis: { type: 'category', data: SIZE_TICKS },
-    yAxis: { type: 'value', name: 'MB/s' },
-    series: throughputLineSeries(
-      p,
-      COMPRESS_SETS.map((c) => ({ label: c.label, algo: c.algo, level: c.level, color: COMP_COLORS[c.key] }))
-    ),
-  });
-
-  // Line chart 2: throughput lines, crypto presets (compression = none)
-  saveChart(`line-throughput-crypto-${p.platform}`, {
-    ...lineBaseOption(`吞吐量曲线 payload MB/s - 加密算法对比（无压缩） - ${p.platform}`, CRYPTO_ORDER.length),
-    xAxis: { type: 'category', data: SIZE_TICKS },
-    yAxis: { type: 'value', name: 'MB/s' },
-    series: throughputLineSeries(
-      p,
-      CRYPTO_ORDER.map((c) => ({ label: c, crypto: c, algo: 'none', level: 'default', color: CRYPTO_COLORS[c] }))
-    ),
-  });
-
-  // Line chart 3: QPS lines, crypto presets (compression = none)
-  saveChart(`line-qps-crypto-${p.platform}`, {
-    ...lineBaseOption(`QPS 曲线 msg/s - 加密算法对比（无压缩） - ${p.platform}`, CRYPTO_ORDER.length),
-    xAxis: { type: 'category', data: SIZE_TICKS },
-    yAxis: { type: 'log', name: 'QPS', min: 1 },
-    series: qpsLineSeries(
-      p,
-      CRYPTO_ORDER.map((c) => ({ label: c, crypto: c, algo: 'none', level: 'default', color: CRYPTO_COLORS[c] }))
-    ),
-  });
-
-  // Line chart 4/5: combined crypto+compression groups, one chart per compression
-  // preset (3 crypto lines + the no-crypto reference; a single 12-line chart's
-  // legend overflows the canvas)
-  for (const comp of COMPRESS_SETS.filter((c) => c.algo !== 'none')) {
-    saveChart(`line-throughput-combined-${comp.key}-${p.platform}`, {
-      ...lineBaseOption(
-        `吞吐量曲线 payload MB/s - ${comp.label} + 加密 - ${p.platform}`,
-        COMBINED_CRYPTOS.length + 1
-      ),
-      xAxis: { type: 'category', data: SIZE_TICKS },
-      yAxis: { type: 'value', name: 'MB/s' },
-      series: throughputLineSeries(p, [
-        { label: '无加密（同压缩）', algo: comp.algo, level: comp.level, color: COMP_COLORS[comp.key] },
-        ...COMBINED_CRYPTOS.map((crypto) => ({
-          label: `+ ${crypto}`,
-          crypto,
-          algo: comp.algo,
-          level: comp.level,
-        })),
-      ]),
-    });
-  }
+function valueLogAxis(name = 'msg/s') {
+  return {
+    type: 'log',
+    name,
+    // the lowest decade that still holds the smallest value
+    min: ({ min }) => Math.pow(10, Math.floor(Math.log10(Math.max(min, 1)))),
+    axisLabel: {
+      formatter: (v) => (v >= 1e9 ? `${v / 1e9}G` : v >= 1e6 ? `${v / 1e6}M` : v >= 1e3 ? `${v / 1e3}K` : `${v}`),
+    },
+  };
 }
 
-// Line chart: cross-platform throughput (none/none) for every platform present
-if (platforms.length >= 2) {
-  saveChart('line-throughput-platforms', {
-    ...lineBaseOption(`吞吐量曲线 payload MB/s - 平台对比（无加密无压缩）`, platforms.length),
-    xAxis: { type: 'category', data: SIZE_TICKS },
-    yAxis: { type: 'value', name: 'MB/s' },
-    series: platforms.map((p, i) => ({
-      name: p.platform,
+function comboSeries(p, pick) {
+  const combos = COMBO_ROWS.flatMap((row) => row.cryptos.map((crypto) => ({ comp: row.comp, crypto })));
+  // the plaintext reference is drawn last, so that it stays visible under the others
+  combos.push(combos.shift());
+  return combos.map(({ comp, crypto }) => {
+    const style = CRYPTO_STYLE[crypto];
+    const color = COMP_COLORS[comp.key];
+    return {
+      name: comboName(comp, crypto),
       type: 'line',
-      symbol: 'circle',
+      symbol: style.marker,
       symbolSize: 8,
-      lineStyle: { width: 3, color: PALETTE[i % PALETTE.length] },
-      itemStyle: { color: PALETTE[i % PALETTE.length] },
+      lineStyle: { width: 2.4, color, type: style.stroke },
+      itemStyle: { color },
       data: PAYLOAD_SIZES.map((size) => {
-        const c = comboOf(p, 'none', 'none', 'default', size);
-        return c ? Number((c.throughputBytesPerSec / 1024 ** 2).toFixed(1)) : '-';
+        const c = comboOf(p, crypto, comp.algo, comp.level, size);
+        return c ? pick(c) : '-';
       }),
-    })),
+    };
   });
 }
 
-// ---------------------------------------------------------------------------
+// The legend is a table: one row per compression (its colour in the row label), one cell per
+// crypto. The line samples are drawn from the series themselves.
+function comboChartHead(title) {
+  const top = 40;
+  const rowHeight = 22;
+  return {
+    ...baseOption(title),
+    legend: COMBO_ROWS.map((row, r) => ({
+      left: 150,
+      top: top + r * rowHeight,
+      itemWidth: 38,
+      itemHeight: 14,
+      itemGap: 18,
+      textStyle: { fontSize: 12, color: '#333' },
+      data: row.cryptos.map((crypto) => comboName(row.comp, crypto)),
+      formatter: (name) => name.slice(name.indexOf(' · ') + 3),
+    })),
+    graphic: COMBO_ROWS.map((row, r) => ({
+      type: 'text',
+      left: 24,
+      top: top + r * rowHeight + 1,
+      style: { text: row.comp.label, fill: COMP_COLORS[row.comp.key], font: 'bold 13px sans-serif' },
+    })),
+    grid: { left: 16, right: 28, top: top + COMBO_ROWS.length * rowHeight + 24, bottom: 14, containLabel: true },
+    xAxis: { type: 'category', data: SIZE_TICKS, axisLabel: { interval: 0 } },
+  };
+}
+
+// Throughput & QPS of every crypto x compression combination against payload size
+// (for primary TCP platforms; _shm and _mimalloc variants are compared in dedicated charts)
+const comboPlatforms = platforms.filter((p) => !p.platform.includes('_'));
+for (const p of comboPlatforms) {
+  saveChart(
+    `line-throughput-combos-${p.platform}`,
+    {
+      ...comboChartHead(`吞吐量曲线 payload MB/s - 全部加密 × 压缩组合 - ${labelOf(p.platform)}`),
+      yAxis: { type: 'value', name: 'MB/s' },
+      series: comboSeries(p, (c) => Number((c.throughputBytesPerSec / 1024 ** 2).toFixed(1))),
+    },
+    640
+  );
+  saveChart(
+    `line-qps-combos-${p.platform}`,
+    {
+      ...comboChartHead(`QPS 曲线 msg/s（对数轴） - 全部加密 × 压缩组合 - ${labelOf(p.platform)}`),
+      yAxis: valueLogAxis(),
+      series: comboSeries(p, (c) => Math.round(c.qps)),
+    },
+    640
+  );
+}
+
+// Line charts: cross-platform TCP baseline (none/none), throughput + QPS.
+// Includes plain TCP platforms plus any `<platform>_mimalloc` allocator variant (dashed)
+// so readers can compare both default allocators and allocator-aligned runs in one view.
+const overviewPlatforms = platforms.filter((p) => !p.platform.endsWith('_shm'));
+if (overviewPlatforms.length >= 2) {
+  const overviewPalette = ['#5470c6', '#3ba272', '#91cc75', '#ee6666', '#73c0de', '#fac858'];
+  const buildOverviewSeries = (pick) =>
+    overviewPlatforms.map((p, i) => {
+      const isVariant = p.platform.includes('_');
+      const color = overviewPalette[i % overviewPalette.length];
+      return {
+        name: labelOf(p.platform),
+        type: 'line',
+        symbol: isVariant ? 'diamond' : 'circle',
+        symbolSize: 8,
+        lineStyle: { width: 3, color, type: isVariant ? 'dashed' : 'solid' },
+        itemStyle: { color },
+        data: PAYLOAD_SIZES.map((size) => {
+          const c = comboOf(p, 'none', 'none', 'default', size);
+          return c ? pick(c) : '-';
+        }),
+      };
+    });
+
+  saveChart('line-throughput-platforms', {
+    ...lineBaseOption('吞吐量曲线 payload MB/s - 跨平台 TCP 基线对比（无加密无压缩）', overviewPlatforms.length),
+    xAxis: { type: 'category', data: SIZE_TICKS },
+    yAxis: { type: 'value', name: 'MB/s' },
+    series: buildOverviewSeries((c) => Number((c.throughputBytesPerSec / 1024 ** 2).toFixed(1))),
+  });
+
+  saveChart('line-qps-platforms', {
+    ...lineBaseOption('QPS 曲线 msg/s（对数轴） - 跨平台 TCP 基线对比（无加密无压缩）', overviewPlatforms.length),
+    xAxis: { type: 'category', data: SIZE_TICKS },
+    yAxis: valueLogAxis(),
+    series: buildOverviewSeries((c) => Math.round(c.qps)),
+  });
+}
+
+// Line charts: allocator comparison (`<platform>` default vs `<platform>_mimalloc`),
+// throughput + QPS across four representative workloads (plain, aes-128-gcm, lz4, zstd).
+const allocatorPairs = platforms
+  .filter((p) => !p.platform.includes('_'))
+  .map((p) => ({ base: p, mimalloc: platforms.find((q) => q.platform === `${p.platform}_mimalloc`) }))
+  .filter((pair) => pair.mimalloc);
+
+const ALLOCATOR_PROFILES = [
+  { crypto: 'none', algo: 'none', level: 'default', label: '无加密无压缩', color: '#5470c6' },
+  { crypto: 'aes-128-gcm', algo: 'none', level: 'default', label: 'aes-128-gcm', color: '#ee6666' },
+  { crypto: 'none', algo: 'lz4', level: 'default', label: 'lz4@default', color: '#3ba272' },
+  { crypto: 'none', algo: 'zstd', level: 'default', label: 'zstd@default', color: '#fc8452' },
+];
+
+for (const { base, mimalloc } of allocatorPairs) {
+  const suffix = allocatorPairs.length === 1 ? '' : `-${base.platform}`;
+  const buildAllocatorChart = (title, yAxis, pick) => {
+    const top = 40;
+    const rowHeight = 24;
+    const rows = [
+      { caption: 'mimalloc（实线）', dashed: false, platform: mimalloc, tag: 'mimalloc' },
+      { caption: 'glibc 默认（虚线）', dashed: true, platform: base, tag: 'glibc' },
+    ];
+    const series = rows.flatMap((row) =>
+      ALLOCATOR_PROFILES.map((prof) => ({
+        name: `${prof.label} · ${row.tag}`,
+        type: 'line',
+        symbol: row.dashed ? 'emptyCircle' : 'circle',
+        symbolSize: 8,
+        lineStyle: { width: 2.8, color: prof.color, type: row.dashed ? [7, 4] : 'solid' },
+        itemStyle: { color: prof.color },
+        data: PAYLOAD_SIZES.map((size) => {
+          const c = comboOf(row.platform, prof.crypto, prof.algo, prof.level, size);
+          return c ? pick(c) : '-';
+        }),
+      }))
+    );
+    return {
+      ...baseOption(title),
+      legend: rows.map((row, r) => ({
+        left: 168,
+        top: top + r * rowHeight,
+        itemWidth: 38,
+        itemHeight: 14,
+        itemGap: 20,
+        textStyle: { fontSize: 12, color: '#333' },
+        data: ALLOCATOR_PROFILES.map((prof) => `${prof.label} · ${row.tag}`),
+        formatter: (name) => name.slice(0, name.indexOf(' · ')),
+      })),
+      graphic: rows.map((row, r) => ({
+        type: 'text',
+        left: 24,
+        top: top + r * rowHeight + 1,
+        style: { text: row.caption, fill: '#333', font: 'bold 13px sans-serif' },
+      })),
+      grid: { left: 16, right: 28, top: top + rows.length * rowHeight + 28, bottom: 14, containLabel: true },
+      xAxis: { type: 'category', data: SIZE_TICKS, axisLabel: { interval: 0 } },
+      yAxis,
+      series,
+    };
+  };
+
+  saveChart(
+    `line-throughput-allocator${suffix}`,
+    buildAllocatorChart(
+      '吞吐量曲线 payload MB/s - 内存分配器对比（WSL2：mimalloc 实线 vs glibc 虚线）',
+      { type: 'value', name: 'MB/s' },
+      (c) => Number((c.throughputBytesPerSec / 1024 ** 2).toFixed(1))
+    ),
+    560
+  );
+  saveChart(
+    `line-qps-allocator${suffix}`,
+    buildAllocatorChart(
+      'QPS 曲线 msg/s（对数轴） - 内存分配器对比（WSL2：mimalloc 实线 vs glibc 虚线）',
+      valueLogAxis(),
+      (c) => Math.round(c.qps)
+    ),
+    560
+  );
+}
+
+// Line charts: the shm channel against the TCP channel of each platform (none/none, shm
+// dashed), throughput + QPS. A platform takes part when both its TCP and `<platform>_shm`
+// datasets are given.
+const shmPairs = platforms
+  .filter((p) => !p.platform.includes('_'))
+  .map((p) => ({ tcp: p, shm: platforms.find((q) => q.platform === `${p.platform}_shm`) }))
+  .filter((pair) => pair.shm);
+
+function channelLine(name, p, color, dashed, pick) {
+  return {
+    name,
+    type: 'line',
+    symbol: dashed ? 'emptyCircle' : 'circle',
+    symbolSize: 8,
+    lineStyle: { width: 3, color, type: dashed ? 'dashed' : 'solid' },
+    itemStyle: { color },
+    data: PAYLOAD_SIZES.map((size) => {
+      const c = comboOf(p, 'none', 'none', 'default', size);
+      return c ? pick(c) : '-';
+    }),
+  };
+}
+
+if (shmPairs.length >= 1) {
+  const shmColors = ['#5470c6', '#3ba272', '#ee6666', '#fac858'];
+  const buildShmSeries = (pick) =>
+    shmPairs.flatMap(({ tcp, shm }, i) => {
+      const color = shmColors[i % shmColors.length];
+      const baseLabel = labelOf(tcp.platform).replace(/\s*\([^)]*\)$/, '');
+      return [
+        channelLine(`${baseLabel} TCP`, tcp, color, false, pick),
+        channelLine(`${baseLabel} shm`, shm, color, true, pick),
+      ];
+    });
+
+  saveChart('line-throughput-shm-platforms', {
+    ...lineBaseOption('吞吐量曲线 payload MB/s - 各平台 TCP 与共享内存（无加密无压缩，shm 为虚线）', shmPairs.length * 2),
+    xAxis: { type: 'category', data: SIZE_TICKS },
+    yAxis: { type: 'value', name: 'MB/s' },
+    series: buildShmSeries((c) => Number((c.throughputBytesPerSec / 1024 ** 2).toFixed(1))),
+  });
+
+  saveChart('line-qps-shm-platforms', {
+    ...lineBaseOption('QPS 曲线 msg/s（对数轴） - 各平台 TCP 与共享内存（无加密无压缩，shm 为虚线）', shmPairs.length * 2),
+    xAxis: { type: 'category', data: SIZE_TICKS },
+    yAxis: valueLogAxis(),
+    series: buildShmSeries((c) => Math.round(c.qps)),
+  });
+}
+
 // Interactive HTML (self-contained)
 
 if (wantHtml) {
