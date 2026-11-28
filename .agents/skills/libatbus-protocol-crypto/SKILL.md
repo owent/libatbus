@@ -153,7 +153,20 @@ Periodic key refresh uses the same handshake flow on an already-connected sessio
 3. The responder selects the first common algorithm in its configured order and returns that algorithm in the register or pong response. Clients use their own offer order when reading a legacy responder's full allowlist.
 4. If no intersection exists, returns `EN_ATBUS_ERR_CRYPTO_HANDSHAKE_NO_AVAILABLE_ALGORITHM`
 
-The default order matches libatbus-go and starts with AES-128-GCM, followed by the other AES suites before the ChaCha20 family. XXTEA requires explicit configuration. Packing a forwarded message rebuilds the crypto and compression header fields for the outbound hop.
+`node::default_conf()` leaves key exchange disabled. When key exchange is
+enabled and the responder keeps the default `crypto_allow_algorithms`, its
+cipher preferences are, from highest to lowest:
+
+1. AES-256-GCM, AES-192-GCM, AES-128-GCM
+2. AES-256-CBC, AES-192-CBC, AES-128-CBC
+3. XChaCha20-Poly1305-IETF, ChaCha20-Poly1305-IETF, ChaCha20
+
+The default list includes only ciphers supported by the local crypto backend.
+XXTEA requires explicit configuration. See the
+[default node configuration](../../../src/atbus_node.cpp).
+
+Packing a forwarded message rebuilds the crypto and compression header fields
+for the outbound hop.
 
 ### Compression Negotiation
 
