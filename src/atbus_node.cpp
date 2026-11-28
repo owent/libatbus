@@ -307,9 +307,9 @@ ATBUS_MACRO_API void node::default_conf(conf_t *conf) {
 #if defined(ATFW_UTIL_MACRO_CRYPTO_CIPHER_ENABLED)
   // Keep the preference order in sync with libatbus-go. XXTEA requires explicit configuration.
   constexpr protocol::ATBUS_CRYPTO_ALGORITHM_TYPE default_algorithms[] = {
-      protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_GCM,
-      protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_GCM,
       protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM,
+      protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_GCM,
+      protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_GCM,
       protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_CBC,
       protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_CBC,
       protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_CBC,
