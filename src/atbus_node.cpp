@@ -305,7 +305,8 @@ ATBUS_MACRO_API void node::default_conf(conf_t *conf) {
       std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::hours{3});  // 默认3小时重新协商一次
   conf->crypto_allow_algorithms.clear();
 #if defined(ATFW_UTIL_MACRO_CRYPTO_CIPHER_ENABLED)
-  // Keep the preference order in sync with libatbus-go. XXTEA requires explicit configuration.
+  // Keep the default allowlist order in sync with libatbus-go's SetDefaultNodeConfigure().
+  // The responder selects the first common cipher in its configured order. XXTEA requires explicit configuration.
   constexpr protocol::ATBUS_CRYPTO_ALGORITHM_TYPE default_algorithms[] = {
       protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM,
       protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_GCM,
