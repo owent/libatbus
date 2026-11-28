@@ -150,8 +150,10 @@ Periodic key refresh uses the same handshake flow on an already-connected sessio
 
 1. Client sends its list of supported algorithms in `crypto_handshake_data.algorithms`
 2. Server intersects with its own `conf_t.crypto_allow_algorithms`
-3. The **first mutually supported** algorithm (in the server's priority order) is selected
+3. The responder selects the first common algorithm in its configured order and returns that algorithm in the register or pong response. Clients use their own offer order when reading a legacy responder's full allowlist.
 4. If no intersection exists, returns `EN_ATBUS_ERR_CRYPTO_HANDSHAKE_NO_AVAILABLE_ALGORITHM`
+
+The default order matches libatbus-go and starts with AES-128-GCM, followed by the other AES suites before the ChaCha20 family. XXTEA requires explicit configuration. Packing a forwarded message rebuilds the crypto and compression header fields for the outbound hop.
 
 ### Compression Negotiation
 
@@ -378,6 +380,7 @@ Each algorithm combination produces:
 - `index.json` — catalog of all test vectors
 
 Other language implementations (Go, etc.) read these files to verify byte-for-byte compatibility.
+Set `ATBUS_TEST_VECTOR_OUTPUT_DIR` to a directory under the build tree when running generator cases with tracked fixtures.
 
 ## Common Pitfalls
 

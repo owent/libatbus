@@ -577,10 +577,8 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::send_register(int32_t msg_id, 
       allowed_algorithms = gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE>{
           n.get_conf().crypto_allow_algorithms.data(), n.get_conf().crypto_allow_algorithms.size()};
     }
-    conn.get_connection_context().handshake_write_self_public_key(
-        *body->mutable_crypto_handshake(),
-        gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE>{n.get_conf().crypto_allow_algorithms.data(),
-                                                               n.get_conf().crypto_allow_algorithms.size()});
+    conn.get_connection_context().handshake_write_self_public_key(*body->mutable_crypto_handshake(),
+                                                                  allowed_algorithms);
   }
 
   generate_access_data(*body->mutable_access_key(), n.get_id(), static_cast<uint64_t>(n.random_engine_.random()),
@@ -1606,13 +1604,10 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE message_handler::on_recv_node_ping(node &n, con
       if (with_handshake) {
         protocol::ATBUS_CRYPTO_ALGORITHM_TYPE selected_algo[1] = {
             conn->get_connection_context().get_crypto_select_algorithm()};
-        gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> allowed_algorithms;
         // 服务端发回协商结果即可
-        allowed_algorithms = gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE>{selected_algo};
         conn->get_connection_context().handshake_write_self_public_key(
             *response_body->mutable_crypto_handshake(),
-            gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE>{n.get_conf().crypto_allow_algorithms.data(),
-                                                                   n.get_conf().crypto_allow_algorithms.size()});
+            gsl::span<const protocol::ATBUS_CRYPTO_ALGORITHM_TYPE>{selected_algo});
       }
       return send_message(n, *conn, response_m);
     }

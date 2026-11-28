@@ -305,17 +305,27 @@ ATBUS_MACRO_API void node::default_conf(conf_t *conf) {
       std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::hours{3});  // 默认3小时重新协商一次
   conf->crypto_allow_algorithms.clear();
 #if defined(ATFW_UTIL_MACRO_CRYPTO_CIPHER_ENABLED)
-  std::unordered_set<protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> algorithm;
-  algorithm.reserve(8);
+  // Keep the preference order in sync with libatbus-go. XXTEA requires explicit configuration.
+  constexpr protocol::ATBUS_CRYPTO_ALGORITHM_TYPE default_algorithms[] = {
+      protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_GCM,
+      protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_GCM,
+      protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM,
+      protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_CBC,
+      protocol::ATBUS_CRYPTO_ALGORITHM_AES_192_CBC,
+      protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_CBC,
+      protocol::ATBUS_CRYPTO_ALGORITHM_XCHACHA20_POLY1305_IETF,
+      protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20_POLY1305_IETF,
+      protocol::ATBUS_CRYPTO_ALGORITHM_CHACHA20,
+  };
+  std::unordered_set<protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> available_algorithms;
   for (const auto &name : ::atfw::util::crypto::cipher::get_all_cipher_names()) {
-    protocol::ATBUS_CRYPTO_ALGORITHM_TYPE algo = parse_crypto_algorithm_name(name);
-    if (algo != protocol::ATBUS_CRYPTO_ALGORITHM_NONE) {
-      algorithm.insert(algo);
-      continue;
+    available_algorithms.insert(parse_crypto_algorithm_name(name));
+  }
+  for (auto algorithm : default_algorithms) {
+    if (available_algorithms.count(algorithm) != 0) {
+      conf->crypto_allow_algorithms.push_back(algorithm);
     }
   }
-  conf->crypto_allow_algorithms.reserve(algorithm.size());
-  conf->crypto_allow_algorithms.assign(algorithm.begin(), algorithm.end());
 #endif
 
   // 压缩算法

@@ -403,6 +403,8 @@ ATBUS_MACRO_API connection_context::buffer_result_t connection_context::pack_mes
   auto &head = m.mutable_head();
   head.set_version(protocol_version);
   head.set_body_size(static_cast<uint64_t>(body_size));
+  head.clear_crypto();
+  head.clear_compression();
 
   // 如果无压缩，无加密。直接计算出目标buffer大小，避免多余的内存分配和数据拷贝
   if (compression_algorithm == protocol::ATBUS_COMPRESSION_ALGORITHM_NONE &&
@@ -608,13 +610,15 @@ ATBUS_MACRO_API ATBUS_ERROR_TYPE connection_context::handshake_read_peer_key(
       }
     }
 
+    // 服务端收到客户端请求时这里优先按服务端的配置选择算法。
+    // 客户端收到服务端数据时，服务端仅会下发被选中的算法，只有一个。
+    // 所以可以统一按这个写法。
     crypto_select_algorithm_ = protocol::ATBUS_CRYPTO_ALGORITHM_NONE;
-    std::unordered_set<protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> supported_set;
-    supported_set.reserve(supported_crypto_algorithms.size());
-    supported_set.insert(supported_crypto_algorithms.begin(), supported_crypto_algorithms.end());
-    for (const auto &peer_alg : peer_pub_key.algorithms()) {
-      if (supported_set.end() != supported_set.find(static_cast<protocol::ATBUS_CRYPTO_ALGORITHM_TYPE>(peer_alg))) {
-        crypto_select_algorithm_ = static_cast<protocol::ATBUS_CRYPTO_ALGORITHM_TYPE>(peer_alg);
+    const auto &peer_algorithms = peer_pub_key.algorithms();
+    for (auto algorithm : supported_crypto_algorithms) {
+      if (algorithm != protocol::ATBUS_CRYPTO_ALGORITHM_NONE &&
+          std::find(peer_algorithms.begin(), peer_algorithms.end(), algorithm) != peer_algorithms.end()) {
+        crypto_select_algorithm_ = algorithm;
         break;
       }
     }

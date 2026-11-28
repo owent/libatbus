@@ -738,9 +738,20 @@ CASE_TEST(atbus_connection_context, handshake_complete_flow) {
   CASE_EXPECT_NE(nullptr, server_ctx.get());
   CASE_EXPECT_NE(nullptr, client_ctx.get());
 
-  std::vector<atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> supported_algorithms = {
-      atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM,
-      atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_GCM,
+  namespace protocol = atframework::atbus::protocol;
+  if (!server_ctx || !client_ctx || !is_cipher_algorithm_available("aes-256-gcm") ||
+      !is_cipher_algorithm_available("aes-128-gcm")) {
+    CASE_MSG_INFO() << "Required cipher or connection context unavailable" << '\n';
+    return;
+  }
+
+  const std::vector<protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> supported_algorithms = {
+      protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM,
+      protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_GCM,
+  };
+  const std::vector<protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> responder_algorithms = {
+      protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_GCM,
+      protocol::ATBUS_CRYPTO_ALGORITHM_AES_256_GCM,
   };
 
   // Step 1: Client generates key pair
@@ -757,13 +768,22 @@ CASE_TEST(atbus_connection_context, handshake_complete_flow) {
   CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
 
   // Step 4: Server reads client's public key and computes shared secret
-  result = server_ctx->handshake_read_peer_key(client_pub_key, supported_algorithms, true);
+  result = server_ctx->handshake_read_peer_key(client_pub_key, responder_algorithms, true);
   CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
+  if (result != EN_ATBUS_ERR_SUCCESS) {
+    return;
+  }
 
-  // Step 5: Server writes its public key
-  atframework::atbus::protocol::crypto_handshake_data server_pub_key;
-  result = server_ctx->handshake_write_self_public_key(server_pub_key, supported_algorithms);
+  CASE_EXPECT_EQ(protocol::ATBUS_CRYPTO_ALGORITHM_AES_128_GCM, server_ctx->get_crypto_select_algorithm());
+  const std::vector<protocol::ATBUS_CRYPTO_ALGORITHM_TYPE> selected_algorithms = {
+      server_ctx->get_crypto_select_algorithm(),
+  };
+  protocol::crypto_handshake_data server_pub_key;
+  result = server_ctx->handshake_write_self_public_key(server_pub_key, selected_algorithms);
   CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, result);
+  if (result != EN_ATBUS_ERR_SUCCESS) {
+    return;
+  }
 
   // Step 6: Client reads server's public key and computes shared secret
   result = client_ctx->handshake_read_peer_key(server_pub_key, supported_algorithms, false);
@@ -774,7 +794,6 @@ CASE_TEST(atbus_connection_context, handshake_complete_flow) {
 
   // Both should now have the same crypto algorithm selected
   CASE_EXPECT_EQ(server_ctx->get_crypto_select_algorithm(), client_ctx->get_crypto_select_algorithm());
-  CASE_EXPECT_NE(atframework::atbus::protocol::ATBUS_CRYPTO_ALGORITHM_NONE, server_ctx->get_crypto_select_algorithm());
 }
 
 // Test handshake_read_peer_key with mismatched sequence
@@ -1032,6 +1051,31 @@ CASE_TEST(atbus_connection_context, pack_unpack_message_with_compression) {
         CASE_EXPECT_EQ(atframework::atbus::protocol::message_body::kDataTransformReq, recv_body->message_type_case());
         CASE_EXPECT_EQ(content, recv_body->data_transform_req().content());
         CASE_EXPECT_EQ(selected_alg, recv_msg.head().compression().type());
+      }
+      if (unpack_result != EN_ATBUS_ERR_SUCCESS) {
+        continue;
+      }
+
+      auto next_hop =
+          atfw::atbus::connection_context::create(atfw::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE, nullptr);
+      CASE_EXPECT_NE(nullptr, next_hop.get());
+      if (!next_hop) {
+        continue;
+      }
+
+      auto repacked =
+          next_hop->pack_message(recv_msg, atfw::atbus::protocol::ATBUS_PROTOCOL_VERSION, random_engine, 1024 * 1024);
+      CASE_EXPECT_TRUE(repacked.is_success());
+      auto* next_frame = repacked.get_success();
+      if (next_frame == nullptr) {
+        continue;
+      }
+      atfw::atbus::message delivered(arena_options);
+      auto delivery_result = next_hop->unpack_message(delivered, {next_frame->data(), next_frame->used()}, 1024 * 1024);
+      CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, delivery_result);
+      if (delivery_result == EN_ATBUS_ERR_SUCCESS && delivered.get_body() != nullptr) {
+        CASE_EXPECT_FALSE(delivered.head().has_compression());
+        CASE_EXPECT_EQ(content, delivered.get_body()->data_transform_req().content());
       }
     }
   }
@@ -1303,6 +1347,31 @@ CASE_TEST(atbus_connection_context, pack_unpack_message_with_encryption) {
       CASE_EXPECT_EQ(1001, recv_body->data_transform_req().from());
       CASE_EXPECT_EQ(1002, recv_body->data_transform_req().to());
       CASE_EXPECT_EQ("Hello, encrypted world!", recv_body->data_transform_req().content());
+    }
+    if (unpack_result != EN_ATBUS_ERR_SUCCESS) {
+      return;
+    }
+
+    auto next_hop =
+        atfw::atbus::connection_context::create(atfw::atbus::protocol::ATBUS_CRYPTO_KEY_EXCHANGE_NONE, nullptr);
+    CASE_EXPECT_NE(nullptr, next_hop.get());
+    if (!next_hop) {
+      return;
+    }
+    auto repacked =
+        next_hop->pack_message(recv_msg, atfw::atbus::protocol::ATBUS_PROTOCOL_VERSION, random_engine, 1024 * 1024);
+    CASE_EXPECT_TRUE(repacked.is_success());
+    auto* next_frame = repacked.get_success();
+    if (next_frame == nullptr) {
+      return;
+    }
+    atfw::atbus::message delivered(arena_options);
+    auto delivery_result = next_hop->unpack_message(delivered, {next_frame->data(), next_frame->used()}, 1024 * 1024);
+    CASE_EXPECT_EQ(EN_ATBUS_ERR_SUCCESS, delivery_result);
+    CASE_EXPECT_NE(nullptr, delivered.get_body());
+    if (delivery_result == EN_ATBUS_ERR_SUCCESS && delivered.get_body() != nullptr) {
+      CASE_EXPECT_FALSE(delivered.head().has_crypto());
+      CASE_EXPECT_EQ("Hello, encrypted world!", delivered.get_body()->data_transform_req().content());
     }
   }
 }
